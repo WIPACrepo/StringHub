@@ -55,19 +55,6 @@ public class StringHubComponent extends DAQComponent
 	public static void main(String[] args) throws Exception
 	{
 		
-		String pathToProps = System.getProperty("icecube.daq.stringhub.logging", "logging.properties");
-		File propFile = new File(pathToProps);
-		if (propFile.exists())
-		{
-			Properties props   = new Properties();
-			props.load(new FileInputStream(propFile));
-			PropertyConfigurator.configure(props);
-		}
-		else
-		{
-			BasicConfigurator.configure();
-		}
-
 		int hubId = 0;
 		try
 		{
@@ -76,6 +63,7 @@ public class StringHubComponent extends DAQComponent
 		catch (Exception ex)
 		{
 			System.err.println("Component Id not set - specify with -Dicecube.daq.stringhub.componentId=X");
+			System.exit(1);
 		}
 		new DAQCompServer( new StringHubComponent(hubId), args );
 	}
