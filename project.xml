@@ -1,0 +1,33 @@
+<project>
+    <name>stringHub-prod</name>
+    <packages default="ic3.daq.bindery">
+        ic3.daq.bindery
+        ic3.daq.domapp
+        ic3.daq.dor
+        ic3.daq.rapcal
+        ic3.daq.sender
+        ic3.daq.util
+        ic3.daq.xmlconfig
+    </packages>
+    <uses>
+        <libs>
+	    daq-common.jar
+	    daq-io.jar
+	    daq-request-filler.jar
+	    daq-test-util.jar
+	    juggler.jar
+	    payload.jar
+	</libs>
+	<tools></tools>
+    </uses>
+    <test>
+        <uses>
+	    <libs></libs>
+	    <tools>
+	        log4j.jar
+		junit4.jar
+		colt.jar
+	    </tools>
+	</uses>
+    </test>
+</project>

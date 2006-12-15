@@ -1,0 +1,9 @@
+icecube.daq.stringhub.componentId=55
+icecube.daq.stringhub.simulation=true
+icecube.daq.stringhub.simulation.config=C:\Documents and Settings\krokodil\My Documents\Synchronized\icecube\daq\simulation\basic-simulation.xml
+
+log4j.rootLogger=DEBUG, files
+log4j.appender.files=org.apache.log4j.FileAppender
+log4j.appender.files.File=dax.log
+log4j.appender.files.layout=org.apache.log4j.PatternLayout
+log4j.appender.files.layout.ConversionPattern=%-4r [%t] %-5p %c %x - %m%n
