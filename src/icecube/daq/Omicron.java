@@ -96,10 +96,21 @@ public class Omicron {
 		
 		bind.start();
 		
+		// All collectors are now started at latest by t0
+		long t0 = System.currentTimeMillis();
+		
+		// wait about 1.5 sec for DOMs to open up
+		logger.info("Sleeping for DOM devfile open");
+		Thread.sleep(1500);
+		
 		// List of objects that need removal
 		ArrayList<DataCollector> reaper = new ArrayList<DataCollector>();
 		
-		// Wait for init
+		// Do not need to wait on init - you can signal immediately that the
+		// DataCollector should be configured
+
+		logger.info("Sending CONFIGURE signal to DataCollectors");
+		
 		for (DataCollector dc : collectors) 
 		{
 			if (!dc.isAlive())
@@ -109,21 +120,7 @@ public class Omicron {
 			}
 			else
 			{
-				for (int itry = 0; itry < 100 && dc.queryDaqRunLevel() == 0; itry++) 
-				{
-					logger.debug("Waiting on DC " + dc.getName() + " to enter run loop.");
-					Thread.sleep(100);
-				}
-				if (dc.queryDaqRunLevel() == 0)
-				{
-					logger.warn("Collector " + dc.getName() + " unresponsive: coup de grace.");
-					dc.interrupt();
-					reaper.add(dc);
-				}
-				else
-				{
-					dc.signalConfigure();
-				}
+				dc.signalConfigure();
 			}
 		}
 		
@@ -142,10 +139,10 @@ public class Omicron {
 			}
 			else
 			{
-				for (int itry = 0; itry < 25 && dc.queryDaqRunLevel() != 2; itry++)
+				while (dc.queryDaqRunLevel() != 2 && System.currentTimeMillis() - t0 < 10000L)
 				{
 					logger.debug("Waiting of DC " + dc.getName() + " to configure.");
-					Thread.sleep(100);
+					Thread.sleep(500);
 				}
 				if (dc.queryDaqRunLevel() != 2)
 				{
@@ -165,7 +162,7 @@ public class Omicron {
 		for (DataCollector dc : collectors) 
 			if (dc.isAlive()) dc.signalStartRun();
 		
-		long t0 = System.currentTimeMillis();
+		t0 = System.currentTimeMillis();
 		
 		while (true) 
 		{

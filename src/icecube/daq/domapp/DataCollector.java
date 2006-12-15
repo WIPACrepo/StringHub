@@ -292,7 +292,7 @@ public class DataCollector extends AbstractDataCollector
 	}
 	
 	public synchronized void signalShutdown() {
-		if (runLevel > 2) {
+		if (queryDaqRunLevel() > 2) {
 			logger.error("Attempt to shutdown collection thread in non-IDLE state.");
 			throw new IllegalStateException();
 		}
@@ -300,11 +300,11 @@ public class DataCollector extends AbstractDataCollector
 	}
 	
 	public synchronized void signalStartRun() {
-		if (runLevel != 2) {
-			logger.error("Attempt to start DOM in wrong state (" + runLevel + ")");
+		if (queryDaqRunLevel() != 2) {
+			logger.error("Attempt to start DOM in wrong state (" + queryDaqRunLevel() + ")");
 			throw new IllegalStateException();
 		}
-		runLevel = 3;
+		setRunLevel(3);
 	}
 
 	/**
@@ -313,19 +313,19 @@ public class DataCollector extends AbstractDataCollector
 	 * any assumptions on the run being stopped. 
 	 */
 	public synchronized void signalStopRun() {
-		if (runLevel != 4) {
+		if (queryDaqRunLevel() != 4) {
 			logger.error("Attempt to stop run in non-RUNNING state.");
 			throw new IllegalStateException();
 		}
-		runLevel = 5;
+		setRunLevel(5);
 	}
 	
 	public synchronized void signalConfigure() {
-		if (runLevel > 2) {
+		if (queryDaqRunLevel() > 2) {
 			logger.error("Attempt to configure DOM in state above CONFIGURED.");
 			throw new IllegalStateException();
 		}
-		runLevel = 1;
+		setRunLevel(1);
 	}
 	
 	public String toString() { return getName(); }
@@ -435,7 +435,6 @@ public class DataCollector extends AbstractDataCollector
 		/*
 		 * Workhorse - the run loop
 		 */
-		runLevel = 0;
 		logger.info("Entering run loop");
 
 		while (!stop_thread) 
