@@ -16,7 +16,6 @@ import icecube.daq.juggler.component.DAQCompServer;
 import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.payload.ByteBufferCache;
-import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.MasterPayloadFactory;
 import icecube.daq.sender.RequestInputEngine;
@@ -29,11 +28,8 @@ import java.io.IOException;
 import java.nio.channels.Pipe;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 
-import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
-import org.apache.log4j.PropertyConfigurator;
 import org.dom4j.DocumentException;
 
 public class StringHubComponent extends DAQComponent
@@ -79,8 +75,6 @@ public class StringHubComponent extends DAQComponent
 		sender         = new Sender(hubId, payloadFactory);
 		isSim          = Boolean.getBoolean("icecube.daq.stringhub.simulation");
 
-		discover();
-		
         final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
         PayloadDestinationOutputEngine hitOut =
             new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "hitOut");
@@ -135,8 +129,11 @@ public class StringHubComponent extends DAQComponent
 	 */
 	public void configuring(String configName) throws DAQCompException 
 	{
+
 		try 
 		{
+			// look for connected, powered, and booted DOMs
+			discover();
 
 			// load in the XML - first get the config directory
 			String pathToConfigs = System.getProperty("icecube.daq.stringhub.configPath");
