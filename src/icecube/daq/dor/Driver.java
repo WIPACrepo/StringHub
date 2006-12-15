@@ -128,9 +128,11 @@ public class Driver implements IDriver {
 	}
 	
 	private String getProcfileText(File file) throws IOException {
-		BufferedReader r = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+		FileInputStream fis = new FileInputStream(file);
+		BufferedReader r = new BufferedReader(new InputStreamReader(fis));
 		String txt = r.readLine();
 		logger.debug(file.getAbsolutePath() + " >> " + txt);
+		fis.close();
 		return txt;
 	}
 	
