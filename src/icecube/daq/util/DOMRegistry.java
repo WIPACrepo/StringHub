@@ -1,14 +1,21 @@
 package icecube.daq.util;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
 
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
+
 
 /**
  * The DOM registry is a utility class for looking up DOM information.
@@ -17,29 +24,51 @@ import org.xml.sax.helpers.DefaultHandler;
  */
 public class DOMRegistry extends DefaultHandler
 {
-	private Throwable failure;
 	private StringBuffer xmlChars;
-	private HashMap<String, InfoTuple> byMbid;
-	private InfoTuple tuple;
+	private boolean isInitialized;
 	private static final DOMRegistry instanceObject = new DOMRegistry();
+	private HashMap<String, DeployedDOM> doms;
+	private DeployedDOM currentDOM;
+	private static final String DEFAULT_DOM_GEOMETRY = "default-dom-geometry.xml";
 	
 	protected DOMRegistry()
 	{
-		failure = null;
-		byMbid = new HashMap<String, InfoTuple>();
-		try
-		{
-			InputStream xmlIn = DOMRegistry.class.getResourceAsStream("dom-registry.xml");
-			SAXParserFactory saxFactory = SAXParserFactory.newInstance();
-			saxFactory.setNamespaceAware(true);
-			SAXParser parser = saxFactory.newSAXParser();
-			parser.parse(xmlIn, this);
-		}
-		catch (Exception exception)
-		{
-			failure = exception;
-		}
+		this.isInitialized = false;
 	}
+	
+	public static DOMRegistry getInstance() throws 
+	ParserConfigurationException, 
+	SAXException, IOException
+	{ 
+		if (!instanceObject.isInitialized)
+		{
+			InputStream is = DOMRegistry.class.getResourceAsStream(DEFAULT_DOM_GEOMETRY);
+			if (is == null) 
+			{
+				// Be a trooper and look to see whether the file is
+				// located in $PDAQWS/config/default-dom-geometry.xml
+				String PDAQWS = System.getenv("PDAQWS");
+				if (PDAQWS != null)
+				{
+					File file = new File(PDAQWS, DEFAULT_DOM_GEOMETRY);
+					is = new FileInputStream(file);
+				}
+				else 
+				{
+					throw new FileNotFoundException(
+							"Unable to locate array configuration " +
+							" file <<default-dom-geometry.xml>>"
+							);
+				}
+			}
+			SAXParserFactory factory = SAXParserFactory.newInstance();
+			factory.setNamespaceAware(true);
+			SAXParser parser = factory.newSAXParser();
+			parser.parse(is, instanceObject);
+			instanceObject.isInitialized = true;
+		}
+		return instanceObject;
+	}	
 	
 	/**
 	 * Lookup DOM Id given mainboard Id
@@ -48,7 +77,7 @@ public class DOMRegistry extends DefaultHandler
 	 */
 	public String getDomId(String mbid)
 	{
-		return byMbid.get(mbid).domid;
+		return doms.get(mbid).domId;
 	}
 	
 	/**
@@ -58,77 +87,70 @@ public class DOMRegistry extends DefaultHandler
 	 */
 	public String getName(String mbid)
 	{
-		return byMbid.get(mbid).name;
+		return doms.get(mbid).name;
 	}
 	
-	public int getString(String mbid)
+	public int getStringMajor(String mbid)
 	{
-		return byMbid.get(mbid).string;
+		return doms.get(mbid).getStringMajor();
 	}
 	
-	public int getPosition(String mbid)
+	public int getStringMinor(String mbid)
 	{
-		return byMbid.get(mbid).position;
+		return doms.get(mbid).getStringMinor();
 	}
 
 	public String getDeploymentLocation(String mbid)
 	{
-		return String.format("%2.2d-%2.2d", getString(mbid), getPosition(mbid));
-	}
-	
-	public DOMRegistry getInstance()
-	{ 
-		if (instanceObject.failure != null) throw new IllegalStateException(failure);
-		return instanceObject;
+		DeployedDOM dom = doms.get(mbid);
+		return String.format("%2.2d-%2.2d", dom.string, dom.location);
 	}
 
+	public ArrayList<DeployedDOM> getDomsOnString(int string)
+	{
+		ArrayList<DeployedDOM> rlist = new ArrayList<DeployedDOM>(60);
+		for (DeployedDOM dom : doms.values()) if (string == dom.string) rlist.add(dom); 
+		return rlist;
+	}
+	
 	@Override
 	public void characters(char[] ch, int start, int length) throws SAXException 
 	{
+		super.characters(ch, start, length);
 		xmlChars.append(ch, start, length);
 	}
 
 	@Override
-	public void endElement(String uri, String localName, String qName) throws SAXException 
+	public void startElement(String uri, String localName, String qName, 
+			Attributes attributes) throws SAXException 
 	{
-		String text = xmlChars.toString().trim();
-		if (localName.equals("mbid"))
-			tuple.mbid = text;
-		else if (localName.equals("domid"))
-			tuple.domid = text;
-		else if (localName.equals("name"))
-			tuple.name = text;
-		else if (localName.equals("string"))
-			tuple.string = Integer.parseInt(text);
-		else if (localName.equals("position"))
-			tuple.position = Integer.parseInt(text);
-		else if (localName.equals("dom"))
-			byMbid.put(tuple.mbid, new InfoTuple(tuple));
+		super.startElement(uri, localName, qName, attributes);
+		xmlChars.setLength(0);
 	}
 
 	@Override
-	public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException 
+	public void endElement(String uri, String localName, String qName) 
+	throws SAXException 
 	{
-		xmlChars.setLength(0);
+		super.endElement(uri, localName, qName);
+		String txt = xmlChars.toString().trim();
+		if (localName.equals("dom"))
+			doms.put(currentDOM.mainboardId, new DeployedDOM(currentDOM));
+		else if (localName.equals("position"))
+			currentDOM.location = Integer.parseInt(txt);
+		else if (localName.equals("mainBoardId"))
+			currentDOM.mainboardId = txt;
+		else if (localName.equals("name"))
+			currentDOM.name = txt;
+		else if (localName.equals("productionId"))
+			currentDOM.domId = txt;
+		else if (localName.equals("xCoordinate"))
+			currentDOM.x = Double.parseDouble(txt);
+		else if (localName.equals("yCoordinate"))
+			currentDOM.y = Double.parseDouble(txt);
+		else if (localName.equals("zCoordinate"))
+			currentDOM.z = Double.parseDouble(txt);
+		else if (localName.equals("number"))
+			currentDOM.string = Integer.parseInt(txt);
 	}
-	
-}
-
-class InfoTuple
-{
-	String mbid;
-	String domid;
-	String name;
-	int string;
-	int position;
-	
-	InfoTuple(InfoTuple copyFrom)
-	{
-		this.mbid = copyFrom.mbid;
-		this.domid = copyFrom.domid;
-		this.name = copyFrom.name;
-		this.string = copyFrom.string;
-		this.position = copyFrom.position;
-	}
-
 }
