@@ -20,14 +20,19 @@ import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.MasterPayloadFactory;
 import icecube.daq.sender.RequestInputEngine;
 import icecube.daq.sender.Sender;
+import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.DeployedDOM;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.Pipe;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.dom4j.DocumentException;
@@ -43,10 +48,13 @@ public class StringHubComponent extends DAQComponent
 	private Sender sender;
 	private ByteBufferCache bufferManager;
 	private MasterPayloadFactory payloadFactory;
+	private DOMRegistry domRegistry;
 	
 	private ArrayList<AbstractDataCollector> collectors;
 	private List<DOMChannelInfo> activeDOMs;
 	private SimConfig simConfig;
+	
+	private String configurationPath;
 	
 	public static void main(String[] args) throws Exception
 	{
@@ -96,6 +104,17 @@ public class StringHubComponent extends DAQComponent
         IPayloadDestinationCollection dataColl = dataOut.getPayloadDestinationCollection();
         sender.setDataOutputDestination(dataColl);
 
+        // get a reference to the DOM registry - useful later
+        domRegistry = DOMRegistry.getInstance();
+	}
+
+	@Override
+	public void setGlobalConfigurationDir(String dirName) 
+	{
+		super.setGlobalConfigurationDir(dirName);
+		configurationPath = dirName;
+		logger.info("Setting the über configuration directory to " + configurationPath);
+		
 	}
 
 	/**
@@ -108,20 +127,22 @@ public class StringHubComponent extends DAQComponent
 	{
 		if (isSim)
 		{
-			String path = System.getProperty("icecube.daq.stringhub.simulation.config");
-			File simXmlFile = new File(path);
-			logger.debug("Reading simulation configuration from " + simXmlFile.getCanonicalPath());
-			FileInputStream simXmlInputStream = new FileInputStream(simXmlFile);
-			simConfig = SimConfig.parseXML(simXmlInputStream);
-			activeDOMs = simConfig.getActiveDOMs();
+			ArrayList<DeployedDOM> attachedDOMs = domRegistry.getDomsOnString(getNumber());
+			activeDOMs = new ArrayList<DOMChannelInfo>(attachedDOMs.size());
+			for (DeployedDOM dom : attachedDOMs)
+			{
+				int card = (dom.getStringMinor()-1) / 8;
+				int pair = ((dom.getStringMinor()-1) % 8) / 2;
+				char aorb = 'A';
+				if (dom.getStringMinor() % 2 == 1) aorb = 'B';
+				activeDOMs.add(new DOMChannelInfo(dom.getMainboardId(), card, pair, aorb));
+			}
 		}
 		else
 		{
 			activeDOMs = driver.discoverActiveDOMs();
+			logger.info("Found " + activeDOMs.size() + " active DOMs.");
 		}
-
-		logger.info("Found " + activeDOMs.size() + " active DOMs.");
-
 	}
 	
 	/**
@@ -130,28 +151,35 @@ public class StringHubComponent extends DAQComponent
 	public void configuring(String configName) throws DAQCompException 
 	{
 
+		String realism;
+		
+		if (isSim)
+			realism = "SIMULATION";
+		else
+			realism = "REAL DOMS";
+		
+		File configFile = new File(configurationPath, configName + ".xml");
+		logger.info("Configuring " + realism 
+				+ " - loading config from " 
+				+ configFile.getAbsolutePath());
+
 		try 
 		{
-			// look for connected, powered, and booted DOMs
 			discover();
-
-			// load in the XML - first get the config directory
-			String pathToConfigs = System.getProperty("icecube.daq.stringhub.configPath");
-			File configPath = new File(pathToConfigs);
-			File configFile = new File(configPath, configName + ".xml");
-			logger.info("Loading configuration from " + configFile.getAbsolutePath());
+			
 			XMLConfig xmlConfig = XMLConfig.parseXMLConfig(new FileInputStream(configFile));
-
+			
+				
 			// Find intersection of discovered / configured channels
 			int nch = 0;
 			for (DOMChannelInfo chanInfo : activeDOMs)
 				if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) nch++;
-
+	
 			logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
 			bind = new StreamBinder(nch, sender);
 
 			collectors = new ArrayList<AbstractDataCollector>(nch);
-			
+				
 			for (DOMChannelInfo chanInfo : activeDOMs)
 			{
 				DOMConfiguration config = xmlConfig.getDOMConfig(chanInfo.mbid);
@@ -188,6 +216,11 @@ public class StringHubComponent extends DAQComponent
 			}
 			
 		}
+		catch (FileNotFoundException fnx)
+		{
+			logger.error("Could not find the configuration file.");
+			throw new DAQCompException(fnx.getMessage());
+		}
 		catch (IOException iox)
 		{
 			iox.printStackTrace();
@@ -201,6 +234,7 @@ public class StringHubComponent extends DAQComponent
 			throw new DAQCompException(e.getMessage());
 		}
 		
+		bind.start();
 		
 	}
 

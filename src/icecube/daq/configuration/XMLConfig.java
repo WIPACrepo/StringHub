@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.Set;
 
 import javax.xml.XMLConstants;
 import javax.xml.parsers.ParserConfigurationException;
@@ -57,6 +58,15 @@ public class XMLConfig extends DefaultHandler
 		definedDOMConfigs = new HashMap<String, DOMConfiguration>();
 		xmlChars = new StringBuffer();
 		
+	}
+	
+	/**
+	 * @return a set of DOM mainboard Ids that contains the full set of
+	 * DOMs covered by this configuration collection
+	 */
+	public Set<String> getConfiguredDomIds()
+	{
+		return definedDOMConfigs.keySet();
 	}
 	
 	public void characters(char[] ch, int start, int length) throws SAXException 
