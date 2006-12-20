@@ -33,7 +33,9 @@ public class DOMRegistry extends DefaultHandler
 	protected DOMRegistry()
 	{
 		xmlChars = new StringBuffer();
-		this.isInitialized = false;
+		isInitialized = false;
+		currentDOM = new DeployedDOM();
+		doms = new HashMap<String, DeployedDOM>();
 	}
 	
 	public static DOMRegistry loadRegistry(String path) throws 
