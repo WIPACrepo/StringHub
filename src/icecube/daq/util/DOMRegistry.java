@@ -39,7 +39,7 @@ public class DOMRegistry extends DefaultHandler
 	ParserConfigurationException, 
 	SAXException, IOException
 	{ 
-		File file = new File(PDAQWS, DEFAULT_DOM_GEOMETRY);
+		File file = new File(path, DEFAULT_DOM_GEOMETRY);
 		FileInputStream is = new FileInputStream(file);
 		SAXParserFactory factory = SAXParserFactory.newInstance();
 		factory.setNamespaceAware(true);
