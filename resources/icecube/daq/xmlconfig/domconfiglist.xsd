@@ -1,83 +1,82 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<xsd:schema xmlns:xsd='http://www.w3.org/2001/XMLSchema'>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
 
-	<xsd:annotation>
-		<xsd:documentation xml:lang='en'>
-			XML schema for IceCube DOM configuration lists
+    <xsd:annotation>
+        <xsd:documentation xml:lang="en"> XML schema for IceCube DOM configuration lists
         </xsd:documentation>
     </xsd:annotation>
-    
-    <xsd:element name='domconfiglist' type='DOMConfigListType'/>
-    
-    <xsd:simpleType name='OnOff'>
-        <xsd:restriction base='xsd:string'>
-            <xsd:enumeration value='on'/>
-            <xsd:enumeration value='off'/>
+
+    <xsd:element name="domconfiglist" type="DOMConfigListType"/>
+
+    <xsd:simpleType name="OnOff">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="on"/>
+            <xsd:enumeration value="off"/>
         </xsd:restriction>
     </xsd:simpleType>
 
-    <xsd:simpleType name='DAC12Type'>
-        <xsd:restriction base='xsd:integer'>
-            <xsd:minInclusive value='0'/>
-            <xsd:maxInclusive value='4095'/>
+    <xsd:simpleType name="DAC12Type">
+        <xsd:restriction base="xsd:integer">
+            <xsd:minInclusive value="0"/>
+            <xsd:maxInclusive value="4095"/>
         </xsd:restriction>
     </xsd:simpleType>
-    
-    <xsd:simpleType name='DAC10Type'>
-        <xsd:restriction base='xsd:integer'>
-            <xsd:minInclusive value='0'/>
-            <xsd:maxInclusive value='1023'/>
+
+    <xsd:simpleType name="DAC10Type">
+        <xsd:restriction base="xsd:integer">
+            <xsd:minInclusive value="0"/>
+            <xsd:maxInclusive value="1023"/>
         </xsd:restriction>
     </xsd:simpleType>
-    
+
     <!-- This defines the element base of a definition type -->
     <xsd:complexType name="definition">
         <xsd:attribute name="name" type="xsd:string"/>
         <xsd:attribute name="base" type="xsd:string"/>
     </xsd:complexType>
-    
-    <xsd:complexType name='EngineeringFormatType'>
+
+    <xsd:complexType name="EngineeringFormatType">
         <xsd:complexContent>
             <xsd:extension base="definition">
                 <xsd:sequence>
-                    <xsd:element name='atwd' minOccurs="0" maxOccurs="4">
+                    <xsd:element name="atwd" minOccurs="0" maxOccurs="4">
                         <xsd:complexType>
-                            <xsd:attribute name='ch' use='required'>
+                            <xsd:attribute name="ch" use="required">
                                 <xsd:simpleType>
-                                    <xsd:restriction base='xsd:integer'>
-                                        <xsd:minInclusive value='0'/>
-                                        <xsd:maxInclusive value='3'/>
+                                    <xsd:restriction base="xsd:integer">
+                                        <xsd:minInclusive value="0"/>
+                                        <xsd:maxInclusive value="3"/>
                                     </xsd:restriction>
                                 </xsd:simpleType>
                             </xsd:attribute>
-                            <xsd:attribute name='samples' use='required'>
+                            <xsd:attribute name="samples" use="required">
                                 <xsd:simpleType>
-                                    <xsd:restriction base='xsd:integer'>
-                                        <xsd:enumeration value='0'/>
-                                        <xsd:enumeration value='16'/>
-                                        <xsd:enumeration value='32'/>
-                                        <xsd:enumeration value='64'/>
-                                        <xsd:enumeration value='128'/>
+                                    <xsd:restriction base="xsd:integer">
+                                        <xsd:enumeration value="0"/>
+                                        <xsd:enumeration value="16"/>
+                                        <xsd:enumeration value="32"/>
+                                        <xsd:enumeration value="64"/>
+                                        <xsd:enumeration value="128"/>
                                     </xsd:restriction>
                                 </xsd:simpleType>
                             </xsd:attribute>
-                            <xsd:attribute name='wordsize' use='optional'>
+                            <xsd:attribute name="wordsize" use="optional">
                                 <xsd:simpleType>
-                                    <xsd:restriction base='xsd:integer'>
-                                        <xsd:enumeration value='1'/>
-                                        <xsd:enumeration value='2'/>
+                                    <xsd:restriction base="xsd:integer">
+                                        <xsd:enumeration value="1"/>
+                                        <xsd:enumeration value="2"/>
                                     </xsd:restriction>
                                 </xsd:simpleType>
                             </xsd:attribute>
                         </xsd:complexType>
                     </xsd:element>
-                    <xsd:element name='fadc' minOccurs="0">
+                    <xsd:element name="fadc" minOccurs="0">
                         <xsd:complexType>
-                            <xsd:attribute name='samples'>
+                            <xsd:attribute name="samples">
                                 <xsd:simpleType>
-                                    <xsd:restriction base='xsd:integer'>
-                                        <xsd:minInclusive value='0'/>
-                                        <xsd:maxInclusive value='255'/>
+                                    <xsd:restriction base="xsd:integer">
+                                        <xsd:minInclusive value="0"/>
+                                        <xsd:maxInclusive value="255"/>
                                     </xsd:restriction>
                                 </xsd:simpleType>
                             </xsd:attribute>
@@ -87,54 +86,55 @@
             </xsd:extension>
         </xsd:complexContent>
     </xsd:complexType>
-    
-    <xsd:complexType name='FormatType'>
+
+    <xsd:complexType name="FormatType">
         <xsd:complexContent>
             <xsd:extension base="definition">
                 <xsd:sequence minOccurs="0">
-                    <xsd:element name='engineeringformat' type='EngineeringFormatType' minOccurs="0"/>
+                    <xsd:element name="engineeringformat" type="EngineeringFormatType" minOccurs="0"
+                    />
                 </xsd:sequence>
-                <xsd:attribute name='compression' type='OnOff'/>
+                <xsd:attribute name="compression" type="OnOff"/>
             </xsd:extension>
         </xsd:complexContent>
     </xsd:complexType>
-    
-    <xsd:simpleType name='LCType'>
-        <xsd:restriction base='xsd:string'>
-            <xsd:enumeration value='HLC'/>
-            <xsd:enumeration value='SLC'/>
-            <xsd:enumeration value='FLABBY'/>
+
+    <xsd:simpleType name="LCType">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="HLC"/>
+            <xsd:enumeration value="SLC"/>
+            <xsd:enumeration value="FLABBY"/>
         </xsd:restriction>
     </xsd:simpleType>
-    
-    <xsd:simpleType name='LCMode'>
-        <xsd:restriction base='xsd:string'>
-            <xsd:enumeration value='off'/>
-            <xsd:enumeration value='up'/>
-            <xsd:enumeration value='down'/>
-            <xsd:enumeration value='up or down'/>
+
+    <xsd:simpleType name="LCMode">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="off"/>
+            <xsd:enumeration value="up"/>
+            <xsd:enumeration value="down"/>
+            <xsd:enumeration value="up or down"/>
         </xsd:restriction>
     </xsd:simpleType>
 
     <xsd:simpleType name="CableDelayList">
         <xsd:list itemType="xsd:short"/>
-    </xsd:simpleType>    
-    
-    <xsd:complexType name='LocalCoincidenceConfigType'>
+    </xsd:simpleType>
+
+    <xsd:complexType name="LocalCoincidenceConfigType">
         <xsd:sequence minOccurs="0">
-            <xsd:element name='type' type='LCType'/>
-            <xsd:element name='mode' type='LCMode'/>
-            <xsd:element name='span'>
+            <xsd:element name="type" type="LCType"/>
+            <xsd:element name="mode" type="LCMode"/>
+            <xsd:element name="span">
                 <xsd:simpleType>
-                    <xsd:restriction base='xsd:integer'>
-                        <xsd:minInclusive value='1'/>
-                        <xsd:maxInclusive value='4'/>
+                    <xsd:restriction base="xsd:integer">
+                        <xsd:minInclusive value="1"/>
+                        <xsd:maxInclusive value="4"/>
                     </xsd:restriction>
                 </xsd:simpleType>
             </xsd:element>
-            <xsd:element name='pretrigger' type='xsd:integer' minOccurs="0"/>
-            <xsd:element name='posttrigger' type='xsd:integer' minOccurs="0"/>
-            <xsd:element name='cablelen' minOccurs="0">
+            <xsd:element name="pretrigger" type="xsd:integer" minOccurs="0"/>
+            <xsd:element name="posttrigger" type="xsd:integer" minOccurs="0"/>
+            <xsd:element name="cablelen" minOccurs="0">
                 <xsd:complexType>
                     <xsd:sequence>
                         <xsd:element name="up" type="CableDelayList"/>
@@ -143,65 +143,65 @@
                 </xsd:complexType>
             </xsd:element>
         </xsd:sequence>
-        <xsd:attribute name='name' type='xsd:string'/>
-        <xsd:attribute name='base' type='xsd:string'/>
+        <xsd:attribute name="name" type="xsd:string"/>
+        <xsd:attribute name="base" type="xsd:string"/>
     </xsd:complexType>
-    
-    <xsd:complexType name='TriggerType'>
+
+    <xsd:complexType name="TriggerType">
         <xsd:sequence minOccurs="0">
             <xsd:element name="spe" type="DAC10Type"/>
             <xsd:element name="mpe" type="DAC10Type"/>
         </xsd:sequence>
-        <xsd:attribute name='mode'>
+        <xsd:attribute name="mode">
             <xsd:simpleType>
-                <xsd:restriction base='xsd:string'>
-                    <xsd:enumeration value='test'/>
-                    <xsd:enumeration value='forced'/>
-                    <xsd:enumeration value='spe'/>
-                    <xsd:enumeration value='fb'/>
-                    <xsd:enumeration value='mpe'/>
+                <xsd:restriction base="xsd:string">
+                    <xsd:enumeration value="test"/>
+                    <xsd:enumeration value="forced"/>
+                    <xsd:enumeration value="spe"/>
+                    <xsd:enumeration value="fb"/>
+                    <xsd:enumeration value="mpe"/>
                 </xsd:restriction>
             </xsd:simpleType>
         </xsd:attribute>
-        <xsd:attribute name='name' type='xsd:string'/>
-        <xsd:attribute name='base' type='xsd:string'/>
+        <xsd:attribute name="name" type="xsd:string"/>
+        <xsd:attribute name="base" type="xsd:string"/>
     </xsd:complexType>
-    
-    <xsd:complexType name='ATWDDACSetting'>
+
+    <xsd:complexType name="ATWDDACSetting">
         <xsd:simpleContent>
-            <xsd:extension base='DAC12Type'>
-                <xsd:attribute name='chip'>
+            <xsd:extension base="DAC12Type">
+                <xsd:attribute name="chip">
                     <xsd:simpleType>
-                        <xsd:restriction base='xsd:string'>
-                            <xsd:enumeration value='A'/>
-                            <xsd:enumeration value='B'/>
+                        <xsd:restriction base="xsd:string">
+                            <xsd:enumeration value="A"/>
+                            <xsd:enumeration value="B"/>
                         </xsd:restriction>
                     </xsd:simpleType>
                 </xsd:attribute>
             </xsd:extension>
         </xsd:simpleContent>
     </xsd:complexType>
-    
-    <xsd:complexType name='ATWDConfigType'>
+
+    <xsd:complexType name="ATWDConfigType">
         <xsd:sequence>
-            <xsd:element name='triggerbias' type='ATWDDACSetting'/>
-            <xsd:element name='ramptop' type='ATWDDACSetting'/>
-            <xsd:element name='ramprate' type='ATWDDACSetting'/>
-            <xsd:element name='analogref' type='DAC12Type'/>
+            <xsd:element name="triggerbias" type="ATWDDACSetting"/>
+            <xsd:element name="ramptop" type="ATWDDACSetting"/>
+            <xsd:element name="ramprate" type="ATWDDACSetting"/>
+            <xsd:element name="analogref" type="DAC12Type"/>
         </xsd:sequence>
-        <xsd:attribute name='name' type='xsd:string'/>
-        <xsd:attribute name='base' type='xsd:string'/>
+        <xsd:attribute name="name" type="xsd:string"/>
+        <xsd:attribute name="base" type="xsd:string"/>
     </xsd:complexType>
-    
-    <xsd:complexType name='PulserConfigType'>
+
+    <xsd:complexType name="PulserConfigType">
         <xsd:sequence>
-            <xsd:element name='rate' type='DAC12Type'/>    
+            <xsd:element name="rate" type="DAC12Type"/>
         </xsd:sequence>
-        <xsd:attribute name='mode'>
+        <xsd:attribute name="mode">
             <xsd:simpleType>
-                <xsd:restriction base='xsd:string'>
-                    <xsd:enumeration value='beacon'/>
-                    <xsd:enumeration value='pulser'/>
+                <xsd:restriction base="xsd:string">
+                    <xsd:enumeration value="beacon"/>
+                    <xsd:enumeration value="pulser"/>
                 </xsd:restriction>
             </xsd:simpleType>
         </xsd:attribute>
@@ -209,46 +209,56 @@
 
     <xsd:complexType name="SupernovaType">
         <xsd:sequence>
-            <xsd:element name='mode'>
+            <xsd:element name="mode">
                 <xsd:simpleType>
-                    <xsd:restriction base='xsd:string'>
-                        <xsd:enumeration value='spe'/>
-                        <xsd:enumeration value='mpe'/>
+                    <xsd:restriction base="xsd:string">
+                        <xsd:enumeration value="spe"/>
+                        <xsd:enumeration value="mpe"/>
                     </xsd:restriction>
                 </xsd:simpleType>
             </xsd:element>
-            <xsd:element name='deadtime' type='xsd:integer'/>
+            <xsd:element name="deadtime" type="xsd:integer"/>
         </xsd:sequence>
     </xsd:complexType>
-    
-    <xsd:complexType name='DOMConfigType'>
+
+    <xsd:complexType name="SimType">
+        <xsd:annotation>
+            <xsd:documentation> Container for DOM simulation information. </xsd:documentation>
+        </xsd:annotation>
         <xsd:sequence>
-            <xsd:element name='trigger' type='TriggerType' minOccurs="0"/>
-            <xsd:element name='format' type='FormatType' minOccurs="0"/>
-            <xsd:element name='localcoincidence' type='LocalCoincidenceConfigType' minOccurs="0"/>
-            <xsd:element name='mux' minOccurs="0">
+            <xsd:element name="noiseRate" type="xsd:double"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="DOMConfigType">
+        <xsd:sequence>
+            <xsd:element name="trigger" type="TriggerType" minOccurs="0"/>
+            <xsd:element name="format" type="FormatType" minOccurs="0"/>
+            <xsd:element name="localcoincidence" type="LocalCoincidenceConfigType" minOccurs="0"/>
+            <xsd:element name="mux" minOccurs="0">
                 <xsd:simpleType>
-                    <xsd:restriction base='xsd:string'>
-                        <xsd:enumeration value='off'/>
-                        <xsd:enumeration value='clk1x'/>
-                        <xsd:enumeration value='clk2x'/>
-                        <xsd:enumeration value='led'/>
-                        <xsd:enumeration value='flasher'/>
-                        <xsd:enumeration value='upperLC'/>
-                        <xsd:enumeration value='lowerLC'/>
-                        <xsd:enumeration value='commadc'/>
-                        <xsd:enumeration value='pulser'/>
+                    <xsd:restriction base="xsd:string">
+                        <xsd:enumeration value="off"/>
+                        <xsd:enumeration value="clk1x"/>
+                        <xsd:enumeration value="clk2x"/>
+                        <xsd:enumeration value="led"/>
+                        <xsd:enumeration value="flasher"/>
+                        <xsd:enumeration value="upperLC"/>
+                        <xsd:enumeration value="lowerLC"/>
+                        <xsd:enumeration value="commadc"/>
+                        <xsd:enumeration value="pulser"/>
                     </xsd:restriction>
                 </xsd:simpleType>
             </xsd:element>
-            <xsd:element name='pulser' type='PulserConfigType' minOccurs="0"/>
-            <xsd:element name='hv' type='DAC12Type' minOccurs="0"/>
-            <xsd:element name='supernova' type='SupernovaType' minOccurs="0"/>
-            <xsd:element name='scalerdeadtime' type='xsd:integer' minOccurs="0"/>
+            <xsd:element name="pulser" type="PulserConfigType" minOccurs="0"/>
+            <xsd:element name="hv" type="DAC12Type" minOccurs="0"/>
+            <xsd:element name="supernova" type="SupernovaType" minOccurs="0"/>
+            <xsd:element name="scalerdeadtime" type="xsd:integer" minOccurs="0"/>
+            <xsd:element name="simulation" type="SimType" minOccurs="0"/>
         </xsd:sequence>
-        <xsd:attribute name='mbid' type='xsd:string'/>
-        <xsd:attribute name='name' type='xsd:string'/>
-        <xsd:attribute name='base' type='xsd:string'/>
+        <xsd:attribute name="mbid" type="xsd:string"/>
+        <xsd:attribute name="name" type="xsd:string"/>
+        <xsd:attribute name="base" type="xsd:string"/>
     </xsd:complexType>
 
     <xsd:complexType name="DOMConfigListType">
@@ -256,10 +266,11 @@
             <xsd:element name="trigger" type="TriggerType" minOccurs="0" maxOccurs="unbounded"/>
             <xsd:element name="atwdset" type="ATWDDACSetting" minOccurs="0"/>
             <xsd:element name="format" type="FormatType" minOccurs="0" maxOccurs="unbounded"/>
-            <xsd:element name="localcoincidence" type="LocalCoincidenceConfigType" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="localcoincidence" type="LocalCoincidenceConfigType" minOccurs="0"
+                maxOccurs="unbounded"/>
             <xsd:element name="domconfig" type="DOMConfigType" minOccurs="1" maxOccurs="unbounded"/>
         </xsd:sequence>
         <xsd:attribute name="name" type="xsd:string"/>
     </xsd:complexType>
-    
+
 </xsd:schema>
