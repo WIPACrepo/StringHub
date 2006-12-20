@@ -40,21 +40,20 @@ public class SimDataCollector extends AbstractDataCollector {
 	
 	private final static Logger logger = Logger.getLogger(SimDataCollector.class);
 	
-	public SimDataCollector(DOMChannelInfo chanInfo, double rate, WritableByteChannel hitsOut)
+	public SimDataCollector(DOMChannelInfo chanInfo, WritableByteChannel hitsOut)
 	{
 		this.mbid = chanInfo.mbid;
 		this.card = chanInfo.card;
 		this.pair = chanInfo.pair;
 		this.dom  = chanInfo.dom;
 		this.numericMBID = Long.parseLong(this.mbid, 16);
-		this.rate = rate;
 		this.hitsOut = hitsOut;
 		runLevel  = 0;
 	}
 	
 	public void setConfig(DOMConfiguration config) 
 	{
-		// this method is intentionally a no-op in simulation
+		this.rate = config.getPulserRate();
 	}
 
 	public void signalConfigure() 

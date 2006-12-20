@@ -34,8 +34,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
+import javax.xml.parsers.ParserConfigurationException;
+
 import org.apache.log4j.Logger;
 import org.dom4j.DocumentException;
+import org.xml.sax.SAXException;
 
 public class StringHubComponent extends DAQComponent
 {
@@ -52,7 +55,6 @@ public class StringHubComponent extends DAQComponent
 	
 	private ArrayList<AbstractDataCollector> collectors;
 	private List<DOMChannelInfo> activeDOMs;
-	private SimConfig simConfig;
 	
 	private String configurationPath;
 	
@@ -104,8 +106,6 @@ public class StringHubComponent extends DAQComponent
         IPayloadDestinationCollection dataColl = dataOut.getPayloadDestinationCollection();
         sender.setDataOutputDestination(dataColl);
 
-        // get a reference to the DOM registry - useful later
-        domRegistry = DOMRegistry.getInstance();
 	}
 
 	@Override
@@ -114,7 +114,19 @@ public class StringHubComponent extends DAQComponent
 		super.setGlobalConfigurationDir(dirName);
 		configurationPath = dirName;
 		logger.info("Setting the über configuration directory to " + configurationPath);
-		
+        // get a reference to the DOM registry - useful later
+        try {
+			domRegistry = DOMRegistry.loadRegistry(configurationPath);
+		} catch (ParserConfigurationException e) {
+			e.printStackTrace();
+			logger.error(e.getMessage());
+		} catch (SAXException e) {
+			e.printStackTrace();
+			logger.error(e.getMessage());
+		} catch (IOException e) {
+			e.printStackTrace();
+			logger.error(e.getMessage());
+		}
 	}
 
 	/**
@@ -190,15 +202,11 @@ public class StringHubComponent extends DAQComponent
 				Pipe pipe = Pipe.open();
 				if (isSim)
 				{
-					dc = new SimDataCollector(chanInfo, simConfig.getNoiseRate(chanInfo.mbid), pipe.sink());
+					dc = new SimDataCollector(chanInfo, pipe.sink());
 				}
 				else
 				{
-					FileOutputStream fOutMoni = new FileOutputStream(chanInfo.mbid + ".moni");
-					dc = new DataCollector(
-							chanInfo.card, chanInfo.pair, chanInfo.dom, 
-							pipe.sink(), fOutMoni.getChannel(), null, null
-							);
+					dc = new DataCollector(chanInfo, pipe.sink());
 				}
 				bind.register(pipe.source(), cwd);
 				dc.setConfig(config);

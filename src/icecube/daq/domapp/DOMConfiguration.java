@@ -25,6 +25,7 @@ public class DOMConfiguration implements Serializable
 	private int supernovaDeadtime = 51200;
 	private int scalerDeadtime = 51200;
 	private boolean pedestalSubtract = false;
+	private double simNoiseRate = 25.0;
 	
 	/**
 	 * Turn on delta compression in the DOM.  Calling this function
@@ -232,6 +233,22 @@ public class DOMConfiguration implements Serializable
 	public boolean getPedestalSubtraction()
 	{
 		return pedestalSubtract;
+	}
+
+	/**
+	 * @return the simNoiseRate
+	 */
+	public double getSimNoiseRate() 
+	{
+		return simNoiseRate;
+	}
+
+	/**
+	 * @param simNoiseRate the simNoiseRate to set
+	 */
+	public void setSimNoiseRate(double simNoiseRate) 
+	{
+		this.simNoiseRate = simNoiseRate;
 	}
 }
 

@@ -26,7 +26,6 @@ public class DOMRegistry extends DefaultHandler
 {
 	private StringBuffer xmlChars;
 	private boolean isInitialized;
-	private static final DOMRegistry instanceObject = new DOMRegistry();
 	private HashMap<String, DeployedDOM> doms;
 	private DeployedDOM currentDOM;
 	private static final String DEFAULT_DOM_GEOMETRY = "default-dom-geometry.xml";
@@ -36,38 +35,19 @@ public class DOMRegistry extends DefaultHandler
 		this.isInitialized = false;
 	}
 	
-	public static DOMRegistry getInstance() throws 
+	public static DOMRegistry loadRegistry(String path) throws 
 	ParserConfigurationException, 
 	SAXException, IOException
 	{ 
-		if (!instanceObject.isInitialized)
-		{
-			InputStream is = DOMRegistry.class.getResourceAsStream(DEFAULT_DOM_GEOMETRY);
-			if (is == null) 
-			{
-				// Be a trooper and look to see whether the file is
-				// located in $PDAQWS/config/default-dom-geometry.xml
-				String PDAQWS = System.getenv("PDAQWS");
-				if (PDAQWS != null)
-				{
-					File file = new File(PDAQWS, DEFAULT_DOM_GEOMETRY);
-					is = new FileInputStream(file);
-				}
-				else 
-				{
-					throw new FileNotFoundException(
-							"Unable to locate array configuration " +
-							" file <<default-dom-geometry.xml>>"
-							);
-				}
-			}
-			SAXParserFactory factory = SAXParserFactory.newInstance();
-			factory.setNamespaceAware(true);
-			SAXParser parser = factory.newSAXParser();
-			parser.parse(is, instanceObject);
-			instanceObject.isInitialized = true;
-		}
-		return instanceObject;
+		File file = new File(PDAQWS, DEFAULT_DOM_GEOMETRY);
+		FileInputStream is = new FileInputStream(file);
+		SAXParserFactory factory = SAXParserFactory.newInstance();
+		factory.setNamespaceAware(true);
+		SAXParser parser = factory.newSAXParser();
+		DOMRegistry reg = new DOMRegistry();
+		parser.parse(is, reg);
+		reg.isInitialized = true;
+		return reg;
 	}	
 	
 	/**

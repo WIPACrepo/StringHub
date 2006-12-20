@@ -219,6 +219,10 @@ public class XMLConfig extends DefaultHandler
 					spe = false;
 				currentConfig.setSupernovaSpe(spe);
 			}
+			else if (localName.equals("noiseRate"))
+			{
+				currentConfig.setSimNoiseRate(Double.parseDouble(text));
+			}
 		}
 		else if (internalState == ParserState.DOM_CONFIG)
 		{
