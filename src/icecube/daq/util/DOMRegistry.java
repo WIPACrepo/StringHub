@@ -32,6 +32,7 @@ public class DOMRegistry extends DefaultHandler
 	
 	protected DOMRegistry()
 	{
+		xmlChars = new StringBuffer();
 		this.isInitialized = false;
 	}
 	
