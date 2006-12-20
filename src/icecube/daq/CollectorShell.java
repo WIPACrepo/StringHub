@@ -129,9 +129,8 @@ public class CollectorShell
 		String mbid = "0123456789ab";
 		
 		csh.collector = new SimDataCollector(
-				new DOMChannelInfo(mbid, card, pair, dom), 
-				(double) csh.config.getPulserRate(), 
-				ch);
+				new DOMChannelInfo(mbid, card, pair, dom), ch
+				);
 		csh.collector.setConfig(csh.config);
 		csh.collector.start();
 		
