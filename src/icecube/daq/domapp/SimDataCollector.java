@@ -180,7 +180,7 @@ public class SimDataCollector extends AbstractDataCollector {
 					lastGenHit = currTime;
 					for (int i = 0; i < n; i++)
 					{
-						final int recl = 80;
+						final int recl = 32;
 						ByteBuffer buf = ByteBuffer.allocate(recl);
 						buf.putInt(recl);
 						buf.putInt(2);
