@@ -250,15 +250,17 @@ public class StringHubComponent extends DAQComponent
 				dc.start();
 				logger.debug("DataCollector thread on (" + cwd + ") started.");				
 			}
+
+			Thread.sleep(500);
 			
 			// Still need to get the data collectors to pick up and do something with the config
 			for (AbstractDataCollector dc : collectors) 
 			{
-				while (dc.queryDaqRunLevel() == 0) Thread.sleep(100);
 				dc.signalConfigure();
 			}
 			
 		}
+		
 		catch (FileNotFoundException fnx)
 		{
 			logger.error("Could not find the configuration file.");
