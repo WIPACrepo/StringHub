@@ -32,10 +32,12 @@ import java.nio.channels.Pipe;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
@@ -63,6 +65,8 @@ public class StringHubComponent extends DAQComponent
 	public static void main(String[] args) throws Exception
 	{
 		
+		BasicConfigurator.configure();
+		
 		int hubId = 0;
 		try
 		{
@@ -73,7 +77,23 @@ public class StringHubComponent extends DAQComponent
 			System.err.println("Component Id not set - specify with -Dicecube.daq.stringhub.componentId=X");
 			System.exit(1);
 		}
+
 		new DAQCompServer( new StringHubComponent(hubId), args );
+		
+        //TODO: just for testing. Remove this later
+        //Properties properties = new Properties(System.getProperties());
+        //properties.setProperty("icecube.daq.stringhub.componentId", "1001");
+        //properties.setProperty("icecube.daq.stringhub.simulation", "true");
+        //properties.setProperty("icecube.daq.stringhub.simulation.config", "./config/stringHubSimConfig.xml");
+
+        //properties.setProperty("icecube.daq.stringhub.configPath", "./config");
+
+        //System.setProperties(properties);
+
+        //StringHubComponent shComp = new StringHubComponent(Integer.getInteger("icecube.daq.stringhub.componentId"));
+        //shComp.setGlobalConfigurationDir("./config");
+        //shComp.configuring("hub1001sim");
+        
 	}
 	
 	public StringHubComponent(int hubId) throws Exception
@@ -87,6 +107,8 @@ public class StringHubComponent extends DAQComponent
 		sender         = new Sender(hubId, payloadFactory);
 		isSim          = Boolean.getBoolean("icecube.daq.stringhub.simulation");
 
+		logger.info("starting up StringHub component " + hubId);
+		
         final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
         PayloadDestinationOutputEngine hitOut =
             new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "hitOut");
