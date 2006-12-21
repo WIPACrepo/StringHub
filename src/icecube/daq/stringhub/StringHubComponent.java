@@ -37,7 +37,9 @@ import java.util.Set;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.log4j.Logger;
+import org.dom4j.Document;
 import org.dom4j.DocumentException;
+import org.dom4j.io.SAXReader;
 import org.xml.sax.SAXException;
 
 public class StringHubComponent extends DAQComponent
@@ -170,18 +172,28 @@ public class StringHubComponent extends DAQComponent
 		else
 			realism = "REAL DOMS";
 		
-		File configFile = new File(configurationPath, configName + ".xml");
-		logger.info("Configuring " + realism 
-				+ " - loading config from " 
-				+ configFile.getAbsolutePath());
+
 
 		try 
 		{
+			// Lookup the connected DOMs
 			discover();
 			
-			XMLConfig xmlConfig = XMLConfig.parseXMLConfig(new FileInputStream(configFile));
+			// Parse out tags from 'master configuration' file
+			File masterConfigFile = new File(configurationPath, configName + ".xml");
+			FileInputStream fis = new FileInputStream(masterConfigFile);
 			
-				
+			SAXReader r = new SAXReader();
+			Document doc = r.read(fis);
+			
+			String domConfigTag = doc.selectSingleNode("runConfig/domConfigList").getText();
+			
+			File configFile = new File(configurationPath, domConfigTag + ".xml");
+			logger.info("Configuring " + realism 
+					+ " - loading config from " 
+					+ configFile.getAbsolutePath());			
+			XMLConfig xmlConfig = XMLConfig.parseXMLConfig(new FileInputStream(configFile));
+
 			// Find intersection of discovered / configured channels
 			int nch = 0;
 			for (DOMChannelInfo chanInfo : activeDOMs)
