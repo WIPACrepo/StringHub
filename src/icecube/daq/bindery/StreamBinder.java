@@ -95,11 +95,15 @@ public class StreamBinder extends Thread implements Counter {
 						if (currentUT.compareTo(lastUT) < 0)
 							logger.warn("Out-of-order record detected");
 						// A single end-of-stream is sufficient to shut down this binder.
+						logger.debug("Sending buffer to sender UTC = " + currentUT.toString());
 						if (rec.getBuffer().getInt(0) == 32 
 								&& rec.getBuffer().getLong(8) == 0L 
 								&& rec.getBuffer().getLong(24) == Long.MAX_VALUE) running = false;
 						while (rec.getBuffer().remaining() > 0) 
+						{
 							out.consume(rec.getBuffer());
+						}
+							
 						terminal.pop();
 					}
 				}
