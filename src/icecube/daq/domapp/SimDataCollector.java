@@ -136,7 +136,7 @@ public class SimDataCollector extends AbstractDataCollector {
 		long t0 = startOfYear.getTimeInMillis();
 		
 		// Give a random 'head-start' clock offset
-		clock = rand.nextLong() >> 40;
+		clock = rand.nextLong() & 0xffffffff;
 		logger.info("Simulated DOM at " + card + "" + pair + "" + dom + " started at dom clock " + clock);
 
 		long lastGenHit = 0L;
