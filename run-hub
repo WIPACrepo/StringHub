@@ -2,7 +2,7 @@
 
 TOPDIR=`cd .. && pwd`
 
-CLASSPATH=$TOPDIR/lib/juggler.jar:$TOPDIR/lib/juggler-test.jar:$TOPDIR/tools/lib/commons-logging.jar:$TOPDIR/tools/lib/junit.jar:$TOPDIR/tools/lib/log4j.jar:$TOPDIR/tools/lib/xmlrpc-common.jar:$TOPDIR/tools/lib/xmlrpc-client.jar:$TOPDIR/tools/lib/ws-commons-util.jar:$TOPDIR/tools/lib/concurrent.jar:$TOPDIR/lib/eventBuilder-prod.jar:$TOPDIR/lib/new-dispatch.jar:$TOPDIR/lib/daq-common.jar:$TOPDIR/lib/icebucket.jar:$TOPDIR/lib/splicer.jar:$TOPDIR/lib/daq-request-filler.jar:$TOPDIR/lib/stringHub-prod.jar
+CLASSPATH=$TOPDIR/lib/juggler.jar:$TOPDIR/lib/juggler-test.jar:$TOPDIR/tools/lib/commons-logging.jar:$TOPDIR/tools/lib/junit.jar:$TOPDIR/tools/lib/log4j.jar:$TOPDIR/tools/lib/xmlrpc-common.jar:$TOPDIR/tools/lib/xmlrpc-client.jar:$TOPDIR/tools/lib/ws-commons-util.jar:$TOPDIR/tools/lib/concurrent.jar:$TOPDIR/lib/eventBuilder-prod.jar:$TOPDIR/lib/new-dispatch.jar:$TOPDIR/lib/daq-common.jar:$TOPDIR/lib/icebucket.jar:$TOPDIR/lib/splicer.jar:$TOPDIR/lib/daq-request-filler.jar:$TOPDIR/lib/stringHub-prod.jar:$TOPDIR/tools/lib/colt.jar
 export CLASSPATH
 
 java -Dicecube.daq.stringhub.simulation=true \
