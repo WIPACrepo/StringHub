@@ -61,6 +61,7 @@ public class StringHubComponent extends DAQComponent
 	private List<DOMChannelInfo> activeDOMs;
 	
 	private String configurationPath;
+	private String configured = "NO";
 	
 	public static void main(String[] args) throws Exception
 	{
@@ -193,9 +194,9 @@ public class StringHubComponent extends DAQComponent
 			realism = "SIMULATION";
 		else
 			realism = "REAL DOMS";
+
+		configured = "YES";
 		
-
-
 		try 
 		{
 			// Lookup the connected DOMs
@@ -285,6 +286,8 @@ public class StringHubComponent extends DAQComponent
 	 */
 	public void starting() throws DAQCompException
 	{
+		logger.info("Have I been configured? " + configured);
+		
 		try
 		{
 			for (AbstractDataCollector dc : collectors) 
