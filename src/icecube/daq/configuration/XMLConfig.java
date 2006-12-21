@@ -294,11 +294,11 @@ public class XMLConfig extends DefaultHandler
 		final String schemaPath = "domconfig.xsd";
 		SAXParserFactory saxFactory = SAXParserFactory.newInstance();
 		SchemaFactory schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
-		ClassLoader cl = Thread.currentThread().getContextClassLoader();
-		InputStream schemaStream = XMLConfig.class.getResourceAsStream(schemaPath);
-		if (schemaStream == null) throw new FileNotFoundException(schemaPath);
-		Schema schema = schemaFactory.newSchema(new StreamSource(schemaStream));
-		saxFactory.setSchema(schema);
+		// ClassLoader cl = Thread.currentThread().getContextClassLoader();
+		// InputStream schemaStream = XMLConfig.class.getResourceAsStream(schemaPath);
+		// if (schemaStream == null) throw new FileNotFoundException(schemaPath);
+		// Schema schema = schemaFactory.newSchema(new StreamSource(schemaStream));
+		// saxFactory.setSchema(schema);
 		saxFactory.setNamespaceAware(true);
 		SAXParser parser = saxFactory.newSAXParser();
 		XMLConfig xmlConfig = new XMLConfig();
