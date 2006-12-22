@@ -101,9 +101,13 @@ public class StreamBinder extends Thread implements Counter {
 								&& rec.getBuffer().getLong(24) == Long.MAX_VALUE) running = false;
 						while (rec.getBuffer().remaining() > 0) 
 						{
-							out.consume(rec.getBuffer());
+							ByteBuffer buf = rec.getBuffer();
+							logger.debug("Writing output ByteBuffer to sender: pos = " + 
+									buf.position() + ", limit = " + buf.limit());
+							out.consume(buf);
+							logger.debug("Wrote output ByteBuffer to sender:   pos = " + 
+									buf.position() + ", limit = " + buf.limit()); 
 						}
-							
 						terminal.pop();
 					}
 				}

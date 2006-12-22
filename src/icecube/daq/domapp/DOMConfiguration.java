@@ -25,6 +25,7 @@ public class DOMConfiguration implements Serializable
 	private int supernovaDeadtime = 51200;
 	private int scalerDeadtime = 51200;
 	private boolean pedestalSubtract = false;
+	private boolean simulation = false;
 	private double simNoiseRate = 25.0;
 	
 	/**
@@ -248,7 +249,17 @@ public class DOMConfiguration implements Serializable
 	 */
 	public void setSimNoiseRate(double simNoiseRate) 
 	{
+		this.simulation   = true;
 		this.simNoiseRate = simNoiseRate;
+	}
+	
+	/**
+	 * Returns true if this is a simulated DOM or false if it is real.
+	 * @return true if simDOM, false if not
+	 */
+	public boolean isSimulation()
+	{
+		return simulation;
 	}
 }
 
