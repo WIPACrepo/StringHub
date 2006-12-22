@@ -63,39 +63,6 @@ public class StringHubComponent extends DAQComponent
 	private String configurationPath;
 	private String configured = "NO";
 	
-	public static void main(String[] args) throws Exception
-	{
-		
-		BasicConfigurator.configure();
-		
-		int hubId = 0;
-		try
-		{
-			hubId = Integer.getInteger("icecube.daq.stringhub.componentId");
-		}
-		catch (Exception ex)
-		{
-			System.err.println("Component Id not set - specify with -Dicecube.daq.stringhub.componentId=X");
-			System.exit(1);
-		}
-
-		new DAQCompServer( new StringHubComponent(hubId), args );
-		
-        //TODO: just for testing. Remove this later
-        //Properties properties = new Properties(System.getProperties());
-        //properties.setProperty("icecube.daq.stringhub.componentId", "1001");
-        //properties.setProperty("icecube.daq.stringhub.simulation", "true");
-        //properties.setProperty("icecube.daq.stringhub.simulation.config", "./config/stringHubSimConfig.xml");
-
-        //properties.setProperty("icecube.daq.stringhub.configPath", "./config");
-
-        //System.setProperties(properties);
-
-        //StringHubComponent shComp = new StringHubComponent(Integer.getInteger("icecube.daq.stringhub.componentId"));
-        //shComp.setGlobalConfigurationDir("./config");
-        //shComp.configuring("hub1001sim");
-        
-	}
 	
 	public StringHubComponent(int hubId) throws Exception
 	{
@@ -138,7 +105,7 @@ public class StringHubComponent extends DAQComponent
 	{
 		super.setGlobalConfigurationDir(dirName);
 		configurationPath = dirName;
-		logger.info("Setting the über configuration directory to " + configurationPath);
+		logger.info("Setting the ueber configuration directory to " + configurationPath);
         // get a reference to the DOM registry - useful later
         try {
 			domRegistry = DOMRegistry.loadRegistry(configurationPath);
