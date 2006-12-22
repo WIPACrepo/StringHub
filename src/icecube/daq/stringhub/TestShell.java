@@ -33,10 +33,10 @@ public class TestShell
 		int iarg = 0;
 		
 		comp.setGlobalConfigurationDir(args[iarg++]);
-        comp.configure(args[iarg++]);
-        comp.startRun(1440);
+        comp.configuring(args[iarg++]);
+        comp.starting();
         Thread.sleep(5000);
-        comp.stopRun();
+        comp.stopping();
         
 	}
 
