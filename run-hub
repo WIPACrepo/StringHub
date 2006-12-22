@@ -6,7 +6,6 @@ CLASSPATH=$TOPDIR/lib/juggler.jar:$TOPDIR/lib/juggler-test.jar:$TOPDIR/tools/lib
 export CLASSPATH
 
 java -Dicecube.daq.stringhub.simulation=true \
-     -Dicecube.daq.stringhub.simulation.config=$TOPDIR/config/stringHubSimConfig.xml \
      -Dicecube.daq.stringhub.componentId=$1 \
-     icecube.daq.stringhub/StringHubComponent $2 $3 $4 $5 $6 $7 $8 $9
+     icecube.daq.stringhub.Shell $2 $3 $4 $5 $6 $7 $8 $9
      
