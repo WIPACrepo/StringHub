@@ -1,6 +1,11 @@
 <?xml version="1.0"?>
 
 <!DOCTYPE project [
+    <!ENTITY PROJECT_SRC_DIR "./src/main/java">
+    <!ENTITY PROJECT_TEST_DIR "./src/test/java">
+    <!ENTITY JAR_RESOURCES_DIR "./src/main/resources">
+    <!ENTITY TESTJAR_RESOURCES_DIR "./src/test/resources">
+    <!ENTITY ABSTRACT_TEST_PATTERN "Abstract*">
     <!ENTITY common-targets SYSTEM "file:../tools/resources/common-targets.xml">
     <!ENTITY % pjt-defns SYSTEM "file:../tools/resources/java-defns.xml">
     %pjt-defns;
