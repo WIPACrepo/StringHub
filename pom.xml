@@ -12,8 +12,11 @@
   <modelVersion>4.0.0</modelVersion>
   <artifactId>StringHub</artifactId>
   <packaging>jar</packaging>
-  <version>1.0.0-SNAPSHOT</version>
   <name>StringHub</name>
+
+  <scm>
+    <connection>scm:svn:http://code.icecube.wisc.edu/daq/meta-projects/StringHub/trunk</connection>
+  </scm>
 
   <dependencies>
     <dependency>
