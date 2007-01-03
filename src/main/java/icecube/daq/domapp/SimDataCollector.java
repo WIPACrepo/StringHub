@@ -132,12 +132,13 @@ public class SimDataCollector extends AbstractDataCollector {
 	{
 		
 		Calendar now = new GregorianCalendar();
-		Calendar startOfYear = new GregorianCalendar(now.get(Calendar.YEAR), 1, 1);
+		Calendar startOfYear = new GregorianCalendar(now.get(Calendar.YEAR), 0, 1);
 		long t0 = startOfYear.getTimeInMillis();
+		logger.debug("Start of year = " + t0);
 		
 		clock = 0L;
 		logger.info("Simulated DOM at " + card + "" + pair + "" + dom + " started at dom clock " + clock);
-
+		
 		long lastGenHit = 0L;
 
 		try

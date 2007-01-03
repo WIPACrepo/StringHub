@@ -109,6 +109,8 @@ public class StreamBinder extends Thread implements Counter {
 									buf.position() + ", limit = " + buf.limit()); 
 						}
 						terminal.pop();
+						// Update the lastUT
+						lastUT = currentUT;
 					}
 				}
 			} 
