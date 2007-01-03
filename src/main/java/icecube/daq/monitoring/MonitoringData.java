@@ -4,6 +4,7 @@ package icecube.daq.monitoring;
  * Wrapper for all monitored data objects.
  */
 public class MonitoringData
+    implements MonitoringDataMBean
 {
     /** Sender monitoring. */
     private SenderMonitor sender;

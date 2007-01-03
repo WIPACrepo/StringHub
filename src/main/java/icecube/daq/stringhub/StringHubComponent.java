@@ -15,6 +15,7 @@ import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQCompServer;
 import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
+import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.payload.ByteBufferCache;
 import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.MasterPayloadFactory;
@@ -97,6 +98,10 @@ public class StringHubComponent extends DAQComponent
 
         IPayloadDestinationCollection dataColl = dataOut.getPayloadDestinationCollection();
         sender.setDataOutputDestination(dataColl);
+
+        MonitoringData monData = new MonitoringData();
+        monData.setSenderMonitor(sender);
+        addMBean("sender", monData);
 
 	}
 
