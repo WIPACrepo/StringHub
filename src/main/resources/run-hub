@@ -1,0 +1,52 @@
+#!/bin/sh
+
+# Find the top of the workspace regardless of where this script was
+# started from
+SCRIPT_DIR=`dirname $0`
+START_DIR=`pwd`
+REL_PATH_TO_WS="../../.."
+WS_DIR=`cd ${START_DIR}/${SCRIPT_DIR}/${REL_PATH_TO_WS} && pwd`
+
+# The local user's maven repository from which the required libs will
+# be found
+REPO_DIR=${HOME}/.m2/repository
+
+REQ_PROJECTS="StringHub \
+juggler \
+payload \
+daq-io \
+daq-common \
+splicer \
+daq-request-filler \
+daq-log"
+
+REQ_LIBS="log4j \
+xmlrpc-common \
+xmlrpc-client \
+xmlrpc-server \
+commons-logging \
+concurrent \
+jmxtools \
+ws-commons-util"
+
+CLASSPATH=""
+for proj in ${REQ_PROJECTS}; do
+  CLASSPATH=${WS_DIR}/${proj}/target/${proj}-${pom.version}.jar:${CLASSPATH}
+done
+
+for lib in ${REQ_LIBS}; do
+  # This will break if there is more than one such lib under the REPO_DIR
+  CLASSPATH=`find ${REPO_DIR} -name ${lib}\*.jar`:${CLASSPATH}
+done
+
+export CLASSPATH
+#echo "CLASSPATH=${CLASSPATH}"
+java -Dicecube.daq.stringhub.simulation=true \
+     -Dicecube.daq.stringhub.componentId=$1 \
+     icecube.daq.stringhub.Shell $2 $3 $4 $5 $6 $7 $8 $9
+
+#CLASSPATH=$TOPDIR/lib/juggler.jar:$TOPDIR/lib/juggler-test.jar:$TOPDIR/tools/lib/commons-logging.jar:$TOPDIR/tools/lib/junit.jar:$TOPDIR/tools/lib/log4j.jar:$TOPDIR/tools/lib/xmlrpc-common.jar:$TOPDIR/tools/lib/xmlrpc-client.jar:$TOPDIR/tools/lib/ws-commons-util.jar:$TOPDIR/tools/lib/concurrent.jar:$TOPDIR/lib/eventBuilder-prod.jar:$TOPDIR/lib/new-dispatch.jar:$TOPDIR/lib/daq-common.jar:$TOPDIR/lib/icebucket.jar:$TOPDIR/lib/splicer.jar:$TOPDIR/lib/daq-request-filler.jar:$TOPDIR/lib/stringHub-prod.jar:$TOPDIR/tools/lib/colt.jar
+
+
+
+     

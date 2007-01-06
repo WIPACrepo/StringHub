@@ -18,6 +18,15 @@
     <connection>scm:svn:http://code.icecube.wisc.edu/daq/meta-projects/StringHub/trunk</connection>
   </scm>
 
+  <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
+  </build>
+
   <dependencies>
     <dependency>
       <groupId>edu.wisc.icecube</groupId>
