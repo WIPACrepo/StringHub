@@ -61,9 +61,9 @@ if [ ! -z ${missing_jar} ]; then
   exit 1
 fi
 
-export CLASSPATH
+#export CLASSPATH
 #echo "CLASSPATH=${CLASSPATH}"
-java -Dicecube.daq.stringhub.simulation=true \
+java -cp $CLASSPATH -Dicecube.daq.stringhub.simulation=false \
      -Dicecube.daq.stringhub.componentId=$1 \
      icecube.daq.stringhub.Shell $2 $3 $4 $5 $6 $7 $8 $9
 
