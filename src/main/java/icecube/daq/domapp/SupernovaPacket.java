@@ -8,11 +8,14 @@ public class SupernovaPacket
 	private int fmtid;
 	private long domClock;
 	private byte[] counters;
+	private ByteBuffer buffer;
 	
 	private SupernovaPacket() { }
 	
 	public static SupernovaPacket createFromBuffer(ByteBuffer buf)
 	{
+		int limit = buf.limit();
+		buf.mark();
 		SupernovaPacket sn = new SupernovaPacket();
 		sn.recl = buf.getShort();
 		sn.fmtid = buf.getShort();
@@ -21,6 +24,11 @@ public class SupernovaPacket
 		int n = sn.recl - 10;
 		sn.counters = new byte[n];
 		for (int i = 0; i < n; i++) sn.counters[i] = buf.get();
+		buf.reset();
+		buf.limit(buf.position() + sn.recl);
+		sn.buffer = ByteBuffer.allocate(sn.recl);
+		sn.buffer.put(buf);
+		buf.limit(limit);
 		return sn;
 	}
 	
@@ -43,4 +51,9 @@ public class SupernovaPacket
 	 * 15 means 15 or greater (overflow).
 	 */
 	public byte[] getScalers() { return counters; }
+
+	public ByteBuffer getBuffer() {
+		// TODO Auto-generated method stub
+		return buffer;
+	}
 }
