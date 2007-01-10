@@ -1,5 +1,6 @@
 package icecube.daq.dor;
 
+import icecube.daq.domapp.DeltaMCodec;
 import icecube.daq.util.UTC;
 
 import java.nio.ByteBuffer;
@@ -59,6 +60,30 @@ public class TimeCalib {
 	
 	public short[] getDomWaveform() {
 		return domWaveform;
+	}
+	
+	/**
+	 * Return a ByteBuffer object with delta 1-2-3-6-11 
+	 * waveform encoding and the following structure
+	 * <pre>
+	 *  0 ..  7 DOR Tx - full 8 bytes
+	 *  8 ..  9 DOR Rx - DOR Tx - 2 bytes
+	 * 10 .. 17 DOM Rx - full 8 bytes
+	 * 18 .. 19 DOR Tx - DOM Rx - 2 bytes
+	 * 20 ..  M 48 samples of DOR waveform delta compressed
+	 * M+1 .. N 48 samples of DOM waveform delta compressed 
+	 * </pre>
+	 * @return number of bytes in the compressed buffer
+	 */
+	public int writeCompressedBuffer(ByteBuffer buf)
+	{
+		int pos = buf.position();
+		buf.putLong(dorTx).putShort((short) (dorRx - dorTx));
+		buf.putLong(domRx).putShort((short) (domTx - domRx));
+		DeltaMCodec codec = new DeltaMCodec(buf);
+		codec.encode(dorWaveform);
+		codec.encode(domWaveform);
+		return buf.position() - pos;
 	}
 	
 }
