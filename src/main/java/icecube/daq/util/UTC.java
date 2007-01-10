@@ -16,6 +16,11 @@ public class UTC implements Comparable<UTC> {
 		tick10 = 0L;
 	}
 	
+	/**
+	 * If you have the time in 0.1 ns units - you can
+	 * construct the UTC object.
+	 * @param time
+	 */
 	public UTC(long time) {
 		tick10 = time;
 	}
@@ -26,6 +31,10 @@ public class UTC implements Comparable<UTC> {
 	
 	public String toString() {
 		return String.valueOf(tick10);
+	}
+	
+	public long in_0_1ns() {
+		return tick10;
 	}
 	
 	/**
