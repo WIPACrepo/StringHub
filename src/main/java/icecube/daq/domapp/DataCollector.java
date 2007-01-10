@@ -271,9 +271,25 @@ public class DataCollector extends AbstractDataCollector
 		}
 	}
 	
+	/**
+	 * Process the TCAL data.  Please be aware of and excuse the awful
+	 * coding here.  The TCAL reference time passed to the dispatcher is
+	 * the DOM waveform receive time.  
+	 * TODO The time transforms are hideous and need to be scrubbed.
+	 * @param tcal
+	 * @param gps
+	 * @throws IOException
+	 */
 	private void tcalProcess(TimeCalib tcal, GPSInfo gps) throws IOException
 	{
-		
+		if (tcalSink != null)
+		{
+			ByteBuffer buffer = ByteBuffer.allocate(500);
+			tcal.writeUncompressedRecord(buffer);
+			buffer.put(gps.getBuffer());
+			buffer.flip();
+			genericDataDispatch(buffer.remaining(), 202, tcal.getDomRx().in_0_1ns() / 250L, buffer, tcalSink);
+		}	
 	}
 	
 	private void supernovaProcess(ByteBuffer in) throws IOException
