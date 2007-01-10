@@ -10,8 +10,8 @@ import org.apache.log4j.Logger;
 
 public class TimeCalib {
 	
-	private int bytes;
-	private int flags;
+	private short bytes;
+	private short flags;
 	private long dorTx, dorRx;
 	private short[] dorWaveform;
 	private long domRx, domTx;
@@ -35,13 +35,18 @@ public class TimeCalib {
 	}
 	
 	/**
-	 * Get the DOR TCAL transmit time
+	 * Get the DOR TCAL transmit time.
+	 * Note the the units are 0.1 ns. 
 	 * @return UTC object
 	 */
 	public UTC getDorTx() {
 		return new UTC(500L * dorTx);
 	}
 	
+	/**
+	 * Get the DOR TCAL receive time.
+	 * @return UTC time (0.1 ns)
+	 */
 	public UTC getDorRx() {
 		return new UTC(500L * dorRx);
 	}
@@ -62,6 +67,29 @@ public class TimeCalib {
 		return domWaveform;
 	}
 	
+	/**
+	 * Write POTC (plain-ol' TCAL) record
+	 * to supplier buffer.  Returns length of record
+	 * which should be 314.  Note that, conforming to
+	 * standard, the TCAL buffer is little-endian.
+	 * @param buf receive buffer for data. 
+	 * @return number of bytes added to buffer
+	 */
+	public int writeUncompressedRecord(ByteBuffer buf)
+	{
+		ByteOrder ord = buf.order();
+		buf.order(ByteOrder.LITTLE_ENDIAN);
+		int pos = buf.position();
+		buf.putShort(bytes).putShort(flags);
+		buf.putLong(dorTx);
+		buf.putLong(dorRx);
+		for (int i = 0; i < 64; i++) buf.putShort(dorWaveform[i]);
+		buf.putLong(domRx);
+		buf.putLong(domTx);
+		for (int i = 0; i < 64; i++) buf.putShort(domWaveform[i]);
+		buf.order(ord);
+		return buf.position() - pos;
+	}
 	/**
 	 * Return a ByteBuffer object with delta 1-2-3-6-11 
 	 * waveform encoding and the following structure

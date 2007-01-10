@@ -12,9 +12,11 @@ public class GPSInfo {
 	private int quality;
 	private long dorclk;
 	private UTC offset;
+	private ByteBuffer record;
 	private final static Logger logger = Logger.getLogger(GPSInfo.class);
 	
 	public GPSInfo(ByteBuffer buf) {
+		buf.mark();
 		byte[] timestringbytes = new byte[12];
 		if (buf.get() != 1) throw new IllegalArgumentException("GPS record does not begin with SOH");
 		buf.get(timestringbytes);
@@ -34,11 +36,24 @@ public class GPSInfo {
 		quality = buf.get();
 		dorclk  = buf.getLong();
 		offset = new UTC(10000000000L * (60 * (60 * (24 * day + hour) + min) + sec) - 500 * dorclk);
+		int limit = buf.limit();
+		buf.limit(buf.position());
+		buf.reset();
+		record = ByteBuffer.allocate(buf.remaining());
+		record.put(buf);
+		buf.limit(limit);
 	}
 	
 	public int getQuality() { return quality; }
 	
 	public UTC getOffset() { return offset; }
+	
+	/**
+	 * This method returns a read-only view of the 
+	 * underlying 22-byte GPS record.
+	 * @return readonly ByteBuffer
+	 */
+	public ByteBuffer getBuffer() { return record.asReadOnlyBuffer(); }
 	
 	public String toString() {
 		return timestring + " : Quality = " + quality + "  : " + offset;
