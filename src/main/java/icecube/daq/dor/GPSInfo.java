@@ -36,6 +36,8 @@ public class GPSInfo {
 		offset = new UTC(10000000000L * (60 * (60 * (24 * day + hour) + min) + sec) - 500 * dorclk);
 	}
 	
+	public int getQuality() { return quality; }
+	
 	public UTC getOffset() { return offset; }
 	
 	public String toString() {

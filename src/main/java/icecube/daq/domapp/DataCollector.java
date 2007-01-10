@@ -262,7 +262,7 @@ public class DataCollector extends AbstractDataCollector
 	{
 		while (in.remaining() > 0)
 		{
-			logger.debug("processing monitoring record - " + in.remaining() + " bytes remaining.");
+			// logger.debug("processing monitoring record - " + in.remaining() + " bytes remaining.");
 			MonitorRecord monitor = MonitorRecordFactory.createFromBuffer(in);
 			if (monitor instanceof AsciiMonitorRecord)
 				logger.info(monitor.toString());
@@ -271,9 +271,19 @@ public class DataCollector extends AbstractDataCollector
 		}
 	}
 	
+	private void tcalProcess(TimeCalib tcal, GPSInfo gps) throws IOException
+	{
+		
+	}
+	
 	private void supernovaProcess(ByteBuffer in) throws IOException
 	{
-		// TODO - implement S/N record dispatch 
+		while (in.remaining() > 0)
+		{
+			SupernovaPacket spkt = SupernovaPacket.createFromBuffer(in);
+			if (supernovaSink != null)
+				genericDataDispatch(spkt.getLength(), 302, spkt.getClock(), spkt.getBuffer(), supernovaSink);
+		}
 	}
 	
 	/**
@@ -341,8 +351,17 @@ public class DataCollector extends AbstractDataCollector
 			gpsOffset = gps.getOffset();
 			TimeCalib tcal = driver.readTCAL(card, pair, dom);
 			rapcal.update(tcal, gpsOffset);
-			Thread.sleep(100);
+			
+			// TODO I don't know why this sleep is in here
+			// take out - and discard by 6/2007 if no problems
+			// Thread.sleep(100);
 			validRAPCalCount++;
+			
+			if (queryDaqRunLevel() == 4)
+			{
+				tcalProcess(tcal, gps);
+			}
+			
 		} catch (RAPCalException rcex) {
 			rapcalExceptionCount++;
 			rcex.printStackTrace();
