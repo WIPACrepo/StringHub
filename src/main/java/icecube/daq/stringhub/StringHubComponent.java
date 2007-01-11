@@ -1,8 +1,8 @@
 package icecube.daq.stringhub;
 
+import icecube.daq.bindery.SecondaryStreamConsumer;
 import icecube.daq.bindery.StreamBinder;
 import icecube.daq.common.DAQCmdInterface;
-import icecube.daq.configuration.SimConfig;
 import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.AbstractDataCollector;
 import icecube.daq.domapp.DOMConfiguration;
@@ -12,7 +12,6 @@ import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
 import icecube.daq.io.PayloadDestinationOutputEngine;
 import icecube.daq.juggler.component.DAQCompException;
-import icecube.daq.juggler.component.DAQCompServer;
 import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.monitoring.MonitoringData;
@@ -27,18 +26,13 @@ import icecube.daq.util.DeployedDOM;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.Pipe;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-import java.util.Properties;
-import java.util.Set;
 
 import javax.xml.parsers.ParserConfigurationException;
 
-import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
@@ -57,7 +51,7 @@ public class StringHubComponent extends DAQComponent
 	private ByteBufferCache bufferManager;
 	private MasterPayloadFactory payloadFactory;
 	private DOMRegistry domRegistry;
-	
+	private PayloadDestinationOutputEngine   moniPayloadDest, tcalPayloadDest, supernovaPayloadDest; 
 	private ArrayList<AbstractDataCollector> collectors;
 	private List<DOMChannelInfo> activeDOMs;
 	
@@ -103,7 +97,17 @@ public class StringHubComponent extends DAQComponent
         monData.setSenderMonitor(sender);
         addMBean("sender", monData);
 
-	}
+        // Following are the payload output engines for the secondary streams
+        moniPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "moniOut");
+        moniPayloadDest.registerBufferManager(bufferManager);
+        addEngine(DAQConnector.TYPE_MONI_DATA, moniPayloadDest);
+        tcalPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "tcalOut");
+        tcalPayloadDest.registerBufferManager(bufferManager);
+        addEngine(DAQConnector.TYPE_TCAL_DATA, tcalPayloadDest);
+        supernovaPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
+        supernovaPayloadDest.registerBufferManager(bufferManager);
+        addEngine(DAQConnector.TYPE_SN_DATA, supernovaPayloadDest);
+    }
 
 	@Override
 	public void setGlobalConfigurationDir(String dirName) 
@@ -196,7 +200,27 @@ public class StringHubComponent extends DAQComponent
 	
 			logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
 			bind = new StreamBinder(nch, sender);
-
+			StreamBinder moniBind = new StreamBinder(nch, new SecondaryStreamConsumer(
+					this.payloadFactory, 
+					this.getByteBufferCache("UnspecificCache"), 
+					this.moniPayloadDest, 
+					this.tcalPayloadDest, 
+					this.supernovaPayloadDest)
+			);
+			StreamBinder tcalBind = new StreamBinder(nch, new SecondaryStreamConsumer(
+					this.payloadFactory, 
+					this.getByteBufferCache("UnspecificCache"), 
+					this.moniPayloadDest, 
+					this.tcalPayloadDest, 
+					this.supernovaPayloadDest)
+			);
+			StreamBinder supernovaBind = new StreamBinder(nch, new SecondaryStreamConsumer(
+					this.payloadFactory, 
+					this.getByteBufferCache("UnspecificCache"), 
+					this.moniPayloadDest, 
+					this.tcalPayloadDest, 
+					this.supernovaPayloadDest)
+			);
 			collectors = new ArrayList<AbstractDataCollector>(nch);
 				
 			for (DOMChannelInfo chanInfo : activeDOMs)
@@ -206,16 +230,26 @@ public class StringHubComponent extends DAQComponent
 				AbstractDataCollector dc;
 				String cwd = chanInfo.card + "" + chanInfo.pair + chanInfo.dom;
 				// This pipe is the pipe which communicates hit data from collector to sorter
-				Pipe pipe = Pipe.open();
 				if (isSim)
 				{
+					Pipe pipe = Pipe.open();
 					dc = new SimDataCollector(chanInfo, pipe.sink());
+					bind.register(pipe.source(), cwd);
 				}
 				else
 				{
-					dc = new DataCollector(chanInfo, pipe.sink());
+					Pipe hitPipe = Pipe.open();
+					Pipe moniPipe = Pipe.open();
+					Pipe tcalPipe = Pipe.open();
+					Pipe snPipe = Pipe.open();
+					dc = new DataCollector(chanInfo.card, chanInfo.pair, chanInfo.dom, 
+							hitPipe.sink(), moniPipe.sink(), snPipe.sink(), tcalPipe.sink()
+						);
+					bind.register(hitPipe.source(), "hits-" + cwd);
+					moniBind.register(moniPipe.source(), "moni-" + cwd);
+					tcalBind.register(tcalPipe.source(), "tcal-" + cwd);
+					supernovaBind.register(snPipe.source(), "supernova-" + cwd);
 				}
-				bind.register(pipe.source(), cwd);
 				dc.setConfig(config);
 				collectors.add(dc);
 				logger.debug("Starting new DataCollector thread on (" + cwd + ").");
@@ -223,7 +257,10 @@ public class StringHubComponent extends DAQComponent
 				logger.debug("DataCollector thread on (" + cwd + ") started.");				
 			}
 
-			Thread.sleep(500);
+			bind.start();
+			moniBind.start();
+			tcalBind.start();
+			supernovaBind.start();
 			
 			// Still need to get the data collectors to pick up and do something with the config
 			for (AbstractDataCollector dc : collectors) 
@@ -246,12 +283,9 @@ public class StringHubComponent extends DAQComponent
 		} 
 		catch (Exception e) 
 		{
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			throw new DAQCompException(e.getMessage());
 		}
-		
-		bind.start();
 		
 	}
 
