@@ -275,6 +275,7 @@ public class SimDataCollector extends AbstractDataCollector {
 		moniBuf.put(txt.getBytes());
 		moniBuf.flip();
 		hitsOut.write(moniBuf);
+		lastMoni = currTime;
 		return 1;
 	}
 
