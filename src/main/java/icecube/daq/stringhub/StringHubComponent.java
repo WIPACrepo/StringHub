@@ -257,10 +257,16 @@ public class StringHubComponent extends DAQComponent
 				logger.debug("DataCollector thread on (" + cwd + ") started.");				
 			}
 
+			logger.debug("Starting up HKN1 sorting trees...");
+			
 			bind.start();
+			logger.debug("Hit binder started.");
 			moniBind.start();
+			logger.debug("Monitor binder started.");
 			tcalBind.start();
+			logger.debug("TCAL binder started.");
 			supernovaBind.start();
+			logger.debug("Supernova binder started.");
 			
 			// Still need to get the data collectors to pick up and do something with the config
 			for (AbstractDataCollector dc : collectors) 
