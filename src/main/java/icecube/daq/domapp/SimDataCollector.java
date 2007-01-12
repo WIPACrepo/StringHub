@@ -65,16 +65,7 @@ public class SimDataCollector extends AbstractDataCollector {
 			logger.error("Cannot configure DOM (even a simulated one) in state " + runLevel);
 			throw new IllegalStateException();
 		}
-		try
-		{
-			logger.info("Configuring simulated DataCollector " + getName());
-			Thread.sleep(500);
-		}
-		catch (InterruptedException intx)
-		{
-			intx.printStackTrace();
-			logger.error("Interrupted sleep: " + intx.getMessage());
-		}
+		logger.info("Configuring simulated DataCollector " + getName());
 		setRunLevel(1);
 	}
 
