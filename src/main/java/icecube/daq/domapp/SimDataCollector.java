@@ -26,6 +26,9 @@ import cern.jet.random.engine.RandomEngine;
 public class SimDataCollector extends AbstractDataCollector {
 
 	private WritableByteChannel hitsOut;
+	private WritableByteChannel moniOut;
+	private WritableByteChannel tcalOut;
+	private WritableByteChannel supernovaOut;
 	private String mbid;
 	private int card;
 	private int pair;
@@ -55,6 +58,9 @@ public class SimDataCollector extends AbstractDataCollector {
 		this.dom  = chanInfo.dom;
 		this.numericMBID = Long.parseLong(this.mbid, 16);
 		this.hitsOut = hitsOut;
+		this.moniOut = null;
+		this.tcalOut = null;
+		this.supernovaOut = null;
 		runLevel  = 0;
 	}
 	
@@ -274,7 +280,7 @@ public class SimDataCollector extends AbstractDataCollector {
 		moniBuf.put((byte) (clock & 0xff));
 		moniBuf.put(txt.getBytes());
 		moniBuf.flip();
-		hitsOut.write(moniBuf);
+		if (moniOut != null) moniOut.write(moniBuf);
 		lastMoni = currTime;
 		return 1;
 	}
