@@ -159,7 +159,11 @@ public class SimDataCollector extends AbstractDataCollector {
 					// go to start run
 					Thread.sleep(20);
 					setRunLevel(4);
-					lastGenHit = System.currentTimeMillis();
+					long t = System.currentTimeMillis();
+					lastGenHit = t;
+					lastMoni   = t;
+					lastTcal   = t;
+					lastSupernova = t;
 				}
 				else if (queryDaqRunLevel() == 4)
 				{
@@ -248,7 +252,30 @@ public class SimDataCollector extends AbstractDataCollector {
 	
 	private int generateMoni(long currTime) throws IOException
 	{
-		return 0;
+		if (currTime - lastMoni < 1000) return 0;
+		// Generate an ASCII time record
+		ByteBuffer moniBuf = ByteBuffer.allocate(100);
+		String txt = "Hi Artur - I am a DOM monitoring record.";
+		int recl = 42 + txt.length();
+		moniBuf.putInt(recl);			// record length
+		moniBuf.putInt(102);			// special moni code
+		moniBuf.putLong(numericMBID);	// mbid as 8-byte long
+		moniBuf.putLong(0L);
+		long utc = (currTime - t0) * 10000000L;
+		moniBuf.putLong(utc);
+		clock = utc / 500L;
+		moniBuf.putShort((short) (10+txt.length()));
+		moniBuf.putShort((short) 0xCB);
+		moniBuf.put((byte) ((clock >> 40) & 0xff));
+		moniBuf.put((byte) ((clock >> 32) & 0xff));
+		moniBuf.put((byte) ((clock >> 24) & 0xff));
+		moniBuf.put((byte) ((clock >> 16) & 0xff));
+		moniBuf.put((byte) ((clock >> 8) & 0xff));
+		moniBuf.put((byte) (clock & 0xff));
+		moniBuf.put(txt.getBytes());
+		moniBuf.flip();
+		hitsOut.write(moniBuf);
+		return 1;
 	}
 
 }
