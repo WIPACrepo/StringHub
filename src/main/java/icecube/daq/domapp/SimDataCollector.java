@@ -32,7 +32,12 @@ public class SimDataCollector extends AbstractDataCollector {
 	private char dom;
 	private long clock;
 	private long t0;
+	/** Last time the hit generation routine was called - not really the last hit */
 	private long lastGenHit;
+	/** Last time the monitor routine issued a monitor record */
+	private long lastMoni;
+	private long lastTcal;
+	private long lastSupernova;
 	private long numericMBID;
 	private RandomEngine rand = new MersenneTwister(new java.util.Date());
 	private Poisson poissonRandom = new Poisson(1.0, rand);
@@ -139,9 +144,10 @@ public class SimDataCollector extends AbstractDataCollector {
 		{
 			// Simulate the device open latency
 			Thread.sleep(1400);
-	
+			
 			while (!stopRunLoop)
 			{
+				boolean needSomeSleep = true;
 				if (queryDaqRunLevel() == 1) 
 				{
 					// Simulate configure time
@@ -160,7 +166,7 @@ public class SimDataCollector extends AbstractDataCollector {
 					long currTime = System.currentTimeMillis();
 					int nHits = generateHits(currTime);
 					int nMoni = generateMoni(currTime);
-					if (nHits == 0) Thread.sleep(100);
+					if (nHits > 0) needSomeSleep = false; 
 				}
 				else if (queryDaqRunLevel() == 5)
 				{
@@ -168,6 +174,9 @@ public class SimDataCollector extends AbstractDataCollector {
 					logger.info("Stopping data collection");
 					setRunLevel(2);
 				}
+				
+				// CPU reduction action
+				if (needSomeSleep) Thread.sleep(100);
 			}
 		}
 		catch (InterruptedException intx)
