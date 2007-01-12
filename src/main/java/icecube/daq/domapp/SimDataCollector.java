@@ -31,6 +31,8 @@ public class SimDataCollector extends AbstractDataCollector {
 	private int pair;
 	private char dom;
 	private long clock;
+	private long t0;
+	private long lastGenHit;
 	private long numericMBID;
 	private RandomEngine rand = new MersenneTwister(new java.util.Date());
 	private Poisson poissonRandom = new Poisson(1.0, rand);
@@ -65,6 +67,7 @@ public class SimDataCollector extends AbstractDataCollector {
 		}
 		try
 		{
+			logger.info("Configuring simulated DataCollector " + getName());
 			Thread.sleep(500);
 		}
 		catch (InterruptedException intx)
@@ -133,13 +136,13 @@ public class SimDataCollector extends AbstractDataCollector {
 		
 		Calendar now = new GregorianCalendar();
 		Calendar startOfYear = new GregorianCalendar(now.get(Calendar.YEAR), 0, 1);
-		long t0 = startOfYear.getTimeInMillis();
+		t0 = startOfYear.getTimeInMillis();
 		logger.debug("Start of year = " + t0);
 		
 		clock = 0L;
 		logger.info("Simulated DOM at " + card + "" + pair + "" + dom + " started at dom clock " + clock);
 		
-		long lastGenHit = 0L;
+		lastGenHit = 0L;
 
 		try
 		{
@@ -163,52 +166,10 @@ public class SimDataCollector extends AbstractDataCollector {
 				}
 				else if (queryDaqRunLevel() == 4)
 				{
-					// now do the simple thing of creating N objects per second
 					long currTime = System.currentTimeMillis();
-					double dt = 1.0E-03 * (currTime - lastGenHit);
-					double mu = dt * rate;
-					int n = poissonRandom.nextInt(mu);
-					logger.debug("Generated " + n + " events in interval " + lastGenHit + ":" + currTime);
-					ArrayList<Long> eventTimes = new ArrayList<Long>(n);
-					// generate n random times in the interval
-					for (int i = 0; i < n; i++)
-					{
-						long rclk = 10000000L * (lastGenHit - t0) + (long) (1.0E+10 * rand.nextDouble() * dt);
-						eventTimes.add(rclk);
-					}
-					// Order the event times
-					Collections.sort(eventTimes);
-					lastGenHit = currTime;
-					for (int i = 0; i < n; i++)
-					{
-						final int recl = 112;
-						ByteBuffer buf = ByteBuffer.allocate(recl);
-						buf.putInt(recl);
-						buf.putInt(2);
-						buf.putLong(numericMBID);
-						buf.putLong(0L);
-						long utc = eventTimes.get(i);
-						buf.putLong(utc);
-						clock = utc / 500L;
-						// Engineering header
-						buf.putShort((short) 80).putShort((short) 2).put((byte) 0);
-						// nFADC + ATWD readout config
-						buf.put((byte) 0).put((byte) 3).put((byte) 0);
-						// Trigger and spare field
-						buf.put((byte) 2).put((byte) 0);
-						// The clock word in 6 bytes
-						buf.put((byte) ((clock >> 40) & 0xff));
-						buf.put((byte) ((clock >> 32) & 0xff));
-						buf.put((byte) ((clock >> 24) & 0xff));
-						buf.put((byte) ((clock >> 16) & 0xff));
-						buf.put((byte) ((clock >> 8) & 0xff));
-						buf.put((byte) (clock & 0xff));
-						for (int k = 0; k < 32; k++) buf.putShort((short) 138);
-						buf.flip();
-						logger.debug("Writing " + buf.remaining() + " byte hit at UTC = " + utc);
-						hitsOut.write(buf);
-					}
-					if (n == 0) Thread.sleep(100);
+					int nHits = generateHits(currTime);
+					int nMoni = generateMoni(currTime);
+					if (nHits == 0) Thread.sleep(100);
 				}
 				else if (queryDaqRunLevel() == 5)
 				{
@@ -231,6 +192,63 @@ public class SimDataCollector extends AbstractDataCollector {
 			return;
 		}
 		
+	}
+	
+	/**
+	 * Contains all the yucky hit generation logic
+	 * @return number of hits generated in the time interval
+	 */
+	private int generateHits(long currTime) throws IOException
+	{
+		double dt = 1.0E-03 * (currTime - lastGenHit);
+		double mu = dt * rate;
+		int n = poissonRandom.nextInt(mu);
+		logger.debug("Generated " + n + " events in interval " + lastGenHit + ":" + currTime);
+		ArrayList<Long> eventTimes = new ArrayList<Long>(n);
+		// generate n random times in the interval
+		for (int i = 0; i < n; i++)
+		{
+			long rclk = 10000000L * (lastGenHit - t0) + (long) (1.0E+10 * rand.nextDouble() * dt);
+			eventTimes.add(rclk);
+		}
+		// Order the event times
+		Collections.sort(eventTimes);
+		lastGenHit = currTime;
+		for (int i = 0; i < n; i++)
+		{
+			final int recl = 112;
+			ByteBuffer buf = ByteBuffer.allocate(recl);
+			buf.putInt(recl);
+			buf.putInt(2);
+			buf.putLong(numericMBID);
+			buf.putLong(0L);
+			long utc = eventTimes.get(i);
+			buf.putLong(utc);
+			clock = utc / 500L;
+			// Engineering header
+			buf.putShort((short) 80).putShort((short) 2).put((byte) 0);
+			// nFADC + ATWD readout config
+			buf.put((byte) 0).put((byte) 3).put((byte) 0);
+			// Trigger and spare field
+			buf.put((byte) 2).put((byte) 0);
+			// The clock word in 6 bytes
+			buf.put((byte) ((clock >> 40) & 0xff));
+			buf.put((byte) ((clock >> 32) & 0xff));
+			buf.put((byte) ((clock >> 24) & 0xff));
+			buf.put((byte) ((clock >> 16) & 0xff));
+			buf.put((byte) ((clock >> 8) & 0xff));
+			buf.put((byte) (clock & 0xff));
+			for (int k = 0; k < 32; k++) buf.putShort((short) 138);
+			buf.flip();
+			logger.debug("Writing " + buf.remaining() + " byte hit at UTC = " + utc);
+			hitsOut.write(buf);
+		}
+		return n;
+	}
+	
+	private int generateMoni(long currTime) throws IOException
+	{
+		return 0;
 	}
 
 }
