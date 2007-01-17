@@ -71,6 +71,7 @@ public class SimDataCollector extends AbstractDataCollector {
 
 	public void signalConfigure() 
 	{
+		logger.info("Got (DOM) configure message - telling thread to configure DOMs.");
 		if (queryDaqRunLevel() > 2)
 		{
 			logger.error("Cannot configure DOM (even a simulated one) in state " + runLevel);
@@ -82,6 +83,7 @@ public class SimDataCollector extends AbstractDataCollector {
 
 	public void signalStartRun() 
 	{
+		logger.info("Got start run message - telling collection thread to start.");
 		if (queryDaqRunLevel() != 2)
 		{
 			logger.error("Cannot start run on DOM in state " + runLevel);
@@ -92,6 +94,7 @@ public class SimDataCollector extends AbstractDataCollector {
 
 	public void signalStopRun() 
 	{
+		logger.info("Got stop run message - telling collection thread to stop.");
 		if (queryDaqRunLevel() != 4)
 		{
 			logger.error("Cannot stop run that is not running -- runLevel = " + runLevel);
