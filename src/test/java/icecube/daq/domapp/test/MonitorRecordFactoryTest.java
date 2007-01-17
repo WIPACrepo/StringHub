@@ -3,6 +3,7 @@ package icecube.daq.domapp.test;
 import static org.junit.Assert.*;
 
 import icecube.daq.domapp.AsciiMonitorRecord;
+import icecube.daq.domapp.DeltaCompressedHit;
 import icecube.daq.domapp.MonitorRecord;
 import icecube.daq.domapp.MonitorRecordFactory;
 

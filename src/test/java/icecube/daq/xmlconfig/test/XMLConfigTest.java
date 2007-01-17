@@ -3,8 +3,11 @@ package icecube.daq.xmlconfig.test;
 import static org.junit.Assert.assertNotNull;
 import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.DOMConfiguration;
+import icecube.daq.domapp.test.TestDeltaMCodec;
 
 import java.io.InputStream;
+
+import junit.framework.JUnit4TestAdapter;
 
 import org.apache.log4j.BasicConfigurator;
 import org.junit.Before;
@@ -16,6 +19,15 @@ public class XMLConfigTest
 	private XMLConfig xmlConfig;
 	private DOMConfiguration config;
 	
+	/**
+	 * This should make the tests JUnit 3.8 compatible
+	 * @return
+	 */
+	public static junit.framework.Test suite()
+	{
+		return new JUnit4TestAdapter(XMLConfigTest.class);
+	}
+		
 	@BeforeClass public static void initialize() throws Exception
 	{
 		BasicConfigurator.configure();

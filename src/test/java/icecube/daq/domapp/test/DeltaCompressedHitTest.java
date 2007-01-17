@@ -9,6 +9,8 @@ import java.nio.ByteOrder;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 
+import junit.framework.JUnit4TestAdapter;
+
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -20,6 +22,15 @@ public class DeltaCompressedHitTest
 {
 	private DeltaCompressedHit hit;
 	private static final Logger logger = Logger.getLogger(DeltaCompressedHitTest.class);
+	
+	/**
+	 * This should make the tests JUnit 3.8 compatible
+	 * @return
+	 */
+	public static junit.framework.Test suite()
+	{
+		return new JUnit4TestAdapter(DeltaCompressedHit.class);
+	}
 	
 	@BeforeClass public static void initialize() throws Exception
 	{

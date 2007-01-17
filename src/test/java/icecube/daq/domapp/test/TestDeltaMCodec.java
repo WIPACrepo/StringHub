@@ -3,9 +3,12 @@ package icecube.daq.domapp.test;
 import static org.junit.Assert.*;
 
 import icecube.daq.domapp.DeltaMCodec;
+import icecube.daq.domapp.MonitorRecordFactory;
 
 import java.nio.ByteBuffer;
 import java.util.Random;
+
+import junit.framework.JUnit4TestAdapter;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
@@ -17,6 +20,15 @@ import org.junit.Test;
 public class TestDeltaMCodec 
 {	
 	private static final Logger logger = Logger.getLogger(TestDeltaMCodec.class);
+	
+	/**
+	 * This should make the tests JUnit 3.8 compatible
+	 * @return
+	 */
+	public static junit.framework.Test suite()
+	{
+		return new JUnit4TestAdapter(TestDeltaMCodec.class);
+	}
 	
 	@BeforeClass
 	public static void initLoggers()
