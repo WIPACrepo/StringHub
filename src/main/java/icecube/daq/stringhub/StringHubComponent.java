@@ -320,12 +320,14 @@ public class StringHubComponent extends DAQComponent
 	{
 		try
 		{
-			for (AbstractDataCollector dc : collectors) dc.signalStopRun();
+			for (AbstractDataCollector dc : collectors) 
+			{
+				dc.signalStopRun();
+			}
+			
 			for (AbstractDataCollector dc : collectors)
 			{
 				while (dc.queryDaqRunLevel() != 2) Thread.sleep(100);
-				dc.signalShutdown();
-				dc.join(100);
 			}
 		}
 		catch (Exception e)
