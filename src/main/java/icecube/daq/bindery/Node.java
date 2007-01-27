@@ -81,6 +81,15 @@ public class Node<T> {
 			val = null;
 		return rval;
 	}
+
+	/**
+	 * Zoink out all stored elements.
+	 */
+	public void clear()
+	{
+		list.clear();
+		val = null;
+	}
 	
 	/**
 	 * Create a sorting tree structure.

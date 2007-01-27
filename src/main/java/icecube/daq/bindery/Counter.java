@@ -1,9 +1,10 @@
 package icecube.daq.bindery;
 
 /**
- * A simple increment/decrement counter interface to help
- * arbitrary collections of Nodes keep track of the number
- * of elements contained inside the Nodes.
+ * A simple interface which originally exposed only an increment/decrement 
+ * counter to help arbitrary collections of Nodes keep track of the number
+ * of elements contained inside the Nodes.  It has been extended to allow
+ * general collection of all nodes in a structure.
  * @author krokodil
  *
  */
@@ -30,4 +31,9 @@ public interface Counter
 	 * @return true if the counter is too full
 	 */
 	public boolean overflow();
+	
+	/**
+	 * Announce a new node to the tracker.
+	 */
+	public void announce(Node<?> node);
 }

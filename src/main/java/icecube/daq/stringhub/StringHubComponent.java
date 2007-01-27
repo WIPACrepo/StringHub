@@ -46,7 +46,7 @@ public class StringHubComponent extends DAQComponent
 	
 	private boolean isSim = false;
 	private Driver driver = Driver.getInstance();
-	private StreamBinder bind;
+	private StreamBinder bind, moniBind, tcalBind, supernovaBind;
 	private Sender sender;
 	private ByteBufferCache bufferManager;
 	private MasterPayloadFactory payloadFactory;
@@ -200,21 +200,21 @@ public class StringHubComponent extends DAQComponent
 	
 			logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
 			bind = new StreamBinder(nch, sender);
-			StreamBinder moniBind = new StreamBinder(nch, new SecondaryStreamConsumer(
+			moniBind = new StreamBinder(nch, new SecondaryStreamConsumer(
 					this.payloadFactory, 
 					this.getByteBufferCache("UnspecificCache"), 
 					this.moniPayloadDest, 
 					this.tcalPayloadDest, 
 					this.supernovaPayloadDest)
 			);
-			StreamBinder tcalBind = new StreamBinder(nch, new SecondaryStreamConsumer(
+			tcalBind = new StreamBinder(nch, new SecondaryStreamConsumer(
 					this.payloadFactory, 
 					this.getByteBufferCache("UnspecificCache"), 
 					this.moniPayloadDest, 
 					this.tcalPayloadDest, 
 					this.supernovaPayloadDest)
 			);
-			StreamBinder supernovaBind = new StreamBinder(nch, new SecondaryStreamConsumer(
+			supernovaBind = new StreamBinder(nch, new SecondaryStreamConsumer(
 					this.payloadFactory, 
 					this.getByteBufferCache("UnspecificCache"), 
 					this.moniPayloadDest, 
@@ -302,6 +302,12 @@ public class StringHubComponent extends DAQComponent
 	{
 		logger.info("Have I been configured? " + configured);
 		
+		// Reset the binders
+		bind.reset();
+		moniBind.reset();
+		tcalBind.reset();
+		supernovaBind.reset();
+		
 		try
 		{
 			for (AbstractDataCollector dc : collectors) 
@@ -336,23 +342,23 @@ public class StringHubComponent extends DAQComponent
 			// throw new DAQCompException(e.getMessage());
 		}
 
-                // TODO: This is a hack until real data is passing
-                //       through the moni/tcal/sn data channels
-                try {
-                    moniPayloadDest.getPayloadDestinationCollection().stopAllPayloadDestinations();
-                } catch (IOException ioe) {
-                    throw new DAQCompException("Couldn't stop monitoring destination", ioe);
-                }
-                try {
-                    tcalPayloadDest.getPayloadDestinationCollection().stopAllPayloadDestinations();
-                } catch (IOException ioe) {
-                    throw new DAQCompException("Couldn't stop tcal destination", ioe);
-                }
-                try {
-                    supernovaPayloadDest.getPayloadDestinationCollection().stopAllPayloadDestinations();
-                } catch (IOException ioe) {
-                    throw new DAQCompException("Couldn't stop supernova destination", ioe);
-                }
+        // TODO: This is a hack until real data is passing
+        //       through the moni/tcal/sn data channels
+        try {
+            moniPayloadDest.getPayloadDestinationCollection().stopAllPayloadDestinations();
+        } catch (IOException ioe) {
+            throw new DAQCompException("Couldn't stop monitoring destination", ioe);
+        }
+        try {
+            tcalPayloadDest.getPayloadDestinationCollection().stopAllPayloadDestinations();
+        } catch (IOException ioe) {
+            throw new DAQCompException("Couldn't stop tcal destination", ioe);
+        }
+        try {
+            supernovaPayloadDest.getPayloadDestinationCollection().stopAllPayloadDestinations();
+        } catch (IOException ioe) {
+            throw new DAQCompException("Couldn't stop supernova destination", ioe);
+        }
 	}
 
 }

@@ -21,6 +21,7 @@ public class StreamBinder extends Thread implements Counter {
 	private int 				nreg;
 	private BufferConsumer		out;
 	private Node<DAQRecord> 	terminal;
+	private ArrayList<Node<?>>	allNodes;
 	private static final Logger logger = Logger.getLogger(StreamBinder.class);
 	private boolean 			running;
 	private static final ByteBuffer eos;
@@ -143,7 +144,18 @@ public class StreamBinder extends Thread implements Counter {
 	public boolean overflow() {
 		return counter > counterMax;
 	}
+
+	public void announce(Node<?> node) 
+	{
+		allNodes.add(node);
+	}
 	
+	public void reset()
+	{
+		for (Node<?> node : allNodes)
+			node.clear();
+		counter = 0;
+	}
 	
 }
 
