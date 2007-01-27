@@ -105,6 +105,8 @@ public class Node<T> {
 		
         while (copy.size() > 1) 
         {
+        	for (Node<?> node : copy) cnt.announce(node);
+        	
         	ArrayList<Node<T>> tmp = new ArrayList<Node<T>>();
             Iterator<Node<T>> iter = copy.iterator();
             while (iter.hasNext()) {
@@ -127,15 +129,14 @@ public class Node<T> {
                 b.setPeer(a);
                 a.setSink(sink);
                 b.setSink(sink);
-                sink.setName("(" + a.myName + "," + b.myName + ")");
-                
                 // Keep track of the 'position' of the node
+                sink.setName("(" + a.myName + "," + b.myName + ")");                
                 tmp.add(sink);
             }
 
             copy = tmp;
         }
-
+        cnt.announce(copy.get(0));
         return copy.get(0);
 		
 	}

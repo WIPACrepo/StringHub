@@ -37,7 +37,10 @@ public class StreamBinder extends Thread implements Counter {
 	public StreamBinder(int n, BufferConsumer out) throws IOException 
 	{
 		super("StreamBinder");
+		
 		inputs = new ArrayList<Node<DAQRecord>>();
+		allNodes = new ArrayList<Node<?>>();
+		
 		Comparator<DAQRecord> cmp = new DAQRecordComparator();
 		for (int i = 0; i < n; i++) inputs.add(new Node<DAQRecord>(cmp, this));
 		nreg = 0;
