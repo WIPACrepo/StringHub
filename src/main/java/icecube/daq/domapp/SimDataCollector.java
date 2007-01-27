@@ -185,6 +185,7 @@ public class SimDataCollector extends AbstractDataCollector {
 				{
 					Thread.sleep(100);
 					logger.info("Stopping data collection");
+					hitsOut.write(StreamBinder.endOfStream());
 					setRunLevel(2);
 				}
 				
