@@ -84,6 +84,7 @@ public class StreamBinder extends Thread implements Counter {
 				{
 					SelectionKey key = it.next();
 					it.remove();
+					logger.debug("Sort tree object count = " + counter);
 					// overflow handling - check whether the counter is too large
 					if (counter > counterMax)
 					{

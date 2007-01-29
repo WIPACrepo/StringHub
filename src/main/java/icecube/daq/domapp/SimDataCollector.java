@@ -52,18 +52,30 @@ public class SimDataCollector extends AbstractDataCollector {
 	
 	public SimDataCollector(DOMChannelInfo chanInfo, WritableByteChannel hitsOut)
 	{
+		this(chanInfo, hitsOut, null, null, null);
+	}
+
+	public SimDataCollector(DOMChannelInfo chanInfo, 
+			WritableByteChannel hitsOut,
+			WritableByteChannel moniOut,
+			WritableByteChannel tcalOut,
+			WritableByteChannel supernovaOut)
+	{
 		this.mbid = chanInfo.mbid;
 		this.card = chanInfo.card;
 		this.pair = chanInfo.pair;
 		this.dom  = chanInfo.dom;
 		this.numericMBID = Long.parseLong(this.mbid, 16);
 		this.hitsOut = hitsOut;
+		//this.moniOut = moniOut;
+		//this.tcalOut = tcalOut;
+		//this.supernovaOut = supernovaOut;
 		this.moniOut = null;
 		this.tcalOut = null;
 		this.supernovaOut = null;
 		runLevel  = 0;
 	}
-	
+		
 	public void setConfig(DOMConfiguration config) 
 	{
 		this.rate = config.getPulserRate();
@@ -116,6 +128,7 @@ public class SimDataCollector extends AbstractDataCollector {
 	@Override
 	public void signalShutdown() 
 	{
+		logger.info("Shutting down data collector [" + card + "" + pair + "" + dom + "]");
 		stopRunLoop = true;
 	}
 	
@@ -127,7 +140,10 @@ public class SimDataCollector extends AbstractDataCollector {
 		runCore();
 		try
 		{
-			hitsOut.write(StreamBinder.endOfStream());
+			if (hitsOut != null) hitsOut.write(StreamBinder.endOfStream());
+			if (moniOut != null) moniOut.write(StreamBinder.endOfStream());
+			if (tcalOut != null) tcalOut.write(StreamBinder.endOfStream());
+			if (supernovaOut != null) supernovaOut.write(StreamBinder.endOfStream());
 		}
 		catch (IOException iox)
 		{
@@ -185,7 +201,11 @@ public class SimDataCollector extends AbstractDataCollector {
 				{
 					Thread.sleep(100);
 					logger.info("Stopping data collection");
-					hitsOut.write(StreamBinder.endOfStream());
+					if (hitsOut != null) hitsOut.write(StreamBinder.endOfStream());
+					if (moniOut != null) moniOut.write(StreamBinder.endOfStream());
+					if (tcalOut != null) tcalOut.write(StreamBinder.endOfStream());
+					if (supernovaOut != null) supernovaOut.write(StreamBinder.endOfStream());
+					logger.debug("Flushed binders.");
 					setRunLevel(2);
 				}
 				

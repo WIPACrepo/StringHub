@@ -59,6 +59,9 @@ public class SecondaryStreamConsumer implements BufferConsumer
 		long mbid = buf.getLong(); 
 		buf.position(buf.position() + 8);
 		long utc  = buf.getLong();
+
+		logger.debug("Consuming record of length " + recl + " type = " + fmtid
+				+ " - buf pos: " + buf.position());
 		
 		DOMID8B domId   = new DOMID8B(mbid);
 		UTCTime8B utcTime = new UTCTime8B(utc);

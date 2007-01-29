@@ -229,27 +229,27 @@ public class StringHubComponent extends DAQComponent
 				if (config == null) continue;
 				AbstractDataCollector dc;
 				String cwd = chanInfo.card + "" + chanInfo.pair + chanInfo.dom;
-				// This pipe is the pipe which communicates hit data from collector to sorter
+				Pipe hitPipe = Pipe.open();
+				Pipe moniPipe = Pipe.open();
+				Pipe tcalPipe = Pipe.open();
+				Pipe snPipe = Pipe.open();
 				if (isSim)
 				{
-					Pipe pipe = Pipe.open();
-					dc = new SimDataCollector(chanInfo, pipe.sink());
-					bind.register(pipe.source(), cwd);
+					dc = new SimDataCollector(chanInfo, hitPipe.sink(), moniPipe.sink(), snPipe.sink(), tcalPipe.sink());
 				}
 				else
 				{
-					Pipe hitPipe = Pipe.open();
-					Pipe moniPipe = Pipe.open();
-					Pipe tcalPipe = Pipe.open();
-					Pipe snPipe = Pipe.open();
-					dc = new DataCollector(chanInfo.card, chanInfo.pair, chanInfo.dom, 
+					dc = new DataCollector(
+							chanInfo.card, chanInfo.pair, chanInfo.dom, 
 							hitPipe.sink(), moniPipe.sink(), snPipe.sink(), tcalPipe.sink()
 						);
-					bind.register(hitPipe.source(), "hits-" + cwd);
-					moniBind.register(moniPipe.source(), "moni-" + cwd);
-					tcalBind.register(tcalPipe.source(), "tcal-" + cwd);
-					supernovaBind.register(snPipe.source(), "supernova-" + cwd);
 				}
+				bind.register(hitPipe.source(), "hits-" + cwd);
+				moniBind.register(moniPipe.source(), "moni-" + cwd);
+				tcalBind.register(tcalPipe.source(), "tcal-" + cwd);
+				supernovaBind.register(snPipe.source(), "supernova-" + cwd);
+
+				/* queue up the config */
 				dc.setConfig(config);
 				collectors.add(dc);
 				logger.debug("Starting new DataCollector thread on (" + cwd + ").");
@@ -257,7 +257,7 @@ public class StringHubComponent extends DAQComponent
 				logger.debug("DataCollector thread on (" + cwd + ") started.");				
 			}
 
-			logger.debug("Starting up HKN1 sorting trees...");
+			logger.info("Starting up HKN1 sorting trees...");
 			
 			bind.start();
 			logger.debug("Hit binder started.");
@@ -272,6 +272,12 @@ public class StringHubComponent extends DAQComponent
 			for (AbstractDataCollector dc : collectors) 
 			{
 				dc.signalConfigure();
+			}
+			
+			// Don't return from this method until all DOMs are configured
+			for (AbstractDataCollector dc : collectors)
+			{
+				if (dc.queryDaqRunLevel() != 2) Thread.sleep(25);
 			}
 			
 		}
@@ -359,6 +365,19 @@ public class StringHubComponent extends DAQComponent
         } catch (IOException ioe) {
             throw new DAQCompException("Couldn't stop supernova destination", ioe);
         }
+        
+        // HACK!
+        logger.info("Sleeping 21 sec to observe stop messages.");
+        try
+        {
+        	Thread.sleep(20000);
+        }
+        catch (InterruptedException intx)
+        {
+        	intx.printStackTrace();
+        	throw new DAQCompException("Interrupted sleep.");
+        }
+        logger.info("Returning from stop.");
 	}
 
 }
