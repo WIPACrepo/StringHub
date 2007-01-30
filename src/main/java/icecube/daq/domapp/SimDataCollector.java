@@ -73,7 +73,7 @@ public class SimDataCollector extends AbstractDataCollector {
 		this.moniOut = null;
 		this.tcalOut = null;
 		this.supernovaOut = null;
-		runLevel  = 0;
+		runLevel  = IDLE;
 	}
 		
 	public void setConfig(DOMConfiguration config) 
@@ -84,35 +84,35 @@ public class SimDataCollector extends AbstractDataCollector {
 	public void signalConfigure() 
 	{
 		logger.info("Got (DOM) configure message - telling thread to configure DOMs.");
-		if (queryDaqRunLevel() > 2)
+		if (queryDaqRunLevel() > CONFIGURED)
 		{
 			logger.error("Cannot configure DOM (even a simulated one) in state " + runLevel);
 			throw new IllegalStateException();
 		}
 		logger.info("Configuring simulated DataCollector " + getName());
-		setRunLevel(1);
+		setRunLevel(CONFIGURING);
 	}
 
 	public void signalStartRun() 
 	{
 		logger.info("Got start run message - telling collection thread to start.");
-		if (queryDaqRunLevel() != 2)
+		if (queryDaqRunLevel() != CONFIGURED)
 		{
 			logger.error("Cannot start run on DOM in state " + runLevel);
 			throw new IllegalStateException();
 		}
-		setRunLevel(3);
+		setRunLevel(STARTING);
 	}
 
 	public void signalStopRun() 
 	{
 		logger.info("Got stop run message - telling collection thread to stop.");
-		if (queryDaqRunLevel() != 4)
+		if (queryDaqRunLevel() != RUNNING)
 		{
 			logger.error("Cannot stop run that is not running -- runLevel = " + runLevel);
 			throw new IllegalStateException();
 		}
-		setRunLevel(5);
+		setRunLevel(STOPPING);
 	}
 
 	public synchronized int queryDaqRunLevel() 
@@ -173,31 +173,31 @@ public class SimDataCollector extends AbstractDataCollector {
 			while (!stopRunLoop)
 			{
 				boolean needSomeSleep = true;
-				if (queryDaqRunLevel() == 1) 
+				if (queryDaqRunLevel() == CONFIGURING) 
 				{
 					// Simulate configure time
 					Thread.sleep(500);
 					setRunLevel(2);
 				}
-				else if (queryDaqRunLevel() == 3)
+				else if (queryDaqRunLevel() == STARTING)
 				{
 					// go to start run
 					Thread.sleep(20);
-					setRunLevel(4);
+					setRunLevel(RUNNING);
 					long t = System.currentTimeMillis();
 					lastGenHit = t;
 					lastMoni   = t;
 					lastTcal   = t;
 					lastSupernova = t;
 				}
-				else if (queryDaqRunLevel() == 4)
+				else if (queryDaqRunLevel() == RUNNING)
 				{
 					long currTime = System.currentTimeMillis();
 					int nHits = generateHits(currTime);
 					int nMoni = generateMoni(currTime);
 					if (nHits > 0) needSomeSleep = false; 
 				}
-				else if (queryDaqRunLevel() == 5)
+				else if (queryDaqRunLevel() == STOPPING)
 				{
 					Thread.sleep(100);
 					logger.info("Stopping data collection");
@@ -206,7 +206,7 @@ public class SimDataCollector extends AbstractDataCollector {
 					if (tcalOut != null) tcalOut.write(StreamBinder.endOfStream());
 					if (supernovaOut != null) supernovaOut.write(StreamBinder.endOfStream());
 					logger.debug("Flushed binders.");
-					setRunLevel(2);
+					setRunLevel(CONFIGURED);
 				}
 				
 				// CPU reduction action

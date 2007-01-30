@@ -13,6 +13,13 @@ package icecube.daq.domapp;
  *
  */
 public abstract class AbstractDataCollector extends Thread {
+	public static final int IDLE = 0;
+	public static final int CONFIGURING = 1;
+	public static final int CONFIGURED = 2;
+	public static final int STARTING = 3;
+	public static final int RUNNING = 4;
+	public static final int STOPPING = 5;
+
 	public abstract void setConfig(DOMConfiguration config);
 	public abstract void signalConfigure();
 	public abstract void signalStartRun();

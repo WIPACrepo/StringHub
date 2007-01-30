@@ -132,7 +132,7 @@ public class DataCollector extends AbstractDataCollector
 		setName("DataCollector-" + card + "" + pair + dom);
 		gps = null;
 		
-		runLevel = 0;
+		runLevel = IDLE;
 		gpsOffset = new UTC(0L);
 		daqHeader = ByteBuffer.allocate(32);
 	}
@@ -318,7 +318,7 @@ public class DataCollector extends AbstractDataCollector
 	}
 	
 	public synchronized void signalShutdown() {
-		if (queryDaqRunLevel() > 2) {
+		if (queryDaqRunLevel() > CONFIGURED) {
 			logger.error("Attempt to shutdown collection thread in non-IDLE state.");
 			throw new IllegalStateException();
 		}
@@ -326,11 +326,11 @@ public class DataCollector extends AbstractDataCollector
 	}
 	
 	public synchronized void signalStartRun() {
-		if (queryDaqRunLevel() != 2) {
+		if (queryDaqRunLevel() != CONFIGURED) {
 			logger.error("Attempt to start DOM in wrong state (" + queryDaqRunLevel() + ")");
 			throw new IllegalStateException();
 		}
-		setRunLevel(3);
+		setRunLevel(STARTING);
 	}
 
 	/**
@@ -339,19 +339,19 @@ public class DataCollector extends AbstractDataCollector
 	 * any assumptions on the run being stopped. 
 	 */
 	public synchronized void signalStopRun() {
-		if (queryDaqRunLevel() != 4) {
+		if (queryDaqRunLevel() != RUNNING) {
 			logger.error("Attempt to stop run in non-RUNNING state.");
 			throw new IllegalStateException();
 		}
-		setRunLevel(5);
+		setRunLevel(STOPPING);
 	}
 	
 	public synchronized void signalConfigure() {
-		if (queryDaqRunLevel() > 2) {
+		if (queryDaqRunLevel() > CONFIGURED) {
 			logger.error("Attempt to configure DOM in state above CONFIGURED.");
 			throw new IllegalStateException();
 		}
-		setRunLevel(1);
+		setRunLevel(CONFIGURING);
 	}
 	
 	public String toString() { return getName(); }
@@ -373,7 +373,7 @@ public class DataCollector extends AbstractDataCollector
 			// Thread.sleep(100);
 			validRAPCalCount++;
 			
-			if (queryDaqRunLevel() == 4)
+			if (queryDaqRunLevel() == RUNNING)
 			{
 				tcalProcess(tcal, gps);
 			}
@@ -486,7 +486,7 @@ public class DataCollector extends AbstractDataCollector
 			}
 			
 			/* Check DATA & MONI - must be in running state (2) */
-			if (queryDaqRunLevel() == 4) 
+			if (queryDaqRunLevel() == RUNNING) 
 			{
 				
 				if (t - lastDataRead >= dataReadInterval) 
@@ -521,22 +521,22 @@ public class DataCollector extends AbstractDataCollector
 					}
 				}
 			} 
-			else if (queryDaqRunLevel() == 1) 
+			else if (queryDaqRunLevel() == CONFIGURING) 
 			{
 				/* Need to handle a configure */
 				logger.info("Got CONFIGURE signal.");
 				configure();
 				logger.info("DOM is configured.");
-				setRunLevel(2);
+				setRunLevel(CONFIGURED);
 			} 
-			else if (queryDaqRunLevel() == 3) 
+			else if (queryDaqRunLevel() == STARTING) 
 			{
 				logger.info("Got START RUN signal.");
 				app.beginRun();
 				logger.info("DOM is running.");
-				setRunLevel(4);
+				setRunLevel(RUNNING);
 			} 
-			else if (queryDaqRunLevel() == 5) 
+			else if (queryDaqRunLevel() == STOPPING) 
 			{
 				logger.info("Got STOP RUN signal.");
 				app.endRun();
@@ -545,7 +545,7 @@ public class DataCollector extends AbstractDataCollector
 				if (moniSink != null) moniSink.write(StreamBinder.endOfStream());
 				if (tcalSink != null) tcalSink.write(StreamBinder.endOfStream());
 				if (supernovaSink != null) supernovaSink.write(StreamBinder.endOfStream());
-				setRunLevel(2);
+				setRunLevel(CONFIGURED);
 			}
 			
 			if (tired) 

@@ -277,7 +277,7 @@ public class StringHubComponent extends DAQComponent
 			// Don't return from this method until all DOMs are configured
 			for (AbstractDataCollector dc : collectors)
 			{
-				if (dc.queryDaqRunLevel() != 2) Thread.sleep(25);
+				if (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED) Thread.sleep(25);
 			}
 			
 		}
@@ -317,7 +317,7 @@ public class StringHubComponent extends DAQComponent
 		try
 		{
 			for (AbstractDataCollector dc : collectors) 
-				while (dc.queryDaqRunLevel() != 2) Thread.sleep(100);
+				while (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED) Thread.sleep(100);
 			for (AbstractDataCollector dc : collectors) dc.signalStartRun();
 		}
 		catch (InterruptedException intx)
@@ -339,7 +339,7 @@ public class StringHubComponent extends DAQComponent
 			
 			for (AbstractDataCollector dc : collectors)
 			{
-				while (dc.queryDaqRunLevel() != 2) Thread.sleep(100);
+				while (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED) Thread.sleep(100);
 			}
 		}
 		catch (Exception e)
