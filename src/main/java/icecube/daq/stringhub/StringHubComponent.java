@@ -17,6 +17,7 @@ import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.payload.ByteBufferCache;
+import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.MasterPayloadFactory;
 import icecube.daq.sender.RequestInputEngine;
@@ -29,6 +30,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.Pipe;
+import java.nio.channels.SelectableChannel;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,6 +42,132 @@ import org.dom4j.DocumentException;
 import org.dom4j.io.SAXReader;
 import org.xml.sax.SAXException;
 
+class BindSource
+{
+	private static final Logger logger = Logger.getLogger(BindSource.class);
+
+	private int nch;
+	private String name;
+	private SelectableChannel hitSource;
+	private SelectableChannel moniSource;
+	private SelectableChannel tcalSource;
+	private SelectableChannel snSource;
+
+	private StreamBinder hitBind;
+	private StreamBinder moniBind;
+	private StreamBinder tcalBind;
+	private StreamBinder snBind;
+
+	BindSource(int nch, String name, SelectableChannel hitSource,
+			   SelectableChannel moniSource, SelectableChannel tcalSource,
+			   SelectableChannel snSource)
+	{
+		this.nch = nch;
+		this.name = name;
+		this.hitSource = hitSource;
+		this.moniSource = moniSource;
+		this.tcalSource = tcalSource;
+		this.snSource = snSource;
+	}
+
+	String getName()
+	{
+		return name;
+	}
+
+	private void startHitThread(Sender sender)
+		throws IOException
+	{
+		hitBind = new StreamBinder(nch, sender);
+
+		hitBind.register(hitSource, "hits" + name);
+
+		hitBind.start();
+		logger.debug("Hit binder started.");
+	}
+
+	private void startMoniThread(MasterPayloadFactory payloadFactory,
+								 IByteBufferCache bufferManager,
+								 PayloadDestinationOutputEngine moniPayloadDest,
+								 PayloadDestinationOutputEngine tcalPayloadDest,
+								 PayloadDestinationOutputEngine snPayloadDest)
+		throws IOException
+	{
+		SecondaryStreamConsumer ssc =
+			new SecondaryStreamConsumer(payloadFactory, bufferManager,
+										moniPayloadDest, tcalPayloadDest, 
+										snPayloadDest);
+		moniBind = new StreamBinder(nch, ssc);
+
+		moniBind.register(moniSource, "moni" + name);
+
+		moniBind.start();
+		logger.debug("Monitor binder started.");
+	}
+
+	private void startSnThread(MasterPayloadFactory payloadFactory,
+							   IByteBufferCache bufferManager,
+							   PayloadDestinationOutputEngine moniPayloadDest,
+							   PayloadDestinationOutputEngine tcalPayloadDest,
+							   PayloadDestinationOutputEngine snPayloadDest)
+		throws IOException
+	{
+		SecondaryStreamConsumer ssc =
+			new SecondaryStreamConsumer(payloadFactory, bufferManager,
+										moniPayloadDest, tcalPayloadDest, 
+										snPayloadDest);
+		snBind = new StreamBinder(nch, ssc);
+
+		snBind.register(snSource, "sn" + name);
+
+		snBind.start();
+		logger.debug("Supernova binder started.");
+	}
+
+	private void startTcalThread(MasterPayloadFactory payloadFactory,
+								 IByteBufferCache bufferManager,
+								 PayloadDestinationOutputEngine moniPayloadDest,
+								 PayloadDestinationOutputEngine tcalPayloadDest,
+								 PayloadDestinationOutputEngine snPayloadDest)
+		throws IOException
+	{
+		SecondaryStreamConsumer ssc =
+			new SecondaryStreamConsumer(payloadFactory, bufferManager,
+										moniPayloadDest,  tcalPayloadDest, 
+										snPayloadDest);
+		tcalBind = new StreamBinder(nch, ssc);
+
+		tcalBind.register(tcalSource, "tcal" + name);
+
+		tcalBind.start();
+		logger.debug("TCAL binder started.");
+	}
+
+	void startThreads(Sender sender, MasterPayloadFactory payloadFactory,
+					  IByteBufferCache bufferManager,
+					  PayloadDestinationOutputEngine moniPayloadDest,
+					  PayloadDestinationOutputEngine tcalPayloadDest,
+					  PayloadDestinationOutputEngine snPayloadDest)
+		throws IOException
+	{
+		startHitThread(sender);
+		startMoniThread(payloadFactory, bufferManager, moniPayloadDest,
+						tcalPayloadDest, snPayloadDest);
+		startTcalThread(payloadFactory, bufferManager, moniPayloadDest,
+						tcalPayloadDest, snPayloadDest);
+		startSnThread(payloadFactory, bufferManager, moniPayloadDest,
+						tcalPayloadDest, snPayloadDest);
+	}
+
+	void stopThreads()
+	{
+		hitBind.shutdown();
+		moniBind.shutdown();
+		tcalBind.shutdown();
+		snBind.shutdown();
+	}
+}
+
 public class StringHubComponent extends DAQComponent
 {
 
@@ -47,7 +175,6 @@ public class StringHubComponent extends DAQComponent
 	
 	private boolean isSim = false;
 	private Driver driver = Driver.getInstance();
-	private StreamBinder bind, moniBind, tcalBind, supernovaBind;
 	private Sender sender;
 	private ByteBufferCache bufferManager;
 	private MasterPayloadFactory payloadFactory;
@@ -55,6 +182,7 @@ public class StringHubComponent extends DAQComponent
 	private PayloadDestinationOutputEngine   moniPayloadDest, tcalPayloadDest, supernovaPayloadDest; 
 	private DOMConnector conn;
 	private List<DOMChannelInfo> activeDOMs;
+	private List<BindSource> bindSources;
 	
 	private String configurationPath;
 	private String configured = "NO";
@@ -174,6 +302,8 @@ public class StringHubComponent extends DAQComponent
 
 		configured = "YES";
 		
+		bindSources = new ArrayList<BindSource>();
+
 		try 
 		{
 			// Lookup the connected DOMs
@@ -200,40 +330,27 @@ public class StringHubComponent extends DAQComponent
 				if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) nch++;
 	
 			logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
-			bind = new StreamBinder(nch, sender);
-			moniBind = new StreamBinder(nch, new SecondaryStreamConsumer(
-					this.payloadFactory, 
-					this.getByteBufferCache("UnspecificCache"), 
-					this.moniPayloadDest, 
-					this.tcalPayloadDest, 
-					this.supernovaPayloadDest)
-			);
-			tcalBind = new StreamBinder(nch, new SecondaryStreamConsumer(
-					this.payloadFactory, 
-					this.getByteBufferCache("UnspecificCache"), 
-					this.moniPayloadDest, 
-					this.tcalPayloadDest, 
-					this.supernovaPayloadDest)
-			);
-			supernovaBind = new StreamBinder(nch, new SecondaryStreamConsumer(
-					this.payloadFactory, 
-					this.getByteBufferCache("UnspecificCache"), 
-					this.moniPayloadDest, 
-					this.tcalPayloadDest, 
-					this.supernovaPayloadDest)
-			);
 			conn = new DOMConnector(nch);
 				
 			for (DOMChannelInfo chanInfo : activeDOMs)
 			{
 				DOMConfiguration config = xmlConfig.getDOMConfig(chanInfo.mbid);
 				if (config == null) continue;
-				AbstractDataCollector dc;
+
 				String cwd = chanInfo.card + "" + chanInfo.pair + chanInfo.dom;
+
 				Pipe hitPipe = Pipe.open();
 				Pipe moniPipe = Pipe.open();
 				Pipe tcalPipe = Pipe.open();
 				Pipe snPipe = Pipe.open();
+
+				BindSource bs =
+					new BindSource(nch, cwd, hitPipe.source(),
+								   moniPipe.source(), tcalPipe.source(),
+								   snPipe.source());
+				bindSources.add(bs);
+
+				AbstractDataCollector dc;
 				if (isSim)
 				{
 					dc = new SimDataCollector(chanInfo, hitPipe.sink(), moniPipe.sink(), snPipe.sink(), tcalPipe.sink());
@@ -245,10 +362,6 @@ public class StringHubComponent extends DAQComponent
 							hitPipe.sink(), moniPipe.sink(), snPipe.sink(), tcalPipe.sink()
 						);
 				}
-				bind.register(hitPipe.source(), "hits-" + cwd);
-				moniBind.register(moniPipe.source(), "moni-" + cwd);
-				tcalBind.register(tcalPipe.source(), "tcal-" + cwd);
-				supernovaBind.register(snPipe.source(), "supernova-" + cwd);
 
 				/* queue up the config */
 				dc.setConfig(config);
@@ -259,15 +372,6 @@ public class StringHubComponent extends DAQComponent
 			}
 
 			logger.info("Starting up HKN1 sorting trees...");
-			
-			bind.start();
-			logger.debug("Hit binder started.");
-			moniBind.start();
-			logger.debug("Monitor binder started.");
-			tcalBind.start();
-			logger.debug("TCAL binder started.");
-			supernovaBind.start();
-			logger.debug("Supernova binder started.");
 			
 			// Still need to get the data collectors to pick up and do something with the config
 			conn.configure();
@@ -300,12 +404,19 @@ public class StringHubComponent extends DAQComponent
 	{
 		logger.info("Have I been configured? " + configured);
 		
-		// Reset the binders
-		bind.reset();
-		moniBind.reset();
-		tcalBind.reset();
-		supernovaBind.reset();
-		
+		for (BindSource bs : bindSources)
+		{
+			try {
+				bs.startThreads(sender, payloadFactory,
+								getByteBufferCache("UnspecificCache"),
+								moniPayloadDest, tcalPayloadDest,
+								supernovaPayloadDest);
+			} catch (IOException ioe) {
+				logger.info("Couldn't start threads for binder " +
+							bs.getName());
+			}
+		}
+
 		try
 		{
 			conn.startProcessing();
