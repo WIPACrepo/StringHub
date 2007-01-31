@@ -1,3 +1,4 @@
+/* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
 package icecube.daq.stringhub;
 
 import icecube.daq.bindery.SecondaryStreamConsumer;
@@ -52,7 +53,7 @@ public class StringHubComponent extends DAQComponent
 	private MasterPayloadFactory payloadFactory;
 	private DOMRegistry domRegistry;
 	private PayloadDestinationOutputEngine   moniPayloadDest, tcalPayloadDest, supernovaPayloadDest; 
-	private ArrayList<AbstractDataCollector> collectors;
+	private DOMConnector conn;
 	private List<DOMChannelInfo> activeDOMs;
 	
 	private String configurationPath;
@@ -221,7 +222,7 @@ public class StringHubComponent extends DAQComponent
 					this.tcalPayloadDest, 
 					this.supernovaPayloadDest)
 			);
-			collectors = new ArrayList<AbstractDataCollector>(nch);
+			conn = new DOMConnector(nch);
 				
 			for (DOMChannelInfo chanInfo : activeDOMs)
 			{
@@ -251,7 +252,7 @@ public class StringHubComponent extends DAQComponent
 
 				/* queue up the config */
 				dc.setConfig(config);
-				collectors.add(dc);
+				conn.add(dc);
 				logger.debug("Starting new DataCollector thread on (" + cwd + ").");
 				dc.start();
 				logger.debug("DataCollector thread on (" + cwd + ") started.");				
@@ -269,16 +270,7 @@ public class StringHubComponent extends DAQComponent
 			logger.debug("Supernova binder started.");
 			
 			// Still need to get the data collectors to pick up and do something with the config
-			for (AbstractDataCollector dc : collectors) 
-			{
-				dc.signalConfigure();
-			}
-			
-			// Don't return from this method until all DOMs are configured
-			for (AbstractDataCollector dc : collectors)
-			{
-				if (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED) Thread.sleep(25);
-			}
+			conn.configure();
 			
 		}
 		
@@ -316,15 +308,13 @@ public class StringHubComponent extends DAQComponent
 		
 		try
 		{
-			for (AbstractDataCollector dc : collectors) 
-				while (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED) Thread.sleep(100);
-			for (AbstractDataCollector dc : collectors) dc.signalStartRun();
+			conn.startProcessing();
 		}
-		catch (InterruptedException intx)
+		catch (Exception e)
 		{
-			intx.printStackTrace();
-			throw new DAQCompException(intx.getMessage());
-		}
+			e.printStackTrace();
+			throw new DAQCompException("Couldn't start DOMs", e);
+		}		
 	}
 	
 	public void stopping()
@@ -332,15 +322,7 @@ public class StringHubComponent extends DAQComponent
 	{
 		try
 		{
-			for (AbstractDataCollector dc : collectors) 
-			{
-				dc.signalStopRun();
-			}
-			
-			for (AbstractDataCollector dc : collectors)
-			{
-				while (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED) Thread.sleep(100);
-			}
+			conn.stopProcessing();
 		}
 		catch (Exception e)
 		{
@@ -366,17 +348,6 @@ public class StringHubComponent extends DAQComponent
             throw new DAQCompException("Couldn't stop supernova destination", ioe);
         }
         
-        // HACK!
-        logger.info("Sleeping 21 sec to observe stop messages.");
-        try
-        {
-        	Thread.sleep(20000);
-        }
-        catch (InterruptedException intx)
-        {
-        	intx.printStackTrace();
-        	throw new DAQCompException("Interrupted sleep.");
-        }
         logger.info("Returning from stop.");
 	}
 
