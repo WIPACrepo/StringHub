@@ -1,7 +1,5 @@
 package icecube.daq.sender;
 
-
-
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.common.DAQCmdInterface;
 
@@ -28,6 +26,8 @@ import icecube.daq.splicer.Spliceable;
 import icecube.daq.trigger.IHitPayload;
 import icecube.daq.trigger.IReadoutRequest;
 import icecube.daq.trigger.IReadoutRequestElement;
+import icecube.daq.trigger.impl.EngineeringFormatHitDataPayload;
+import icecube.daq.trigger.impl.EngineeringFormatHitDataPayloadFactory;
 import icecube.daq.trigger.impl.HitPayloadFactory;
 import icecube.daq.trigger.impl.ReadoutRequestPayloadFactory;
 
@@ -42,6 +42,8 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Vector;
+
+import java.util.zip.DataFormatException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -219,6 +221,7 @@ public class Sender
     private static int nextPayloadNum;
 
     private ISourceID sourceId;
+    private EngineeringFormatHitDataPayloadFactory engHitFactory;
     private HitPayloadFactory hitFactory;
     private ReadoutRequestPayloadFactory readoutReqFactory;
     private ReadoutDataPayloadFactory readoutDataFactory;
@@ -253,9 +256,7 @@ public class Sender
 
         sourceId = getSourceId(stringHubId);
 
-        final int hitDataType = PayloadRegistry.PAYLOAD_ID_ENGFORMAT_HIT;
-        //hitFactory = (DomHitEngineeringFormatPayloadFactory)
-        //    masterFactory.getPayloadFactory(hitDataType);
+        engHitFactory = new EngineeringFormatHitDataPayloadFactory();
         hitFactory = new HitPayloadFactory();
 
         final int readoutReqType = PayloadRegistry.PAYLOAD_ID_READOUT_REQUEST;
@@ -281,7 +282,8 @@ public class Sender
     public int compareRequestAndData(IPayload reqPayload, IPayload dataPayload)
     {
         IReadoutRequest req = (IReadoutRequest) reqPayload;
-        IHitPayload data = (IHitPayload) dataPayload;
+        DomHitEngineeringFormatPayload data =
+            (DomHitEngineeringFormatPayload) dataPayload;
 
         // get time from current hit
         final long hitTime;
@@ -328,9 +330,9 @@ public class Sender
             DomHitEngineeringFormatPayload engData =
                 new DomHitEngineeringFormatPayload();
             try {
-                engData.initialize(0, buf);
+                engData.initialize(0, buf.duplicate());
                 engData.loadPayload();
-            } catch (java.util.zip.DataFormatException dfe) {
+            } catch (DataFormatException dfe) {
                 log.error("Could not load engineering data", dfe);
                 engData = null;
             } catch (IOException ioe) {
@@ -361,12 +363,30 @@ public class Sender
                         }
                     }
 
-                    addData(payload);
+                    addData(engData);
                 }
             }
         }
 
         buf.flip();
+    }
+
+    private List convertDataToHits(IReadoutRequest req, List dataList)
+        throws DataFormatException, IOException
+    {
+        ArrayList hitDataList = new ArrayList();
+
+        for (Iterator iter = dataList.iterator(); iter.hasNext(); ) {
+            DomHitEngineeringFormatPayload engData =
+                (DomHitEngineeringFormatPayload) iter.next();
+
+            final int triggerMode = 2;
+
+            hitDataList.add(engHitFactory.createPayload(sourceId, -1,
+                                                        triggerMode, engData));
+        }
+
+        return hitDataList;
     }
 
     /**
@@ -713,7 +733,8 @@ public class Sender
      */
     public boolean isRequested(IPayload reqPayload, IPayload dataPayload)
     {
-        IHitPayload curData = (IHitPayload) dataPayload;
+        DomHitEngineeringFormatPayload curData =
+            (DomHitEngineeringFormatPayload) dataPayload;
         IReadoutRequest curReq = (IReadoutRequest) reqPayload;
 
         // get time from current hit
@@ -722,10 +743,7 @@ public class Sender
         final long timestamp = (utc == null ? Long.MIN_VALUE :
                                 utc.getUTCTimeAsLong());
 
-        ISourceID src = curData.getSourceID();
-
-        final int srcId = (src == null ? Integer.MIN_VALUE :
-                           src.getSourceID());
+        final int srcId = sourceId.getSourceID();
 
         Iterator iter =
             curReq.getReadoutRequestElements().iterator();
@@ -864,10 +882,21 @@ public class Sender
                      endTime.getUTCTimeAsLong() + "]");
         }
 
-        // sort by timestamp/source ID
-        Collections.sort(dataList, HIT_SORTER);
+        List hitDataList;
+        try {
+            hitDataList = convertDataToHits(req, dataList);
+        } catch (DataFormatException dfe) {
+            log.error("Couldn't convert engineering data to hits", dfe);
+            return null;
+        } catch (IOException ioe) {
+            log.error("Couldn't convert engineering data to hits", ioe);
+            return null;
+        }
 
-        Vector tmpHits = new Vector(dataList);
+        // sort by timestamp/source ID
+        Collections.sort(hitDataList, HIT_SORTER);
+
+        Vector tmpHits = new Vector(hitDataList);
 
         final int uid = req.getUID();
         // payload number is deprecated; set it to bogus value
