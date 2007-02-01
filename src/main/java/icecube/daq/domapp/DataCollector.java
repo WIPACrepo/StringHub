@@ -1,3 +1,5 @@
+/* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
+
 package icecube.daq.domapp;
 
 import icecube.daq.bindery.StreamBinder;
@@ -120,6 +122,9 @@ public class DataCollector extends AbstractDataCollector
 		this.pair = pair;
 		this.dom  = dom;
 		this.hitsSink = outHits;
+		//this.moniSink = null;
+		//this.tcalSink = null;
+		//this.supernovaSink = null;
 		this.moniSink = outMoni;
 		this.tcalSink = outTcal;
 		this.supernovaSink = outSupernova;
@@ -136,7 +141,27 @@ public class DataCollector extends AbstractDataCollector
 		gpsOffset = new UTC(0L);
 		daqHeader = ByteBuffer.allocate(32);
 	}
+
+	public void close() 
+	{ 
+		if (app != null) app.close();
+		try {
+			
+			if (hitsSink != null) hitsSink.close();
+			if (moniSink != null) moniSink.close();
+			if (tcalSink != null) tcalSink.close();
+			if (supernovaSink != null) supernovaSink.close();
+		} catch (IOException iox) {
+			iox.printStackTrace();
+			logger.error("Error closing pipe sinks: " + iox.getMessage());
+		}
+	}
 	
+    private String canonicalName()
+    {
+		return "[" + card + "" + pair + dom + "]";
+    }
+
 	public void setConfig(DOMConfiguration config) {
 		this.config = config;
 	}
@@ -147,6 +172,8 @@ public class DataCollector extends AbstractDataCollector
 	 */
 	private void configure() throws MessageException 
 	{
+		logger.info("Configuring DOM on " + canonicalName());
+		long configT0 = System.currentTimeMillis();
 		app.setMoniIntervals(config.getHardwareMonitorInterval(), config.getConfigMonitorInterval());
 		if (config.isDeltaCompressionEnabled())
 			app.setDeltaCompressionFormat();
@@ -180,6 +207,9 @@ public class DataCollector extends AbstractDataCollector
 		app.setCableLengths(lc.getCableLengthUp(), lc.getCableLengthDn());
 		app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
 		app.setScalerDeadtime(config.getScalerDeadtime());
+		long configT1 = System.currentTimeMillis();
+		logger.info("Finished DOM configuration - " + canonicalName() + 
+					"; configuration took " + (configT1 - configT0) + " milliseconds.");
 	}
 	
 	private void genericDataDispatch(
@@ -356,9 +386,7 @@ public class DataCollector extends AbstractDataCollector
 	
 	public String toString() { return getName(); }
 	
-	/**
-	 * Internal function that wraps the GPS and RAPCal process including exception handling.
-	 */
+
 	private void execRapCal()
 	{
 		try 
@@ -381,16 +409,16 @@ public class DataCollector extends AbstractDataCollector
 		} catch (RAPCalException rcex) {
 			rapcalExceptionCount++;
 			rcex.printStackTrace();
-			logger.warn(rcex.getMessage());
+			logger.warn("Got RAPCal exception");
 		} catch (GPSException gpsx) {
 			gpsx.printStackTrace();
-			logger.warn(gpsx.getMessage());
+			logger.warn("Got GPS exception");
 		} catch (IOException iox) {
 			iox.printStackTrace();
-			logger.warn(iox.getMessage());
+			logger.warn("Got I/O exception - " + iox.getMessage());
 		} catch (InterruptedException intx) {
 			intx.printStackTrace();
-			logger.warn(intx.getMessage());
+			logger.warn("Got interrupted exception");
 		}		
 	}
 	
@@ -472,10 +500,20 @@ public class DataCollector extends AbstractDataCollector
 		 */
 		logger.info("Entering run loop");
 
+		int nloop = 0;
+		long loopReport = System.currentTimeMillis();
+
 		while (!stop_thread) 
 		{
 			long t = System.currentTimeMillis();
 			boolean tired = true;
+			nloop++;
+
+			if (t - loopReport >= 1000)
+			{
+			    loopReport = t;
+			    logger.info("# loops:" + nloop);
+			}
 
 			/* Do TCAL and GPS -- this always runs regardless of the run state */
 			if (t - lastTcalRead >= tcalReadInterval) 
@@ -531,14 +569,16 @@ public class DataCollector extends AbstractDataCollector
 			} 
 			else if (queryDaqRunLevel() == STARTING) 
 			{
-				logger.info("Got START RUN signal.");
+				logger.info("Got START RUN signal " + canonicalName());
+				System.out.println("Got START RUN signal " + canonicalName());
 				app.beginRun();
 				logger.info("DOM is running.");
 				setRunLevel(RUNNING);
 			} 
 			else if (queryDaqRunLevel() == STOPPING) 
 			{
-				logger.info("Got STOP RUN signal.");
+				logger.info("Got STOP RUN signal " + canonicalName());
+				System.out.println("Got STOP RUN signal " + canonicalName());
 				app.endRun();
 				// Write the end-of-stream token
 				if (hitsSink != null) hitsSink.write(StreamBinder.endOfStream());

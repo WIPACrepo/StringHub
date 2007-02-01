@@ -21,7 +21,9 @@ public class DOMApp implements IDOMApp {
 		devIO = new DOMIO(card, pair, dom);
 		msgBuffer = ByteBuffer.allocate(4092);
 	}
-	
+
+	public void close() { devIO.close(); }
+
 	public void beginFlasherRun(short brightness, short width, short delay, short mask, short rate) 
 	throws MessageException {
 		ByteBuffer buf = ByteBuffer.allocate(10);

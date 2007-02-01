@@ -17,7 +17,12 @@ public interface IDOMApp {
 	public abstract void beginFlasherRun(short brightness, short width, short delay, 
 			short mask, short rate)
 	throws MessageException;
-	
+
+	/**
+	 * Some data collectors need to free things like file handles.
+	 */
+	public abstract void close();
+
 	/**
 	 * Begin data collection on DOM.
 	 * @throws MessageException

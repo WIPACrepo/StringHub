@@ -26,4 +26,5 @@ public abstract class AbstractDataCollector extends Thread {
 	public abstract void signalStopRun();
 	public abstract void signalShutdown();
 	public abstract int  queryDaqRunLevel();
+    public abstract void close();
 }

@@ -1,3 +1,4 @@
+/* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
 package icecube.daq.bindery;
 
 import icecube.daq.io.PayloadDestinationOutputEngine;
@@ -27,25 +28,21 @@ import org.apache.log4j.Logger;
 public class SecondaryStreamConsumer implements BufferConsumer 
 {
 
-	private MasterPayloadFactory	payloadFactory;
-	private IByteBufferCache		byteBufferCache;
-	private PayloadDestinationOutputEngine	moniOutputEngine;
-	private PayloadDestinationOutputEngine	tcalOutputEngine;
-	private PayloadDestinationOutputEngine	supernovaOutputEngine;
+	private MasterPayloadFactory				payloadFactory;
+	private IByteBufferCache					byteBufferCache;
+	private PayloadDestinationOutputEngine		payloadOutput;
+	private PayloadDestinationOutputEngine		tcalOutputEngine;
+	private PayloadDestinationOutputEngine		supernovaOutputEngine;
 	
 	private static final Logger logger = Logger.getLogger(SecondaryStreamConsumer.class);
-	
+    
 	public SecondaryStreamConsumer(MasterPayloadFactory payloadFactory, 
-			IByteBufferCache byteBufferCache,
-			PayloadDestinationOutputEngine moniOutput,
-			PayloadDestinationOutputEngine tcalOutput,
-			PayloadDestinationOutputEngine supernovaOutput)
-	{
-		this.payloadFactory = payloadFactory;
+								   IByteBufferCache byteBufferCache,
+								   PayloadDestinationOutputEngine output)
+    {
+		this.payloadFactory  = payloadFactory;
 		this.byteBufferCache = byteBufferCache;
-		this.moniOutputEngine = moniOutput;
-		this.tcalOutputEngine 	= tcalOutput;
-		this.supernovaOutputEngine = supernovaOutput;
+		this.payloadOutput   = output;
 	}
 	
 	/**
@@ -79,7 +76,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
 				if (payload_buffer != null)
 					payload = payloadFactory.createPayload(0, payload_buffer);
 				if (payload != null)
-					moniOutputEngine.getPayloadDestinationCollection().writePayload(payload);
+					payloadOutput.getPayloadDestinationCollection().writePayload(payload);
 				break;
 			case 202: // TCAL record
 				payload_buffer = TimeCalibrationPayloadFactory.createFormattedBufferFromDomHubRecord(
@@ -88,7 +85,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
 				if (payload_buffer != null)
 					payload = payloadFactory.createPayload(0, payload_buffer);
 				if (payload != null)
-					tcalOutputEngine.getPayloadDestinationCollection().writePayload(payload);
+					payloadOutput.getPayloadDestinationCollection().writePayload(payload);
 				break;
 			case 302: // Supernova record
 				payload_buffer = SuperNovaPayloadFactory.createFormattedBufferFromDomHubRecord(
@@ -97,7 +94,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
 				if (payload_buffer != null)
 					payload = payloadFactory.createPayload(0, payload_buffer);
 				if (payload != null)
-					supernovaOutputEngine.getPayloadDestinationCollection().writePayload(payload);
+					payloadOutput.getPayloadDestinationCollection().writePayload(payload);
 				break;
 			}
 		}

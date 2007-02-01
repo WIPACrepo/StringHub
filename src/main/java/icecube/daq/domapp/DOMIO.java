@@ -14,6 +14,7 @@ public class DOMIO {
 	private int card;
 	private int pair;
 	private char dom;
+	private RandomAccessFile file;
 	private FileChannel channel;
 	private ByteBuffer in;
 	private static Logger logger = Logger.getLogger(DOMIO.class);
@@ -24,14 +25,28 @@ public class DOMIO {
 		this.dom  = dom;
 		
 		File devfile = new File("/dev/dhc" + card + 'w' + pair + 'd' + dom);
-		RandomAccessFile file = new RandomAccessFile(devfile, "rws");
+		file = new RandomAccessFile(devfile, "rws");
 		channel = file.getChannel();
 		
 		// TODO - hack to 4092 - make this better
 		// TODO - do we want Direct or Indirect?
 		in = ByteBuffer.allocateDirect(4092);
 	}
-	
+
+	/**
+	 * Close the internal file handles and free system resources.
+	 */
+	public void close() { 
+		try {
+			file.close(); 
+			channel.close();
+			logger.debug("Closed file/channel for [" + card + "" + pair + dom + "]");
+		} catch (IOException iox) {
+			iox.printStackTrace();
+			logger.error("Error on close of DOMIO: " + iox.getMessage());
+		}
+	}
+
 	/**
 	 * Send message to DOMApp
 	 * @param buf - output buffer going to DOMApp

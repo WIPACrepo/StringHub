@@ -400,6 +400,7 @@ public class Sender
      */
     public void finishThreadCleanup()
     {
+	log.info("in finishThreadCleanup().");
         if (dataDest != null) {
             try {
                 dataDest.stopAllPayloadDestinations();

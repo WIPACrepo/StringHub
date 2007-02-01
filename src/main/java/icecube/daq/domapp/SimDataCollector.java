@@ -75,7 +75,9 @@ public class SimDataCollector extends AbstractDataCollector {
 		this.supernovaOut = null;
 		runLevel  = IDLE;
 	}
-		
+
+	public void close() { }
+
 	public void setConfig(DOMConfiguration config) 
 	{
 		this.rate = config.getPulserRate();

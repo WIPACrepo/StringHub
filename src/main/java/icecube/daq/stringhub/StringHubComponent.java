@@ -46,7 +46,6 @@ class BindSource
 {
 	private static final Logger logger = Logger.getLogger(BindSource.class);
 
-	private int nch;
 	private String name;
 	private SelectableChannel hitSource;
 	private SelectableChannel moniSource;
@@ -58,11 +57,10 @@ class BindSource
 	private StreamBinder tcalBind;
 	private StreamBinder snBind;
 
-	BindSource(int nch, String name, SelectableChannel hitSource,
+	BindSource(String name, SelectableChannel hitSource,
 			   SelectableChannel moniSource, SelectableChannel tcalSource,
 			   SelectableChannel snSource)
 	{
-		this.nch = nch;
 		this.name = name;
 		this.hitSource = hitSource;
 		this.moniSource = moniSource;
@@ -75,97 +73,39 @@ class BindSource
 		return name;
 	}
 
-	private void startHitThread(Sender sender)
-		throws IOException
+	void closeChannels()
 	{
-		hitBind = new StreamBinder(nch, sender);
-
-		hitBind.register(hitSource, "hits" + name);
-
-		hitBind.start();
-		logger.debug("Hit binder started.");
+		try {
+			if (hitSource != null) hitSource.close();
+			if (moniSource != null) moniSource.close();
+			if (tcalSource != null) tcalSource.close();
+			if (snSource != null) snSource.close();
+		} catch (IOException iox) {
+			iox.printStackTrace();
+			logger.error("Error closing pipe sources: " + iox.getMessage());
+		}
 	}
 
-	private void startMoniThread(MasterPayloadFactory payloadFactory,
-								 IByteBufferCache bufferManager,
-								 PayloadDestinationOutputEngine moniPayloadDest,
-								 PayloadDestinationOutputEngine tcalPayloadDest,
-								 PayloadDestinationOutputEngine snPayloadDest)
-		throws IOException
+	SelectableChannel getHitsSource()
 	{
-		SecondaryStreamConsumer ssc =
-			new SecondaryStreamConsumer(payloadFactory, bufferManager,
-										moniPayloadDest, tcalPayloadDest, 
-										snPayloadDest);
-		moniBind = new StreamBinder(nch, ssc);
-
-		moniBind.register(moniSource, "moni" + name);
-
-		moniBind.start();
-		logger.debug("Monitor binder started.");
+		return hitSource;
 	}
 
-	private void startSnThread(MasterPayloadFactory payloadFactory,
-							   IByteBufferCache bufferManager,
-							   PayloadDestinationOutputEngine moniPayloadDest,
-							   PayloadDestinationOutputEngine tcalPayloadDest,
-							   PayloadDestinationOutputEngine snPayloadDest)
-		throws IOException
+	SelectableChannel getMoniSource()
 	{
-		SecondaryStreamConsumer ssc =
-			new SecondaryStreamConsumer(payloadFactory, bufferManager,
-										moniPayloadDest, tcalPayloadDest, 
-										snPayloadDest);
-		snBind = new StreamBinder(nch, ssc);
-
-		snBind.register(snSource, "sn" + name);
-
-		snBind.start();
-		logger.debug("Supernova binder started.");
+		return hitSource;
 	}
 
-	private void startTcalThread(MasterPayloadFactory payloadFactory,
-								 IByteBufferCache bufferManager,
-								 PayloadDestinationOutputEngine moniPayloadDest,
-								 PayloadDestinationOutputEngine tcalPayloadDest,
-								 PayloadDestinationOutputEngine snPayloadDest)
-		throws IOException
+	SelectableChannel getTcalSource()
 	{
-		SecondaryStreamConsumer ssc =
-			new SecondaryStreamConsumer(payloadFactory, bufferManager,
-										moniPayloadDest,  tcalPayloadDest, 
-										snPayloadDest);
-		tcalBind = new StreamBinder(nch, ssc);
-
-		tcalBind.register(tcalSource, "tcal" + name);
-
-		tcalBind.start();
-		logger.debug("TCAL binder started.");
+		return hitSource;
 	}
 
-	void startThreads(Sender sender, MasterPayloadFactory payloadFactory,
-					  IByteBufferCache bufferManager,
-					  PayloadDestinationOutputEngine moniPayloadDest,
-					  PayloadDestinationOutputEngine tcalPayloadDest,
-					  PayloadDestinationOutputEngine snPayloadDest)
-		throws IOException
+	SelectableChannel getSupernovaSource()
 	{
-		startHitThread(sender);
-		startMoniThread(payloadFactory, bufferManager, moniPayloadDest,
-						tcalPayloadDest, snPayloadDest);
-		startTcalThread(payloadFactory, bufferManager, moniPayloadDest,
-						tcalPayloadDest, snPayloadDest);
-		startSnThread(payloadFactory, bufferManager, moniPayloadDest,
-						tcalPayloadDest, snPayloadDest);
+		return hitSource;
 	}
-
-	void stopThreads()
-	{
-		hitBind.shutdown();
-		moniBind.shutdown();
-		tcalBind.shutdown();
-		snBind.shutdown();
-	}
+	
 }
 
 public class StringHubComponent extends DAQComponent
@@ -180,13 +120,13 @@ public class StringHubComponent extends DAQComponent
 	private MasterPayloadFactory payloadFactory;
 	private DOMRegistry domRegistry;
 	private PayloadDestinationOutputEngine   moniPayloadDest, tcalPayloadDest, supernovaPayloadDest; 
-	private DOMConnector conn;
+	private DOMConnector conn = null;
 	private List<DOMChannelInfo> activeDOMs;
-	private List<BindSource> bindSources;
-	
+	private List<BindSource> bindSources = null;
+	private StreamBinder hitsBind, moniBind, tcalBind, snBind;
 	private String configurationPath;
 	private String configured = "NO";
-	
+	private int nch;
 	
 	public StringHubComponent(int hubId) throws Exception
 	{
@@ -198,6 +138,7 @@ public class StringHubComponent extends DAQComponent
 		payloadFactory = new MasterPayloadFactory(bufferManager);
 		sender         = new Sender(hubId, payloadFactory);
 		isSim          = Boolean.getBoolean("icecube.daq.stringhub.simulation");
+		nch            = 0;
 
 		logger.info("starting up StringHub component " + hubId);
 		
@@ -301,7 +242,11 @@ public class StringHubComponent extends DAQComponent
 			realism = "REAL DOMS";
 
 		configured = "YES";
-		
+
+		if (bindSources != null) 
+			for (BindSource b : bindSources)
+				b.closeChannels();
+
 		bindSources = new ArrayList<BindSource>();
 
 		try 
@@ -325,11 +270,16 @@ public class StringHubComponent extends DAQComponent
 			XMLConfig xmlConfig = XMLConfig.parseXMLConfig(new FileInputStream(configFile));
 
 			// Find intersection of discovered / configured channels
-			int nch = 0;
+			nch = 0;
 			for (DOMChannelInfo chanInfo : activeDOMs)
 				if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) nch++;
 	
 			logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
+			
+			// Must make sure to release file resources associated with the previous
+			// runs since we are throwing away the collectors and starting from scratch
+			if (conn != null) conn.destroy();
+
 			conn = new DOMConnector(nch);
 				
 			for (DOMChannelInfo chanInfo : activeDOMs)
@@ -345,7 +295,7 @@ public class StringHubComponent extends DAQComponent
 				Pipe snPipe = Pipe.open();
 
 				BindSource bs =
-					new BindSource(nch, cwd, hitPipe.source(),
+					new BindSource(cwd, hitPipe.source(),
 								   moniPipe.source(), tcalPipe.source(),
 								   snPipe.source());
 				bindSources.add(bs);
@@ -403,19 +353,50 @@ public class StringHubComponent extends DAQComponent
 	public void starting() throws DAQCompException
 	{
 		logger.info("Have I been configured? " + configured);
-		
+
+		SecondaryStreamConsumer monitorConsumer =
+			new SecondaryStreamConsumer(payloadFactory, 
+										bufferManager, 
+										moniPayloadDest);
+
+		SecondaryStreamConsumer supernovaConsumer =
+			new SecondaryStreamConsumer(payloadFactory, 
+										bufferManager,
+										supernovaPayloadDest);
+		SecondaryStreamConsumer tcalConsumer =
+			new SecondaryStreamConsumer(payloadFactory, 
+										bufferManager,
+										tcalPayloadDest);
+
+		try {
+			hitsBind  = new StreamBinder(nch, sender);
+			moniBind = new StreamBinder(nch, monitorConsumer);
+			snBind   = new StreamBinder(nch, supernovaConsumer);
+			tcalBind = new StreamBinder(nch, tcalConsumer);
+		} catch (IOException iox) {
+			logger.error("Error creating StreamBinder: " + iox.getMessage());
+			iox.printStackTrace();
+		}
+
 		for (BindSource bs : bindSources)
 		{
 			try {
-				bs.startThreads(sender, payloadFactory,
-								getByteBufferCache("UnspecificCache"),
-								moniPayloadDest, tcalPayloadDest,
-								supernovaPayloadDest);
+				hitsBind.register(bs.getHitsSource(), "hits-" + bs.getName());
+				moniBind.register(bs.getMoniSource(), "moni-" + bs.getName());
+				tcalBind.register(bs.getTcalSource(), "tcal-" + bs.getName());
+				snBind.register(bs.getSupernovaSource(), "supernova-" + bs.getName());
 			} catch (IOException ioe) {
-				logger.info("Couldn't start threads for binder " +
+				logger.error("Couldn't start threads for binder " +
 							bs.getName());
 			}
 		}
+
+		// start the binders
+		logger.info("Starting stream binders.");
+		hitsBind.start();
+		moniBind.start();
+		tcalBind.start();
+		snBind.start();
 
 		try
 		{

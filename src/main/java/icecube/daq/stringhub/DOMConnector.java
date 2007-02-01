@@ -80,7 +80,9 @@ public class DOMConnector
 	public void destroy()
 		throws Exception
 	{
-		throw new Error("Unimplemented");
+		for (AbstractDataCollector dc : collectors) {
+			dc.close();
+		}
 	}
 
 	/**
