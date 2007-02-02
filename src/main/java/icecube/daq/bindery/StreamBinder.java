@@ -32,6 +32,7 @@ public class StreamBinder extends Thread implements Counter {
 		eos = ByteBuffer.allocate(32);
 		eos.putInt(32).putInt(0).putLong(0).putInt(0).putInt(0).putLong(Long.MAX_VALUE);
 		eos.flip();
+
 	}
 	
 	public StreamBinder(int n, BufferConsumer out) throws IOException 
@@ -100,7 +101,9 @@ public class StreamBinder extends Thread implements Counter {
 						if (currentUT.compareTo(lastUT) < 0)
 							logger.warn("Out-of-order record detected");
 						// A single end-of-stream is sufficient to shut down this binder.
-						logger.debug("Sending buffer to sender UTC = " + currentUT.toString());
+						logger.debug("Sending buffer to sender RECL = " +
+									 rec.getBuffer().getInt(0) + " - TYPE = " + 
+									 rec.getBuffer().getInt(4) + " - UTC = " + currentUT.toString());
 						if (rec.getBuffer().getInt(0) == 32 
 								&& rec.getBuffer().getLong(8) == 0L 
 								&& rec.getBuffer().getLong(24) == Long.MAX_VALUE) running = false;
@@ -131,7 +134,25 @@ public class StreamBinder extends Thread implements Counter {
 	 * This static method will return the end-of-stream token (a special 32-byte ByteBuffer).
 	 * @return
 	 */
-	public static ByteBuffer endOfStream() { return eos.asReadOnlyBuffer(); }
+	public static ByteBuffer endOfStream() { 
+		eos.putInt(4, 0);
+		return eos.asReadOnlyBuffer(); 
+	}
+
+	public static ByteBuffer endOfMoniStream() { 
+		eos.putInt(4, 102);
+		return eos.asReadOnlyBuffer(); 
+	}
+
+	public static ByteBuffer endOfTcalStream() { 
+		eos.putInt(4, 202);
+		return eos.asReadOnlyBuffer(); 
+	}
+
+	public static ByteBuffer endOfSupernovaStream() { 
+		eos.putInt(4, 302);
+		return eos.asReadOnlyBuffer(); 
+	}
 
 	public void dec() {
 		counter--;

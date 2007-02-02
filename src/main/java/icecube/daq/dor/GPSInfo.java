@@ -41,6 +41,7 @@ public class GPSInfo {
 		buf.reset();
 		record = ByteBuffer.allocate(buf.remaining());
 		record.put(buf);
+		record.flip();
 		buf.limit(limit);
 	}
 	

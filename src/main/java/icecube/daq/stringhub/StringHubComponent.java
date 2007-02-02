@@ -93,17 +93,17 @@ class BindSource
 
 	SelectableChannel getMoniSource()
 	{
-		return hitSource;
+		return moniSource;
 	}
 
 	SelectableChannel getTcalSource()
 	{
-		return hitSource;
+		return tcalSource;
 	}
 
 	SelectableChannel getSupernovaSource()
 	{
-		return hitSource;
+		return snSource;
 	}
 	
 }

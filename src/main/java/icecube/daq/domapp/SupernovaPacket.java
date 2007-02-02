@@ -28,6 +28,7 @@ public class SupernovaPacket
 		buf.limit(buf.position() + sn.recl);
 		sn.buffer = ByteBuffer.allocate(sn.recl);
 		sn.buffer.put(buf);
+		sn.buffer.flip();
 		buf.limit(limit);
 		return sn;
 	}

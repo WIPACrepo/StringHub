@@ -135,6 +135,12 @@ public class DataCollector extends AbstractDataCollector
 		assert this.rapcal != null;
 
 		setName("DataCollector-" + card + "" + pair + dom);
+
+		logger.debug("DC " + canonicalName() + " hitsSink = " + hitsSink);
+		logger.debug("DC " + canonicalName() + " moniSink = " + moniSink);
+		logger.debug("DC " + canonicalName() + " tcalSink = " + tcalSink);
+		logger.debug("DC " + canonicalName() + " supernovaSink = " + supernovaSink);
+
 		gps = null;
 		
 		runLevel = IDLE;
@@ -223,7 +229,8 @@ public class DataCollector extends AbstractDataCollector
 		GatheringByteChannel g = (GatheringByteChannel) out;
 		ByteBuffer bufferArray[] = new ByteBuffer[] { daqHeader, in };
 		long nw = g.write(bufferArray);
-		logger.debug("Wrote " + nw + " bytes.");
+		logger.debug("In DC " + canonicalName() + " - type = " + fmtid + 
+					 " wrote " + nw + " bytes to " + out);
 	}
 	
 	private void dataProcess(ByteBuffer in) throws IOException 
@@ -454,9 +461,9 @@ public class DataCollector extends AbstractDataCollector
 		try 
 		{
 			if (hitsSink != null) hitsSink.write(StreamBinder.endOfStream());
-			if (moniSink != null) moniSink.write(StreamBinder.endOfStream());
-			if (tcalSink != null) tcalSink.write(StreamBinder.endOfStream());
-			if (supernovaSink != null) supernovaSink.write(StreamBinder.endOfStream());
+			if (moniSink != null) moniSink.write(StreamBinder.endOfMoniStream());
+			if (tcalSink != null) tcalSink.write(StreamBinder.endOfTcalStream());
+			if (supernovaSink != null) supernovaSink.write(StreamBinder.endOfSupernovaStream());
 			logger.info("Wrote EOS to streams.");
 		} 
 		catch (IOException iox) 
@@ -582,9 +589,9 @@ public class DataCollector extends AbstractDataCollector
 				app.endRun();
 				// Write the end-of-stream token
 				if (hitsSink != null) hitsSink.write(StreamBinder.endOfStream());
-				if (moniSink != null) moniSink.write(StreamBinder.endOfStream());
-				if (tcalSink != null) tcalSink.write(StreamBinder.endOfStream());
-				if (supernovaSink != null) supernovaSink.write(StreamBinder.endOfStream());
+				if (moniSink != null) moniSink.write(StreamBinder.endOfMoniStream());
+				if (tcalSink != null) tcalSink.write(StreamBinder.endOfTcalStream());
+				if (supernovaSink != null) supernovaSink.write(StreamBinder.endOfSupernovaStream());
 				setRunLevel(CONFIGURED);
 			}
 			
