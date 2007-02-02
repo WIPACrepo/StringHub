@@ -43,6 +43,11 @@ class MockDOMApp
         // do nothing
     }
 
+    public void close()
+    {
+        // do nothing
+    }
+
     public void collectPedestals(int nAtwd0, int nAtwd1, int nFadc)
         throws MessageException
     {
