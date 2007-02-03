@@ -73,12 +73,12 @@ public class Driver implements IDriver {
 	public TimeCalib readTCAL(int card, int pair, char dom) throws IOException, InterruptedException {
 		File file = makeProcfile("" + card + "" + pair + dom, "tcalib");
 		RandomAccessFile tcalib = new RandomAccessFile(file, "rw");
+		FileChannel ch = tcalib.getChannel();
 		
 		tcalib.writeBytes("single\n");
 		for (int iTry = 0; iTry < 5; iTry++)
 		{
 			Thread.sleep(20);
-			FileChannel ch = tcalib.getChannel();
 			ByteBuffer buf = ByteBuffer.allocate(292);
 			int nr = ch.read(buf);	
 			logger.debug("Read " + nr + " bytes from " + file.getAbsolutePath());
@@ -90,6 +90,8 @@ public class Driver implements IDriver {
 				return new TimeCalib(buf);
 			}
 		}
+		ch.close();
+		tcalib.close();
 		throw new IOException("TCAL read failed.");
 	}
 	
