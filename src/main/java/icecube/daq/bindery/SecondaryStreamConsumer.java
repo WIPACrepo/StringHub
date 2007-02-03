@@ -78,8 +78,9 @@ public class SecondaryStreamConsumer implements BufferConsumer
 		buf.position(buf.position() + 8);
 		long utc  = buf.getLong();
 
-		logger.debug("Consuming record of length " + recl + " type = " + fmtid
-				+ " - buf pos: " + buf.position());
+		logger.debug("Consuming rec length = " + recl + " type = " + fmtid +
+					" mbid = " + String.format("%012x", mbid) + 
+					" utc = " +  utc);
 		
 		DOMID8B domId   = new DOMID8B(mbid);
 		UTCTime8B utcTime = new UTCTime8B(utc);
@@ -110,8 +111,9 @@ public class SecondaryStreamConsumer implements BufferConsumer
 					payloadOutput.getPayloadDestinationCollection().writePayload(payload);
 				break;
 			case 202: // TCAL record
-				payload_buffer = TimeCalibrationPayloadFactory.createFormattedBufferFromDomHubRecord(
-						byteBufferCache, domId, buf.position(), buf
+				payload_buffer = TimeCalibrationPayloadFactory.createFormattedBufferFromDomHubRecord
+					(
+					 byteBufferCache, domId, buf.position(), buf, utcTime
 					);
 				logger.debug("Created TcalPayload: RECL = " + 
 							 payload_buffer.getInt(0) + " TYPE = " +
