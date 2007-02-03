@@ -35,9 +35,14 @@ public class StreamBinder extends Thread implements Counter {
 
 	}
 	
-	public StreamBinder(int n, BufferConsumer out) throws IOException 
+	public StreamBinder(int n, BufferConsumer out) throws IOException
 	{
-		super("StreamBinder");
+		this(n, out, "hits");
+	}
+
+	public StreamBinder(int n, BufferConsumer out, String bindType) throws IOException 
+	{
+		super("StreamBinder" + "-" + bindType);
 		
 		inputs = new ArrayList<Node<DAQRecord>>();
 		allNodes = new ArrayList<Node<?>>();
@@ -50,7 +55,7 @@ public class StreamBinder extends Thread implements Counter {
 		selector = Selector.open();
 		running = false;
 		counter = 0;
-		counterMax = Integer.getInteger("ic3.daq.bindery.StreamBinder.populationLimit", 100000);
+		counterMax = Integer.getInteger("icecube.daq.bindery.StreamBinder.populationLimit", 100000);
 	}
 	
 	public void register(SelectableChannel ch) throws IOException {
@@ -99,9 +104,9 @@ public class StreamBinder extends Thread implements Counter {
 						DAQRecord rec = terminal.head();
 						UTC currentUT = rec.time();
 						if (currentUT.compareTo(lastUT) < 0)
-							logger.warn("Out-of-order record detected");
+							logger.warn(getName() + " out-of-order record detected");
 						// A single end-of-stream is sufficient to shut down this binder.
-						logger.debug("Sending buffer to sender RECL = " +
+						logger.debug(getName() + "sending buffer to sender RECL = " +
 									 rec.getBuffer().getInt(0) + " - TYPE = " + 
 									 rec.getBuffer().getInt(4) + " - UTC = " + currentUT.toString());
 						if (rec.getBuffer().getInt(0) == 32 
@@ -110,11 +115,7 @@ public class StreamBinder extends Thread implements Counter {
 						while (rec.getBuffer().remaining() > 0) 
 						{
 							ByteBuffer buf = rec.getBuffer();
-							logger.debug("Writing output ByteBuffer to sender: pos = " + 
-									buf.position() + ", limit = " + buf.limit());
 							out.consume(buf);
-							logger.debug("Wrote output ByteBuffer to sender:   pos = " + 
-									buf.position() + ", limit = " + buf.limit()); 
 						}
 						terminal.pop();
 						// Update the lastUT

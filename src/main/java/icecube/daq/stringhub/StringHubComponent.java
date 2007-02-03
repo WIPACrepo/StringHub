@@ -303,7 +303,9 @@ public class StringHubComponent extends DAQComponent
 				AbstractDataCollector dc;
 				if (isSim)
 				{
-					dc = new SimDataCollector(chanInfo, hitPipe.sink(), moniPipe.sink(), snPipe.sink(), tcalPipe.sink());
+					dc = new SimDataCollector(chanInfo, hitPipe.sink(), 
+											  moniPipe.sink(), snPipe.sink(), 
+											  tcalPipe.sink());
 				}
 				else
 				{
@@ -369,10 +371,10 @@ public class StringHubComponent extends DAQComponent
 										tcalPayloadDest);
 
 		try {
-			hitsBind  = new StreamBinder(nch, sender);
-			moniBind = new StreamBinder(nch, monitorConsumer);
-			snBind   = new StreamBinder(nch, supernovaConsumer);
-			tcalBind = new StreamBinder(nch, tcalConsumer);
+			hitsBind  = new StreamBinder(nch, sender, "hits");
+			moniBind = new StreamBinder(nch, monitorConsumer, "moni");
+			snBind   = new StreamBinder(nch, supernovaConsumer, "tcal");
+			tcalBind = new StreamBinder(nch, tcalConsumer, "supernova");
 		} catch (IOException iox) {
 			logger.error("Error creating StreamBinder: " + iox.getMessage());
 			iox.printStackTrace();
