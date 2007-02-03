@@ -153,10 +153,22 @@ public class DataCollector extends AbstractDataCollector
 		if (app != null) app.close();
 		try {
 			
-			if (hitsSink != null) hitsSink.close();
-			if (moniSink != null) moniSink.close();
-			if (tcalSink != null) tcalSink.close();
-			if (supernovaSink != null) supernovaSink.close();
+			if (hitsSink != null) {
+				hitsSink.close();
+				hitsSink = null;
+			}
+			if (moniSink != null) {
+				moniSink.close();
+				moniSink = null;
+			}
+			if (tcalSink != null) {
+				tcalSink.close();
+				tcalSink = null;
+			}
+			if (supernovaSink != null) {
+				supernovaSink.close();
+				supernovaSink = null;
+			}
 		} catch (IOException iox) {
 			iox.printStackTrace();
 			logger.error("Error closing pipe sinks: " + iox.getMessage());
