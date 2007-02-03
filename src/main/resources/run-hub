@@ -61,14 +61,31 @@ if [ ! -z ${missing_jar} ]; then
   exit 1
 fi
 
-export CLASSPATH
-#echo "CLASSPATH=${CLASSPATH}"
-java -Dicecube.daq.stringhub.simulation=true \
-     -Dicecube.daq.stringhub.componentId=$1 \
-     icecube.daq.stringhub.Shell $2 $3 $4 $5 $6 $7 $8 $9
+hubId=$1
+shift
 
-#CLASSPATH=$TOPDIR/lib/juggler.jar:$TOPDIR/lib/juggler-test.jar:$TOPDIR/tools/lib/commons-logging.jar:$TOPDIR/tools/lib/junit.jar:$TOPDIR/tools/lib/log4j.jar:$TOPDIR/tools/lib/xmlrpc-common.jar:$TOPDIR/tools/lib/xmlrpc-client.jar:$TOPDIR/tools/lib/ws-commons-util.jar:$TOPDIR/tools/lib/concurrent.jar:$TOPDIR/lib/eventBuilder-prod.jar:$TOPDIR/lib/new-dispatch.jar:$TOPDIR/lib/daq-common.jar:$TOPDIR/lib/icebucket.jar:$TOPDIR/lib/splicer.jar:$TOPDIR/lib/daq-request-filler.jar:$TOPDIR/lib/stringHub-prod.jar:$TOPDIR/tools/lib/colt.jar
+sim=true
 
+# look for --real-hub argument
+#
+args=
+for i in $*; do
+  if [ "$i" = "--real-hub" ]; then
+    sim=false
+  else
+    if [ -z "$args" ]; then
+      args="$i"
+    else
+      args="$args $i"
+    fi
+  fi
+done
 
+# restore remaining args
+#
+set -- $args
 
-     
+java -cp "$CLASSPATH" \
+     -Dicecube.daq.stringhub.simulation=$sim \
+     -Dicecube.daq.stringhub.componentId=$hubId \
+     icecube.daq.stringhub.Shell $*
