@@ -43,7 +43,8 @@ public class LeadingEdgeRAPCal implements RAPCal {
 			clen  = 0.5 * (UTC.subtract(t1[3], t1[0]) - ratio * UTC.subtract(t1[2], t1[1]));
 		}
 		
-		logger.info(String.format("Clock ratio - 1: %.2e -- cable length [ns]: %.1f", ratio - 1.0, clen * 1.0e+09));
+		logger.debug(String.format("Clock ratio - 1: %.2e -- cable length [ns]: %.1f", 
+								  ratio - 1.0, clen * 1.0e+09));
 		// Update the GPS offset (this could potentially be static)
 		this.gpsOffset = gpsOffset;
 		
@@ -59,7 +60,11 @@ public class LeadingEdgeRAPCal implements RAPCal {
 	
 	public UTC domToUTC(long domclk) {
 		if (t1 == null) return null;
-		return UTC.add(gpsOffset, UTC.add(t1[0], ratio * UTC.subtract(new UTC(250L * domclk), t1[1]) + clen));
+		return UTC.add(gpsOffset, 
+					   UTC.add(t1[0], 
+							   ratio * UTC.subtract(new UTC(250L * domclk), 
+													t1[1]) + clen)
+					   );
 	}
 	
 	/**
@@ -80,10 +85,14 @@ public class LeadingEdgeRAPCal implements RAPCal {
 		for (int i = 10; i < 47; i++) {
 			double a = w[i] - mean;
 			double b = w[i+1] - mean;
-			if (a < threshold && b > threshold) 
+			if (a < threshold && b >= threshold) 
 				return 50.0e-09 * (i + (threshold-a) / (b-a) - 48.0);
 		}
 		
+		StringBuffer txt = new StringBuffer();
+		txt.append("Past the end of TCAL vector:");
+		for (int i = 0; i < 48; i++) txt.append(" " + w[i]);
+		logger.warn(txt);
 		throw new RAPCalException(w);
 	}
 }
