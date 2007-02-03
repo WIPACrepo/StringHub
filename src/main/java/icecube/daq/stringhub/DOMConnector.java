@@ -81,7 +81,18 @@ public class DOMConnector
 		throws Exception
 	{
 		for (AbstractDataCollector dc : collectors) {
+			dc.signalShutdown();
 			dc.close();
+		}
+
+		int iLoop = 0;
+		for (AbstractDataCollector dc : collectors) {
+			while (iLoop++ < 250) {
+				if (dc.queryDaqRunLevel() == AbstractDataCollector.CONFIGURED) 
+					break;
+				Thread.sleep(50);
+			}
+			if (iLoop == 250) throw new Error("timeout on shutdown of " + dc.getName());
 		}
 	}
 
