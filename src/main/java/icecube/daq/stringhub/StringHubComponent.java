@@ -154,7 +154,7 @@ public class StringHubComponent extends DAQComponent
         
         RequestInputEngine reqIn = new RequestInputEngine(COMPONENT_NAME, hubId, "reqIn",
                                    sender, bufferManager, payloadFactory);
-        addEngine(DAQConnector.TYPE_READOUT_REQUEST, reqIn);
+        addMonitoredEngine(DAQConnector.TYPE_READOUT_REQUEST, reqIn);
 
         PayloadDestinationOutputEngine dataOut =
             new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "dataOut");
