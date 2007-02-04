@@ -85,7 +85,8 @@ public class StreamBinder extends Thread implements Counter {
 			try 
 			{
 				int n = selector.select(500);
-				logger.debug("Selector returned " + n + " interests; counter = " + counter);
+				if (logger.isDebugEnabled())
+					logger.debug("Selector returned " + n + " interests; counter = " + counter);
 				for (Iterator<SelectionKey> it = selector.selectedKeys().iterator(); it.hasNext(); ) 
 				{
 					SelectionKey key = it.next();
@@ -106,9 +107,10 @@ public class StreamBinder extends Thread implements Counter {
 						if (currentUT.compareTo(lastUT) < 0)
 							logger.warn(getName() + " out-of-order record detected");
 						// A single end-of-stream is sufficient to shut down this binder.
-						logger.debug(getName() + "sending buffer to sender RECL = " +
-									 rec.getBuffer().getInt(0) + " - TYPE = " + 
-									 rec.getBuffer().getInt(4) + " - UTC = " + currentUT.toString());
+						if (logger.isDebugEnabled())
+							logger.debug(getName() + "sending buffer to sender RECL = " +
+										 rec.getBuffer().getInt(0) + " - TYPE = " + 
+										 rec.getBuffer().getInt(4) + " - UTC = " + currentUT.toString());
 						if (rec.getBuffer().getInt(0) == 32 
 								&& rec.getBuffer().getLong(8) == 0L 
 								&& rec.getBuffer().getLong(24) == Long.MAX_VALUE) running = false;
@@ -224,12 +226,7 @@ class StreamInputNode {
 	 */
 	public void readRecords(ReadableByteChannel ch) throws IOException 
 	{
-		logger.debug("[" + getName() + "] About to read into buffer - pos = " 
-				+ iobuf.position() + " limit = " + iobuf.limit());
 		int nr = ch.read(iobuf);
-		logger.debug("[" + getName() + "] Completed read (" 
-				+ nr + " bytes) into buffer - pos = " 
-				+ iobuf.position() + " limit = " + iobuf.limit());
 		
 		iobuf.flip();
 
@@ -238,7 +235,8 @@ class StreamInputNode {
 			int pos  = iobuf.position();
 			int recl = iobuf.getInt(pos);
 			assert recl >= 32;
-			logger.debug(getName() + " : parsing " + recl + "-byte record @ pos = " + pos);
+			if (logger.isDebugEnabled())
+				logger.debug(getName() + " : parsing " + recl + "-byte record @ pos = " + pos);
 			if (iobuf.remaining() < recl) break;
 			ByteBuffer buf = ByteBuffer.allocate(recl);
 			int limit = iobuf.limit();
