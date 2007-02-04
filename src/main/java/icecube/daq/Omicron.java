@@ -61,7 +61,8 @@ public class Omicron {
 
 		String outputBaseName = args[index++];
 		FileOutputStream fOutHits = new FileOutputStream(outputBaseName + ".hits");
-		XMLConfig xmlConfig = XMLConfig.parseXMLConfig(new FileInputStream(args[index++]));
+		XMLConfig xmlConfig = new XMLConfig();
+		xmlConfig.parseXMLConfig(new FileInputStream(args[index++]));
 		
 		logger.info("Begin logging at " + new java.util.Date());
 		collectors = new ArrayList<DataCollector>();

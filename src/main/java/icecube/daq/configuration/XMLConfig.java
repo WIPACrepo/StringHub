@@ -289,7 +289,7 @@ public class XMLConfig extends DefaultHandler
 		}
 	}
 
-	public static XMLConfig parseXMLConfig(InputStream xmlIn) throws Exception
+	public void parseXMLConfig(InputStream xmlIn) throws Exception
 	{
 		final String schemaPath = "domconfig.xsd";
 		SAXParserFactory saxFactory = SAXParserFactory.newInstance();
@@ -301,13 +301,13 @@ public class XMLConfig extends DefaultHandler
 		// saxFactory.setSchema(schema);
 		saxFactory.setNamespaceAware(true);
 		SAXParser parser = saxFactory.newSAXParser();
-		XMLConfig xmlConfig = new XMLConfig();
 		try
 		{
-			logger.debug("Starting parse of XML input stream.");
-			parser.parse(xmlIn, xmlConfig);
-			logger.debug("XML parsing completed.");
-			return xmlConfig;
+		    long t0 = System.currentTimeMillis();
+			parser.parse(xmlIn, this);
+			logger.info("XML parsing completed - took " + 
+						(System.currentTimeMillis() - t0) +
+						" milliseconds.");
 		}
 		catch (Exception except)
 		{

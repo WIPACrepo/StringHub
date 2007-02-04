@@ -37,6 +37,7 @@ import java.util.List;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.log4j.Logger;
+import org.dom4j.Node;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.io.SAXReader;
@@ -260,14 +261,19 @@ public class StringHubComponent extends DAQComponent
 			
 			SAXReader r = new SAXReader();
 			Document doc = r.read(fis);
-			
-			String domConfigTag = doc.selectSingleNode("runConfig/domConfigList").getText();
-			
-			File configFile = new File(configurationPath, domConfigTag + ".xml");
-			logger.info("Configuring " + realism 
-					+ " - loading config from " 
-					+ configFile.getAbsolutePath());			
-			XMLConfig xmlConfig = XMLConfig.parseXMLConfig(new FileInputStream(configFile));
+
+			XMLConfig xmlConfig = new XMLConfig();
+			List<Node> configNodeList = doc.selectNodes("runconfig/domConfigList");
+			for (Node configNode : configNodeList) {
+				String tag = configNode.getText();
+				File configFile = new File(configurationPath, tag + ".xml");
+				logger.info("Configuring " + realism 
+							+ " - loading config from " 
+							+ configFile.getAbsolutePath());			
+				xmlConfig.parseXMLConfig(new FileInputStream(configFile));
+			}
+
+			fis.close();
 
 			// Find intersection of discovered / configured channels
 			nch = 0;
