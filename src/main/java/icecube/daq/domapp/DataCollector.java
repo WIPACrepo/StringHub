@@ -531,7 +531,7 @@ public class DataCollector extends AbstractDataCollector
 			if (t - loopReport >= 1000)
 			{
 			    loopReport = t;
-			    logger.info("# loops:" + nloop);
+			    logger.debug("# loops:" + nloop);
 			}
 
 			/* Do TCAL and GPS -- this always runs regardless of the run state */
