@@ -133,7 +133,7 @@ public class StringHubComponent extends DAQComponent
 	{
 		super(DAQCmdInterface.DAQ_STRING_HUB, hubId);
 		
-		bufferManager  = new ByteBufferCache(256, 50000000, 50000000, "PyrateBufferManager");
+		bufferManager  = new ByteBufferCache(256, 500000000, 500000000, "PyrateBufferManager");
 		addCache(bufferManager);
 
 		payloadFactory = new MasterPayloadFactory(bufferManager);
@@ -263,7 +263,8 @@ public class StringHubComponent extends DAQComponent
 			Document doc = r.read(fis);
 
 			XMLConfig xmlConfig = new XMLConfig();
-			List<Node> configNodeList = doc.selectNodes("runconfig/domConfigList");
+			List<Node> configNodeList = doc.selectNodes("runConfig/domConfigList");
+			logger.info("Number of domConfigNodes found: " + configNodeList.size());
 			for (Node configNode : configNodeList) {
 				String tag = configNode.getText();
 				File configFile = new File(configurationPath, tag + ".xml");
