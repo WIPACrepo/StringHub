@@ -63,6 +63,7 @@ public class StreamBinder extends Thread implements Counter {
 	}
 	
 	public void register(SelectableChannel ch, String streamName) throws IOException {
+		logger.debug("Registering channel " + streamName); 
 		if (nreg == inputs.size()) throw new IllegalStateException("Too many input channels registered");
 		Node<DAQRecord> node = inputs.get(nreg++);
 		node.setName(streamName);

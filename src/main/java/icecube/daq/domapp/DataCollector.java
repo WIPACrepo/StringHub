@@ -434,7 +434,7 @@ public class DataCollector extends AbstractDataCollector
 			logger.warn("Got GPS exception");
 		} catch (IOException iox) {
 			iox.printStackTrace();
-			logger.warn("Got I/O exception - " + iox.getMessage());
+			logger.warn(iox);
 		} catch (InterruptedException intx) {
 			intx.printStackTrace();
 			logger.warn("Got interrupted exception");
@@ -466,7 +466,7 @@ public class DataCollector extends AbstractDataCollector
 		catch (Exception x)
 		{
 			x.printStackTrace();
-			logger.error(x.getMessage());
+			logger.error("Intercepted error in DataCollector runcore: " + x);
 		}
 		
 		// Make sure eos is written
@@ -492,6 +492,22 @@ public class DataCollector extends AbstractDataCollector
 	 */
 	private void runcore() throws Exception
 	{
+
+		/*
+		 * Softboot -- don't do this.
+		long sbt0 = System.currentTimeMillis();
+		driver.softboot(card, pair, dom);
+		long sbt1 = System.currentTimeMillis();
+		logger.debug("Softboot took " + (sbt1 - sbt0) + " milliseconds.");
+
+		Thread.sleep(5000);
+
+		sbt0 = System.currentTimeMillis();
+		driver.softboot(card, pair, dom);
+		sbt1 = System.currentTimeMillis();
+		logger.debug("2nd softboot took " + (sbt1 - sbt0) + " milliseconds.");
+		*/
+		
 		/* 
 		 * Initialize the DOMApp - get things setup
 		 */
@@ -503,10 +519,9 @@ public class DataCollector extends AbstractDataCollector
 		}
 		app.transitionToDOMApp();
 		mbid = app.getMainboardID();
-		String release = app.getRelease();
-		logger.info("Mainboard ID = " + mbid + " DOMApp release = " + release);
 		numericMBID = Long.valueOf(mbid, 16).longValue();
-		
+		logger.info("Found DOM " + mbid + " running " + app.getRelease());
+
 		/* 
 		 * Quickly obtain 2 RAPCals prior to the start of data acquisition
 		 * to ensure that first data packets may be time calibrated.

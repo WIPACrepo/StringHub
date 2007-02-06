@@ -3,6 +3,7 @@ package icecube.daq.dor;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
@@ -44,7 +45,14 @@ public class Driver implements IDriver {
 		String info = getProcfileText(makeProcfile("" + card + "" + pair + dom, "id"));
 		return info.substring(info.length() - 12);
 	}
-	
+
+	public void softboot(int card, int pair, char dom) throws IOException {
+		File file = makeProcfile(card + "" + pair + dom, "softboot");
+		FileOutputStream sb = new FileOutputStream(file);
+		sb.write("reset\n".getBytes());
+		sb.close();
+	}
+
 	public LinkedList<DOMChannelInfo> discoverActiveDOMs() throws IOException {
 		char ab[] = { 'A', 'B' };
 		LinkedList<DOMChannelInfo> channelList = new LinkedList<DOMChannelInfo>();
@@ -116,7 +124,7 @@ public class Driver implements IDriver {
 			GPSInfo gpsinfo = new GPSInfo(buf);
 			gps.cached = gpsinfo;
 			gps.last_read_time = current;
-			logger.info("GPS read on " + file.getAbsolutePath() + " - " + gpsinfo);
+			logger.debug("GPS read on " + file.getAbsolutePath() + " - " + gpsinfo);
 			return gpsinfo;
 		} 
 		catch (IOException iox) 

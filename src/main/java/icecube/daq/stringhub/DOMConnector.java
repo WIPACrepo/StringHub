@@ -2,17 +2,8 @@
 
 package icecube.daq.stringhub;
 
-/*
-import icecube.daq.io.DAQComponentInputProcessor;
-import icecube.daq.io.PayloadInputEngine;
-
-import icecube.daq.payload.IByteBufferCache;
-
-import java.io.IOException;
-*/
-
+import org.apache.log4j.Logger;
 import icecube.daq.domapp.AbstractDataCollector;
-
 import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQConnector;
 
@@ -26,6 +17,7 @@ public class DOMConnector
 {
 	/** DOM data collectors. */
 	private ArrayList<AbstractDataCollector> collectors;
+	private static final Logger logger = Logger.getLogger(DOMConnector.class);
 
 	/**
 	 * Create a DAQ input connector.
@@ -58,18 +50,22 @@ public class DOMConnector
 			dc.signalConfigure();
 		}
 
+		int configured_counter = 0;
 		// wait for things to configure
 		for (AbstractDataCollector dc : collectors) {
 			while (dc.queryDaqRunLevel() !=
 				   AbstractDataCollector.CONFIGURED)
 			{
 				try {
-					Thread.sleep(25);
+					Thread.sleep(100);
 				} catch (InterruptedException ie) {
 					// ignore interrupts
 				}
 			}
+			configured_counter++;
+			logger.info("Configured DOM count = " + configured_counter);
 		}
+		logger.info("All DOMs configured.");
 	}
 
 	/**

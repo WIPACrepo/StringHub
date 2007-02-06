@@ -35,7 +35,7 @@ public class GPSInfo {
 		}
 		quality = buf.get();
 		dorclk  = buf.getLong();
-		offset = new UTC(10000000000L * (60 * (60 * (24 * day + hour) + min) + sec) - 500 * dorclk);
+		offset = new UTC(10000000000L * (60 * (60 * (24 * (day-1) + hour) + min) + sec) - 500 * dorclk);
 		int limit = buf.limit();
 		buf.limit(buf.position());
 		buf.reset();

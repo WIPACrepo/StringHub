@@ -9,4 +9,7 @@ public interface IDriver
 
     TimeCalib readTCAL(int card, int pair, char dom)
         throws IOException, InterruptedException;
+
+    void softboot(int card, int pair, char dom) throws IOException;
+
 }

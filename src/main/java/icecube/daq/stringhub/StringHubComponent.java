@@ -377,14 +377,18 @@ public class StringHubComponent extends DAQComponent
 										bufferManager,
 										tcalPayloadDest);
 
+		logger.info("Created secondary stream consumers.");
+
 		try {
-			hitsBind  = new StreamBinder(nch, sender, "hits");
+			hitsBind = new StreamBinder(nch, sender, "hits");
 			moniBind = new StreamBinder(nch, monitorConsumer, "moni");
 			snBind   = new StreamBinder(nch, supernovaConsumer, "tcal");
 			tcalBind = new StreamBinder(nch, tcalConsumer, "supernova");
 		} catch (IOException iox) {
 			logger.error("Error creating StreamBinder: " + iox.getMessage());
 			iox.printStackTrace();
+		} catch (Exception e) {
+			throw new DAQCompException("Error in starting S/H - binder allocation fails", e);
 		}
 
 		for (BindSource bs : bindSources)
@@ -397,6 +401,9 @@ public class StringHubComponent extends DAQComponent
 			} catch (IOException ioe) {
 				logger.error("Couldn't start threads for binder " +
 							bs.getName());
+				throw new DAQCompException("Could not start DOMs", ioe);
+			} catch (Exception e) {
+				throw new DAQCompException("Error starting S/H - binder channel register fails", e);
 			}
 		}
 
