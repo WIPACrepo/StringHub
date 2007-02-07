@@ -194,6 +194,10 @@ public class DOMConnector
 		}
 	}
 
+	public ArrayList<AbstractDataCollector> getCollectors() {
+		return collectors;
+	}
+
 	/**
 	 * String representation.
 	 *

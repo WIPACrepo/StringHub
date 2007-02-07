@@ -16,6 +16,7 @@ import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.monitoring.MonitoringData;
+import icecube.daq.monitoring.DataCollectorMonitor;
 import icecube.daq.payload.ByteBufferCache;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.IPayloadDestinationCollection;
@@ -128,7 +129,8 @@ public class StringHubComponent extends DAQComponent
 	private String configurationPath;
 	private String configured = "NO";
 	private int nch;
-	
+	private DataCollectorMonitor collectorMonitor;
+
 	public StringHubComponent(int hubId) throws Exception
 	{
 		super(DAQCmdInterface.DAQ_STRING_HUB, hubId);
@@ -167,7 +169,10 @@ public class StringHubComponent extends DAQComponent
         MonitoringData monData = new MonitoringData();
         monData.setSenderMonitor(sender);
         addMBean("sender", monData);
-
+		
+		collectorMonitor = new DataCollectorMonitor();
+		addMBean("datacollectormonitor", collectorMonitor);
+		
         // Following are the payload output engines for the secondary streams
         moniPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "moniOut");
         moniPayloadDest.registerBufferManager(bufferManager);
@@ -334,7 +339,8 @@ public class StringHubComponent extends DAQComponent
 			
 			// Still need to get the data collectors to pick up and do something with the config
 			conn.configure();
-			
+
+			collectorMonitor.setConnector(conn);
 		}
 		
 		catch (FileNotFoundException fnx)
