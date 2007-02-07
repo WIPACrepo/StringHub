@@ -47,7 +47,9 @@ public class SimDataCollector extends AbstractDataCollector {
 	private int runLevel;
 	private double rate;
 	private boolean stopRunLoop;
-	
+	private long numHits;
+	private long loopCounter;
+
 	private final static Logger logger = Logger.getLogger(SimDataCollector.class);
 	
 	public SimDataCollector(DOMChannelInfo chanInfo, WritableByteChannel hitsOut)
@@ -74,6 +76,8 @@ public class SimDataCollector extends AbstractDataCollector {
 		this.tcalOut = null;
 		this.supernovaOut = null;
 		runLevel  = IDLE;
+		numHits = 0;
+		loopCounter = 0;
 	}
 
 	public void close() { }
@@ -171,10 +175,13 @@ public class SimDataCollector extends AbstractDataCollector {
 		{
 			// Simulate the device open latency
 			Thread.sleep(1400);
-			
+
 			while (!stopRunLoop)
 			{
 				boolean needSomeSleep = true;
+
+				loopCounter++;
+
 				if (queryDaqRunLevel() == CONFIGURING) 
 				{
 					// Simulate configure time
@@ -239,6 +246,7 @@ public class SimDataCollector extends AbstractDataCollector {
 		double dt = 1.0E-03 * (currTime - lastGenHit);
 		double mu = dt * rate;
 		int n = poissonRandom.nextInt(mu);
+		numHits += n;
 		logger.debug("Generated " + n + " events in interval " + lastGenHit + ":" + currTime);
 		ArrayList<Long> eventTimes = new ArrayList<Long>(n);
 		// generate n random times in the interval
@@ -309,6 +317,26 @@ public class SimDataCollector extends AbstractDataCollector {
 		if (moniOut != null) moniOut.write(moniBuf);
 		lastMoni = currTime;
 		return 1;
+	}
+
+	public long getNumHits() {
+		return numHits;
+	}
+
+	public long getNumMoni() {
+		return 0;
+	}
+
+	public long getNumTcal() {
+		return 0;
+	}
+
+	public long getNumSupernova() {
+		return 0;
+	}
+
+	public long getAcquisitionLoopCount() {
+		return loopCounter;
 	}
 
 }

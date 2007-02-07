@@ -26,5 +26,17 @@ public abstract class AbstractDataCollector extends Thread {
 	public abstract void signalStopRun();
 	public abstract void signalShutdown();
 	public abstract int  queryDaqRunLevel();
-    public abstract void close();
+	public abstract void close();
+
+	// Monitoring facility
+	public abstract long getNumHits();
+	public abstract long getNumMoni();
+	public abstract long getNumTcal();
+	public abstract long getNumSupernova();
+	public String getRunLevel() {
+		final String[] levels = new String[] { "IDLE", "CONFIGURING", "CONFIGURED", 
+						     "STARTING", "RUNNING", "STOPPING" };
+		return levels[queryDaqRunLevel()];
+	}		
+	public abstract long getAcquisitionLoopCount();
 }

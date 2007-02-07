@@ -84,7 +84,12 @@ public class DataCollector extends AbstractDataCollector
 	
 	private int rapcalExceptionCount = 0;
 	private int validRAPCalCount;
-	
+
+	private int numHits = 0;
+	private int numMoni = 0;
+	private int numSupernova = 0;
+	private int loopCounter = 0;
+
 	private ByteBuffer daqHeader;
 	
 	public DataCollector(DOMChannelInfo chInfo, WritableByteChannel out) throws IOException, MessageException
@@ -271,6 +276,7 @@ public class DataCollector extends AbstractDataCollector
 					domClock = DOMAppUtil.decodeSixByteClock(in);
 					in.position(pos);
 					in.limit(in.position() + len);
+					numHits++;
 					genericDataDispatch(len, 2, domClock, in, hitsSink);
 					in.limit(buffer_limit);
 					break;
@@ -291,6 +297,7 @@ public class DataCollector extends AbstractDataCollector
 						domClock = (((long) clkMSB) << 32) | (((long) clkLSB) & 0xffffffffL);
 						in.reset();
 						in.limit(in.position() + hitSize);
+						numHits++;
 						genericDataDispatch(hitSize, 3, domClock, in, hitsSink);
 						in.limit(buffer_limit);
 					}
@@ -315,8 +322,10 @@ public class DataCollector extends AbstractDataCollector
 			MonitorRecord monitor = MonitorRecordFactory.createFromBuffer(in);
 			if (monitor instanceof AsciiMonitorRecord)
 				logger.info(monitor.toString());
-			if (moniSink != null)
+			if (moniSink != null) {
+				numMoni++;
 				genericDataDispatch(monitor.getLength(), 102, monitor.getClock(), monitor.getBuffer(), moniSink);
+			}
 		}
 	}
 	
@@ -346,8 +355,10 @@ public class DataCollector extends AbstractDataCollector
 		while (in.remaining() > 0)
 		{
 			SupernovaPacket spkt = SupernovaPacket.createFromBuffer(in);
-			if (supernovaSink != null)
+			if (supernovaSink != null) {
+				numSupernova++;
 				genericDataDispatch(spkt.getLength(), 302, spkt.getClock(), spkt.getBuffer(), supernovaSink);
+			}
 		}
 	}
 	
@@ -534,20 +545,12 @@ public class DataCollector extends AbstractDataCollector
 		 */
 		logger.info("Entering run loop");
 
-		int nloop = 0;
-		long loopReport = System.currentTimeMillis();
-
 		while (!stop_thread) 
 		{
 			long t = System.currentTimeMillis();
 			boolean tired = true;
-			nloop++;
 
-			if (t - loopReport >= 1000)
-			{
-			    loopReport = t;
-			    logger.debug("# loops:" + nloop);
-			}
+			loopCounter++;
 
 			/* Do TCAL and GPS -- this always runs regardless of the run state */
 			if (t - lastTcalRead >= tcalReadInterval) 
@@ -635,4 +638,11 @@ public class DataCollector extends AbstractDataCollector
 			}
 		} /* END RUN LOOP */
 	} /* END METHOD */
+
+	public long getNumHits() { return numHits; }
+	public long getNumMoni() { return numMoni; }
+	public long getNumTcal() { return validRAPCalCount; }
+	public long getNumSupernova() { return numSupernova; }
+	public long getAcquisitionLoopCount() { return loopCounter; }
+
 }

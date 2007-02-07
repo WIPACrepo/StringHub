@@ -404,7 +404,7 @@ public class DOMApp implements IDOMApp {
                         devIO.recv();
                         // Now it should really be going into domapp
                         // TODO - find a better way than vapid wait
-                        Thread.sleep(5000);
+                        Thread.sleep(8500);
                         return true;
                 }
 	}
