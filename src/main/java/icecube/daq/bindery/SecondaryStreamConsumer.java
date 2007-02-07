@@ -92,9 +92,9 @@ public class SecondaryStreamConsumer implements BufferConsumer
 			return;
 		}
 
+		Payload payload = null;
 		try 
 		{
-			Payload payload = null;
 			ByteBuffer payload_buffer = null;
 			switch (fmtid)
 			{
@@ -140,6 +140,9 @@ public class SecondaryStreamConsumer implements BufferConsumer
 		catch (DataFormatException dfx)
 		{
 			logger.warn(dfx.getMessage());
+		}
+		if (payload != null) {
+			payload.recycle();
 		}
 		// Update the buffer - skip over the TD header
 		buf.position(buf.position() + recl - 32);
