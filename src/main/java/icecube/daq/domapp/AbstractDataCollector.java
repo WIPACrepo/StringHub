@@ -1,3 +1,5 @@
+/* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
+
 package icecube.daq.domapp;
 
 /**
@@ -19,6 +21,10 @@ public abstract class AbstractDataCollector extends Thread {
 	public static final int STARTING = 3;
 	public static final int RUNNING = 4;
 	public static final int STOPPING = 5;
+
+	public static final String STATE_NAMES[] = {
+		"IDLE", "CONFIGURING", "CONFIGURED", "STARTING", "RUNNING", "STOPPING"
+	};
 
 	public abstract void setConfig(DOMConfiguration config);
 	public abstract void signalConfigure();
