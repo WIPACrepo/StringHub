@@ -15,6 +15,7 @@ import icecube.daq.io.PayloadDestinationOutputEngine;
 import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
+import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.monitoring.DataCollectorMonitor;
 import icecube.daq.payload.ByteBufferCache;
@@ -135,8 +136,11 @@ public class StringHubComponent extends DAQComponent
 	{
 		super(DAQCmdInterface.DAQ_STRING_HUB, hubId);
 		
-		bufferManager  = new ByteBufferCache(256, 500000000, 500000000, "PyrateBufferManager");
+		bufferManager  = new ByteBufferCache(256, 50000000, 50000000, "PyrateBufferManager");
 		addCache(bufferManager);
+		addMBean(bufferManager.getCacheName(), bufferManager);
+
+		addMBean("memoryStats", new MemoryStatistics());
 
 		payloadFactory = new MasterPayloadFactory(bufferManager);
 		sender         = new Sender(hubId, payloadFactory);
@@ -144,8 +148,12 @@ public class StringHubComponent extends DAQComponent
 		nch            = 0;
 
 		logger.info("starting up StringHub component " + hubId);
-		
+
+		conn = DOMConnector();
+		addConnector(conn);
+
         final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
+
         PayloadDestinationOutputEngine hitOut =
             new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "hitOut");
         hitOut.registerBufferManager(bufferManager);
@@ -290,10 +298,8 @@ public class StringHubComponent extends DAQComponent
 			
 			// Must make sure to release file resources associated with the previous
 			// runs since we are throwing away the collectors and starting from scratch
-			if (conn != null) conn.destroy();
+			conn.clear();
 
-			conn = new DOMConnector(nch);
-				
 			for (DOMChannelInfo chanInfo : activeDOMs)
 			{
 				DOMConfiguration config = xmlConfig.getDOMConfig(chanInfo.mbid);
@@ -419,16 +425,6 @@ public class StringHubComponent extends DAQComponent
 		moniBind.start();
 		tcalBind.start();
 		snBind.start();
-
-		try
-		{
-			conn.startProcessing();
-		}
-		catch (Exception e)
-		{
-			e.printStackTrace();
-			throw new DAQCompException("Couldn't start DOMs", e);
-		}		
 	}
 	
 	public void stopping()
