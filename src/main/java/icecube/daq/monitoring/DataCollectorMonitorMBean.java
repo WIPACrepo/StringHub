@@ -35,4 +35,64 @@ public interface DataCollectorMonitorMBean
 	 * Get the current acquisition loop count
 	 */
 	long[] getAcqusitionLoopCount();
+
+	/**
+	 * Get the internal node-tracked object counter.
+	 */
+	long getHitsHKN1Counter();
+
+	/**
+	 * Get a count of objects pushed into the HKN1 tree
+	 */
+	long getHitsHKN1InputCounter();
+
+	/**
+	 * Get a count of objects popped from the HKN1 tree
+	 */
+	long getHitsHKN1OutputCounter();
+
+	/**
+	 * Get the internal node-tracked object counter.
+	 */
+	long getMoniHKN1Counter();
+
+	/**
+	 * Get a count of objects pushed into the HKN1 tree
+	 */
+	long getMoniHKN1InputCounter();
+
+	/**
+	 * Get a count of objects popped from the HKN1 tree
+	 */
+	long getMoniHKN1OutputCounter();
+
+	/**
+	 * Get the internal node-tracked object counter.
+	 */
+	long getTcalHKN1Counter();
+
+	/**
+	 * Get a count of objects pushed into the HKN1 tree
+	 */
+	long getTcalHKN1InputCounter();
+
+	/**
+	 * Get a count of objects popped from the HKN1 tree
+	 */
+	long getTcalHKN1OutputCounter();
+
+	/**
+	 * Get the internal node-tracked object counter.
+	 */
+	long getSupernovaHKN1Counter();
+
+	/**
+	 * Get a count of objects pushed into the HKN1 tree
+	 */
+	long getSupernovaHKN1InputCounter();
+
+	/**
+	 * Get a count of objects popped from the HKN1 tree
+	 */
+	long getSupernovaHKN1OutputCounter();
 }

@@ -24,7 +24,7 @@ public interface Counter
 	 * Get the counter value.
 	 * @return the value of the counter.
 	 */
-	public int getCount();
+	public long getCount();
 	
 	/**
 	 * Returns overfull condition of this counter.

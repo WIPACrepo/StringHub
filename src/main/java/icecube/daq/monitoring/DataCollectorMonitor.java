@@ -1,20 +1,37 @@
 
 package icecube.daq.monitoring;
+
 import icecube.daq.stringhub.DOMConnector;
 import icecube.daq.domapp.AbstractDataCollector;
+import icecube.daq.bindery.StreamBinder;
 import java.util.List;
 import java.util.Collection;
 
 public class DataCollectorMonitor implements DataCollectorMonitorMBean
 {
 	private DOMConnector conn;
+	private StreamBinder hitsBinder;
+	private StreamBinder moniBinder;
+	private StreamBinder tcalBinder;
+	private StreamBinder supernovaBinder;
 
-	public DataCollectorMonitor() {
+        public DataCollectorMonitor() {
 		this.conn = null;
+		this.hitsBinder = null;
+		this.moniBinder = null;
+		this.tcalBinder = null;
+		this.supernovaBinder = null;
 	}
 
 	public void setConnector(DOMConnector conn) {
 		this.conn = conn;
+	}
+
+	public void setBinders(StreamBinder hits, StreamBinder moni, StreamBinder tcal, StreamBinder supernova) {
+		this.hitsBinder = hits;
+		this.moniBinder = moni;
+		this.tcalBinder = tcal;
+		this.supernovaBinder = supernova;
 	}
 
 	public long[] getNumHits() {
@@ -83,6 +100,64 @@ public class DataCollectorMonitor implements DataCollectorMonitorMBean
 		}
 		return counters;
 	}
+
+	public long getHitsHKN1Counter() {
+		if (hitsBinder == null) return 0;
+		return hitsBinder.getCounter();
+	}
+	public long getHitsHKN1InputCounter() {
+		if (hitsBinder == null) return 0;
+		return hitsBinder.getCounter();
+	}
+	public long getHitsHKN1OutputCounter() {
+		if (hitsBinder == null) return 0;
+		return hitsBinder.getCounter();
+	}
+
+	public long getMoniHKN1Counter() {
+		if (moniBinder == null) return 0;
+		return moniBinder.getCounter();
+	}
+	public long getMoniHKN1InputCounter() {
+		if (moniBinder == null) return 0;
+		return moniBinder.getCounter();
+	}
+	public long getMoniHKN1OutputCounter() {
+		if (moniBinder == null) return 0;
+		return moniBinder.getCounter();
+	}
+
+	public long getTcalHKN1Counter() {
+		if (tcalBinder == null) return 0;
+		return tcalBinder.getCounter();
+	}
+	public long getTcalHKN1InputCounter() {
+		if (tcalBinder == null) return 0;
+		return tcalBinder.getCounter();
+	}
+	public long getTcalHKN1OutputCounter() {
+		if (tcalBinder == null) return 0;
+		return tcalBinder.getCounter();
+	}
+
+	public long getSupernovaHKN1Counter() {
+		if (supernovaBinder == null) return 0;
+		return supernovaBinder.getCounter();
+	}
+	public long getSupernovaHKN1InputCounter() {
+		if (supernovaBinder == null) return 0;
+		return supernovaBinder.getCounter();
+	}
+	public long getSupernovaHKN1OutputCounter() {
+		if (supernovaBinder == null) return 0;
+		return supernovaBinder.getCounter();
+	}
+
+
+
+
+
+	
 }
 
 

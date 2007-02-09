@@ -17,22 +17,23 @@ import org.apache.log4j.Logger;
 public class StreamBinder extends Thread implements Counter {
 	
 	private ArrayList<Node<DAQRecord>> inputs;
-	private Selector 			selector;
-	private int 				nreg;
+	private Selector		selector;
+	private int 			nreg;
 	private BufferConsumer		out;
 	private Node<DAQRecord> 	terminal;
 	private ArrayList<Node<?>>	allNodes;
 	private static final Logger logger = Logger.getLogger(StreamBinder.class);
-	private boolean 			running;
+	private boolean 		running;
 	private static final ByteBuffer eos;
-	private int					counter;
-	private int					counterMax;
+	private long		counter;
+	private long		counterMax;
+	private long		inputCounter;
+	private long		outputCounter;
 	
 	static {
 		eos = ByteBuffer.allocate(32);
 		eos.putInt(32).putInt(0).putLong(0).putInt(0).putInt(0).putLong(Long.MAX_VALUE);
 		eos.flip();
-
 	}
 	
 	public StreamBinder(int n, BufferConsumer out) throws IOException
@@ -55,9 +56,15 @@ public class StreamBinder extends Thread implements Counter {
 		selector = Selector.open();
 		running = false;
 		counter = 0;
+		inputCounter = 0;
+		outputCounter = 0;
 		counterMax = Integer.getInteger("icecube.daq.bindery.StreamBinder.populationLimit", 100000);
 	}
-	
+
+	public long getInputCounter() { return inputCounter; }
+	public long getOutputCounter() { return outputCounter; }
+	public long getCounter() { return counter; }
+
 	public void register(SelectableChannel ch) throws IOException {
 		register(ch, null);
 	}
@@ -75,12 +82,10 @@ public class StreamBinder extends Thread implements Counter {
 	
 	public synchronized void shutdown() { running = false; }
 	
-	public void run() {
-	
+	public void run() 
+	{
 		UTC lastUT = new UTC();
-	
 		running = true;
-		
 		while (running) 
 		{
 			try 
@@ -121,6 +126,7 @@ public class StreamBinder extends Thread implements Counter {
 							out.consume(buf);
 						}
 						terminal.pop();
+						outputCounter++;
 						// Update the lastUT
 						lastUT = currentUT;
 					}
@@ -129,9 +135,21 @@ public class StreamBinder extends Thread implements Counter {
 			catch (IOException iox) 
 			{
 				iox.printStackTrace();
+				logger.error(iox);
 				break;
 			}
 		}
+		
+		try 
+		{
+			selector.close();
+		} 
+		catch (IOException iox) 
+		{
+			iox.printStackTrace();
+			logger.error(iox);
+		}
+
 	}
 	
 	/**
@@ -162,7 +180,7 @@ public class StreamBinder extends Thread implements Counter {
 		counter--;
 	}
 
-	public int getCount() {
+	public long getCount() {
 		return counter;
 	}
 
@@ -185,6 +203,59 @@ public class StreamBinder extends Thread implements Counter {
 			node.clear();
 		counter = 0;
 	}
+
+	/**
+	 * Class for handling DAQ records.  Reads a record from a
+	 * supplied byte channel and stuffs the complete record
+	 * into the Node.
+	 * @author krokodil
+	 *
+	 */
+	class StreamInputNode {
+		
+		private Node<DAQRecord> node;
+		private ByteBuffer iobuf;
+		
+		public StreamInputNode(Node<DAQRecord> node) {
+			iobuf = ByteBuffer.allocateDirect(10000);
+			this.node = node;
+		}
+	
+		public String getName() { return node.getName(); }
+		
+		/**
+		 * This method reads bytes from the input channel.  It
+		 * will push into the associated node the byte buffer
+		 * holding a complete record if such is available.
+		 * @param ch - input channel
+		 * @throws IOException
+		 */
+		public void readRecords(ReadableByteChannel ch) throws IOException {
+			int nr = ch.read(iobuf);
+			iobuf.flip();
+			while (iobuf.remaining() >= 4)
+			{
+				int pos  = iobuf.position();
+				int recl = iobuf.getInt(pos);
+				assert recl >= 32;
+				if (logger.isDebugEnabled())
+					logger.debug(getName() + " : parsing " + recl + "-byte record @ pos = " + pos);
+				if (iobuf.remaining() < recl) break;
+				ByteBuffer buf = ByteBuffer.allocate(recl);
+				int limit = iobuf.limit();
+				iobuf.limit(pos + recl);
+				buf.put(iobuf).flip();
+				iobuf.limit(limit);
+				node.push(new DAQRecord(buf));
+				inputCounter++;
+			}
+		
+			// done accessing this bank of records - compact
+			// the buffer in preparation for next read
+			iobuf.compact();
+		}
+	}
+
 	
 }
 
@@ -198,62 +269,6 @@ class DAQRecordComparator implements Comparator<DAQRecord> {
 	
 }
 
-/**
- * Class for handling DAQ records.  Reads a record from a
- * supplied byte channel and stuffs the complete record
- * into the Node.
- * @author krokodil
- *
- */
-class StreamInputNode {
-	
-	private Node<DAQRecord> node;
-	private ByteBuffer iobuf;
-	private static Logger logger = Logger.getLogger(StreamInputNode.class);
-	
-	public StreamInputNode(Node<DAQRecord> node) {
-		iobuf = ByteBuffer.allocateDirect(10000);
-		this.node = node;
-	}
-	
-	public String getName() { return node.getName(); }
-	
-	/**
-	 * This method reads bytes from the input channel.  It
-	 * will push into the associated node the byte buffer
-	 * holding a complete record if such is available.
-	 * @param ch - input channel
-	 * @throws IOException
-	 */
-	public void readRecords(ReadableByteChannel ch) throws IOException 
-	{
-		int nr = ch.read(iobuf);
-		
-		iobuf.flip();
-
-		while (iobuf.remaining() >= 4)
-		{
-			int pos  = iobuf.position();
-			int recl = iobuf.getInt(pos);
-			assert recl >= 32;
-			if (logger.isDebugEnabled())
-				logger.debug(getName() + " : parsing " + recl + "-byte record @ pos = " + pos);
-			if (iobuf.remaining() < recl) break;
-			ByteBuffer buf = ByteBuffer.allocate(recl);
-			int limit = iobuf.limit();
-			iobuf.limit(pos + recl);
-			buf.put(iobuf).flip();
-			iobuf.limit(limit);
-			node.push(new DAQRecord(buf));
-		}
-		
-		// done accessing this bank of records - compact
-		// the buffer in preparation for next read
-		iobuf.compact();
-		
-	}
-	
-}
 
 class DAQRecord implements Timestamped {
 	
