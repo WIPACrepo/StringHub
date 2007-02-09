@@ -136,7 +136,7 @@ public class StringHubComponent extends DAQComponent
 	{
 		super(DAQCmdInterface.DAQ_STRING_HUB, hubId);
 		
-		bufferManager  = new ByteBufferCache(256, 500000000, 500000000, "PyrateBufferManager");
+		bufferManager  = new ByteBufferCache(256, 50000000, 50000000, "PyrateBufferManager");
 		addCache(bufferManager);
 		addMBean(bufferManager.getCacheName(), bufferManager);
 
@@ -144,7 +144,7 @@ public class StringHubComponent extends DAQComponent
 
 		payloadFactory = new MasterPayloadFactory(bufferManager);
 		sender         = new Sender(hubId, payloadFactory);
-		isSim          = Boolean.getBoolean("icecube.daq.stringhub.simulation");
+		isSim          = (hubId > 1000);
 		nch            = 0;
 
 		logger.info("starting up StringHub component " + hubId);
@@ -394,6 +394,7 @@ public class StringHubComponent extends DAQComponent
 			moniBind = new StreamBinder(nch, monitorConsumer, "moni");
 			snBind   = new StreamBinder(nch, supernovaConsumer, "tcal");
 			tcalBind = new StreamBinder(nch, tcalConsumer, "supernova");
+			collectorMonitor.setBinders(hitsBind, moniBind, tcalBind, snBind);
 		} catch (IOException iox) {
 			logger.error("Error creating StreamBinder: " + iox.getMessage());
 			iox.printStackTrace();
@@ -445,6 +446,7 @@ public class StringHubComponent extends DAQComponent
 		catch (Exception e)
 		{
 			e.printStackTrace();
+			throw new DAQCompException("Error killing connectors", e);
 			// throw new DAQCompException(e.getMessage());
 		}
 
