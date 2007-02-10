@@ -384,6 +384,11 @@ public class Sender
 
             final int triggerMode = 2;
 
+            // XXX I'd LOVE to avoid the deepCopy here, but the parent
+            // RequestFiller class is holding a pointer to 'engData'
+            // and will free it after the ReadoutDataPayload is sent,
+            // so we need to make a copy here in order to avoid
+            // the 'engData' payload being recycled twice.
             DomHitEngineeringFormatPayload engCopy =
                 (DomHitEngineeringFormatPayload) engData.deepCopy();
             hitDataList.add(engHitFactory.createPayload(sourceId, -1,
