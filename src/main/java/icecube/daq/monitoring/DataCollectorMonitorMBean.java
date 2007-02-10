@@ -95,4 +95,9 @@ public interface DataCollectorMonitorMBean
 	 * Get a count of objects popped from the HKN1 tree
 	 */
 	long getSupernovaHKN1OutputCounter();
+
+	long getLastHKN1HitTime();
+	long getLastHKN1MoniTime();
+	long getLastHKN1TcalTime();
+	long getLastHKN1SupernovaTime();
 }

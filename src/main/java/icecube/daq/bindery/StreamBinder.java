@@ -29,7 +29,8 @@ public class StreamBinder extends Thread implements Counter {
 	private long		counterMax;
 	private long		inputCounter;
 	private long		outputCounter;
-	
+	private UTC		lastUT;
+
 	static {
 		eos = ByteBuffer.allocate(32);
 		eos.putInt(32).putInt(0).putLong(0).putInt(0).putInt(0).putLong(Long.MAX_VALUE);
@@ -59,11 +60,13 @@ public class StreamBinder extends Thread implements Counter {
 		inputCounter = 0;
 		outputCounter = 0;
 		counterMax = Integer.getInteger("icecube.daq.bindery.StreamBinder.populationLimit", 100000);
+		lastUT = null;
 	}
 
-	public long getInputCounter() { return inputCounter; }
-	public long getOutputCounter() { return outputCounter; }
-	public long getCounter() { return counter; }
+	public synchronized long getInputCounter() { return inputCounter; }
+	public synchronized long getOutputCounter() { return outputCounter; }
+	public synchronized long getCounter() { return counter; }
+	public synchronized long getLastUT() { if (lastUT != null) return lastUT.in_0_1ns(); return 0L; }
 
 	public void register(SelectableChannel ch) throws IOException {
 		register(ch, null);
@@ -84,7 +87,6 @@ public class StreamBinder extends Thread implements Counter {
 	
 	public void run() 
 	{
-		UTC lastUT = new UTC();
 		running = true;
 		while (running) 
 		{
@@ -110,16 +112,16 @@ public class StreamBinder extends Thread implements Counter {
 					{
 						DAQRecord rec = terminal.head();
 						UTC currentUT = rec.time();
-						if (currentUT.compareTo(lastUT) < 0)
+						if (lastUT != null && currentUT.compareTo(lastUT) < 0)
 							logger.warn(getName() + " out-of-order record detected");
 						// A single end-of-stream is sufficient to shut down this binder.
 						if (logger.isDebugEnabled())
 							logger.debug(getName() + "sending buffer to sender RECL = " +
-										 rec.getBuffer().getInt(0) + " - TYPE = " + 
-										 rec.getBuffer().getInt(4) + " - UTC = " + currentUT.toString());
+								     rec.getBuffer().getInt(0) + " - TYPE = " + 
+								     rec.getBuffer().getInt(4) + " - UTC = " + currentUT.toString());
 						if (rec.getBuffer().getInt(0) == 32 
-								&& rec.getBuffer().getLong(8) == 0L 
-								&& rec.getBuffer().getLong(24) == Long.MAX_VALUE) running = false;
+						    && rec.getBuffer().getLong(8) == 0L 
+						    && rec.getBuffer().getLong(24) == Long.MAX_VALUE) running = false;
 						while (rec.getBuffer().remaining() > 0) 
 						{
 							ByteBuffer buf = rec.getBuffer();

@@ -153,10 +153,25 @@ public class DataCollectorMonitor implements DataCollectorMonitorMBean
 		return supernovaBinder.getCounter();
 	}
 
+	public long getLastHKN1HitTime() {
+		if (hitsBinder == null) return 0L;
+		return hitsBinder.getLastUT();
+	}
 
+	public long getLastHKN1MoniTime() {
+		if (moniBinder == null) return 0L;
+		return moniBinder.getLastUT();
+	}
 
+	public long getLastHKN1TcalTime() {
+		if (tcalBinder == null) return 0L;
+		return tcalBinder.getLastUT();
+	}
 
-
+	public long getLastHKN1SupernovaTime() {
+		if (supernovaBinder == null) return 0L;
+		return supernovaBinder.getLastUT();
+	}
 	
 }
 
