@@ -244,6 +244,13 @@ public class Sender
     /** end time for current request */
     private long reqEndTime = Long.MIN_VALUE;
 
+    /** time of most recently queued hit */
+    private long latestHitTime;
+    /** start time of most recent readout data */
+    private long latestReadoutStartTime;
+    /** end time of most recent readout data */
+    private long latestReadoutEndTime;
+
     /**
      * Create a readout request filler.
      *
@@ -366,6 +373,9 @@ public class Sender
                     ((Payload) payload).recycle();
                 }
 
+                // remember most recent time for monitoring
+                latestHitTime = engData.getPayloadTimeUTC().getUTCTimeAsLong();
+
                 addData(engData);
             }
         }
@@ -467,7 +477,27 @@ public class Sender
         return getDataPayloadsPerSecond();
     }
 
-    //public long getNumEmptyLoops()
+    /**
+     * Get the time of the most recently queued hit.
+     *
+     * @return latest time
+     */
+    public long getLatestHitTime()
+    {
+        return latestHitTime;
+    }
+
+    /**
+     * Get the end time of the most recent readout data payload.
+     *
+     * @return latest readout data end time
+     */
+    public long[] getLatestReadoutTimes()
+    {
+        log.error("Readout [" + latestReadoutStartTime + "-" +
+                  latestReadoutEndTime + "]");
+        return new long[] { latestReadoutStartTime, latestReadoutEndTime };
+    }
 
     /**
      * Get number of hits which could not be loaded.
@@ -883,6 +913,9 @@ public class Sender
             log.error("Request may have been recycled; cannot send data");
             return null;
         }
+
+        latestReadoutStartTime = startTime.getUTCTimeAsLong();
+        latestReadoutEndTime = endTime.getUTCTimeAsLong();
 
         if (log.isDebugEnabled()) {
             log.debug("Closing ReadoutData " + startTime.getUTCTimeAsLong() +
