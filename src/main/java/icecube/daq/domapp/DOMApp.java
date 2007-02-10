@@ -374,6 +374,7 @@ public class DOMApp implements IDOMApp {
 	public boolean transitionToDOMApp() throws IOException, InterruptedException {
                 try
                 {
+		    
                         getMainboardID();
 			try {
 				endRun();
