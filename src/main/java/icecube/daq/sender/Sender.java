@@ -362,6 +362,8 @@ public class Sender
                             }
                         }
                     }
+
+                    ((Payload) payload).recycle();
                 }
 
                 addData(engData);
@@ -382,8 +384,10 @@ public class Sender
 
             final int triggerMode = 2;
 
+            DomHitEngineeringFormatPayload engCopy =
+                (DomHitEngineeringFormatPayload) engData.deepCopy();
             hitDataList.add(engHitFactory.createPayload(sourceId, -1,
-                                                        triggerMode, engData));
+                                                        triggerMode, engCopy));
         }
 
         return hitDataList;
@@ -411,6 +415,9 @@ public class Sender
             Object obj = iter.next();
             if (obj instanceof Spliceable) {
                 disposeData(((Payload) obj));
+            } else {
+                log.error("Not disposing of non-spliceable " + obj + " (" +
+                          obj.getClass().getName() + ")");
             }
         }
     }
@@ -907,6 +914,12 @@ public class Sender
             readoutDataFactory.createPayload(uid, payloadNum, true, sourceId,
                                              startTime, endTime, tmpHits);
 
+        Iterator hitIter = hitDataList.iterator();
+        while (hitIter.hasNext()) {
+            Payload pay = (Payload) hitIter.next();
+            pay.recycle();
+        }
+
         return readout;
     }
 
@@ -947,6 +960,7 @@ public class Sender
      */
     public boolean sendOutput(IPayload payload)
     {
+        boolean sent = false;
         if (dataDest == null) {
             if (log.isErrorEnabled()) {
                 log.error("ReadoutDataPayload destination has not been set");
@@ -954,7 +968,7 @@ public class Sender
         } else {
             try {
                 dataDest.writePayload((Payload) payload);
-                return true;
+                sent = true;
             } catch (IOException ioe) {
                 if (log.isErrorEnabled()) {
                     log.error("Could not send RequestDataPayload", ioe);
@@ -962,8 +976,9 @@ public class Sender
             }
         }
 
-        // if we made it here, we've failed to sent the payload
-        return false;
+        ((Payload) payload).recycle();
+
+        return sent;
     }
 
     /**
