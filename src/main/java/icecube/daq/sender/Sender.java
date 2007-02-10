@@ -362,9 +362,9 @@ public class Sender
                             }
                         }
                     }
-
-                    addData(engData);
                 }
+
+                addData(engData);
             }
         }
 
