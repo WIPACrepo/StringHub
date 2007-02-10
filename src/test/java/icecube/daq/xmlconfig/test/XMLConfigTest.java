@@ -36,7 +36,8 @@ public class XMLConfigTest
 	@Before public void setUp() throws Exception
 	{
 		InputStream xmlIn = ClassLoader.getSystemResourceAsStream("ic3/daq/configuration/sample-config.xml");
-		xmlConfig = XMLConfig.parseXMLConfig(xmlIn);
+		xmlConfig = new XMLConfig();
+                xmlConfig.parseXMLConfig(xmlIn);
 		config = xmlConfig.getDOMConfig("57bc3f3a220d");
 	}
 

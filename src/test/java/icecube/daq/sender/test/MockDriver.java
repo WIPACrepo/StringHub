@@ -66,4 +66,10 @@ class MockDriver
     {
         return null;
     }
+
+    public void softboot(int card, int pair, char dom)
+        throws IOException
+    {
+        // do nothing
+    }
 }
