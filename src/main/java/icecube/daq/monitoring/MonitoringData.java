@@ -59,6 +59,34 @@ public class MonitoringData
     }
 
     /**
+     * Get the time of the most recently queued hit.
+     *
+     * @return latest time
+     */
+    public long getLatestHitTime()
+    {
+        if (sender == null) {
+            return 0;
+        }
+
+        return sender.getLatestHitTime();
+    }
+
+    /**
+     * Get the end time of the most recent readout data payload.
+     *
+     * @return latest readout data end time
+     */
+    public long[] getLatestReadoutTimes()
+    {
+        if (sender == null) {
+            return new long[0];
+        }
+
+        return sender.getLatestReadoutTimes();
+    }
+
+    /**
      * Get number of hits which could not be loaded.
      *
      * @return num bad hits

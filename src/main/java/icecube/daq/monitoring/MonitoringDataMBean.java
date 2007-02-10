@@ -27,6 +27,20 @@ public interface MonitoringDataMBean
     double getHitsPerSecond();
 
     /**
+     * Get the time of the most recently queued hit.
+     *
+     * @return latest time
+     */
+    long getLatestHitTime();
+
+    /**
+     * Get the end time of the most recent readout data payload.
+     *
+     * @return latest readout data end time
+     */
+    long[] getLatestReadoutTimes();
+
+    /**
      * Get number of hits which could not be loaded.
      *
      * @return num bad hits
