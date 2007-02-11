@@ -487,8 +487,6 @@ public class Sender
      */
     public long[] getLatestReadoutTimes()
     {
-        log.error("Readout [" + latestReadoutStartTime + "-" +
-                  latestReadoutEndTime + "]");
         return new long[] { latestReadoutStartTime, latestReadoutEndTime };
     }
 
