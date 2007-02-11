@@ -1,9 +1,5 @@
 package icecube.daq.sender.test;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-
 import icecube.daq.bindery.StreamBinder;
 import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.common.DAQComponentProcessManager;
@@ -46,8 +42,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.zip.DataFormatException;
 
-import org.junit.Before;
-import org.junit.Test;
+import junit.framework.Test;
+import junit.framework.TestCase;
+import junit.framework.TestSuite;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -56,6 +53,7 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 
 public class SenderTest
+    extends TestCase
 {
     private static Log logger = LogFactory.getLog(SenderTest.class);
 
@@ -314,24 +312,6 @@ public class SenderTest
         return running;
     }
 
-/*
-    public final void registerInputCallbacks(DAQComponentProcessManager pm,
-                                             PayloadInputEngine input,
-                                             String name)
-    {
-        input.registerStopNotificationCallback(pm, name + "Stop");
-        input.registerErrorNotificationCallback(pm, name + "Error");
-    }
-
-    public final void registerOutputCallbacks(DAQComponentProcessManager pm,
-                                              PayloadOutputEngine output,
-                                              String name)
-    {
-        output.registerStopNotificationCallback(pm, name + "Stop");
-        output.registerErrorNotificationCallback(pm, name + "Error");
-    }
-*/
-
     public static final boolean setLogLevel(String levelStr)
     {
         if (levelStr.equalsIgnoreCase("off") ||
@@ -360,11 +340,21 @@ public class SenderTest
     private void startStringHub(List collectors)
     {
         for (int i = 0; i < 2; i++) {
-            String opName;
+            int expLevel;
             if (i == 0) {
-                opName = "CONFIGURING";
+                expLevel = DataCollector.CONFIGURING;
             } else {
-                opName = "STARTING";
+                expLevel = DataCollector.STARTING;
+            }
+
+            for (Iterator iter = collectors.iterator(); iter.hasNext(); ) {
+                DataCollector dc = (DataCollector) iter.next();
+
+                if (i == 0) {
+                    dc.signalConfigure();
+                } else {
+                    dc.signalStartRun();
+                }
             }
 
             for (Iterator iter = collectors.iterator(); iter.hasNext(); ) {
@@ -373,9 +363,7 @@ public class SenderTest
                 int reps = 0;
                 while (true) {
                     final int curLevel = dc.queryDaqRunLevel();
-                    if ((i == 0 && curLevel != 0) ||
-                        (i == 1 && curLevel == 2))
-                    {
+                    if (curLevel > expLevel) {
                         break;
                     }
 
@@ -386,20 +374,13 @@ public class SenderTest
                     }
 
                     if (reps++ > 20) {
+                        final String opName =
+                            DataCollector.STATE_NAMES[expLevel];
+
                         throw new Error(dc.toString() + " never reached" +
-                                        " expected run level while " +
-                                        opName);
+                                        " expected run level #" + expLevel +
+                                        " " + opName);
                     }
-                }
-            }
-
-            for (Iterator iter = collectors.iterator(); iter.hasNext(); ) {
-                DataCollector dc = (DataCollector) iter.next();
-
-                if (i == 0) {
-                    dc.signalConfigure();
-                } else {
-                    dc.signalStartRun();
                 }
             }
         }
@@ -415,7 +396,7 @@ public class SenderTest
             int reps = 0;
             while (true) {
                 final int curLevel = dc.queryDaqRunLevel();
-                if (curLevel == 4)
+                if (curLevel == DataCollector.RUNNING)
                 {
                     break;
                 }
@@ -451,7 +432,7 @@ public class SenderTest
             int reps = 0;
             while (true) {
                 final int curLevel = dc.queryDaqRunLevel();
-                if (curLevel <= 2)
+                if (curLevel <= DataCollector.CONFIGURED)
                 {
                     break;
                 }
@@ -477,8 +458,7 @@ public class SenderTest
         }
     }
 
-    @Before
-    public void setUp()
+    protected void setUp()
     {
         BasicConfigurator.resetConfiguration();
         BasicConfigurator.configure(new MockAppender(logLevel));
@@ -491,7 +471,11 @@ public class SenderTest
         prevTime = 0L;
     }
 
-    @Test
+    public static Test suite()
+    {
+        return new TestSuite(SenderTest.class);
+    }
+
     public void testFull()
         throws IOException
     {
@@ -513,8 +497,7 @@ public class SenderTest
         hitPipe.source().configureBlocking(false);
 
         PayloadDestinationOutputEngine hitOut =
-            new PayloadDestinationOutputEngine(compName, compId,
-                                               "hitOut");
+            new PayloadDestinationOutputEngine(compName, compId, "hitOut");
         hitOut.registerBufferManager(bufMgr);
         addOutputChannel(hitPipe.sink(), bufMgr, hitOut);
 
@@ -632,12 +615,11 @@ public class SenderTest
             dc.start();
         }
 
+        startStringHub(collectors);
+
         RequestGenerator reqGen =
             new RequestGenerator(reqPipe.sink(), simulationTime, numRequests);
         reqGen.start();
-
-        logger.info("Starting event sequence.");
-        startStringHub(collectors);
 
         Selector sel = Selector.open();
 
@@ -730,9 +712,6 @@ public class SenderTest
     {
         processArgs(args);
 
-        SenderTest sender = new SenderTest();
-
-        sender.setUp();
-        sender.testFull();
+        junit.textui.TestRunner.run(suite());
     }
 }
