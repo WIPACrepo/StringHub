@@ -293,14 +293,7 @@ public class Sender
             (DomHitEngineeringFormatPayload) dataPayload;
 
         // get time from current hit
-        final long hitTime;
-        if (data == null) {
-            hitTime = Long.MAX_VALUE;
-        } else {
-            IUTCTime utc = data.getHitTimeUTC();
-            hitTime = (utc == null ? Integer.MIN_VALUE :
-                       utc.getUTCTimeAsLong());
-        }
+        final long hitTime = data.getTimestamp();
 
         if (hitTime < reqStartTime) {
             return -1;
@@ -780,10 +773,7 @@ public class Sender
         IReadoutRequest curReq = (IReadoutRequest) reqPayload;
 
         // get time from current hit
-        IUTCTime utc = curData.getHitTimeUTC();
-
-        final long timestamp = (utc == null ? Long.MIN_VALUE :
-                                utc.getUTCTimeAsLong());
+        final long timestamp = curData.getTimestamp();
 
         final int srcId = sourceId.getSourceID();
 
@@ -834,16 +824,14 @@ public class Sender
                 break;
             case IReadoutRequestElement.READOUT_TYPE_II_MODULE:
                 if (daqName.equals(DAQCmdInterface.DAQ_STRINGPROCESSOR) &&
-                    curData.getDOMID().getDomIDAsLong() ==
-                    elem.getDomID().getDomIDAsLong())
+                    curData.getDomId() == elem.getDomID().getDomIDAsLong())
                 {
                     return true;
                 }
                 break;
             case IReadoutRequestElement.READOUT_TYPE_IT_MODULE:
                 if (daqName.equals(DAQCmdInterface.DAQ_ICETOP_DATA_HANDLER) &&
-                    curData.getDOMID().getDomIDAsLong() ==
-                    elem.getDomID().getDomIDAsLong())
+                    curData.getDomId() == elem.getDomID().getDomIDAsLong())
                 {
                     return true;
                 }
