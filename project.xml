@@ -25,7 +25,7 @@
 	    <libs></libs>
 	    <tools>
 	        log4j.jar
-		junit4.jar
+		junit.jar
 		colt.jar
 	    </tools>
 	</uses>
