@@ -290,8 +290,7 @@ public class Sender
     public int compareRequestAndData(IPayload reqPayload, IPayload dataPayload)
     {
         IReadoutRequest req = (IReadoutRequest) reqPayload;
-        DomHitEngineeringFormatPayload data =
-            (DomHitEngineeringFormatPayload) dataPayload;
+        IDomHit data = (IDomHit) dataPayload;
 
         // get time from current hit
         final long hitTime;
@@ -388,8 +387,7 @@ public class Sender
         ArrayList hitDataList = new ArrayList();
 
         for (Iterator iter = dataList.iterator(); iter.hasNext(); ) {
-            DomHitEngineeringFormatPayload engData =
-                (DomHitEngineeringFormatPayload) iter.next();
+            IDomHit domHit = (IDomHit) iter.next();
 
             final int triggerMode = 2;
 
@@ -399,7 +397,7 @@ public class Sender
             // so we need to make a copy here in order to avoid
             // the 'engData' payload being recycled twice.
             DomHitEngineeringFormatPayload engCopy =
-                (DomHitEngineeringFormatPayload) engData.deepCopy();
+                (DomHitEngineeringFormatPayload) domHit.deepCopy();
             hitDataList.add(engHitFactory.createPayload(sourceId, -1,
                                                         triggerMode, engCopy));
         }
@@ -772,8 +770,7 @@ public class Sender
      */
     public boolean isRequested(IPayload reqPayload, IPayload dataPayload)
     {
-        DomHitEngineeringFormatPayload curData =
-            (DomHitEngineeringFormatPayload) dataPayload;
+        IDomHit curData = (IDomHit) dataPayload;
         IReadoutRequest curReq = (IReadoutRequest) reqPayload;
 
         // get time from current hit
