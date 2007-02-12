@@ -7,12 +7,14 @@ import icecube.daq.eventbuilder.impl.ReadoutDataPayloadFactory;
 
 import icecube.daq.monitoring.SenderMonitor;
 import icecube.daq.payload.IDOMID;
+import icecube.daq.payload.IDomHit;
 import icecube.daq.payload.ILoadablePayload;
 import icecube.daq.payload.IPayload;
 import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.MasterPayloadFactory;
+import icecube.daq.payload.PayloadDestination;
 import icecube.daq.payload.PayloadRegistry;
 import icecube.daq.payload.SourceIdRegistry;
 
@@ -48,6 +50,94 @@ import java.util.zip.DataFormatException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+class TinyHitPayload
+    implements IDomHit, ILoadablePayload
+{
+    private static Log LOG = LogFactory.getLog(Sender.class);
+
+    private ByteBuffer byteBuf;
+    private long time;
+    private long domId;
+
+    TinyHitPayload(ByteBuffer buf)
+        throws DataFormatException, IOException
+    {
+        super();
+
+        byteBuf = buf;
+
+        domId = byteBuf.getLong(8);
+        time = byteBuf.getLong(24);
+    }
+
+    public Object deepCopy()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public long getDomId()
+    {
+        return domId;
+    }
+
+    public ByteBuffer getPayloadBacking()
+    {
+        return byteBuf;
+    }
+
+    public int getPayloadInterfaceType()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public int getPayloadLength()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public IUTCTime getPayloadTimeUTC()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public int getPayloadType()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public long getTimestamp()
+    {
+        return time;
+    }
+
+    public void loadPayload()
+    {
+        // ignore
+    }
+
+    public void recycle()
+    {
+        byteBuf = null;
+    }
+
+    public int writePayload(int iOffset, ByteBuffer tBuffer)
+        throws IOException
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public int writePayload(PayloadDestination tDestination)
+        throws IOException
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public String toString()
+    {
+        return "DomHit[" + domId + "@" + time + "]";
+    }
+}
 
 class HitSorter
     implements Comparator
@@ -216,6 +306,9 @@ public class Sender
 
     private static Log log = LogFactory.getLog(Sender.class);
 
+    /** <tt>true</tt> if we should use the tiny hit payload */
+    private static final boolean USE_TINY_HITS = true;
+
     /** Used to sort hits before building readout data payloads. */
     private static final HitSorter HIT_SORTER = new HitSorter();
 
@@ -332,10 +425,12 @@ public class Sender
 
             addDataStop();
         } else {
+            ByteBuffer dupBuf = buf.duplicate();
+
             DomHitEngineeringFormatPayload engData =
                 new DomHitEngineeringFormatPayload();
             try {
-                engData.initialize(0, buf.duplicate());
+                engData.initialize(0, dupBuf);
                 engData.loadPayload();
             } catch (DataFormatException dfe) {
                 log.error("Could not load engineering data", dfe);
@@ -372,9 +467,22 @@ public class Sender
                 }
 
                 // remember most recent time for monitoring
-                latestHitTime = engData.getPayloadTimeUTC().getUTCTimeAsLong();
+                latestHitTime =
+                    engData.getPayloadTimeUTC().getUTCTimeAsLong();
 
-                addData(engData);
+                if (!USE_TINY_HITS) {
+                    addData(engData);
+                } else {
+                    engData.recycle();
+
+                    try {
+                        addData(new TinyHitPayload(dupBuf));
+                    } catch (DataFormatException dfe) {
+                        log.error("Couldn't add hit", dfe);
+                    } catch (IOException ioe) {
+                        log.error("Couldn't add hit", ioe);
+                    }
+                }
             }
         }
 
@@ -391,15 +499,31 @@ public class Sender
 
             final int triggerMode = 2;
 
-            // XXX I'd LOVE to avoid the deepCopy here, but the parent
-            // RequestFiller class is holding a pointer to 'engData'
-            // and will free it after the ReadoutDataPayload is sent,
-            // so we need to make a copy here in order to avoid
-            // the 'engData' payload being recycled twice.
-            DomHitEngineeringFormatPayload engCopy =
-                (DomHitEngineeringFormatPayload) domHit.deepCopy();
+            DomHitEngineeringFormatPayload engData;
+            if (!USE_TINY_HITS) {
+                // XXX I'd LOVE to avoid the deepCopy here, but the parent
+                // RequestFiller class is holding a pointer to 'engData'
+                // and will free it after the ReadoutDataPayload is sent,
+                // so we need to make a copy here in order to avoid
+                // the 'engData' payload being recycled twice.
+                engData = (DomHitEngineeringFormatPayload) domHit.deepCopy();
+            } else {
+                engData = new DomHitEngineeringFormatPayload();
+                try {
+                    engData.initialize(0, domHit.getPayloadBacking());
+                    engData.loadPayload();
+                } catch (DataFormatException dfe) {
+                    log.error("Could not load engineering data", dfe);
+                    engData = null;
+                } catch (IOException ioe) {
+                    log.error("Could not create hit payload", ioe);
+                    engData = null;
+                }
+            }
+
             hitDataList.add(engHitFactory.createPayload(sourceId, -1,
-                                                        triggerMode, engCopy));
+                                                        triggerMode,
+                                                        engData));
         }
 
         return hitDataList;
