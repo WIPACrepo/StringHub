@@ -506,7 +506,9 @@ public class Sender
                 // and will free it after the ReadoutDataPayload is sent,
                 // so we need to make a copy here in order to avoid
                 // the 'engData' payload being recycled twice.
-                engData = (DomHitEngineeringFormatPayload) domHit.deepCopy();
+                Object obj =
+                    ((DomHitEngineeringFormatPayload) domHit).deepCopy();
+                engData = (DomHitEngineeringFormatPayload) obj;
             } else {
                 engData = new DomHitEngineeringFormatPayload();
                 try {
