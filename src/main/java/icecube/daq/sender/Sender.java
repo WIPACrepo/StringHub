@@ -294,7 +294,12 @@ public class Sender
             (DomHitEngineeringFormatPayload) dataPayload;
 
         // get time from current hit
-        final long hitTime = data.getTimestamp();
+        final long hitTime;
+        if (data == null) {
+            hitTime = Long.MAX_VALUE;
+        } else {
+            hitTime = data.getTimestamp();
+        }
 
         if (hitTime < reqStartTime) {
             return -1;
