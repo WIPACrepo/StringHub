@@ -7,6 +7,7 @@ import icecube.daq.eventbuilder.impl.ReadoutDataPayloadFactory;
 
 import icecube.daq.monitoring.SenderMonitor;
 import icecube.daq.payload.IDOMID;
+import icecube.daq.payload.ILoadablePayload;
 import icecube.daq.payload.IPayload;
 import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.ISourceID;
@@ -341,7 +342,7 @@ public class Sender
             }
 
             if (engData != null) {
-                IPayload payload =
+                ILoadablePayload payload =
                     hitFactory.createPayload(sourceId,
                                              engData.getTriggerMode(), 0,
                                              engData);
@@ -363,7 +364,7 @@ public class Sender
                         }
                     }
 
-                    ((Payload) payload).recycle();
+                    payload.recycle();
                 }
 
                 // remember most recent time for monitoring
@@ -406,9 +407,9 @@ public class Sender
      *
      * @param data payload to recycle
      */
-    public void disposeData(IPayload data)
+    public void disposeData(ILoadablePayload data)
     {
-        ((Payload) data).recycle();
+        data.recycle();
     }
 
     /**
@@ -421,10 +422,10 @@ public class Sender
         Iterator iter = dataList.iterator();
         while (iter.hasNext()) {
             Object obj = iter.next();
-            if (obj instanceof Spliceable) {
-                disposeData(((Payload) obj));
+            if (obj instanceof ILoadablePayload) {
+                disposeData(((ILoadablePayload) obj));
             } else {
-                log.error("Not disposing of non-spliceable " + obj + " (" +
+                log.error("Not disposing of non-loadable " + obj + " (" +
                           obj.getClass().getName() + ")");
             }
         }
@@ -854,7 +855,8 @@ public class Sender
      *
      * @return readout data payload
      */
-    public IPayload makeDataPayload(IPayload reqPayload, List dataList)
+    public ILoadablePayload makeDataPayload(IPayload reqPayload,
+                                            List dataList)
     {
         if (reqPayload == null) {
             try {
@@ -982,7 +984,7 @@ public class Sender
      *
      * @return <tt>true</tt> if the payload was sent
      */
-    public boolean sendOutput(IPayload payload)
+    public boolean sendOutput(ILoadablePayload payload)
     {
         boolean sent = false;
         if (dataDest == null) {
@@ -1000,7 +1002,7 @@ public class Sender
             }
         }
 
-        ((Payload) payload).recycle();
+        payload.recycle();
 
         return sent;
     }
