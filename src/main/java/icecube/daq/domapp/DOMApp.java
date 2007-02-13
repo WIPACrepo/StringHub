@@ -4,7 +4,7 @@ import icecube.daq.domapp.LocalCoincidenceConfiguration.Source;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-
+import java.util.ArrayList;
 import org.apache.log4j.Logger;
 
 public class DOMApp implements IDOMApp {
@@ -90,6 +90,48 @@ public class DOMApp implements IDOMApp {
 		return sendMessage(MessageType.GET_DATA);
 	}
 	
+	/**
+	 * Pack multiple messages to get data
+	 */
+	public ArrayList<ByteBuffer> getData(int n) throws MessageException {
+		ByteBuffer buf = (ByteBuffer) msgBuffer.clear();
+		for (int i = 0; i < n; i++) {
+			buf.put(MessageType.GET_DATA.getFacility());
+			buf.put(MessageType.GET_DATA.getSubtype());
+			buf.putShort((short) 0).putShort((short) 0);
+			buf.put((byte) 0).put((byte) 0);
+		}
+
+		buf.flip();
+		logger.debug("Sending multimessage request.");
+		try {
+			devIO.send(buf);
+		} catch (IOException e) {
+			throw new MessageException(e);
+		}
+
+		ArrayList<ByteBuffer> outC = new ArrayList<ByteBuffer>();
+
+		for (int i = 0; i < n; i++) {
+			try {
+				Thread.yield();
+				ByteBuffer out = devIO.recv();
+				logger.debug("Received part " + i + " of multimessage.");
+				int status = out.get(7);
+				if (status != 1) throw new MessageException(MessageType.GET_DATA, status);
+				if (out.remaining() > 8) {
+					ByteBuffer x = ByteBuffer.allocate(out.remaining()-8);
+					out.position(8);
+					x.put(out);
+					outC.add((ByteBuffer) x.flip());
+				}
+			} catch (IOException e) {
+				throw new MessageException(e);
+			}
+		}
+		return outC;
+	}
+
 	/* (non-Javadoc)
 	 * @see ic3.daq.domapp.IDOMApp#getMainboardID()
 	 */
@@ -206,7 +248,8 @@ public class DOMApp implements IDOMApp {
 			byte r_type = out.get();
 			byte r_subt = out.get();
 			if (r_type != type.getFacility() || r_subt != type.getSubtype()) {
-				logger.error("Return message type/subtype does not match outgoing message (" + r_type + ", " + r_subt + ").");
+				logger.error("Return message type/subtype does not match outgoing message (" + 
+					     r_type + ", " + r_subt + ").");
 				throw new MessageException(type, 1001);
 			}
 			if (out.limit() < 8) throw new MessageException(type, 1);
