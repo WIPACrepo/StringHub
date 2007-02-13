@@ -590,7 +590,7 @@ public class DataCollector extends AbstractDataCollector
 					   the lastTcalUT for reference in case system clock
 					   is incorrect.
 					*/
-					if (lastTcalUT - lastDataUT > maxDataDelay) {
+					if (lastDataUT != 0L && (lastTcalUT - lastDataUT > maxDataDelay)) {
 						logger.warn("DOM data lag detected: (" + 
 									lastTcalUT + ", " +
 									lastDataUT + ").  Resetting ACQ.");
