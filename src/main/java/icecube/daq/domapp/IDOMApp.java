@@ -3,6 +3,8 @@ package icecube.daq.domapp;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import java.util.ArrayList;
+
 public interface IDOMApp {
 
 	/**
@@ -81,6 +83,7 @@ public interface IDOMApp {
 	 * @throws MessageException
 	 */
 	public abstract ByteBuffer getData() throws MessageException;
+	public abstract ArrayList<ByteBuffer> getData(int n) throws MessageException;
 
 	/**
 	 * Query the DOMApp for the DOM mainboard ID (12-char hex string)
