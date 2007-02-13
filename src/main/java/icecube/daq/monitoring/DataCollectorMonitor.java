@@ -107,11 +107,11 @@ public class DataCollectorMonitor implements DataCollectorMonitorMBean
 	}
 	public long getHitsHKN1InputCounter() {
 		if (hitsBinder == null) return 0;
-		return hitsBinder.getCounter();
+		return hitsBinder.getInputCounter();
 	}
 	public long getHitsHKN1OutputCounter() {
 		if (hitsBinder == null) return 0;
-		return hitsBinder.getCounter();
+		return hitsBinder.getOutputCounter();
 	}
 
 	public long getMoniHKN1Counter() {
@@ -120,11 +120,11 @@ public class DataCollectorMonitor implements DataCollectorMonitorMBean
 	}
 	public long getMoniHKN1InputCounter() {
 		if (moniBinder == null) return 0;
-		return moniBinder.getCounter();
+		return moniBinder.getInputCounter();
 	}
 	public long getMoniHKN1OutputCounter() {
 		if (moniBinder == null) return 0;
-		return moniBinder.getCounter();
+		return moniBinder.getOutputCounter();
 	}
 
 	public long getTcalHKN1Counter() {
@@ -133,11 +133,11 @@ public class DataCollectorMonitor implements DataCollectorMonitorMBean
 	}
 	public long getTcalHKN1InputCounter() {
 		if (tcalBinder == null) return 0;
-		return tcalBinder.getCounter();
+		return tcalBinder.getInputCounter();
 	}
 	public long getTcalHKN1OutputCounter() {
 		if (tcalBinder == null) return 0;
-		return tcalBinder.getCounter();
+		return tcalBinder.getOutputCounter();
 	}
 
 	public long getSupernovaHKN1Counter() {
@@ -146,11 +146,11 @@ public class DataCollectorMonitor implements DataCollectorMonitorMBean
 	}
 	public long getSupernovaHKN1InputCounter() {
 		if (supernovaBinder == null) return 0;
-		return supernovaBinder.getCounter();
+		return supernovaBinder.getInputCounter();
 	}
 	public long getSupernovaHKN1OutputCounter() {
 		if (supernovaBinder == null) return 0;
-		return supernovaBinder.getCounter();
+		return supernovaBinder.getOutputCounter();
 	}
 
 	public long getLastHKN1HitTime() {
