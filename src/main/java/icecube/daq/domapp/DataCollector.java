@@ -19,6 +19,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 
@@ -89,9 +90,14 @@ public class DataCollector extends AbstractDataCollector
 	private int numMoni = 0;
 	private int numSupernova = 0;
 	private int loopCounter = 0;
+	private long lastDataUT = 0L;
+	private long lastMoniUT = 0L;
+	private long lastTcalUT = 0L;
+	private long lastSupernovaUT = 0L;
 
 	private ByteBuffer daqHeader;
-	
+	private static final long maxDataDelay = 300000000000L;
+
 	public DataCollector(DOMChannelInfo chInfo, WritableByteChannel out) throws IOException, MessageException
 	{
 		this(chInfo.card, chInfo.pair, chInfo.dom, out, null, null, null);
@@ -235,19 +241,21 @@ public class DataCollector extends AbstractDataCollector
 					"; configuration took " + (configT1 - configT0) + " milliseconds.");
 	}
 	
-	private void genericDataDispatch(
+	private long genericDataDispatch(
 			int recl, int fmtid, long domClock, 
 			ByteBuffer in, WritableByteChannel out) throws IOException 
 	{
 		daqHeader.clear();
 		daqHeader.putInt(recl + 32).putInt(fmtid).putLong(numericMBID).putInt(0).putInt(0);
-		rapcal.domToUTC(domClock).toBuf(daqHeader);
+		long utc = rapcal.domToUTC(domClock).in_0_1ns();
+		daqHeader.putLong(utc);
 		daqHeader.flip();
 		GatheringByteChannel g = (GatheringByteChannel) out;
 		ByteBuffer bufferArray[] = new ByteBuffer[] { daqHeader, in };
 		long nw = g.write(bufferArray);
 		logger.debug("In DC " + canonicalName() + " - type = " + fmtid + 
 					 " wrote " + nw + " bytes to " + out);
+		return utc;
 	}
 	
 	private void dataProcess(ByteBuffer in) throws IOException 
@@ -277,7 +285,7 @@ public class DataCollector extends AbstractDataCollector
 					in.position(pos);
 					in.limit(in.position() + len);
 					numHits++;
-					genericDataDispatch(len, 2, domClock, in, hitsSink);
+					lastDataUT = genericDataDispatch(len, 2, domClock, in, hitsSink);
 					in.limit(buffer_limit);
 					break;
 				case 144: // Delta compressed data
@@ -298,7 +306,7 @@ public class DataCollector extends AbstractDataCollector
 						in.reset();
 						in.limit(in.position() + hitSize);
 						numHits++;
-						genericDataDispatch(hitSize, 3, domClock, in, hitsSink);
+						lastDataUT = genericDataDispatch(hitSize, 3, domClock, in, hitsSink);
 						in.limit(buffer_limit);
 					}
 					in.order(ByteOrder.BIG_ENDIAN);
@@ -324,7 +332,9 @@ public class DataCollector extends AbstractDataCollector
 				logger.info(monitor.toString());
 			if (moniSink != null) {
 				numMoni++;
-				genericDataDispatch(monitor.getLength(), 102, monitor.getClock(), monitor.getBuffer(), moniSink);
+				lastMoniUT = genericDataDispatch(monitor.getLength(), 102, 
+												 monitor.getClock(), 
+												 monitor.getBuffer(), moniSink);
 			}
 		}
 	}
@@ -346,7 +356,9 @@ public class DataCollector extends AbstractDataCollector
 			tcal.writeUncompressedRecord(buffer);
 			buffer.put(gps.getBuffer());
 			buffer.flip();
-			genericDataDispatch(buffer.remaining(), 202, tcal.getDomRx().in_0_1ns() / 250L, buffer, tcalSink);
+			lastTcalUT = tcal.getDorTx().in_0_1ns();
+			genericDataDispatch(buffer.remaining(), 202, tcal.getDomRx().in_0_1ns() / 250L, 
+								buffer, tcalSink);
 		}	
 	}
 	
@@ -357,7 +369,8 @@ public class DataCollector extends AbstractDataCollector
 			SupernovaPacket spkt = SupernovaPacket.createFromBuffer(in);
 			if (supernovaSink != null) {
 				numSupernova++;
-				genericDataDispatch(spkt.getLength(), 302, spkt.getClock(), spkt.getBuffer(), supernovaSink);
+				lastSupernovaUT = genericDataDispatch(spkt.getLength(), 302, spkt.getClock(), 
+													  spkt.getBuffer(), supernovaSink);
 			}
 		}
 	}
@@ -563,17 +576,28 @@ public class DataCollector extends AbstractDataCollector
 			/* Check DATA & MONI - must be in running state (2) */
 			if (queryDaqRunLevel() == RUNNING) 
 			{
-				
 				if (t - lastDataRead >= dataReadInterval) 
 				{
 					lastDataRead = t;
-					ByteBuffer data = app.getData();
-					if (data.remaining() > 0) 
-					{
+					List<ByteBuffer> dataList = app.getData(5);
+					for (ByteBuffer data : dataList)
 						dataProcess(data);
-						tired = false;
+					if (dataList.size() == 5) tired = false;
+
+					/* 
+					   Check for DOM readout lagging behind acquisition.
+					   Reset acquisition if falls too far behind.  Use
+					   the lastTcalUT for reference in case system clock
+					   is incorrect.
+					*/
+					if (lastTcalUT - lastDataUT > maxDataDelay) {
+						logger.warn("DOM data lag detected: (" + 
+									lastTcalUT + ", " +
+									lastDataUT + ").  Resetting ACQ.");
+						app.endRun();
+						app.beginRun();
+						logger.warn("ACQ restarted.");
 					}
-						
 				}
 				if (t - lastMoniRead >= moniReadInterval) 
 				{
@@ -588,12 +612,17 @@ public class DataCollector extends AbstractDataCollector
 				if (t - lastSupernovaRead > supernovaReadInterval)
 				{
 					lastSupernovaRead = t;
-					ByteBuffer sndata = app.getSupernova();
-					if (sndata.remaining() > 0)
-					{
-						supernovaProcess(sndata);
-						tired = false;
-					}
+					while (true)
+						{
+							ByteBuffer sndata = app.getSupernova();
+							int sn_data_length = sndata.remaining();
+							if (sn_data_length > 0)
+								{
+									supernovaProcess(sndata);
+									tired = false;
+								}
+							if (sn_data_length != 11) break;
+						}
 				}
 			} 
 			else if (queryDaqRunLevel() == CONFIGURING) 
