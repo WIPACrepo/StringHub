@@ -136,7 +136,7 @@ public class StringHubComponent extends DAQComponent
 	{
 		super(DAQCmdInterface.DAQ_STRING_HUB, hubId);
 		
-		bufferManager  = new ByteBufferCache(256, 50000000, 50000000, "PyrateBufferManager");
+		bufferManager  = new ByteBufferCache(256, 100000000, 100000000, "PyrateBufferManager");
 		addCache(bufferManager);
 		addMBean(bufferManager.getCacheName(), bufferManager);
 
@@ -146,14 +146,19 @@ public class StringHubComponent extends DAQComponent
 		sender         = new Sender(hubId, payloadFactory);
 		isSim          = (hubId > 1000);
 		nch            = 0;
-
+		
 		logger.info("starting up StringHub component " + hubId);
 		
         final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
         PayloadDestinationOutputEngine hitOut =
             new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "hitOut");
         hitOut.registerBufferManager(bufferManager);
-        addEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
+		
+		// Rule is component xx80 - xx99 -> icetop
+		if ((hubId % 100) >= 80) 
+			addEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
+        else
+			addEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
 
         IPayloadDestinationCollection hitColl = hitOut.getPayloadDestinationCollection();
         sender.setHitOutputDestination(hitColl);
