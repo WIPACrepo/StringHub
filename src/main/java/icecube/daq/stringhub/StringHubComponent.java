@@ -155,7 +155,7 @@ public class StringHubComponent extends DAQComponent
         hitOut.registerBufferManager(bufferManager);
 		
 		// Rule is component xx80 - xx99 -> icetop
-		if ((hubId % 100) >= 80) 
+		if ((hubId % 100) > 80) 
 			addEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
         else
 			addEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
