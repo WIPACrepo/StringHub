@@ -271,7 +271,7 @@ public class StringHubComponent extends DAQComponent
 			
 			// Parse out tags from 'master configuration' file
 			File domConfigsDirectory = new File(configurationPath, "domconfigs");
-			File masterConfigFile = new File(domConfigsDirectory, configName + ".xml");
+			File masterConfigFile = new File(configurationPath, configName + ".xml");
 			FileInputStream fis = new FileInputStream(masterConfigFile);
 			
 			SAXReader r = new SAXReader();
@@ -282,7 +282,7 @@ public class StringHubComponent extends DAQComponent
 			logger.info("Number of domConfigNodes found: " + configNodeList.size());
 			for (Node configNode : configNodeList) {
 				String tag = configNode.getText();
-				File configFile = new File(configurationPath, tag + ".xml");
+				File configFile = new File(domConfigsDirectory, tag + ".xml");
 				logger.info("Configuring " + realism 
 							+ " - loading config from " 
 							+ configFile.getAbsolutePath());			
