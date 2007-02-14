@@ -20,6 +20,8 @@ import java.nio.ByteOrder;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.apache.log4j.Logger;
 
@@ -492,7 +494,13 @@ public class DataCollector extends AbstractDataCollector
 			x.printStackTrace();
 			logger.error("Intercepted error in DataCollector runcore: " + x);
 		}
-		
+
+		// clear interrupted flag if it is set
+		interrupted();
+
+		// HACK tell the caller that I am configured 
+		setRunLevel(CONFIGURED);
+
 		// Make sure eos is written
 		try 
 		{
@@ -504,7 +512,7 @@ public class DataCollector extends AbstractDataCollector
 		} 
 		catch (IOException iox) 
 		{
-			logger.error("Error exit.", iox);
+			logger.error(iox);
 		}
 		
 	} /* END OF run() METHOD */
@@ -517,21 +525,11 @@ public class DataCollector extends AbstractDataCollector
 	private void runcore() throws Exception
 	{
 
-		/*
-		 * Softboot -- don't do this.
-		long sbt0 = System.currentTimeMillis();
-		driver.softboot(card, pair, dom);
-		long sbt1 = System.currentTimeMillis();
-		logger.debug("Softboot took " + (sbt1 - sbt0) + " milliseconds.");
-
-		Thread.sleep(5000);
-
-		sbt0 = System.currentTimeMillis();
-		driver.softboot(card, pair, dom);
-		sbt1 = System.currentTimeMillis();
-		logger.debug("2nd softboot took " + (sbt1 - sbt0) + " milliseconds.");
-		*/
-		
+		// Create a watcher timer
+		Timer watcher = new Timer(getName() + "-timer");
+		InterruptorTask intTask = new InterruptorTask(this);
+		watcher.schedule(intTask, 10000L, 5000L);
+ 
 		/* 
 		 * Initialize the DOMApp - get things setup
 		 */
@@ -558,10 +556,13 @@ public class DataCollector extends AbstractDataCollector
 		 */
 		logger.info("Entering run loop");
 
-		while (!stop_thread) 
+		while (!stop_thread && !interrupted()) 
 		{
 			long t = System.currentTimeMillis();
 			boolean tired = true;
+
+			// Ping the interruptor task
+			intTask.ping();
 
 			loopCounter++;
 
@@ -674,4 +675,30 @@ public class DataCollector extends AbstractDataCollector
 	public long getNumSupernova() { return numSupernova; }
 	public long getAcquisitionLoopCount() { return loopCounter; }
 
+	/**
+	 * A watchdog timer task to make sure data stream does not die.
+	 */
+	class InterruptorTask extends TimerTask 
+	{
+		Thread thread;
+		boolean pinged;
+		
+		InterruptorTask(Thread thread) 
+		{
+			this.thread = thread;
+			this.pinged = false;
+		}
+		
+		public void run()
+		{
+			if (!pinged) thread.interrupt();
+			pinged = false;
+		}
+		
+		synchronized void ping()
+		{
+			pinged = true;
+		}
+	}
 }
+
