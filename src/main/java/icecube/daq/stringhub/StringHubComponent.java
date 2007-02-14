@@ -270,7 +270,8 @@ public class StringHubComponent extends DAQComponent
 			discover();
 			
 			// Parse out tags from 'master configuration' file
-			File masterConfigFile = new File(configurationPath, configName + ".xml");
+			File domConfigsDirectory = new File(configurationPath, "domconfigs");
+			File masterConfigFile = new File(domConfigsDirectory, configName + ".xml");
 			FileInputStream fis = new FileInputStream(masterConfigFile);
 			
 			SAXReader r = new SAXReader();
