@@ -414,11 +414,14 @@ public class DataCollector extends AbstractDataCollector
 	 * any assumptions on the run being stopped. 
 	 */
 	public synchronized void signalStopRun() {
-		if (queryDaqRunLevel() != RUNNING) {
-			logger.error("Attempt to stop run in non-RUNNING state.");
-			throw new IllegalStateException();
+		switch (queryDaqRunLevel()) {
+		case RUNNING:
+			setRunLevel(STOPPING);
+			break;
+		default:
+			logger.info("Ignoring redundant stop.");
+			break;
 		}
-		setRunLevel(STOPPING);
 	}
 	
 	public synchronized void signalConfigure() {
