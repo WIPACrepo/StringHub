@@ -40,9 +40,7 @@ public abstract class AbstractDataCollector extends Thread {
 	public abstract long getNumTcal();
 	public abstract long getNumSupernova();
 	public String getRunLevel() {
-		final String[] levels = new String[] { "IDLE", "CONFIGURING", "CONFIGURED", 
-						     "STARTING", "RUNNING", "STOPPING" };
-		return levels[queryDaqRunLevel()];
-	}		
+		return STATE_NAMES[queryDaqRunLevel()];
+	}
 	public abstract long getAcquisitionLoopCount();
 }
