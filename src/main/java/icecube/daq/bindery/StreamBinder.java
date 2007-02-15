@@ -16,143 +16,141 @@ import org.apache.log4j.Logger;
 
 public class StreamBinder extends Thread implements Counter {
 	
-	private ArrayList<Node<DAQRecord>> inputs;
-	private Selector		selector;
-	private int 			nreg;
-	private BufferConsumer		out;
-	private Node<DAQRecord> 	terminal;
-	private ArrayList<Node<?>>	allNodes;
-	private static final Logger logger = Logger.getLogger(StreamBinder.class);
-	private boolean 		running;
-	private static final ByteBuffer eos;
-	private long		counter;
-	private long		counterMax;
-	private long		inputCounter;
-	private long		outputCounter;
-	private UTC		lastUT;
-
-	static {
-		eos = ByteBuffer.allocate(32);
-		eos.putInt(32).putInt(0).putLong(0).putInt(0).putInt(0).putLong(Long.MAX_VALUE);
-		eos.flip();
-	}
+    private ArrayList<Node<DAQRecord>>	inputs;
+    private Selector			selector;
+    private int 			nreg;
+    private BufferConsumer		out;
+    private Node<DAQRecord>		terminal;
+    private ArrayList<Node<?>>		allNodes;
+    private static final Logger		logger = Logger.getLogger(StreamBinder.class);
+    private boolean			running;
+    private static final ByteBuffer	eos;
+    private long			counter;
+    private long			counterMax;
+    private long			inputCounter;
+    private long			outputCounter;
+    private UTC				lastUT;
+    private final static long		prescale = Long.getLong("icecube.daq.bindery.StreamBinder.prescale", 1L);
 	
-	public StreamBinder(int n, BufferConsumer out) throws IOException
+    static {
+	eos = ByteBuffer.allocate(32);
+	eos.putInt(32).putInt(0).putLong(0).putInt(0).putInt(0).putLong(Long.MAX_VALUE);
+	eos.flip();
+    }
+	
+    public StreamBinder(int n, BufferConsumer out) throws IOException
+    {
+	this(n, out, "hits");
+    }
+
+    public StreamBinder(int n, BufferConsumer out, String bindType) throws IOException 
+    {
+	super("StreamBinder" + "-" + bindType);
+	
+	inputs = new ArrayList<Node<DAQRecord>>();
+	allNodes = new ArrayList<Node<?>>();
+	
+	Comparator<DAQRecord> cmp = new DAQRecordComparator();
+	for (int i = 0; i < n; i++) inputs.add(new Node<DAQRecord>(cmp, this));
+	nreg = 0;
+	terminal = Node.makeTree(inputs, cmp, this);
+	this.out = out;
+	selector = Selector.open();
+	running = false;
+	counter = 0;
+	inputCounter = 0;
+	outputCounter = 0;
+	counterMax = Integer.getInteger("icecube.daq.bindery.StreamBinder.populationLimit", 100000);
+	lastUT = null;
+    }
+
+    public synchronized long getInputCounter() { return inputCounter; }
+    public synchronized long getOutputCounter() { return outputCounter; }
+    public synchronized long getCounter() { return counter; }
+    public synchronized long getLastUT() { if (lastUT != null) return lastUT.in_0_1ns(); return 0L; }
+
+    public void register(SelectableChannel ch) throws IOException {
+	register(ch, null);
+    }
+	
+    public void register(SelectableChannel ch, String streamName) throws IOException {
+	logger.debug("Registering channel " + streamName); 
+	if (nreg == inputs.size()) throw new IllegalStateException("Too many input channels registered");
+	Node<DAQRecord> node = inputs.get(nreg++);
+	node.setName(streamName);
+	StreamInputNode sin = new StreamInputNode(node);
+	ch.configureBlocking(false);
+	SelectionKey key = ch.register(selector, SelectionKey.OP_READ);
+	key.attach(sin);
+    }
+	
+    public synchronized void shutdown() { running = false; }
+	
+    public void run() 
+    {
+	running = true;
+	while (running) 
 	{
-		this(n, out, "hits");
-	}
-
-	public StreamBinder(int n, BufferConsumer out, String bindType) throws IOException 
-	{
-		super("StreamBinder" + "-" + bindType);
-		
-		inputs = new ArrayList<Node<DAQRecord>>();
-		allNodes = new ArrayList<Node<?>>();
-		
-		Comparator<DAQRecord> cmp = new DAQRecordComparator();
-		for (int i = 0; i < n; i++) inputs.add(new Node<DAQRecord>(cmp, this));
-		nreg = 0;
-		terminal = Node.makeTree(inputs, cmp, this);
-		this.out = out;
-		selector = Selector.open();
-		running = false;
-		counter = 0;
-		inputCounter = 0;
-		outputCounter = 0;
-		counterMax = Integer.getInteger("icecube.daq.bindery.StreamBinder.populationLimit", 100000);
-		lastUT = null;
-	}
-
-	public synchronized long getInputCounter() { return inputCounter; }
-	public synchronized long getOutputCounter() { return outputCounter; }
-	public synchronized long getCounter() { return counter; }
-	public synchronized long getLastUT() { if (lastUT != null) return lastUT.in_0_1ns(); return 0L; }
-
-	public void register(SelectableChannel ch) throws IOException {
-		register(ch, null);
-	}
-	
-	public void register(SelectableChannel ch, String streamName) throws IOException {
-		logger.debug("Registering channel " + streamName); 
-		if (nreg == inputs.size()) throw new IllegalStateException("Too many input channels registered");
-		Node<DAQRecord> node = inputs.get(nreg++);
-		node.setName(streamName);
-		StreamInputNode sin = new StreamInputNode(node);
-		ch.configureBlocking(false);
-		SelectionKey key = ch.register(selector, SelectionKey.OP_READ);
-		key.attach(sin);
-	}
-	
-	public synchronized void shutdown() { running = false; }
-	
-	public void run() 
-	{
-		running = true;
-		while (running) 
+	    try 
+	    {
+		int n = selector.select(500);
+		if (logger.isDebugEnabled())
+		    logger.debug("Selector returned " + n + " interests; counter = " + counter);
+		for (Iterator<SelectionKey> it = selector.selectedKeys().iterator(); it.hasNext(); ) 
 		{
-			try 
+		    SelectionKey key = it.next();
+		    it.remove();
+		    logger.debug("Sort tree object count = " + counter);
+		    // overflow handling - check whether the counter is too large
+		    if (counter > counterMax)
+		    {
+			// TODO stop incoming data or do something
+		    }
+		    StreamInputNode node = (StreamInputNode) key.attachment();
+		    ReadableByteChannel ch = (ReadableByteChannel) key.channel();
+		    node.readRecords(ch);
+		    while (!terminal.isEmpty()) 
+		    {
+			DAQRecord rec = terminal.pop();
+			ByteBuffer buf = rec.getBuffer();
+			UTC currentUT = rec.time();
+			if (lastUT != null && currentUT.compareTo(lastUT) < 0)
+			    logger.warn(getName() + " out-of-order record detected");
+			// A single end-of-stream is sufficient to shut down this binder.
+			if (logger.isDebugEnabled())
+			    logger.debug(getName() + "sending buffer to sender RECL = " +
+					 buf.getInt(0) + " - TYPE = " + 
+					 buf.getInt(4) + " - UTC = " + currentUT.toString());
+			if (buf.getInt(0) == 32 && buf.getLong(8) == 0L  &&
+			    buf.getLong(24) == Long.MAX_VALUE) running = false;
+			if ((outputCounter++ % prescale) == 0L)
 			{
-				int n = selector.select(500);
-				if (logger.isDebugEnabled())
-					logger.debug("Selector returned " + n + " interests; counter = " + counter);
-				for (Iterator<SelectionKey> it = selector.selectedKeys().iterator(); it.hasNext(); ) 
-				{
-					SelectionKey key = it.next();
-					it.remove();
-					logger.debug("Sort tree object count = " + counter);
-					// overflow handling - check whether the counter is too large
-					if (counter > counterMax)
-					{
-						// TODO stop incoming data or do something
-					}
-					StreamInputNode node = (StreamInputNode) key.attachment();
-					ReadableByteChannel ch = (ReadableByteChannel) key.channel();
-					node.readRecords(ch);
-					while (!terminal.isEmpty()) 
-					{
-						DAQRecord rec = terminal.head();
-						UTC currentUT = rec.time();
-						if (lastUT != null && currentUT.compareTo(lastUT) < 0)
-							logger.warn(getName() + " out-of-order record detected");
-						// A single end-of-stream is sufficient to shut down this binder.
-						if (logger.isDebugEnabled())
-							logger.debug(getName() + "sending buffer to sender RECL = " +
-								     rec.getBuffer().getInt(0) + " - TYPE = " + 
-								     rec.getBuffer().getInt(4) + " - UTC = " + currentUT.toString());
-						if (rec.getBuffer().getInt(0) == 32 
-						    && rec.getBuffer().getLong(8) == 0L 
-						    && rec.getBuffer().getLong(24) == Long.MAX_VALUE) running = false;
-						while (rec.getBuffer().remaining() > 0) 
-						{
-							ByteBuffer buf = rec.getBuffer();
-							out.consume(buf);
-						}
-						terminal.pop();
-						outputCounter++;
-						// Update the lastUT
-						lastUT = currentUT;
-					}
-				}
-			} 
-			catch (IOException iox) 
-			{
-				iox.printStackTrace();
-				logger.error(iox);
-				break;
+			    while (buf.remaining() > 0) out.consume(buf);
 			}
+			// Update the lastUT
+			lastUT = currentUT;
+		    }
 		}
-		
-		try 
-		{
-			selector.close();
-		} 
-		catch (IOException iox) 
-		{
-			iox.printStackTrace();
-			logger.error(iox);
-		}
-
+	    } 
+	    catch (IOException iox) 
+	    {
+		iox.printStackTrace();
+		logger.error(iox);
+		break;
+	    }
 	}
+	    
+	try 
+	{
+		selector.close();
+	} 
+	catch (IOException iox) 
+	{
+	    iox.printStackTrace();
+	    logger.error(iox);
+	}
+	   
+    }
 	
 	/**
 	 * This static method will return the end-of-stream token (a special 32-byte ByteBuffer).
