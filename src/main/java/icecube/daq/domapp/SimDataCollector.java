@@ -84,7 +84,7 @@ public class SimDataCollector extends AbstractDataCollector {
 
 	public void setConfig(DOMConfiguration config) 
 	{
-		this.rate = config.getPulserRate();
+	    this.rate = config.getSimNoiseRate();
 	}
 
 	public void signalConfigure() 
