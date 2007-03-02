@@ -9,6 +9,7 @@ import icecube.daq.domapp.TriggerMode;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 
 class MockDOMApp
     implements IDOMApp
@@ -274,4 +275,9 @@ class MockDOMApp
     {
         return "MockDOMApp[" + mbId + "]";
     }
+
+	public ArrayList<ByteBuffer> getData(int n) throws MessageException {
+		// TODO Auto-generated method stub
+		return new ArrayList<ByteBuffer>();
+	}
 }
