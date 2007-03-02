@@ -35,12 +35,11 @@ public class SimDataCollector extends AbstractDataCollector {
 	private char dom;
 	private long clock;
 	private long t0;
-	/** Last time the hit generation routine was called - not really the last hit */
-	private long lastGenHit;
-	/** Last time the monitor routine issued a monitor record */
-	private long lastMoni;
-	private long lastTcal;
-	private long lastSupernova;
+	private long lastGenHit;           // right edge of previous hit generation time window
+	private long lastMoni;             // last moni record
+	private long lastTcal;             // last time a Tcal was generated
+	private long lastSupernova;        // last time a SN record was generated
+    private long lastBeacon;           // keep track of the beacon hits ...
 	private long numericMBID;
 	private RandomEngine rand = new MersenneTwister(new java.util.Date());
 	private Poisson poissonRandom = new Poisson(1.0, rand);
@@ -49,6 +48,7 @@ public class SimDataCollector extends AbstractDataCollector {
 	private boolean stopRunLoop;
 	private long numHits;
 	private long loopCounter;
+    private double pulserRate = 1.0;
 
 	private final static Logger logger = Logger.getLogger(SimDataCollector.class);
 	
@@ -85,6 +85,7 @@ public class SimDataCollector extends AbstractDataCollector {
 	public void setConfig(DOMConfiguration config) 
 	{
 	    this.rate = config.getSimNoiseRate();
+        this.pulserRate = config.getPulserRate();
 	}
 
 	public void signalConfigure() 
@@ -170,7 +171,8 @@ public class SimDataCollector extends AbstractDataCollector {
 		logger.info("Simulated DOM at " + card + "" + pair + "" + dom + " started at dom clock " + clock);
 		
 		lastGenHit = 0L;
-
+		lastBeacon = 0L;
+        
 		try
 		{
 			// Simulate the device open latency
@@ -195,6 +197,7 @@ public class SimDataCollector extends AbstractDataCollector {
 					setRunLevel(RUNNING);
 					long t = System.currentTimeMillis();
 					lastGenHit = t;
+                    lastBeacon = t;
 					lastMoni   = t;
 					lastTcal   = t;
 					lastSupernova = t;
@@ -255,6 +258,14 @@ public class SimDataCollector extends AbstractDataCollector {
 			long rclk = 10000000L * (lastGenHit - t0) + (long) (1.0E+10 * rand.nextDouble() * dt);
 			eventTimes.add(rclk);
 		}
+   
+        while (true)
+        {
+            long nextBeacon = lastBeacon + (long) (1000.0 * pulserRate);
+            if (nextBeacon > currTime) break;
+            eventTimes.add(10000000L * (nextBeacon - t0));
+            lastBeacon = nextBeacon;
+        }
 		// Order the event times
 		Collections.sort(eventTimes);
 		lastGenHit = currTime;
