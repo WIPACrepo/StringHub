@@ -393,14 +393,10 @@ public class DataCollector extends AbstractDataCollector
 	}
 	
 	public synchronized void signalShutdown() {
-		if (queryDaqRunLevel() > CONFIGURED) {
-			logger.error("Attempt to shutdown collection thread in non-IDLE state.");
-			throw new IllegalStateException();
-		}
 		stop_thread = true;
 	}
 	
-	public synchronized void signalStartRun() {
+	public void signalStartRun() {
 		if (queryDaqRunLevel() != CONFIGURED) {
 			logger.error("Attempt to start DOM in wrong state (" + queryDaqRunLevel() + ")");
 			throw new IllegalStateException();
@@ -413,7 +409,7 @@ public class DataCollector extends AbstractDataCollector
 	 * not be immediate.  Callers should poll the run state and otherwise not make 
 	 * any assumptions on the run being stopped. 
 	 */
-	public synchronized void signalStopRun() {
+	public void signalStopRun() {
 		switch (queryDaqRunLevel()) {
 		case RUNNING:
 			setRunLevel(STOPPING);
@@ -424,7 +420,8 @@ public class DataCollector extends AbstractDataCollector
 		}
 	}
 	
-	public synchronized void signalConfigure() {
+	public void signalConfigure() {
+		if (queryDaqRunLevel() == ZOMBIE) return;
 		if (queryDaqRunLevel() > CONFIGURED) {
 			logger.error("Attempt to configure DOM in state above CONFIGURED.");
 			throw new IllegalStateException();
@@ -498,11 +495,11 @@ public class DataCollector extends AbstractDataCollector
 			logger.error("Intercepted error in DataCollector runcore: " + x);
 		}
 
+		// HACK tell the caller that I am configured 
+		setRunLevel(ZOMBIE);
+
 		// clear interrupted flag if it is set
 		interrupted();
-
-		// HACK tell the caller that I am configured 
-		setRunLevel(CONFIGURED);
 
 		// Make sure eos is written
 		try 

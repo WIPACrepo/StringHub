@@ -18,6 +18,9 @@ public class DOMConnector
 	/** DOM data collectors. */
 	private ArrayList<AbstractDataCollector> collectors;
 	private static final Logger logger = Logger.getLogger(DOMConnector.class);
+	private static final long CONFIGURE_TIMEOUT = 15000L;
+	private static final long DESTROY_TIMEOUT   = 15000L;
+	private static final long STOP_TIMEOUT      = 15000L;
 
 	/**
 	 * Create a DAQ input connector.
@@ -46,18 +49,22 @@ public class DOMConnector
 	 */
 	public void configure()
 	{
-		for (AbstractDataCollector dc : collectors) {
+		long configT0 = System.currentTimeMillis();
+
+		for (AbstractDataCollector dc : collectors)
 			dc.signalConfigure();
-		}
 
 		int configured_counter = 0;
 		// wait for things to configure
 		for (AbstractDataCollector dc : collectors) {
-			while (dc.queryDaqRunLevel() !=
-				   AbstractDataCollector.CONFIGURED)
+			while (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED &&
+				   dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE)
 			{
 				try {
 					Thread.sleep(100);
+					if (System.currentTimeMillis() > CONFIGURE_TIMEOUT) {
+						logger.error("Configure timed out.");
+					}
 				} catch (InterruptedException ie) {
 					// ignore interrupts
 				}
@@ -76,19 +83,20 @@ public class DOMConnector
 	public void destroy()
 		throws Exception
 	{
+		long destroyT0 = System.currentTimeMillis();
 		for (AbstractDataCollector dc : collectors) {
 			dc.signalShutdown();
 			dc.close();
 		}
 
-		int iLoop = 0;
 		for (AbstractDataCollector dc : collectors) {
-			while (iLoop++ < 250) {
-				if (dc.queryDaqRunLevel() == AbstractDataCollector.CONFIGURED) 
-					break;
+			while (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED &&
+				   dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE) {
 				Thread.sleep(50);
+				if (System.currentTimeMillis() - destroyT0 > DESTROY_TIMEOUT) {
+					logger.error("Destroy timed out.");
+				}
 			}
-			if (iLoop == 250) throw new Error("timeout on shutdown of " + dc.getName());
 		}
 	}
 
@@ -121,7 +129,8 @@ public class DOMConnector
 	public boolean isRunning()
 	{
 		for (AbstractDataCollector dc : collectors) {
-			if (dc.queryDaqRunLevel() != AbstractDataCollector.RUNNING) {
+			if (dc.queryDaqRunLevel() != AbstractDataCollector.RUNNING &&
+				dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE) {
 				return false;
 			}
 		}
@@ -137,11 +146,11 @@ public class DOMConnector
 	public boolean isStopped()
 	{
 		for (AbstractDataCollector dc : collectors) {
-			if (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED) {
+			if (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED &&
+				dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE) {
 				return false;
 			}
 		}
-
 		return true;
 	}
 
@@ -165,7 +174,8 @@ public class DOMConnector
 		throws Exception
 	{
 		for (AbstractDataCollector dc : collectors) {
-			dc.signalStartRun();
+			if (dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE)
+				dc.signalStartRun();
 		}
 	}
 
@@ -177,16 +187,20 @@ public class DOMConnector
 	public void stopProcessing()
 		throws Exception
 	{
+		long stopT0 = System.currentTimeMillis();
 		for (AbstractDataCollector dc : collectors) {
 			dc.signalStopRun();
 		}
 
 		for (AbstractDataCollector dc : collectors) {
-			while (dc.queryDaqRunLevel() !=
-				   AbstractDataCollector.CONFIGURED)
+			while (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED &&
+				   dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE)
 			{
 				try {
 					Thread.sleep(25);
+					if (System.currentTimeMillis() - stopT0 > STOP_TIMEOUT) {
+						logger.error("Stop timed out.");
+					}
 				} catch (InterruptedException ie) {
 					// ignore interrupts
 				}
