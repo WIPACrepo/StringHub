@@ -3,45 +3,32 @@ package icecube.daq.stringhub;
 import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.juggler.component.DAQCompServer;
 import icecube.daq.juggler.component.DAQComponent;
+import icecube.daq.payload.ByteBufferCache;
 import icecube.daq.payload.IByteBufferCache;
-import icecube.daq.payload.impl.VitreousBufferCache;
+import icecube.daq.payload.MasterPayloadFactory;
 
 public class MockTriggerBridge extends DAQComponent {
 
 	private IByteBufferCache genericCacheManager;
-
-	public MockTriggerBridge()
+	private MasterPayloadFactory masterPayloadFactory;
+	private int runNumber;
+	
+	public MockTriggerBridge() 
 	{
 		super(DAQCmdInterface.DAQ_GLOBAL_TRIGGER, 0);
-	}
-
-	@Override
-	public void initialize()
-	{
-		genericCacheManager = new VitreousBufferCache("MockTrig");
+		
+		genericCacheManager = new ByteBufferCache(256, 10000000, 10000000, "TriggerCacheManager");
 		addCache(genericCacheManager);
-	}
-
-	@Override
-	public String getVersionInfo()
-	{
-		return "$Id";
+		
+		masterPayloadFactory = new MasterPayloadFactory(genericCacheManager);
 	}
 
 	/**
 	 * @param args
 	 */
-	public static void main(String[] args) throws Exception
+	public static void main(String[] args) throws Exception 
 	{
-		DAQCompServer srvr;
-		try {
-			srvr = new DAQCompServer(new MockTriggerBridge(), args);
-		} catch (IllegalArgumentException ex) {
-			System.err.println(ex.getMessage());
-			System.exit(1);
-			return; // without this, compiler whines about uninitialized 'srvr'
-		}
-		srvr.startServing();
+		new DAQCompServer(new MockTriggerBridge(), args);
 	}
 
 }

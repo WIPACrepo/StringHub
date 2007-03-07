@@ -1,35 +1,295 @@
 package icecube.daq.sender;
 
 import icecube.daq.bindery.BufferConsumer;
-import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.common.DAQCmdInterface;
-import icecube.daq.io.DAQOutputChannelManager;
-import icecube.daq.io.OutputChannel;
-import icecube.daq.monitoring.BatchHLCReporter;
-import icecube.daq.monitoring.IRunMonitor;
+
+import icecube.daq.eventbuilder.impl.ReadoutDataPayloadFactory;
+
 import icecube.daq.monitoring.SenderMonitor;
-import icecube.daq.payload.IByteBufferCache;
+import icecube.daq.payload.IDOMID;
+import icecube.daq.payload.IDomHit;
+import icecube.daq.payload.ILoadablePayload;
 import icecube.daq.payload.IPayload;
-import icecube.daq.payload.IReadoutRequest;
-import icecube.daq.payload.IReadoutRequestElement;
+import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.IUTCTime;
-import icecube.daq.payload.PayloadException;
+import icecube.daq.payload.MasterPayloadFactory;
+import icecube.daq.payload.PayloadDestination;
+import icecube.daq.payload.PayloadRegistry;
 import icecube.daq.payload.SourceIdRegistry;
-import icecube.daq.payload.impl.DOMHit;
-import icecube.daq.payload.impl.DOMHitFactory;
+
+import icecube.daq.payload.impl.DomHitEngineeringFormatPayload;
+
+import icecube.daq.payload.splicer.Payload;
+
 import icecube.daq.reqFiller.RequestFiller;
-import icecube.daq.util.IDOMRegistry;
+
+import icecube.daq.splicer.Spliceable;
+
+import icecube.daq.trigger.IHitPayload;
+import icecube.daq.trigger.IReadoutRequest;
+import icecube.daq.trigger.IReadoutRequestElement;
+import icecube.daq.trigger.impl.EngineeringFormatHitDataPayload;
+import icecube.daq.trigger.impl.EngineeringFormatHitDataPayloadFactory;
+import icecube.daq.trigger.impl.HitPayloadFactory;
+import icecube.daq.trigger.impl.ReadoutRequestPayloadFactory;
 
 import java.io.IOException;
+
 import java.nio.ByteBuffer;
+
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Vector;
 
-import org.apache.log4j.Logger;
+import java.util.zip.DataFormatException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+class TinyHitPayload
+    implements IDomHit, ILoadablePayload
+{
+    private static Log LOG = LogFactory.getLog(Sender.class);
+
+    private ByteBuffer byteBuf;
+    private long time;
+    private long domId;
+
+    TinyHitPayload(ByteBuffer buf)
+        throws DataFormatException, IOException
+    {
+        super();
+
+        byteBuf = buf;
+
+        domId = byteBuf.getLong(8);
+        time = byteBuf.getLong(24);
+    }
+
+    public Object deepCopy()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public long getDomId()
+    {
+        return domId;
+    }
+
+    public ByteBuffer getPayloadBacking()
+    {
+        return byteBuf;
+    }
+
+    public int getPayloadInterfaceType()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public int getPayloadLength()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public IUTCTime getPayloadTimeUTC()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public int getPayloadType()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public long getTimestamp()
+    {
+        return time;
+    }
+
+    public void loadPayload()
+    {
+        // ignore
+    }
+
+    public void recycle()
+    {
+        byteBuf = null;
+    }
+
+    public int writePayload(int iOffset, ByteBuffer tBuffer)
+        throws IOException
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public int writePayload(PayloadDestination tDestination)
+        throws IOException
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public String toString()
+    {
+        return "DomHit[" + domId + "@" + time + "]";
+    }
+}
+
+class HitSorter
+    implements Comparator
+{
+    /**
+     * Basic constructor.
+     */
+    HitSorter()
+    {
+    }
+
+    /**
+     * Compare two hits by source ID and timestamp.
+     */
+    public int compare(Object o1, Object o2)
+    {
+        if (o1 == null) {
+            if (o2 == null) {
+                return 0;
+            }
+
+            return 1;
+        } else if (o2 == null) {
+            return -1;
+        } else if (!(o1 instanceof IHitPayload)) {
+            if (!(o2 instanceof IHitPayload)) {
+                final String name1 = o1.getClass().getName();
+                return name1.compareTo(o2.getClass().getName());
+            }
+
+            return 1;
+        } else if (!(o2 instanceof IHitPayload)) {
+            return -1;
+        } else {
+            return compare((IHitPayload) o1, (IHitPayload) o2);
+        }
+    }
+
+    /**
+     * Compare two hit payloads.
+     *
+     * @param h1 first hit
+     * @param h2 second hit
+     *
+     * @return standard comparison results
+     */
+    private int compare(IHitPayload h1, IHitPayload h2)
+    {
+        int cmp = compare(h1.getHitTimeUTC(), h2.getHitTimeUTC());
+        if (cmp == 0) {
+            cmp = compare(h1.getSourceID(), h2.getSourceID());
+            if (cmp == 0) {
+                cmp = compare(h1.getDOMID(), h2.getDOMID());
+            }
+        }
+
+        return cmp;
+    }
+
+    /**
+     * Compare two DOM IDs, handling nulls appropriately.
+     *
+     * @param h1 first DOM ID
+     * @param h2 second DOM ID
+     *
+     * @return standard comparison results
+     */
+    private int compare(IDOMID s1, IDOMID s2)
+    {
+        if (s1 == null) {
+            if (s2 == null) {
+                return 0;
+            }
+
+            return 1;
+        } else if (s2 == null) {
+            return -1;
+        } else {
+            return (int) (s1.getDomIDAsLong() - s2.getDomIDAsLong());
+        }
+    }
+
+    /**
+     * Compare two source IDs, handling nulls appropriately.
+     *
+     * @param h1 first ID
+     * @param h2 second ID
+     *
+     * @return standard comparison results
+     */
+    private int compare(ISourceID s1, ISourceID s2)
+    {
+        if (s1 == null) {
+            if (s2 == null) {
+                return 0;
+            }
+
+            return 1;
+        } else if (s2 == null) {
+            return -1;
+        } else {
+            return s1.getSourceID() - s2.getSourceID();
+        }
+    }
+
+    /**
+     * Compare two UTC times, handling nulls appropriately.
+     *
+     * @param h1 first time
+     * @param h2 second time
+     *
+     * @return standard comparison results
+     */
+    private int compare(IUTCTime t1, IUTCTime t2)
+    {
+        if (t1 == null) {
+            if (t2 == null) {
+                return 0;
+            }
+
+            return 1;
+        } else if (t2 == null) {
+            return -1;
+        } else {
+            return (int) (t1.getUTCTimeAsLong() - t2.getUTCTimeAsLong());
+        }
+    }
+
+    /**
+     * Is the specified object a member of the same class?
+     *
+     * @return <tt>true</tt> if specified object matches this class
+     */
+    public boolean equals(Object obj)
+    {
+        if (obj == null) {
+            return false;
+        }
+
+        return getClass().equals(obj.getClass());
+    }
+
+    /**
+     * Get sorter hash code.
+     *
+     * @return hash code for this class.
+     */
+    public int hashCode()
+    {
+        return getClass().hashCode();
+    }
+}
 
 /**
  * Consume DOM hits from stringHub and readout requests
@@ -39,20 +299,30 @@ public class Sender
     extends RequestFiller
     implements BufferConsumer, SenderMonitor
 {
+    /** Hack around lack of official string hub source ID. */
+    public static final int STRING_HUB_SOURCE_ID = 12000;
+    /** Hack around lack of official string hub name. */
+    public static final String DAQ_STRING_HUB = "stringHub";
 
-    private static final long DAY_TICKS = 10000000000L * 60L * 60L * 24L;
+    private static Log log = LogFactory.getLog(Sender.class);
 
-    private static Logger log = Logger.getLogger(Sender.class);
+    /** <tt>true</tt> if we should use the tiny hit payload */
+    private static final boolean USE_TINY_HITS = true;
+
+    /** Used to sort hits before building readout data payloads. */
+    private static final HitSorter HIT_SORTER = new HitSorter();
+
+    private static int nextPayloadNum;
 
     private ISourceID sourceId;
+    private EngineeringFormatHitDataPayloadFactory engHitFactory;
+    private HitPayloadFactory hitFactory;
+    private ReadoutRequestPayloadFactory readoutReqFactory;
+    private ReadoutDataPayloadFactory readoutDataFactory;
 
-    private DAQOutputChannelManager hitOut;
-    private OutputChannel hitChan;
-    private IByteBufferCache hitCache;
-
-    private DAQOutputChannelManager dataOut;
-    private OutputChannel dataChan;
-    private IByteBufferCache dataCache;
+    private IPayloadDestinationCollection hitDest;
+    private RequestInputEngine reqInputEngine;
+    private IPayloadDestinationCollection dataDest;
 
     /** list of payloads to be deleted after back end has stopped */
     private ArrayList finalData;
@@ -75,41 +345,28 @@ public class Sender
     /** end time of most recent readout data */
     private long latestReadoutEndTime;
 
-    /** Set to <tt>true</tt> to forward hits with LCMode==0 to the trigger */
-    private boolean forwardLC0Hits;
-
-    /** DOM information from default-dom-geometry.xml */
-    private IDOMRegistry domRegistry;
-
-    // previous hit time (used to detect hits with impossibly huge times)
-    private long prevHitTime;
-
-    /**
-     * HLS hit reporting is propagated to an independent monitor, the
-     * reporting is batched to minimize inter-thread transfer overhead.
-     *
-     * Hubs vary from 200-1200 HLC hits per second so batch up to 150
-     * and the reporting latency to 1 second.
-     */
-    long ONE_SECOND = 10000000000L;
-    BatchHLCReporter hlcReporter =
-            new BatchHLCReporter.TimedAutoFlush(150, ONE_SECOND);
-
     /**
      * Create a readout request filler.
      *
-     * @param stringHubId this stringHub's ID
-     * @param rdoutDataMgr readout data byte buffer cache
+     * @param mgr component manager
+     * @param masterFactory master payload factory
      */
-    public Sender(int stringHubId, IByteBufferCache rdoutDataMgr)
+    public Sender(int stringHubId, MasterPayloadFactory masterFactory)
     {
-        super("Sender#" + stringHubId, false);
+        super("Sender", false);
 
-        sourceId = getSourceId(stringHubId % 1000);
+        sourceId = getSourceId(stringHubId);
 
-        dataCache = rdoutDataMgr;
+        engHitFactory = new EngineeringFormatHitDataPayloadFactory();
+        hitFactory = new HitPayloadFactory();
 
-        forwardLC0Hits = false;
+        final int readoutReqType = PayloadRegistry.PAYLOAD_ID_READOUT_REQUEST;
+        readoutReqFactory = (ReadoutRequestPayloadFactory)
+            masterFactory.getPayloadFactory(readoutReqType);
+
+        final int readoutDataType = PayloadRegistry.PAYLOAD_ID_READOUT_DATA;
+        readoutDataFactory = (ReadoutDataPayloadFactory)
+            masterFactory.getPayloadFactory(readoutDataType);
     }
 
     /**
@@ -123,10 +380,10 @@ public class Sender
      *         <tt>0</tt> if data is inside the request, or
      *         <tt>1</tt> if data is later than the request
      */
-    @Override
     public int compareRequestAndData(IPayload reqPayload, IPayload dataPayload)
     {
-        DOMHit data = (DOMHit) dataPayload;
+        IReadoutRequest req = (IReadoutRequest) reqPayload;
+        IDomHit data = (IDomHit) dataPayload;
 
         // get time from current hit
         final long hitTime;
@@ -136,16 +393,13 @@ public class Sender
             hitTime = data.getTimestamp();
         }
 
-        int cmpVal;
         if (hitTime < reqStartTime) {
-            cmpVal = -1;
+            return -1;
         } else if (hitTime <= reqEndTime) {
-            cmpVal = 0;
+            return 0;
         } else {
-            cmpVal = 1;
+            return 1;
         }
-
-        return cmpVal;
     }
 
     /**
@@ -153,92 +407,80 @@ public class Sender
      *
      * @param buf buffer containing DOM hit
      */
-    @Override
     public void consume(ByteBuffer buf)
     {
-        if (buf.getInt(0) == 32 && buf.getLong(24) == Long.MAX_VALUE)
+        if (buf.position() == 0 && buf.limit() == 32 &&
+            buf.getInt(0) == 32 && buf.getInt(8) == 0 &&
+            buf.getLong(24) == Long.MAX_VALUE)
         {
-            // process stop message
-            if (hitChan != null) {
+            if (hitDest != null) {
                 try {
-                    hitChan.sendLastAndStop();
-                } catch (Exception ex) {
-                    log.error("Couldn't stop hit destinations", ex);
+                    hitDest.stopAllPayloadDestinations();
+                } catch (IOException ioe) {
+                    if (log.isErrorEnabled()) {
+                        log.error("Couldn't stop hit destinations", ioe);
+                    }
                 }
             }
 
-            try {
-                addDataStop();
-            } catch (IOException ioe) {
-                log.error("Couldn't add data stop to queue", ioe);
-            }
-
-            // ensure accumulated hlc hits are reported
-            hlcReporter.flush();
-
+            addDataStop();
         } else {
-            // process hit
-            DOMHit tinyHit;
+            ByteBuffer dupBuf = buf.duplicate();
+
+            DomHitEngineeringFormatPayload engData =
+                new DomHitEngineeringFormatPayload();
             try {
-                tinyHit = DOMHitFactory.getHit(sourceId, buf, 0);
-            } catch (PayloadException pe) {
-                log.error("Couldn't get hit from buffer", pe);
-                tinyHit = null;
+                engData.initialize(0, dupBuf);
+                engData.loadPayload();
+            } catch (DataFormatException dfe) {
+                log.error("Could not load engineering data", dfe);
+                engData = null;
+            } catch (IOException ioe) {
+                log.error("Could not create hit payload", ioe);
+                engData = null;
             }
 
-            // validate hit time
-            if (tinyHit != null) {
-                if (tinyHit.getTimestamp() < 0) {
-                    log.error("Negative time for hit " + tinyHit);
-                    tinyHit = null;
-                } else if (prevHitTime > 0 &&
-                           tinyHit.getTimestamp() > prevHitTime + DAY_TICKS)
-                {
-                    log.error("Bad hit " + tinyHit +
-                              "; previous hit time was " + prevHitTime);
-                    tinyHit = null;
+            if (engData != null) {
+                ILoadablePayload payload =
+                    hitFactory.createPayload(sourceId,
+                                             engData.getTriggerMode(), 0,
+                                             engData);
+
+                if (payload == null) {
+                    log.error("Couldn't build hit from engineering data");
                 } else {
-                    prevHitTime = tinyHit.getTimestamp();
-
-                    // remember most recent time for monitoring
-                    latestHitTime = tinyHit.getTimestamp();
-
-                    // save hit so it can be sent to event builder
-                    try {
-                        addData(tinyHit);
-                    } catch (IOException ioe) {
-                        log.error("Couldn't add data to queue", ioe);
-                    }
-
-
-                    // report HLC hits to external monitor
-                    final boolean isHLC = tinyHit.getLocalCoincidenceMode() != 0;
-                    if(isHLC)
-                    {
-                        hlcReporter.reportHLCHit(tinyHit.getDOMID(),
-                                tinyHit.getTimestamp());
-                    }
-
-                    // send some hits to local trigger component
-                    if (hitChan != null &&
-                            (forwardLC0Hits || isHLC ||
-                                    tinyHit.getTriggerMode() == 4))
-                    {
-                        // extract hit's ByteBuffer
-                        ByteBuffer payBuf;
+                    if (hitDest == null) {
+                        if (log.isErrorEnabled()) {
+                            log.error("Hit destination has not been set");
+                        }
+                    } else {
                         try {
-                            payBuf = tinyHit.getHitBuffer(hitCache,
-                                                          domRegistry);
-                        } catch (PayloadException pe) {
-                            log.error("Couldn't get buffer for hit " +
-                                      tinyHit, pe);
-                            payBuf = null;
+                            hitDest.writePayload((Payload) payload);
+                        } catch (IOException ioe) {
+                            if (log.isErrorEnabled()) {
+                                log.error("Could not send HitPayload", ioe);
+                            }
                         }
+                    }
 
-                        // transmit ByteBuffer to local trigger component
-                        if (payBuf != null) {
-                            hitChan.receiveByteBuffer(payBuf);
-                        }
+                    payload.recycle();
+                }
+
+                // remember most recent time for monitoring
+                latestHitTime =
+                    engData.getPayloadTimeUTC().getUTCTimeAsLong();
+
+                if (!USE_TINY_HITS) {
+                    addData(engData);
+                } else {
+                    engData.recycle();
+
+                    try {
+                        addData(new TinyHitPayload(dupBuf));
+                    } catch (DataFormatException dfe) {
+                        log.error("Couldn't add hit", dfe);
+                    } catch (IOException ioe) {
+                        log.error("Couldn't add hit", ioe);
                     }
                 }
             }
@@ -247,13 +489,54 @@ public class Sender
         buf.flip();
     }
 
+    private List convertDataToHits(IReadoutRequest req, List dataList)
+        throws DataFormatException, IOException
+    {
+        ArrayList hitDataList = new ArrayList();
+
+        for (Iterator iter = dataList.iterator(); iter.hasNext(); ) {
+            IDomHit domHit = (IDomHit) iter.next();
+
+            final int triggerMode = 2;
+
+            DomHitEngineeringFormatPayload engData;
+            if (!USE_TINY_HITS) {
+                // XXX I'd LOVE to avoid the deepCopy here, but the parent
+                // RequestFiller class is holding a pointer to 'engData'
+                // and will free it after the ReadoutDataPayload is sent,
+                // so we need to make a copy here in order to avoid
+                // the 'engData' payload being recycled twice.
+                Object obj =
+                    ((DomHitEngineeringFormatPayload) domHit).deepCopy();
+                engData = (DomHitEngineeringFormatPayload) obj;
+            } else {
+                engData = new DomHitEngineeringFormatPayload();
+                try {
+                    engData.initialize(0, domHit.getPayloadBacking());
+                    engData.loadPayload();
+                } catch (DataFormatException dfe) {
+                    log.error("Could not load engineering data", dfe);
+                    engData = null;
+                } catch (IOException ioe) {
+                    log.error("Could not create hit payload", ioe);
+                    engData = null;
+                }
+            }
+
+            hitDataList.add(engHitFactory.createPayload(sourceId, -1,
+                                                        triggerMode,
+                                                        engData));
+        }
+
+        return hitDataList;
+    }
+
     /**
      * Recycle a single payload.
      *
      * @param data payload to recycle
      */
-    @Override
-    public void disposeData(IPayload data)
+    public void disposeData(ILoadablePayload data)
     {
         data.recycle();
     }
@@ -263,14 +546,13 @@ public class Sender
      *
      * @param dataList list of payloads to recycle
      */
-    @Override
     public void disposeDataList(List dataList)
     {
         Iterator iter = dataList.iterator();
         while (iter.hasNext()) {
             Object obj = iter.next();
-            if (obj instanceof IPayload) {
-                disposeData(((IPayload) obj));
+            if (obj instanceof ILoadablePayload) {
+                disposeData(((ILoadablePayload) obj));
             } else {
                 log.error("Not disposing of non-loadable " + obj + " (" +
                           obj.getClass().getName() + ")");
@@ -279,38 +561,43 @@ public class Sender
     }
 
     /**
-     * There will be no more data.
+     * Clean up before worker thread stops running.
      */
-    @Override
-    public void endOfStream(long mbid)
+    public void finishThreadCleanup()
     {
-        consume(MultiChannelMergeSort.eos(mbid));
+	log.info("in finishThreadCleanup().");
+        if (dataDest != null) {
+            try {
+                dataDest.stopAllPayloadDestinations();
+            } catch (IOException ioe) {
+                if (log.isErrorEnabled()) {
+                    log.error("Couldn't stop readout data destinations", ioe);
+                }
+            }
+            totStopsSent++;
+        }
     }
 
     /**
-     * Clean up before worker thread stops running.
+     * Get average number of hits per readout.
+     *
+     * @return hits/readout
      */
-    @Override
-    public void finishThreadCleanup()
+    public long getAverageHitsPerReadout()
     {
-        if (dataChan != null) {
-            try {
-                dataChan.sendLastAndStop();
-            } catch (Exception ex) {
-                log.error("Couldn't stop readout data destinations", ex);
-            }
-        }
-        totStopsSent++;
+        return getAverageOutputDataPayloads();
     }
 
-    public void forwardIsolatedHitsToTrigger()
-    {
-        forwardIsolatedHitsToTrigger(true);
-    }
+    //public String getBackEndTiming()
 
-    public void forwardIsolatedHitsToTrigger(boolean forward)
+    /**
+     * Get current rate of hits per second.
+     *
+     * @return hits/second
+     */
+    public double getHitsPerSecond()
     {
-        forwardLC0Hits = forward;
+        return getDataPayloadsPerSecond();
     }
 
     /**
@@ -318,7 +605,6 @@ public class Sender
      *
      * @return latest time
      */
-    @Override
     public long getLatestHitTime()
     {
         return latestHitTime;
@@ -329,10 +615,29 @@ public class Sender
      *
      * @return latest readout data end time
      */
-    @Override
     public long[] getLatestReadoutTimes()
     {
         return new long[] { latestReadoutStartTime, latestReadoutEndTime };
+    }
+
+    /**
+     * Get number of hits which could not be loaded.
+     *
+     * @return number of bad hits received
+     */
+    public long getNumBadHits()
+    {
+        return getNumBadDataPayloads();
+    }
+
+    /**
+     * Number of readout requests which could not be loaded.
+     *
+     * @return number of bad readout requests
+     */
+    public long getNumBadReadoutRequests()
+    {
+        return getNumBadRequests();
     }
 
     /**
@@ -340,10 +645,19 @@ public class Sender
      *
      * @return number of cached hits
      */
-    @Override
     public int getNumHitsCached()
     {
         return getNumDataPayloadsCached();
+    }
+
+    /**
+     * Get number of hits thrown away.
+     *
+     * @return number of hits thrown away
+     */
+    public long getNumHitsDiscarded()
+    {
+        return getNumDataPayloadsDiscarded();
     }
 
     /**
@@ -351,7 +665,6 @@ public class Sender
      *
      * @return number of hits queued
      */
-    @Override
     public int getNumHitsQueued()
     {
         return getNumDataPayloadsQueued();
@@ -362,10 +675,39 @@ public class Sender
      *
      * @return number of hits received
      */
-    @Override
     public long getNumHitsReceived()
     {
         return getNumDataPayloadsReceived();
+    }
+
+    /**
+     * Get number of null hits received.
+     *
+     * @return number of null hits received
+     */
+    public long getNumNullHits()
+    {
+        return getNumNullDataPayloads();
+    }
+
+    /**
+     * Get number of readouts which could not be created.
+     *
+     * @return number of null readouts
+     */
+    public long getNumNullReadouts()
+    {
+        return getNumNullOutputs();
+    }
+
+    /**
+     * Number of readout requests dropped while stopping.
+     *
+     * @return number of readout requests dropped
+     */
+    public long getNumReadoutRequestsDropped()
+    {
+        return getNumRequestsDropped();
     }
 
     /**
@@ -373,7 +715,6 @@ public class Sender
      *
      * @return number of readout requests queued
      */
-    @Override
     public long getNumReadoutRequestsQueued()
     {
         return getNumRequestsQueued();
@@ -384,10 +725,29 @@ public class Sender
      *
      * @return number of readout requests received
      */
-    @Override
     public long getNumReadoutRequestsReceived()
     {
         return getNumRequestsReceived();
+    }
+
+    /**
+     * Get number of readouts which could not be sent.
+     *
+     * @return number of failed readouts
+     */
+    public long getNumReadoutsFailed()
+    {
+        return getNumOutputsFailed();
+    }
+
+    /**
+     * Get number of empty readouts which were ignored.
+     *
+     * @return number of ignored readouts
+     */
+    public long getNumReadoutsIgnored()
+    {
+        return getNumOutputsIgnored();
     }
 
     /**
@@ -395,7 +755,6 @@ public class Sender
      *
      * @return number of readouts sent
      */
-    @Override
     public long getNumReadoutsSent()
     {
         return getNumOutputsSent();
@@ -406,17 +765,68 @@ public class Sender
      *
      * @return number of recycled payloads
      */
-    @Override
     public long getNumRecycled()
     {
         return numRecycled;
     }
 
+    /**
+     * Get number of hits not used for a readout.
+     *
+     * @return number of unused hits
+     */
+    public long getNumUnusedHits()
+    {
+        return getNumUnusedDataPayloads();
+    }
+
+    /**
+     * Get current rate of readout requests per second.
+     *
+     * @return readout requests/second
+     */
+    public double getReadoutRequestsPerSecond()
+    {
+        return getRequestsPerSecond();
+    }
+
+    /**
+     * Get current rate of readouts per second.
+     *
+     * @return readouts/second
+     */
+    public double getReadoutsPerSecond()
+    {
+        return getOutputsPerSecond();
+    }
+
     private static ISourceID getSourceId(int compId)
     {
-        final String compName = DAQCmdInterface.DAQ_STRING_HUB;
+        final String compName = DAQ_STRING_HUB;
 
         return SourceIdRegistry.getISourceIDFromNameAndId(compName, compId);
+    }
+
+    /**
+     * Get total number of hits which could not be loaded since last reset.
+     *
+     * @return total number of bad hits since last reset
+     */
+    public long getTotalBadHits()
+    {
+        return getTotalBadDataPayloads();
+    }
+
+    //public long getTotalDataStopsReceived()
+
+    /**
+     * Total number of hits thrown away since last reset.
+     *
+     * @return total number of hits thrown away since last reset
+     */
+    public long getTotalHitsDiscarded()
+    {
+        return getTotalDataPayloadsDiscarded();
     }
 
     /**
@@ -424,13 +834,53 @@ public class Sender
      *
      * @return total number of hits received since last reset
      */
-    @Override
     public long getTotalHitsReceived()
     {
         return getTotalDataPayloadsReceived();
     }
 
-    @Override
+    /**
+     * Total number of readout requests received since the last reset.
+     *
+     * @return total number of readout requests received since the last reset
+     */
+    public long getTotalReadoutRequestsReceived()
+    {
+        return getTotalRequestsReceived();
+    }
+
+    /**
+     * Total number of readouts since last reset which could not be sent.
+     *
+     * @return total number of failed readouts
+     */
+    public long getTotalReadoutsFailed()
+    {
+        return getTotalOutputsFailed();
+    }
+
+    /**
+     * Total number of empty readouts which were ignored since the last reset.
+     *
+     * @return total number of ignored readouts since last reset
+     */
+    public long getTotalReadoutsIgnored()
+    {
+        return getTotalOutputsIgnored();
+    }
+
+    /**
+     * Total number of readouts sent since last reset.
+     *
+     * @return total number of readouts sent since last reset.
+     */
+    public long getTotalReadoutsSent()
+    {
+        return getTotalOutputsSent();
+    }
+
+    //public long getTotalRequestStopsReceived()
+
     public long getTotalStopsSent()
     {
         return totStopsSent;
@@ -444,13 +894,85 @@ public class Sender
      *
      * @return <tt>true</tt> if the data is included in the request.
      */
-    @Override
     public boolean isRequested(IPayload reqPayload, IPayload dataPayload)
     {
-        DOMHit curData = (DOMHit) dataPayload;
+        IDomHit curData = (IDomHit) dataPayload;
         IReadoutRequest curReq = (IReadoutRequest) reqPayload;
 
-        return SenderMethods.isRequested(sourceId, curReq, curData);
+        // get time from current hit
+        final long timestamp = curData.getTimestamp();
+
+        final int srcId = sourceId.getSourceID();
+
+        Iterator iter =
+            curReq.getReadoutRequestElements().iterator();
+        while (iter.hasNext()) {
+            IReadoutRequestElement elem =
+                (IReadoutRequestElement) iter.next();
+
+            final long elemFirstUTC =
+                elem.getFirstTimeUTC().getUTCTimeAsLong();
+            final long elemLastUTC =
+                elem.getLastTimeUTC().getUTCTimeAsLong();
+
+            if (timestamp < elemFirstUTC || timestamp > elemLastUTC) {
+                continue;
+            }
+
+            final String daqName;
+            if (elem.getSourceID().getSourceID() < 0) {
+                daqName = null;
+            } else {
+                daqName =
+                    SourceIdRegistry.getDAQNameFromISourceID(elem.getSourceID());
+            }
+
+            switch (elem.getReadoutType()) {
+            case IReadoutRequestElement.READOUT_TYPE_IIIT_GLOBAL:
+                return true;
+            case IReadoutRequestElement.READOUT_TYPE_II_GLOBAL:
+                if (daqName.equals(DAQCmdInterface.DAQ_STRINGPROCESSOR) ||
+                    daqName.equals(DAQCmdInterface.DAQ_PAYLOAD_INVALID_SOURCE_ID))
+                {
+                    return true;
+                }
+                break;
+            case IReadoutRequestElement.READOUT_TYPE_IT_GLOBAL:
+                if (daqName.equals(DAQCmdInterface.DAQ_ICETOP_DATA_HANDLER) ||
+                    daqName.equals(DAQCmdInterface.DAQ_PAYLOAD_INVALID_SOURCE_ID))
+                {
+                    return true;
+                }
+                break;
+            case IReadoutRequestElement.READOUT_TYPE_II_STRING:
+                if (srcId == elem.getSourceID().getSourceID()) {
+                    return true;
+                }
+                break;
+            case IReadoutRequestElement.READOUT_TYPE_II_MODULE:
+                if (daqName.equals(DAQCmdInterface.DAQ_STRINGPROCESSOR) &&
+                    curData.getDomId() == elem.getDomID().getDomIDAsLong())
+                {
+                    return true;
+                }
+                break;
+            case IReadoutRequestElement.READOUT_TYPE_IT_MODULE:
+                if (daqName.equals(DAQCmdInterface.DAQ_ICETOP_DATA_HANDLER) &&
+                    curData.getDomId() == elem.getDomID().getDomIDAsLong())
+                {
+                    return true;
+                }
+                break;
+            default:
+                if (log.isErrorEnabled()) {
+                    log.error("Unknown request type #" +
+                              elem.getReadoutType());
+                }
+                break;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -461,19 +983,20 @@ public class Sender
      *
      * @return readout data payload
      */
-    @Override
-    public IPayload makeDataPayload(IPayload reqPayload, List dataList)
+    public ILoadablePayload makeDataPayload(IPayload reqPayload,
+                                            List dataList)
     {
-
         if (reqPayload == null) {
-            log.error("No current request; cannot send data",
-                    new NullPointerException("No request"));
+            try {
+                throw new NullPointerException("No request");
+            } catch (Exception ex) {
+                log.error("No current request; cannot send data", ex);
+            }
+
             return null;
         }
 
         IReadoutRequest req = (IReadoutRequest) reqPayload;
-
-        final int uid = req.getUID();
 
         IUTCTime startTime = null;
         IUTCTime endTime = null;
@@ -486,8 +1009,8 @@ public class Sender
             if (startTime == null) {
                 startTime = elem.getFirstTimeUTC();
             } else {
-                long tmpTime = elem.getFirstTimeUTC().longValue();
-                if (tmpTime < startTime.longValue()) {
+                long tmpTime = elem.getFirstTimeUTC().getUTCTimeAsLong();
+                if (tmpTime < startTime.getUTCTimeAsLong()) {
                     startTime = elem.getFirstTimeUTC();
                 }
             }
@@ -495,8 +1018,8 @@ public class Sender
             if (endTime == null) {
                 endTime = elem.getLastTimeUTC();
             } else {
-                long tmpTime = elem.getLastTimeUTC().longValue();
-                if (tmpTime > endTime.longValue()) {
+                long tmpTime = elem.getLastTimeUTC().getUTCTimeAsLong();
+                if (tmpTime > endTime.getUTCTimeAsLong()) {
                     endTime = elem.getLastTimeUTC();
                 }
             }
@@ -507,34 +1030,51 @@ public class Sender
             return null;
         }
 
-        latestReadoutStartTime = startTime.longValue();
-        latestReadoutEndTime = endTime.longValue();
+        latestReadoutStartTime = startTime.getUTCTimeAsLong();
+        latestReadoutEndTime = endTime.getUTCTimeAsLong();
 
-        if (dataList.size() == 0) {
-            log.warn("Sending empty hit record list " + uid + " window [" +
-                     startTime + " - " + endTime + "]");
-        } else if (log.isDebugEnabled()) {
-            log.debug("Closing hit record list " + uid + " window [" +
-                      startTime + " - " + endTime + "]");
+        if (log.isDebugEnabled()) {
+            log.debug("Closing ReadoutData " + startTime.getUTCTimeAsLong() +
+                      " - " + endTime.getUTCTimeAsLong());
+        }
+        if (log.isWarnEnabled() && dataList.size() == 0) {
+            log.warn("Sending empty readout data payload for window [" +
+                     startTime.getUTCTimeAsLong() + " - " +
+                     endTime.getUTCTimeAsLong() + "]");
         }
 
-        List<DOMHit> hitDataList = new ArrayList<DOMHit>();
-        for (Object obj : dataList) {
-            hitDataList.add((DOMHit) obj);
-        }
-
-        if (domRegistry == null) {
-            throw new Error("DOM registry has not been set");
-        }
-
+        List hitDataList;
         try {
-            return SenderMethods.makeDataPayload(uid, startTime.longValue(),
-                                                 endTime.longValue(), dataList,
-                                                 sourceId, domRegistry);
-        } catch (PayloadException pe) {
-            log.error("Cannot build list of hit records", pe);
+            hitDataList = convertDataToHits(req, dataList);
+        } catch (DataFormatException dfe) {
+            log.error("Couldn't convert engineering data to hits", dfe);
+            return null;
+        } catch (IOException ioe) {
+            log.error("Couldn't convert engineering data to hits", ioe);
             return null;
         }
+
+        // sort by timestamp/source ID
+        Collections.sort(hitDataList, HIT_SORTER);
+
+        Vector tmpHits = new Vector(hitDataList);
+
+        final int uid = req.getUID();
+        // payload number is deprecated; set it to bogus value
+        final int payloadNum = nextPayloadNum++;
+
+        // build readout data
+        Payload readout =
+            readoutDataFactory.createPayload(uid, payloadNum, true, sourceId,
+                                             startTime, endTime, tmpHits);
+
+        Iterator hitIter = hitDataList.iterator();
+        while (hitIter.hasNext()) {
+            Payload pay = (Payload) hitIter.next();
+            pay.recycle();
+        }
+
+        return readout;
     }
 
     /**
@@ -542,11 +1082,11 @@ public class Sender
      *
      * @param payloadList list of payloads
      */
-    private void recycleAll(Collection payloadList)
+    public void recycleAll(Collection payloadList)
     {
         Iterator iter = payloadList.iterator();
         while (iter.hasNext()) {
-            IPayload payload = (IPayload) iter.next();
+            Payload payload = (Payload) iter.next();
             payload.recycle();
             numRecycled++;
         }
@@ -566,43 +1106,28 @@ public class Sender
     }
 
     /**
-     * Reset the back end after it has been stopped.
-     */
-    @Override
-    public void reset()
-    {
-        prevHitTime = 0;
-
-        super.reset();
-    }
-
-    /**
      * Send the payload to the output engine.
      *
      * @param payload readout data to send
      *
      * @return <tt>true</tt> if the payload was sent
      */
-    @Override
-    public boolean sendOutput(IPayload payload)
+    public boolean sendOutput(ILoadablePayload payload)
     {
         boolean sent = false;
-        ByteBuffer buf;
-        if (dataCache == null) {
-            buf = ByteBuffer.allocate(payload.length());
+        if (dataDest == null) {
+            if (log.isErrorEnabled()) {
+                log.error("ReadoutDataPayload destination has not been set");
+            }
         } else {
-            buf = dataCache.acquireBuffer(payload.length());
-        }
-        try {
-            payload.writePayload(false, 0, buf);
-        } catch (Exception ex) {
-            log.error("Couldn't create payload", ex);
-            buf = null;
-        }
-
-        if (buf != null && dataChan != null) {
-            dataChan.receiveByteBuffer(buf);
-            sent = true;
+            try {
+                dataDest.writePayload((Payload) payload);
+                sent = true;
+            } catch (IOException ioe) {
+                if (log.isErrorEnabled()) {
+                    log.error("Could not send RequestDataPayload", ioe);
+                }
+            }
         }
 
         payload.recycle();
@@ -611,34 +1136,13 @@ public class Sender
     }
 
     /**
-     * Set the DOM registry.
-     *
-     * @param reg DOM registry
-     */
-    public void setDOMRegistry(IDOMRegistry reg)
-    {
-        domRegistry = reg;
-    }
-
-    /**
      * Set the output engine where readout data payloads are sent.
      *
      * @param dest output destination
      */
-    public void setDataOutput(DAQOutputChannelManager dest)
+    public void setDataOutputDestination(IPayloadDestinationCollection dest)
     {
-        dataOut = dest;
-        dataChan = null;
-    }
-
-    /**
-     * Set the buffer cache where hit payloads are tracked.
-     *
-     * @param cache hit buffer cache
-     */
-    public void setHitCache(IByteBufferCache cache)
-    {
-        hitCache = cache;
+        dataDest = dest;
     }
 
     /**
@@ -646,25 +1150,41 @@ public class Sender
      *
      * @param dest output destination
      */
-    public void setHitOutput(DAQOutputChannelManager dest)
+    public void setHitOutputDestination(IPayloadDestinationCollection dest)
     {
-        hitOut = dest;
-        hitChan = null;
+        hitDest = dest;
     }
 
     /**
-     * Set the starting and ending times for the current request.
+     * Set the starting and engin times for the current request.
      *
      * @param payload readout request payload
      */
-    @Override
     public void setRequestTimes(IPayload payload)
     {
         IReadoutRequest req = (IReadoutRequest) payload;
-        SenderMethods.TimeRange range = SenderMethods.extractTimeRange(req);
 
-        reqStartTime = range.startUTC;
-        reqEndTime = range.endUTC;
+        reqStartTime = Long.MAX_VALUE;
+        reqEndTime = Long.MIN_VALUE;
+
+        Iterator iter =
+            req.getReadoutRequestElements().iterator();
+        while (iter.hasNext()) {
+            IReadoutRequestElement elem =
+                (IReadoutRequestElement) iter.next();
+
+            long startTime =
+                elem.getFirstTimeUTC().getUTCTimeAsLong();
+            if (startTime < reqStartTime) {
+                reqStartTime = startTime;
+            }
+
+            long endTime =
+                elem.getLastTimeUTC().getUTCTimeAsLong();
+            if (endTime > reqEndTime) {
+                reqEndTime = endTime;
+            }
+        }
 
         if (log.isDebugEnabled()) {
             log.debug("Filling readout#" + req.getUID() +
@@ -672,45 +1192,5 @@ public class Sender
                       reqEndTime + "]");
         }
     }
-
-    /**
-     * Get the output channels before the request thread is started.
-     */
-    @Override
-    public void startThread()
-    {
-        if (hitOut != null) {
-            hitChan = hitOut.getChannel();
-            if (hitChan == null) {
-                throw new Error("Hit destination has no output channels");
-            }
-        }
-
-        if (dataOut == null) {
-            log.error("Data destination has not been set");
-        } else {
-            dataChan = dataOut.getChannel();
-            if (dataChan == null) {
-                throw new Error("Data destination has no output channels");
-            }
-        }
-
-        super.startThread();
-    }
-
-    @Override
-    public String toString()
-    {
-        if (sourceId == null) {
-            return "UNKNOWN";
-        }
-
-        return sourceId.toString();
-    }
-
-    public void setRunMonitor(IRunMonitor runMonitor)
-    {
-        hlcReporter.setRunMonitor(runMonitor);
-    }
-
 }
+

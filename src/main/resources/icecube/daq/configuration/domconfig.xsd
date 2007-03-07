@@ -142,8 +142,6 @@
                         <xs:enumeration value="up-or-down"/>
                         <xs:enumeration value="up"/>
                         <xs:enumeration value="down"/>
-                        <xs:enumeration value="up-and-down"/>
-                        <xs:enumeration value="headers-only"/>
                     </xs:restriction>
                     </xs:simpleType>
             </xs:element>

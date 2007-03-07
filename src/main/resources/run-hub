@@ -1,0 +1,96 @@
+#!/bin/sh
+
+# Find the top of the workspace regardless of where this script was
+# started from
+SCRIPT_DIR=`dirname $0`
+START_DIR=`pwd`
+REL_PATH_TO_WS="../../.."
+WS_DIR=`cd ${START_DIR}/${SCRIPT_DIR}/${REL_PATH_TO_WS} && pwd`
+
+# The local user's maven repository from which the required libs will
+# be found
+REPO_DIR=${HOME}/.m2/repository
+
+REQ_PROJECTS="StringHub \
+juggler \
+payload \
+daq-io \
+daq-common \
+splicer \
+daq-request-filler \
+daq-log"
+
+REQ_LIBS="log4j \
+dom4j \
+jaxen \
+colt \
+xmlrpc-common \
+xmlrpc-client \
+xmlrpc-server \
+commons-logging \
+concurrent \
+jmxtools \
+ws-commons-util"
+
+missing_jar=
+CLASSPATH=""
+for proj in ${REQ_PROJECTS}; do
+  jar=${WS_DIR}/${proj}/target/${proj}-${pom.version}.jar
+  if [ -f "$jar" ]; then
+    CLASSPATH=${jar}:${CLASSPATH}
+  else
+    echo "$0: Cannot find ${proj} jar file" >&2
+    missing_jar=true
+  fi
+done
+
+for lib in ${REQ_LIBS}; do
+  jar=
+  for i in `find ${REPO_DIR} -name ${lib}\*.jar`; do
+    jar="$i"
+  done
+  if [ -f "$jar" ]; then
+    CLASSPATH=$jar:${CLASSPATH}
+  else
+    echo "$0: Cannot find ${lib} jar file" >&2
+    missing_jar=true
+  fi
+done
+
+if [ ! -z ${missing_jar} ]; then
+  exit 1
+fi
+
+hubId=$1
+shift
+
+sim=true
+
+# look for --real-hub argument
+#
+args=
+for i in $*; do
+  if [ "$i" = "--real-hub" ]; then
+    sim=false
+  else
+    if [ -z "$args" ]; then
+      args="$i"
+    else
+      args="$args $i"
+    fi
+  fi
+done
+
+# restore remaining args
+#
+set -- $args
+
+#java -Xmx1024m -Dcom.sun.management.jmxremote.port=8395 \
+#    -Dcom.sun.management.jmxremote.authenticate=false \
+#    -Dcom.sun.management.jmxremote.ssl=false \
+#    -Xdump:heap:events=user \
+java -Xmx1024m -Dicecube.daq.stringhub.componentId=$hubId \
+    -Dicecube.daq.bindery.StreamBinder.prescale=1 \
+    -cp "$CLASSPATH" icecube.daq.stringhub.Shell $*
+
+

@@ -2,12 +2,12 @@
 
 package icecube.daq.stringhub;
 
+import org.apache.log4j.Logger;
 import icecube.daq.domapp.AbstractDataCollector;
+import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQConnector;
 
 import java.util.ArrayList;
-
-import org.apache.log4j.Logger;
 
 /***
  * StringHub connector for data collectors.
@@ -18,6 +18,9 @@ public class DOMConnector
 	/** DOM data collectors. */
 	private ArrayList<AbstractDataCollector> collectors;
 	private static final Logger logger = Logger.getLogger(DOMConnector.class);
+	private static final long CONFIGURE_TIMEOUT = 15000L;
+	private static final long DESTROY_TIMEOUT   = 15000L;
+	private static final long STOP_TIMEOUT      = 15000L;
 
 	/**
 	 * Create a DAQ input connector.
@@ -26,7 +29,7 @@ public class DOMConnector
 	 */
 	public DOMConnector(int nch)
 	{
-		super("DOMs", false);
+		super("DOMs");
 
 		collectors = new ArrayList<AbstractDataCollector>();
 	}
@@ -44,63 +47,68 @@ public class DOMConnector
 	/**
 	 * Configure data collectors.
 	 */
-	public void configure() throws InterruptedException
+	public void configure()
 	{
-		// Wait for data collectors to finish initializing
+		long configT0 = System.currentTimeMillis();
+
 		for (AbstractDataCollector dc : collectors)
-		{
-			while (dc.isInitializing()) Thread.sleep(100);
 			dc.signalConfigure();
-		}
 
+		int configured_counter = 0;
 		// wait for things to configure
-		for (AbstractDataCollector dc : collectors)
-			while(dc.isConfiguring()) Thread.sleep(100);
-
-		logger.debug("Data collector ensemble has been configured.");
+		for (AbstractDataCollector dc : collectors) {
+			while (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED &&
+				   dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE)
+			{
+				try {
+					Thread.sleep(100);
+					if (System.currentTimeMillis() > CONFIGURE_TIMEOUT) {
+						logger.error("Configure timed out.");
+					}
+				} catch (InterruptedException ie) {
+					// ignore interrupts
+				}
+			}
+			configured_counter++;
+			logger.info("Configured DOM count = " + configured_counter);
+		}
+		logger.info("All DOMs configured.");
 	}
 
 	/**
 	 * Destroy this connector.
 	 *
-	 * @throws InterruptedException if there was a problem
+	 * @throws Exception if there was a problem
 	 */
-	@Override
 	public void destroy()
-		throws InterruptedException
+		throws Exception
 	{
-		stopProcessing();
-
-		for (AbstractDataCollector dc : collectors) dc.signalShutdown();
-
-		for (AbstractDataCollector dc : collectors)
-		{
-			while (dc.isAlive()) Thread.sleep(100);
+		long destroyT0 = System.currentTimeMillis();
+		for (AbstractDataCollector dc : collectors) {
+			dc.signalShutdown();
 			dc.close();
+		}
+
+		for (AbstractDataCollector dc : collectors) {
+			while (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED &&
+				   dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE) {
+				Thread.sleep(50);
+				if (System.currentTimeMillis() - destroyT0 > DESTROY_TIMEOUT) {
+					logger.error("Destroy timed out.");
+				}
+			}
 		}
 	}
 
 	/**
 	 * Force engine to stop processing data.
 	 *
-	 * @throws InterruptedException if there is a problem
+	 * @throws Exception if there is a problem
 	 */
-	@Override
 	public void forcedStopProcessing()
-		throws InterruptedException
+		throws Exception
 	{
 		throw new Error("Unimplemented");
-	}
-
-	/**
-	 * Return number of active channels.
-	 *
-	 * @return number of active channels
-	 */
-	@Override
-	public int getNumberOfChannels()
-	{
-		return collectors.size();
 	}
 
 	/**
@@ -108,39 +116,51 @@ public class DOMConnector
 	 *
 	 * @return state string
 	 */
-	@Override
 	public String getState()
 	{
 		throw new Error("Unimplemented");
 	}
 
 	/**
-	 * Are all data collectors running?
+	 * Is this connector running?
+	 *
+	 * @return <tt>true</tt> if this connector is running
 	 */
-	@Override
 	public boolean isRunning()
 	{
-		return !isStopped();
+		for (AbstractDataCollector dc : collectors) {
+			if (dc.queryDaqRunLevel() != AbstractDataCollector.RUNNING &&
+				dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**
-	 * Are <i>all</i> data collectors not running?
+	 * Is this connector stopped?
 	 *
 	 * @return <tt>true</tt> if this connector is stopped
 	 */
-	@Override
 	public boolean isStopped()
 	{
-		for (AbstractDataCollector dc : collectors)
-			if (dc.isRunning()) return false;
+		for (AbstractDataCollector dc : collectors) {
+			if (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED &&
+				dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE) {
+				return false;
+			}
+		}
 		return true;
 	}
 
 	/**
 	 * Start background threads.
+	 *
+	 * @throws Exception if there is a problem
 	 */
-	@Override
 	public void start()
+		throws Exception
 	{
 		// do nothing
 	}
@@ -148,37 +168,43 @@ public class DOMConnector
 	/**
 	 * Start processing data.
 	 *
-	 * @throws InterruptedException if there is a problem
+	 * @throws Exception if there is a problem
 	 */
-	@Override
 	public void startProcessing()
-		throws InterruptedException
+		throws Exception
 	{
-		CLOOP: for (AbstractDataCollector dc : collectors)
-		{
-			while (!dc.isConfigured())
-			{
-				if (dc.isZombie()) continue CLOOP;
-				Thread.sleep(100);
-			}
-			dc.signalStartRun();
+		for (AbstractDataCollector dc : collectors) {
+			if (dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE)
+				dc.signalStartRun();
 		}
 	}
 
 	/**
 	 * Stop DOM data collectors.
 	 *
-	 * @throws InterruptedException if there is a problem
+	 * @throws Exception if there is a problem
 	 */
 	public void stopProcessing()
-		throws InterruptedException
+		throws Exception
 	{
-		for (AbstractDataCollector dc : collectors)
+		long stopT0 = System.currentTimeMillis();
+		for (AbstractDataCollector dc : collectors) {
 			dc.signalStopRun();
+		}
 
-		for (AbstractDataCollector dc : collectors)
-		{
-			while (dc.isStopping()) Thread.sleep(100);
+		for (AbstractDataCollector dc : collectors) {
+			while (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED &&
+				   dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE)
+			{
+				try {
+					Thread.sleep(25);
+					if (System.currentTimeMillis() - stopT0 > STOP_TIMEOUT) {
+						logger.error("Stop timed out.");
+					}
+				} catch (InterruptedException ie) {
+					// ignore interrupts
+				}
+			}
 		}
 	}
 
@@ -191,7 +217,6 @@ public class DOMConnector
 	 *
 	 * @return debugging string
 	 */
-	@Override
 	public String toString()
 	{
 		return "DOMConn[]";

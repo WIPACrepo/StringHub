@@ -22,27 +22,26 @@ public class MonitorRecordFactoryTest {
 	
 	public MonitorRecordFactoryTest() throws Exception
 	{
-	}
-
-	@Before public void setUp()
-	{
 		ReadableByteChannel channel =  Channels.newChannel(
-				MonitorRecordFactoryTest.class.getResourceAsStream(
-						"monitest.dat"
+				ClassLoader.getSystemResourceAsStream(
+						"ic3/daq/domapp/test/monitest.dat"
 						)
 					);
-		assertNotNull("Couldn't get channel", channel);
 		monibuf = ByteBuffer.allocate(5000);
 		try
 		{
 			channel.read(monibuf);
-			monibuf.flip();
 		}
 		catch (Exception ex)
 		{
 			ex.printStackTrace();
-			monibuf = null;
+			throw ex;
 		}
+	}
+
+	@Before public void setUp()
+	{
+		monibuf.flip();
 	}
 	
 	@Test public void testCreateFromBuffer() 
@@ -51,10 +50,7 @@ public class MonitorRecordFactoryTest {
 		while (monibuf.hasRemaining())
 		{
 			MonitorRecord rec = MonitorRecordFactory.createFromBuffer(monibuf);
-                        if (rec instanceof AsciiMonitorRecord) {
-                            assertEquals("Bad record data",
-                                         "MONI SELF TEST OK", rec.toString());
-                        }
+			if (rec instanceof AsciiMonitorRecord) System.out.println(rec);
 		}
 		
 	}

@@ -30,20 +30,9 @@ public class BufferConsumerChannel
      *
      * @throws IOException if the write failed
      */
-    @Override
     public void consume(ByteBuffer buf)
         throws IOException
-    {
-        out.write(buf);
-    }
-
-    /**
-     * There will be no more data.
-     */
-    @Override
-    public void endOfStream(long mbid)
-        throws IOException
-    {
-        consume(MultiChannelMergeSort.eos(mbid));
-    }
+   {
+       out.write(buf);
+   }
 }
