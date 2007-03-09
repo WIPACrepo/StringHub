@@ -16,6 +16,7 @@ import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
+import icecube.daq.juggler.mbean.SystemStatistics;
 import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.monitoring.DataCollectorMonitor;
 import icecube.daq.payload.ByteBufferCache;
@@ -140,7 +141,8 @@ public class StringHubComponent extends DAQComponent
 		addCache(bufferManager);
 		addMBean(bufferManager.getCacheName(), bufferManager);
 
-		addMBean("memoryStats", new MemoryStatistics());
+		addMBean("jvm", new MemoryStatistics());
+		addMBean("system", new SystemStatistics());
 
 		payloadFactory = new MasterPayloadFactory(bufferManager);
 		sender         = new Sender(hubId, payloadFactory);
