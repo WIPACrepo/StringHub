@@ -137,7 +137,7 @@ public class StringHubComponent extends DAQComponent
 	{
 		super(DAQCmdInterface.DAQ_STRING_HUB, hubId);
 		
-		bufferManager  = new ByteBufferCache(256, 100000000, 100000000, "PyrateBufferManager");
+		bufferManager  = new ByteBufferCache(256, 250000000L, 200000000L, "PyrateBufferManager");
 		addCache(bufferManager);
 		addMBean(bufferManager.getCacheName(), bufferManager);
 
