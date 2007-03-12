@@ -107,8 +107,11 @@ public class SecondaryStreamConsumer implements BufferConsumer
 							 payload_buffer.getInt(4));
 				if (payload_buffer != null)
 					payload = payloadFactory.createPayload(0, payload_buffer);
-				if (payload != null)
+				if (payload != null) 
+                {
 					payloadOutput.getPayloadDestinationCollection().writePayload(payload);
+                    payload.recycle();
+                }
 				break;
 			case 202: // TCAL record
 				payload_buffer = TimeCalibrationPayloadFactory.createFormattedBufferFromDomHubRecord
@@ -120,8 +123,11 @@ public class SecondaryStreamConsumer implements BufferConsumer
 							 payload_buffer.getInt(4));
 				if (payload_buffer != null)
 					payload = payloadFactory.createPayload(0, payload_buffer);
-				if (payload != null)
+				if (payload != null) 
+                {
 					payloadOutput.getPayloadDestinationCollection().writePayload(payload);
+                    payload.recycle();
+                }
 				break;
 			case 302: // Supernova record
 				payload_buffer = SuperNovaPayloadFactory.createFormattedBufferFromDomHubRecord(
@@ -133,7 +139,10 @@ public class SecondaryStreamConsumer implements BufferConsumer
 				if (payload_buffer != null)
 					payload = payloadFactory.createPayload(0, payload_buffer);
 				if (payload != null)
+                {
 					payloadOutput.getPayloadDestinationCollection().writePayload(payload);
+                    payload.recycle();
+                }
 				break;
 			}
 		}
