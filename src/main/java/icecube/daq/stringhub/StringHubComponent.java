@@ -23,7 +23,7 @@ import icecube.daq.payload.ByteBufferCache;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.MasterPayloadFactory;
-import icecube.daq.sender.RequestInputEngine;
+import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
@@ -165,8 +165,12 @@ public class StringHubComponent extends DAQComponent
         IPayloadDestinationCollection hitColl = hitOut.getPayloadDestinationCollection();
         sender.setHitOutputDestination(hitColl);
         
-        RequestInputEngine reqIn = new RequestInputEngine(COMPONENT_NAME, hubId, "reqIn",
-                                   sender, bufferManager, payloadFactory);
+        RequestReader reqIn;
+        try {
+            reqIn = new RequestReader(COMPONENT_NAME, sender, payloadFactory);
+        } catch (IOException ioe) {
+            throw new Error("Couldn't create RequestReader", ioe);
+        }
         addMonitoredEngine(DAQConnector.TYPE_READOUT_REQUEST, reqIn);
 
         PayloadDestinationOutputEngine dataOut =
