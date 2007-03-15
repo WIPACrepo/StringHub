@@ -72,9 +72,6 @@ public class SimDataCollector extends AbstractDataCollector {
 		this.moniOut = moniOut;
 		//this.tcalOut = tcalOut;
 		this.supernovaOut = supernovaOut;
-		this.moniOut = null;
-		this.tcalOut = null;
-		this.supernovaOut = null;
 		runLevel  = IDLE;
 		numHits = 0;
 		loopCounter = 0;
@@ -82,8 +79,8 @@ public class SimDataCollector extends AbstractDataCollector {
 
 	public void close() 
     { 
-        try {
-            
+        try 
+        {
             if (hitsOut != null) {
                 hitsOut.close();
                 hitsOut = null;
@@ -100,7 +97,9 @@ public class SimDataCollector extends AbstractDataCollector {
                 supernovaOut.close();
                 supernovaOut = null;
             }
-        } catch (IOException iox) {
+        } 
+        catch (IOException iox) 
+        {
             iox.printStackTrace();
             logger.error("Error closing pipe sinks: " + iox.getMessage());
         }        
@@ -175,11 +174,14 @@ public class SimDataCollector extends AbstractDataCollector {
         return !stopRunLoop;
     }
 	
-	@Override 
+    
+    @Override 
 	public void run()
 	{
 		setRunStopFlag(false);
-		
+
+        logger.info("Entering run loop.");
+        
 		runCore();
         
         logger.info("Exited runCore() loop.");
