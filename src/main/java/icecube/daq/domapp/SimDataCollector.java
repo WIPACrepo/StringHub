@@ -302,6 +302,7 @@ public class SimDataCollector extends AbstractDataCollector {
             buf.put((byte) scaler);
         }
         buf.flip();
+        logger.info("Generated supernova packet - " + recl + " bytes.");
         if (supernovaOut != null) supernovaOut.write(buf); 
         return 1;
     }
