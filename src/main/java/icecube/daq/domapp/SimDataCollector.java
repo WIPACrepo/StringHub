@@ -80,7 +80,31 @@ public class SimDataCollector extends AbstractDataCollector {
 		loopCounter = 0;
 	}
 
-	public void close() { }
+	public void close() 
+    { 
+        try {
+            
+            if (hitsOut != null) {
+                hitsOut.close();
+                hitsOut = null;
+            }
+            if (moniOut != null) {
+                moniOut.close();
+                moniOut = null;
+            }
+            if (tcalOut != null) {
+                tcalOut.close();
+                tcalOut = null;
+            }
+            if (supernovaOut != null) {
+                supernovaOut.close();
+                supernovaOut = null;
+            }
+        } catch (IOException iox) {
+            iox.printStackTrace();
+            logger.error("Error closing pipe sinks: " + iox.getMessage());
+        }        
+    }
 
 	public void setConfig(DOMConfiguration config) 
 	{
@@ -138,13 +162,23 @@ public class SimDataCollector extends AbstractDataCollector {
 	public void signalShutdown() 
 	{
 		logger.info("Shutting down data collector [" + card + "" + pair + "" + dom + "]");
-		stopRunLoop = true;
+		setRunStopFlag(true);
 	}
+    
+    public synchronized void setRunStopFlag(boolean val)
+    {
+        stopRunLoop = val;
+    }
+    
+    public synchronized boolean keepRunning()
+    {
+        return stopRunLoop;
+    }
 	
 	@Override 
 	public void run()
 	{
-		stopRunLoop = false;
+		setRunStopFlag(false);
 		
 		runCore();
 		try
@@ -180,7 +214,7 @@ public class SimDataCollector extends AbstractDataCollector {
 			// Simulate the device open latency
 			Thread.sleep(1400);
 
-			while (!stopRunLoop)
+			while (keepRunning())
 			{
 				boolean needSomeSleep = true;
 
