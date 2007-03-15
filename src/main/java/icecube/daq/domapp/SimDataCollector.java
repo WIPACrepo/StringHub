@@ -69,9 +69,9 @@ public class SimDataCollector extends AbstractDataCollector {
 		this.dom  = chanInfo.dom;
 		this.numericMBID = Long.parseLong(this.mbid, 16);
 		this.hitsOut = hitsOut;
-		//this.moniOut = moniOut;
+		this.moniOut = moniOut;
 		//this.tcalOut = tcalOut;
-		//this.supernovaOut = supernovaOut;
+		this.supernovaOut = supernovaOut;
 		this.moniOut = null;
 		this.tcalOut = null;
 		this.supernovaOut = null;
@@ -208,7 +208,8 @@ public class SimDataCollector extends AbstractDataCollector {
 				{
 					long currTime = System.currentTimeMillis();
 					int nHits = generateHits(currTime);
-					int nMoni = generateMoni(currTime);
+					generateMoni(currTime);
+                    generateSupernova(currTime);
 					if (nHits > 0) needSomeSleep = false; 
 				}
 				else if (queryDaqRunLevel() == STOPPING)
@@ -242,7 +243,36 @@ public class SimDataCollector extends AbstractDataCollector {
 		
 	}
 	
-	/**
+	private int generateSupernova(long currTime) throws IOException {
+        if (currTime - lastSupernova < 1000L) return 0;
+        // Simulate SN wrap-around
+        if (currTime - lastSupernova > 10000L) lastSupernova = currTime - 10000L;
+        int dtms = (int) (currTime - lastSupernova);
+        int nsn = dtms * 10000 / 16384;
+        lastSupernova = currTime;
+        short recl = (short) (10 + nsn);
+        long clk = (currTime - t0) * 10000000L;
+	    ByteBuffer buf = ByteBuffer.allocate(recl);
+        buf.putShort(recl);
+        buf.putShort((short) 300);
+        buf.put((byte) ((clk >> 40) & 0xff));
+        buf.put((byte) ((clk >> 32) & 0xff));
+        buf.put((byte) ((clk >> 24) & 0xff));
+        buf.put((byte) ((clk >> 16) & 0xff));
+        buf.put((byte) ((clk >>  8) & 0xff));
+        buf.put((byte) clk);
+        for (int i = 0; i < nsn; i++)
+        {
+            int scaler = poissonRandom.nextInt(rate * 0.0016384);
+            if (scaler > 15) scaler = 15;
+            buf.put((byte) scaler);
+        }
+        buf.flip();
+        if (supernovaOut != null) supernovaOut.write(buf); 
+        return 1;
+    }
+
+    /**
 	 * Contains all the yucky hit generation logic
 	 * @return number of hits generated in the time interval
 	 */
