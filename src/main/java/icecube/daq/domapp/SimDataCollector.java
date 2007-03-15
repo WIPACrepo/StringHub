@@ -60,8 +60,8 @@ public class SimDataCollector extends AbstractDataCollector {
 	public SimDataCollector(DOMChannelInfo chanInfo, 
 			WritableByteChannel hitsOut,
 			WritableByteChannel moniOut,
-			WritableByteChannel tcalOut,
-			WritableByteChannel supernovaOut)
+            WritableByteChannel supernovaOut,
+			WritableByteChannel tcalOut)
 	{
 		this.mbid = chanInfo.mbid;
 		this.card = chanInfo.card;
