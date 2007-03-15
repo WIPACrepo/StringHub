@@ -62,7 +62,7 @@ public class DOMConnector
 			{
 				try {
 					Thread.sleep(100);
-					if (System.currentTimeMillis() > CONFIGURE_TIMEOUT) {
+					if (System.currentTimeMillis() - configT0 > CONFIGURE_TIMEOUT) {
 						logger.error("Configure timed out.");
 					}
 				} catch (InterruptedException ie) {
