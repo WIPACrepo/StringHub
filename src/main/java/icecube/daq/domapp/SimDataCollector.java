@@ -181,6 +181,9 @@ public class SimDataCollector extends AbstractDataCollector {
 		setRunStopFlag(false);
 		
 		runCore();
+        
+        logger.info("Exited runCore() loop.");
+        
 		try
 		{
 			if (hitsOut != null) hitsOut.write(StreamBinder.endOfStream());
@@ -224,7 +227,8 @@ public class SimDataCollector extends AbstractDataCollector {
 				{
 					// Simulate configure time
 					Thread.sleep(500);
-					setRunLevel(2);
+					setRunLevel(CONFIGURED);
+                    logger.info("DOM is now configured.");
 				}
 				else if (queryDaqRunLevel() == STARTING)
 				{
