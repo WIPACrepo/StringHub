@@ -291,8 +291,14 @@ public class SimDataCollector extends AbstractDataCollector {
         int nsn = dtms * 10000 / 16384;
         lastSupernova = currTime;
         short recl = (short) (10 + nsn);
-        long clk = (currTime - t0) * 10000000L;
-	    ByteBuffer buf = ByteBuffer.allocate(recl);
+        ByteBuffer buf = ByteBuffer.allocate(recl+32);
+        long utc = (currTime - t0) * 10000000L;
+        long clk = utc / 500L;
+	    buf.putInt(recl+32);
+        buf.putInt(302);
+        buf.putLong(numericMBID);
+        buf.putLong(0L);
+        buf.putLong(utc);
         buf.putShort(recl);
         buf.putShort((short) 300);
         buf.put((byte) ((clk >> 40) & 0xff));
