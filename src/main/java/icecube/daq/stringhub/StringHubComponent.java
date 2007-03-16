@@ -117,6 +117,7 @@ public class StringHubComponent extends DAQComponent
 
 	private static final Logger logger = Logger.getLogger(StringHubComponent.class);
 	
+    private int hubId;
 	private boolean isSim = false;
 	private Driver driver = Driver.getInstance();
 	private Sender sender;
@@ -136,7 +137,9 @@ public class StringHubComponent extends DAQComponent
 	public StringHubComponent(int hubId) throws Exception
 	{
 		super(DAQCmdInterface.DAQ_STRING_HUB, hubId);
-		
+	
+        this.hubId = hubId;
+        
 		bufferManager  = new ByteBufferCache(256, 250000000L, 200000000L, "PyrateBufferManager");
 		addCache(bufferManager);
 		addMBean(bufferManager.getCacheName(), bufferManager);
@@ -385,19 +388,9 @@ public class StringHubComponent extends DAQComponent
 	{
 		logger.info("Have I been configured? " + configured);
 
-		SecondaryStreamConsumer monitorConsumer =
-			new SecondaryStreamConsumer(payloadFactory, 
-										bufferManager, 
-										moniPayloadDest);
-
-		SecondaryStreamConsumer supernovaConsumer =
-			new SecondaryStreamConsumer(payloadFactory, 
-										bufferManager,
-										supernovaPayloadDest);
-		SecondaryStreamConsumer tcalConsumer =
-			new SecondaryStreamConsumer(payloadFactory, 
-										bufferManager,
-										tcalPayloadDest);
+		SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniPayloadDest);
+		SecondaryStreamConsumer supernovaConsumer =	new SecondaryStreamConsumer(hubId, supernovaPayloadDest);
+		SecondaryStreamConsumer tcalConsumer      =  new SecondaryStreamConsumer(hubId, tcalPayloadDest);
 
 		logger.info("Created secondary stream consumers.");
 
