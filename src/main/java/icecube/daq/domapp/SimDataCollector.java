@@ -309,7 +309,7 @@ public class SimDataCollector extends AbstractDataCollector {
         buf.put((byte) clk);
         for (int i = 0; i < nsn; i++)
         {
-            int scaler = poissonRandom.nextInt(rate * 0.0016384);
+            int scaler = poissonRandom.nextInt(300 * 0.0016384);
             if (scaler > 15) scaler = 15;
             buf.put((byte) scaler);
         }
