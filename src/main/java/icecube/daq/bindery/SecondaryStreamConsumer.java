@@ -2,9 +2,11 @@
 package icecube.daq.bindery;
 
 import icecube.daq.io.PayloadDestinationOutputEngine;
+import icecube.daq.io.PayloadTransmitChannel;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.MasterPayloadFactory;
 import icecube.daq.payload.PayloadDestination;
+import icecube.daq.payload.impl.SourceID4B;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -20,19 +22,16 @@ import org.apache.log4j.Logger;
  */
 public class SecondaryStreamConsumer implements BufferConsumer 
 {
-    private ByteBuffer payloadBuffer   = null;
-    private ByteBuffer stopPayload     = null;
-    private HashMap<Integer, Integer> idMap  = new HashMap<Integer, Integer>();
-    private PayloadDestinationOutputEngine output;
-    
-    private static final Logger logger = Logger.getLogger(SecondaryStreamConsumer.class);
+    private ByteBuffer stopPayload              = null;
+    private HashMap<Integer, Integer> idMap     = new HashMap<Integer, Integer>();
+    private PayloadTransmitChannel outputChannel= null;
+    private PayloadDestinationOutputEngine outputEngine = null;
+    private static final Logger logger          = Logger.getLogger(SecondaryStreamConsumer.class);
 
-	public SecondaryStreamConsumer(MasterPayloadFactory payloadFactory, 
-								   IByteBufferCache byteBufferCache,
-								   PayloadDestinationOutputEngine output)
+	public SecondaryStreamConsumer(int hubId, PayloadDestinationOutputEngine outputEngine)
     {
-        this.output = output; 
-	    payloadBuffer = ByteBuffer.allocate(5000);
+        this.outputEngine = outputEngine;
+        this.outputChannel = outputEngine.lookUpEngineBySourceID(new SourceID4B(hubId)); 
         stopPayload   = ByteBuffer.allocate(4);
         stopPayload.putInt(4);
         stopPayload.flip();
@@ -57,34 +56,19 @@ public class SecondaryStreamConsumer implements BufferConsumer
         if (recl == 32 && mbid == 0L) 
         {
             logger.info("Stopping payload destinations");
-            Iterator it = output.getPayloadDestinationCollection().getAllPayloadDestinations().iterator();
-            while (it.hasNext())
-            {
-                PayloadDestination dest = (PayloadDestination) it.next();
-                dest.write(0, stopPayload, 4);
-                stopPayload.flip();
-            }
-            output.getPayloadDestinationCollection().stopAllPayloadDestinations();
+            outputChannel.receiveByteBuffer(stopPayload);
+            outputEngine.getPayloadDestinationCollection().stopAllPayloadDestinations();
             return;
         }
 
-		logger.debug("Consuming rec length = " + recl + " type = " + fmtid +
-					" mbid = " + String.format("%012x", mbid) + 
-					" utc = " +  utc);
-		payloadBuffer.clear();
+		ByteBuffer payloadBuffer = ByteBuffer.allocate(recl-8);
         payloadBuffer.putInt(recl);
         payloadBuffer.putInt(idMap.get(fmtid));
         payloadBuffer.putLong(utc);
         payloadBuffer.putLong(mbid);
         payloadBuffer.put(buf);
         payloadBuffer.flip();
-        Iterator it = output.getPayloadDestinationCollection().getAllPayloadDestinations().iterator();
-        while (it.hasNext())
-        {
-            PayloadDestination dest = (PayloadDestination) it.next();
-            dest.write(0, payloadBuffer, payloadBuffer.remaining());
-            payloadBuffer.flip();
-        }
+        outputChannel.receiveByteBuffer(payloadBuffer);
 	}
 
 }
