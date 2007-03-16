@@ -33,7 +33,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
 	public SecondaryStreamConsumer(int hubId, PayloadDestinationOutputEngine outputEngine)
     {
         this.outputEngine = outputEngine;
-        this.outputChannel = outputEngine.lookUpEngineBySourceID(new SourceID4B(hubId)); 
+        this.outputChannel = outputEngine.lookUpEngineBySourceID(new SourceID4B(0)); 
         stopPayload   = ByteBuffer.allocate(4);
         stopPayload.putInt(4);
         stopPayload.flip();
@@ -71,12 +71,13 @@ public class SecondaryStreamConsumer implements BufferConsumer
         payloadBuffer.putLong(mbid);
         payloadBuffer.put(buf);
         payloadBuffer.flip();
-        logger.info("Created secondary stream buffer: RECL=" + recl
-                + "/REM=" + payloadBuffer.remaining()
-                + " - TYPE=" + fmtid);
         if (dbgChan != null) 
         {
-            dbgChan.write(payloadBuffer);
+            int n = dbgChan.write(payloadBuffer);
+            logger.info("Created secondary stream buffer: RECL=" + recl
+                    + "/REM=" + payloadBuffer.remaining()
+                    + "/WR=" + n 
+                    + " - TYPE=" + fmtid);
             payloadBuffer.rewind();
         }
         outputChannel.receiveByteBuffer(payloadBuffer);

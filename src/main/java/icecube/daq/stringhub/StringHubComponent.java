@@ -396,9 +396,9 @@ public class StringHubComponent extends DAQComponent
 
         try 
         {
-            FileOutputStream moniDebug = new FileOutputStream("/tmp/moni.dat");
-            FileOutputStream tcalDebug = new FileOutputStream("/tmp/tcal.dat");
-            FileOutputStream snDebug   = new FileOutputStream("/tmp/sn.dat");
+            FileOutputStream moniDebug = new FileOutputStream("/tmp/moni-" + hubId + ".dat");
+            FileOutputStream tcalDebug = new FileOutputStream("/tmp/tcal-" + hubId + ".dat");
+            FileOutputStream snDebug   = new FileOutputStream("/tmp/sn-" + hubId + ".dat");
             monitorConsumer.setDebugChannel(moniDebug.getChannel());
             tcalConsumer.setDebugChannel(tcalDebug.getChannel());
             supernovaConsumer.setDebugChannel(snDebug.getChannel());
