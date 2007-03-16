@@ -10,6 +10,7 @@ import icecube.daq.payload.impl.SourceID4B;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 import java.util.HashMap;
 import java.util.Iterator;
 
@@ -27,7 +28,8 @@ public class SecondaryStreamConsumer implements BufferConsumer
     private PayloadTransmitChannel outputChannel= null;
     private PayloadDestinationOutputEngine outputEngine = null;
     private static final Logger logger          = Logger.getLogger(SecondaryStreamConsumer.class);
-
+    private WritableByteChannel dbgChan = null;
+    
 	public SecondaryStreamConsumer(int hubId, PayloadDestinationOutputEngine outputEngine)
     {
         this.outputEngine = outputEngine;
@@ -40,7 +42,8 @@ public class SecondaryStreamConsumer implements BufferConsumer
         idMap.put(302, 16);
 	}
 
-	
+	public void setDebugChannel(WritableByteChannel ch) { dbgChan = ch; }
+    
 	/**
 	 * We are assuming that this consumes buffers which adhaere to
 	 * the TestDAQ standard 32-byte 'iiq8xq' header.
@@ -68,6 +71,11 @@ public class SecondaryStreamConsumer implements BufferConsumer
         payloadBuffer.putLong(mbid);
         payloadBuffer.put(buf);
         payloadBuffer.flip();
+        if (dbgChan != null) 
+        {
+            dbgChan.write(payloadBuffer);
+            payloadBuffer.rewind();
+        }
         outputChannel.receiveByteBuffer(payloadBuffer);
 	}
 

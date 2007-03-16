@@ -31,7 +31,9 @@ import icecube.daq.util.DeployedDOM;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.nio.channels.Pipe;
 import java.nio.channels.SelectableChannel;
 import java.util.ArrayList;
@@ -392,7 +394,22 @@ public class StringHubComponent extends DAQComponent
 		SecondaryStreamConsumer supernovaConsumer =	new SecondaryStreamConsumer(hubId, supernovaPayloadDest);
 		SecondaryStreamConsumer tcalConsumer      =  new SecondaryStreamConsumer(hubId, tcalPayloadDest);
 
-		logger.info("Created secondary stream consumers.");
+        try 
+        {
+            FileOutputStream moniDebug = new FileOutputStream("/tmp/moni.dat");
+            FileOutputStream tcalDebug = new FileOutputStream("/tmp/tcal.dat");
+            FileOutputStream snDebug   = new FileOutputStream("/tmp/sn.dat");
+            monitorConsumer.setDebugChannel(moniDebug.getChannel());
+            tcalConsumer.setDebugChannel(tcalDebug.getChannel());
+            supernovaConsumer.setDebugChannel(snDebug.getChannel());
+        }
+        catch (FileNotFoundException fnex)
+        {
+            throw new DAQCompException(fnex.getLocalizedMessage());
+        }
+
+
+        logger.info("Created secondary stream consumers.");
 
 		try {
 			hitsBind = new StreamBinder(nch, sender, "hits");
