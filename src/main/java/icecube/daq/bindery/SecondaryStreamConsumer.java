@@ -62,6 +62,15 @@ public class SecondaryStreamConsumer implements BufferConsumer
             stopSignal.position(0);
             stopSignal.limit(4);
             outputChannel.receiveByteBuffer(stopSignal);
+            try
+            {
+                Thread.sleep(100);
+            }
+            catch (InterruptedException intx)
+            {
+                // pass
+            }
+            outputEngine.getPayloadDestinationCollection().stopAllPayloadDestinations();
         }
         else
         {

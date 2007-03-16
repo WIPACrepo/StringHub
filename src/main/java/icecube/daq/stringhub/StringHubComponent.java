@@ -474,24 +474,6 @@ public class StringHubComponent extends DAQComponent
 			// throw new DAQCompException(e.getMessage());
 		}
 
-        // TODO: This is a hack until real data is passing
-        //       through the moni/tcal/sn data channels
-        try {
-            moniPayloadDest.getPayloadDestinationCollection().stopAllPayloadDestinations();
-        } catch (IOException ioe) {
-            throw new DAQCompException("Couldn't stop monitoring destination", ioe);
-        }
-        try {
-            tcalPayloadDest.getPayloadDestinationCollection().stopAllPayloadDestinations();
-        } catch (IOException ioe) {
-            throw new DAQCompException("Couldn't stop tcal destination", ioe);
-        }
-        try {
-            supernovaPayloadDest.getPayloadDestinationCollection().stopAllPayloadDestinations();
-        } catch (IOException ioe) {
-            throw new DAQCompException("Couldn't stop supernova destination", ioe);
-        }
-        
         logger.info("Returning from stop.");
 	}
 
