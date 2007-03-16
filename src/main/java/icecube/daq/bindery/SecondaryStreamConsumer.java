@@ -65,7 +65,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
         }
 
 		ByteBuffer payloadBuffer = ByteBuffer.allocate(recl-8);
-        payloadBuffer.putInt(recl);
+        payloadBuffer.putInt(recl-8);
         payloadBuffer.putInt(idMap.get(fmtid));
         payloadBuffer.putLong(utc);
         payloadBuffer.putLong(mbid);
