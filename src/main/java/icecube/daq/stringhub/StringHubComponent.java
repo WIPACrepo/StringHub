@@ -394,20 +394,22 @@ public class StringHubComponent extends DAQComponent
 		SecondaryStreamConsumer supernovaConsumer =	new SecondaryStreamConsumer(hubId, supernovaPayloadDest);
 		SecondaryStreamConsumer tcalConsumer      =  new SecondaryStreamConsumer(hubId, tcalPayloadDest);
 
-        try 
+        if (Boolean.getBoolean("icecube.daq.stringhub.secondaryStream.debug"))
         {
-            FileOutputStream moniDebug = new FileOutputStream("/tmp/moni-" + hubId + ".dat");
-            FileOutputStream tcalDebug = new FileOutputStream("/tmp/tcal-" + hubId + ".dat");
-            FileOutputStream snDebug   = new FileOutputStream("/tmp/sn-" + hubId + ".dat");
-            monitorConsumer.setDebugChannel(moniDebug.getChannel());
-            tcalConsumer.setDebugChannel(tcalDebug.getChannel());
-            supernovaConsumer.setDebugChannel(snDebug.getChannel());
-        }
-        catch (FileNotFoundException fnex)
-        {
-            throw new DAQCompException(fnex.getLocalizedMessage());
-        }
-
+            try 
+            {
+                FileOutputStream moniDebug = new FileOutputStream("/tmp/moni-" + hubId + ".dat");
+                FileOutputStream tcalDebug = new FileOutputStream("/tmp/tcal-" + hubId + ".dat");
+                FileOutputStream snDebug   = new FileOutputStream("/tmp/sn-" + hubId + ".dat");
+                monitorConsumer.setDebugChannel(moniDebug.getChannel());
+                tcalConsumer.setDebugChannel(tcalDebug.getChannel());
+                supernovaConsumer.setDebugChannel(snDebug.getChannel());
+            }
+            catch (FileNotFoundException fnex)
+            {
+                throw new DAQCompException(fnex.getLocalizedMessage());
+            }
+        }    
 
         logger.info("Created secondary stream consumers.");
 
