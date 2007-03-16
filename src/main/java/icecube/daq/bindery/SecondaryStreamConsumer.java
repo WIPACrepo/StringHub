@@ -57,7 +57,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
         if (recl == 32 && mbid == 0L) 
         {
             logger.info("Stopping payload destinations");
-            ByteBuffer stopSignal = cacheMgr.acquireBuffer(4);
+/*            ByteBuffer stopSignal = cacheMgr.acquireBuffer(4);
             stopSignal.putInt(0, 4);
             stopSignal.position(0);
             stopSignal.limit(4);
@@ -70,7 +70,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
             {
                 // pass
             }
-            outputEngine.getPayloadDestinationCollection().stopAllPayloadDestinations();
+*/            outputEngine.getPayloadDestinationCollection().stopAllPayloadDestinations();
         }
         else
         {
