@@ -71,6 +71,9 @@ public class SecondaryStreamConsumer implements BufferConsumer
         payloadBuffer.putLong(mbid);
         payloadBuffer.put(buf);
         payloadBuffer.flip();
+        logger.info("Created secondary stream buffer: RECL=" + recl
+                + "/REM=" + payloadBuffer.remaining()
+                + " - TYPE=" + fmtid);
         if (dbgChan != null) 
         {
             dbgChan.write(payloadBuffer);
