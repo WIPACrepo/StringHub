@@ -23,7 +23,6 @@ import org.apache.log4j.Logger;
  */
 public class SecondaryStreamConsumer implements BufferConsumer 
 {
-    private ByteBuffer stopPayload              = null;
     private HashMap<Integer, Integer> idMap     = new HashMap<Integer, Integer>();
     private PayloadTransmitChannel outputChannel= null;
     private PayloadDestinationOutputEngine outputEngine = null;
@@ -36,9 +35,6 @@ public class SecondaryStreamConsumer implements BufferConsumer
         this.outputEngine = outputEngine;
         this.outputChannel = outputEngine.lookUpEngineBySourceID(new SourceID4B(0));
         this.cacheMgr = cacheMgr;
-        stopPayload   = cacheMgr.acquireBuffer(4);
-        stopPayload.putInt(4);
-        stopPayload.flip();
         idMap.put(102, 5);
         idMap.put(202, 4);
         idMap.put(302, 16);
@@ -61,25 +57,28 @@ public class SecondaryStreamConsumer implements BufferConsumer
         if (recl == 32 && mbid == 0L) 
         {
             logger.info("Stopping payload destinations");
-            outputChannel.receiveByteBuffer(stopPayload);
-            outputEngine.getPayloadDestinationCollection().stopAllPayloadDestinations();
-            return;
+            ByteBuffer stopSignal = cacheMgr.acquireBuffer(4);
+            stopSignal.putInt(0, 4);
+            stopSignal.position(0);
+            stopSignal.limit(4);
+            outputChannel.receiveByteBuffer(stopSignal);
         }
-
-		ByteBuffer payloadBuffer = cacheMgr.acquireBuffer(recl-8);
-        payloadBuffer.putInt(recl-8);
-        payloadBuffer.putInt(idMap.get(fmtid));
-        payloadBuffer.putLong(utc);
-        payloadBuffer.putLong(mbid);
-        payloadBuffer.put(buf);
-        payloadBuffer.flip();
-        if (dbgChan != null) 
+        else
         {
-            dbgChan.write(payloadBuffer);
-            payloadBuffer.rewind();
+    		ByteBuffer payloadBuffer = cacheMgr.acquireBuffer(recl-8);
+            payloadBuffer.putInt(recl-8);
+            payloadBuffer.putInt(idMap.get(fmtid));
+            payloadBuffer.putLong(utc);
+            payloadBuffer.putLong(mbid);
+            payloadBuffer.put(buf);
+            payloadBuffer.flip();
+            if (dbgChan != null) 
+            {
+                dbgChan.write(payloadBuffer);
+                payloadBuffer.rewind();
+            }
+            outputChannel.receiveByteBuffer(payloadBuffer);
         }
-        outputChannel.receiveByteBuffer(payloadBuffer);
-	}
-
+    }
 }
 
