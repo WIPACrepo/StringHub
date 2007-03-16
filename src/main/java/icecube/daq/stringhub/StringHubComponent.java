@@ -179,7 +179,7 @@ public class StringHubComponent extends DAQComponent
         PayloadDestinationOutputEngine dataOut =
             new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "dataOut");
         dataOut.registerBufferManager(bufferManager);
-        addEngine(DAQConnector.TYPE_READOUT_DATA, dataOut);
+        addMonitoredEngine(DAQConnector.TYPE_READOUT_DATA, dataOut);
 
         IPayloadDestinationCollection dataColl = dataOut.getPayloadDestinationCollection();
         sender.setDataOutputDestination(dataColl);
@@ -194,13 +194,13 @@ public class StringHubComponent extends DAQComponent
         // Following are the payload output engines for the secondary streams
         moniPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "moniOut");
         moniPayloadDest.registerBufferManager(bufferManager);
-        addEngine(DAQConnector.TYPE_MONI_DATA, moniPayloadDest);
+        addMonitoredEngine(DAQConnector.TYPE_MONI_DATA, moniPayloadDest);
         tcalPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "tcalOut");
         tcalPayloadDest.registerBufferManager(bufferManager);
-        addEngine(DAQConnector.TYPE_TCAL_DATA, tcalPayloadDest);
+        addMonitoredEngine(DAQConnector.TYPE_TCAL_DATA, tcalPayloadDest);
         supernovaPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
         supernovaPayloadDest.registerBufferManager(bufferManager);
-        addEngine(DAQConnector.TYPE_SN_DATA, supernovaPayloadDest);
+        addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaPayloadDest);
     }
 
 	@Override
