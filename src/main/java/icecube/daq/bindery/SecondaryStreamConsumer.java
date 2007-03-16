@@ -27,14 +27,16 @@ public class SecondaryStreamConsumer implements BufferConsumer
     private HashMap<Integer, Integer> idMap     = new HashMap<Integer, Integer>();
     private PayloadTransmitChannel outputChannel= null;
     private PayloadDestinationOutputEngine outputEngine = null;
+    private IByteBufferCache cacheMgr           = null;
     private static final Logger logger          = Logger.getLogger(SecondaryStreamConsumer.class);
     private WritableByteChannel dbgChan = null;
     
-	public SecondaryStreamConsumer(int hubId, PayloadDestinationOutputEngine outputEngine)
+	public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, PayloadDestinationOutputEngine outputEngine)
     {
         this.outputEngine = outputEngine;
-        this.outputChannel = outputEngine.lookUpEngineBySourceID(new SourceID4B(0)); 
-        stopPayload   = ByteBuffer.allocate(4);
+        this.outputChannel = outputEngine.lookUpEngineBySourceID(new SourceID4B(0));
+        this.cacheMgr = cacheMgr;
+        stopPayload   = cacheMgr.acquireBuffer(4);
         stopPayload.putInt(4);
         stopPayload.flip();
         idMap.put(102, 5);
@@ -64,7 +66,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
             return;
         }
 
-		ByteBuffer payloadBuffer = ByteBuffer.allocate(recl-8);
+		ByteBuffer payloadBuffer = cacheMgr.acquireBuffer(recl-8);
         payloadBuffer.putInt(recl-8);
         payloadBuffer.putInt(idMap.get(fmtid));
         payloadBuffer.putLong(utc);

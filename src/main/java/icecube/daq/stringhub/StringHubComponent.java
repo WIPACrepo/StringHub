@@ -390,9 +390,9 @@ public class StringHubComponent extends DAQComponent
 	{
 		logger.info("Have I been configured? " + configured);
 
-		SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniPayloadDest);
-		SecondaryStreamConsumer supernovaConsumer =	new SecondaryStreamConsumer(hubId, supernovaPayloadDest);
-		SecondaryStreamConsumer tcalConsumer      =  new SecondaryStreamConsumer(hubId, tcalPayloadDest);
+		SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, bufferManager, moniPayloadDest);
+		SecondaryStreamConsumer supernovaConsumer =	new SecondaryStreamConsumer(hubId, bufferManager, supernovaPayloadDest);
+		SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId,bufferManager, tcalPayloadDest);
 
         if (Boolean.getBoolean("icecube.daq.stringhub.secondaryStream.debug"))
         {
