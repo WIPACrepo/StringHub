@@ -84,7 +84,8 @@ public class DataCollector extends AbstractDataCollector
 	private long tcalReadInterval = 1000;
 	private long lastSupernovaRead = 0;
 	private long supernovaReadInterval = 1000;
-	
+	private boolean detectLags = false;
+    
 	private int rapcalExceptionCount = 0;
 	private int validRAPCalCount;
 
@@ -591,7 +592,7 @@ public class DataCollector extends AbstractDataCollector
 					   the lastTcalUT for reference in case system clock
 					   is incorrect.
 					*/
-					if (lastDataUT != 0L && (lastTcalUT - lastDataUT > maxDataDelay)) {
+					if (detectLags && (lastDataUT != 0L) && (lastTcalUT - lastDataUT > maxDataDelay)) {
 						logger.warn("DOM data lag detected: (" + 
 									lastTcalUT + ", " +
 									lastDataUT + ").  Resetting ACQ.");
