@@ -1,5 +1,7 @@
 package icecube.daq.bindery;
 
+import icecube.daq.hkn1.Counter;
+import icecube.daq.hkn1.Node;
 import icecube.daq.util.UTC;
 
 import java.io.IOException;
