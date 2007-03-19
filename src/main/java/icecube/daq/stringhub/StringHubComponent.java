@@ -142,7 +142,7 @@ public class StringHubComponent extends DAQComponent
 	
         this.hubId = hubId;
         
-		bufferManager  = new ByteBufferCache(256, 250000000L, 200000000L, "PyrateBufferManager");
+		bufferManager  = new ByteBufferCache(64, 250000000L, 200000000L, "PyrateBufferManager");
 		addCache(bufferManager);
 		addMBean(bufferManager.getCacheName(), bufferManager);
 
