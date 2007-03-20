@@ -151,7 +151,7 @@ public class StringHubComponent extends DAQComponent
 
 		payloadFactory = new MasterPayloadFactory(bufferManager);
 		sender         = new Sender(hubId, payloadFactory);
-		isSim          = (hubId > 1000 && hubId <= 2000);
+		isSim          = (hubId >= 1000 && hubId < 2000);
 		nch            = 0;
 		
 		logger.info("starting up StringHub component " + hubId);
