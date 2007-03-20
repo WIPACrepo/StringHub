@@ -71,7 +71,9 @@ public class SimDataCollector extends AbstractDataCollector {
 		this.hitsOut = hitsOut;
 		this.moniOut = moniOut;
 		//this.tcalOut = tcalOut;
-		this.supernovaOut = supernovaOut;
+        this.tcalOut = null;
+		//this.supernovaOut = supernovaOut;
+        this.supernovaOut = null;
 		runLevel  = IDLE;
 		numHits = 0;
 		loopCounter = 0;
