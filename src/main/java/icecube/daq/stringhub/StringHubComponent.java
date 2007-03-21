@@ -416,8 +416,8 @@ public class StringHubComponent extends DAQComponent
 		try {
 			hitsBind = new StreamBinder(nch, sender, "hits");
 			moniBind = new StreamBinder(nch, monitorConsumer, "moni");
-			snBind   = new StreamBinder(nch, supernovaConsumer, "tcal");
-			tcalBind = new StreamBinder(nch, tcalConsumer, "supernova");
+			snBind   = new StreamBinder(nch, supernovaConsumer, "supernova");
+			tcalBind = new StreamBinder(nch, tcalConsumer, "tcal");
 			collectorMonitor.setBinders(hitsBind, moniBind, tcalBind, snBind);
 		} catch (IOException iox) {
 			logger.error("Error creating StreamBinder: " + iox.getMessage());
