@@ -70,8 +70,7 @@ public class SimDataCollector extends AbstractDataCollector {
 		this.numericMBID = Long.parseLong(this.mbid, 16);
 		this.hitsOut = hitsOut;
 		this.moniOut = moniOut;
-		//this.tcalOut = tcalOut;
-        this.tcalOut = null;
+		this.tcalOut = tcalOut;
 		this.supernovaOut = supernovaOut;
 		runLevel  = IDLE;
 		numHits = 0;
