@@ -206,23 +206,23 @@ public class XMLConfig extends DefaultHandler
 				else
 					currentConfig.getLC().setCableLengthUp(delayDistance - 1, Short.parseShort(text));
 			}
-			else if (localName.equals("deadtime"))
-			{
-				currentConfig.setSupernovaDeadtime(Integer.parseInt(text));
-			}
-			else if (localName.equals("disc"))
-			{
-				boolean spe;
-				if (text.equals("spe"))
-					spe = true;
-				else
-					spe = false;
-				currentConfig.setSupernovaSpe(spe);
-			}
-			else if (localName.equals("noiseRate"))
-			{
-				currentConfig.setSimNoiseRate(Double.parseDouble(text));
-			}
+        }
+		else if (localName.equals("deadtime"))
+		{
+		    currentConfig.setSupernovaDeadtime(Integer.parseInt(text));
+		}
+		else if (localName.equals("disc"))
+		{
+		    boolean spe;
+		    if (text.equals("spe"))
+		        spe = true;
+		    else
+		        spe = false;
+			currentConfig.setSupernovaSpe(spe);
+		}
+		else if (localName.equals("noiseRate"))
+		{
+			currentConfig.setSimNoiseRate(Double.parseDouble(text));
 		}
 		else if (internalState == ParserState.DOM_CONFIG)
 		{

@@ -16,13 +16,14 @@ import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
+import icecube.daq.juggler.mbean.SystemStatistics;
 import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.monitoring.DataCollectorMonitor;
 import icecube.daq.payload.ByteBufferCache;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.MasterPayloadFactory;
-import icecube.daq.sender.RequestInputEngine;
+import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
@@ -30,7 +31,9 @@ import icecube.daq.util.DeployedDOM;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.nio.channels.Pipe;
 import java.nio.channels.SelectableChannel;
 import java.util.ArrayList;
@@ -116,6 +119,7 @@ public class StringHubComponent extends DAQComponent
 
 	private static final Logger logger = Logger.getLogger(StringHubComponent.class);
 	
+    private int hubId;
 	private boolean isSim = false;
 	private Driver driver = Driver.getInstance();
 	private Sender sender;
@@ -135,16 +139,19 @@ public class StringHubComponent extends DAQComponent
 	public StringHubComponent(int hubId) throws Exception
 	{
 		super(DAQCmdInterface.DAQ_STRING_HUB, hubId);
-		
-		bufferManager  = new ByteBufferCache(256, 100000000, 100000000, "PyrateBufferManager");
+	
+        this.hubId = hubId;
+        
+		bufferManager  = new ByteBufferCache(256, 250000000L, 200000000L, "PyrateBufferManager");
 		addCache(bufferManager);
 		addMBean(bufferManager.getCacheName(), bufferManager);
 
-		addMBean("memoryStats", new MemoryStatistics());
+		addMBean("jvm", new MemoryStatistics());
+		addMBean("system", new SystemStatistics());
 
 		payloadFactory = new MasterPayloadFactory(bufferManager);
 		sender         = new Sender(hubId, payloadFactory);
-		isSim          = (hubId > 1000);
+		isSim          = (hubId > 1000 && hubId <= 2000);
 		nch            = 0;
 		
 		logger.info("starting up StringHub component " + hubId);
@@ -163,14 +170,18 @@ public class StringHubComponent extends DAQComponent
         IPayloadDestinationCollection hitColl = hitOut.getPayloadDestinationCollection();
         sender.setHitOutputDestination(hitColl);
         
-        RequestInputEngine reqIn = new RequestInputEngine(COMPONENT_NAME, hubId, "reqIn",
-                                   sender, bufferManager, payloadFactory);
+        RequestReader reqIn;
+        try {
+            reqIn = new RequestReader(COMPONENT_NAME, sender, payloadFactory);
+        } catch (IOException ioe) {
+            throw new Error("Couldn't create RequestReader", ioe);
+        }
         addMonitoredEngine(DAQConnector.TYPE_READOUT_REQUEST, reqIn);
 
         PayloadDestinationOutputEngine dataOut =
             new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "dataOut");
         dataOut.registerBufferManager(bufferManager);
-        addEngine(DAQConnector.TYPE_READOUT_DATA, dataOut);
+        addMonitoredEngine(DAQConnector.TYPE_READOUT_DATA, dataOut);
 
         IPayloadDestinationCollection dataColl = dataOut.getPayloadDestinationCollection();
         sender.setDataOutputDestination(dataColl);
@@ -185,13 +196,13 @@ public class StringHubComponent extends DAQComponent
         // Following are the payload output engines for the secondary streams
         moniPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "moniOut");
         moniPayloadDest.registerBufferManager(bufferManager);
-        addEngine(DAQConnector.TYPE_MONI_DATA, moniPayloadDest);
+        addMonitoredEngine(DAQConnector.TYPE_MONI_DATA, moniPayloadDest);
         tcalPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "tcalOut");
         tcalPayloadDest.registerBufferManager(bufferManager);
-        addEngine(DAQConnector.TYPE_TCAL_DATA, tcalPayloadDest);
+        addMonitoredEngine(DAQConnector.TYPE_TCAL_DATA, tcalPayloadDest);
         supernovaPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
         supernovaPayloadDest.registerBufferManager(bufferManager);
-        addEngine(DAQConnector.TYPE_SN_DATA, supernovaPayloadDest);
+        addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaPayloadDest);
     }
 
 	@Override
@@ -379,21 +390,28 @@ public class StringHubComponent extends DAQComponent
 	{
 		logger.info("Have I been configured? " + configured);
 
-		SecondaryStreamConsumer monitorConsumer =
-			new SecondaryStreamConsumer(payloadFactory, 
-										bufferManager, 
-										moniPayloadDest);
+		SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, bufferManager, moniPayloadDest);
+		SecondaryStreamConsumer supernovaConsumer =	new SecondaryStreamConsumer(hubId, bufferManager, supernovaPayloadDest);
+		SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId,bufferManager, tcalPayloadDest);
 
-		SecondaryStreamConsumer supernovaConsumer =
-			new SecondaryStreamConsumer(payloadFactory, 
-										bufferManager,
-										supernovaPayloadDest);
-		SecondaryStreamConsumer tcalConsumer =
-			new SecondaryStreamConsumer(payloadFactory, 
-										bufferManager,
-										tcalPayloadDest);
+        if (Boolean.getBoolean("icecube.daq.stringhub.secondaryStream.debug"))
+        {
+            try 
+            {
+                FileOutputStream moniDebug = new FileOutputStream("/tmp/moni-" + hubId + ".dat");
+                FileOutputStream tcalDebug = new FileOutputStream("/tmp/tcal-" + hubId + ".dat");
+                FileOutputStream snDebug   = new FileOutputStream("/tmp/sn-" + hubId + ".dat");
+                monitorConsumer.setDebugChannel(moniDebug.getChannel());
+                tcalConsumer.setDebugChannel(tcalDebug.getChannel());
+                supernovaConsumer.setDebugChannel(snDebug.getChannel());
+            }
+            catch (FileNotFoundException fnex)
+            {
+                throw new DAQCompException(fnex.getLocalizedMessage());
+            }
+        }    
 
-		logger.info("Created secondary stream consumers.");
+        logger.info("Created secondary stream consumers.");
 
 		try {
 			hitsBind = new StreamBinder(nch, sender, "hits");
@@ -456,24 +474,6 @@ public class StringHubComponent extends DAQComponent
 			// throw new DAQCompException(e.getMessage());
 		}
 
-        // TODO: This is a hack until real data is passing
-        //       through the moni/tcal/sn data channels
-        try {
-            moniPayloadDest.getPayloadDestinationCollection().stopAllPayloadDestinations();
-        } catch (IOException ioe) {
-            throw new DAQCompException("Couldn't stop monitoring destination", ioe);
-        }
-        try {
-            tcalPayloadDest.getPayloadDestinationCollection().stopAllPayloadDestinations();
-        } catch (IOException ioe) {
-            throw new DAQCompException("Couldn't stop tcal destination", ioe);
-        }
-        try {
-            supernovaPayloadDest.getPayloadDestinationCollection().stopAllPayloadDestinations();
-        } catch (IOException ioe) {
-            throw new DAQCompException("Couldn't stop supernova destination", ioe);
-        }
-        
         logger.info("Returning from stop.");
 	}
 

@@ -89,7 +89,8 @@ set -- $args
 #    -Dcom.sun.management.jmxremote.authenticate=false \
 #    -Dcom.sun.management.jmxremote.ssl=false \
 #    -Xdump:heap:events=user \
-java -Xmx1024m -Dicecube.daq.stringhub.componentId=$hubId \
+export JAVA_HOME=/usr/java/jdk1.5.0_07
+$JAVA_HOME/bin/java -Xmx1024m -Dicecube.daq.stringhub.componentId=$hubId \
     -Dicecube.daq.bindery.StreamBinder.prescale=1 \
     -cp "$CLASSPATH" icecube.daq.stringhub.Shell $*
 

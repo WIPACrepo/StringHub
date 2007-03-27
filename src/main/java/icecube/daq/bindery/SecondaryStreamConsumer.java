@@ -2,21 +2,17 @@
 package icecube.daq.bindery;
 
 import icecube.daq.io.PayloadDestinationOutputEngine;
+import icecube.daq.io.PayloadTransmitChannel;
 import icecube.daq.payload.IByteBufferCache;
-import icecube.daq.payload.IPayload;
 import icecube.daq.payload.MasterPayloadFactory;
-import icecube.daq.payload.SourceIdRegistry;
-import icecube.daq.payload.impl.MonitorPayloadFactory;
+import icecube.daq.payload.PayloadDestination;
 import icecube.daq.payload.impl.SourceID4B;
-import icecube.daq.payload.impl.SuperNovaPayloadFactory;
-import icecube.daq.payload.impl.TimeCalibrationPayloadFactory;
-import icecube.daq.payload.impl.UTCTime8B;
-import icecube.daq.payload.splicer.Payload;
-import icecube.daq.trigger.impl.DOMID8B;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.zip.DataFormatException;
+import java.nio.channels.WritableByteChannel;
+import java.util.HashMap;
+import java.util.Iterator;
 
 import org.apache.log4j.Logger;
 
@@ -27,45 +23,25 @@ import org.apache.log4j.Logger;
  */
 public class SecondaryStreamConsumer implements BufferConsumer 
 {
-
-	private MasterPayloadFactory				payloadFactory;
-	private IByteBufferCache					byteBufferCache;
-	private PayloadDestinationOutputEngine		payloadOutput;
-	private PayloadDestinationOutputEngine		tcalOutputEngine;
-	private PayloadDestinationOutputEngine		supernovaOutputEngine;
-
-	private final Payload                stopPayload = null;
-
-	private static final Logger logger = Logger.getLogger(SecondaryStreamConsumer.class);
-
-	public SecondaryStreamConsumer(MasterPayloadFactory payloadFactory, 
-								   IByteBufferCache byteBufferCache,
-								   PayloadDestinationOutputEngine output)
+    private HashMap<Integer, Integer> idMap     = new HashMap<Integer, Integer>();
+    private PayloadTransmitChannel outputChannel= null;
+    private PayloadDestinationOutputEngine outputEngine = null;
+    private IByteBufferCache cacheMgr           = null;
+    private static final Logger logger          = Logger.getLogger(SecondaryStreamConsumer.class);
+    private WritableByteChannel dbgChan = null;
+    
+	public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, PayloadDestinationOutputEngine outputEngine)
     {
-		this.payloadFactory  = payloadFactory;
-		this.byteBufferCache = byteBufferCache;
-		this.payloadOutput   = output;
-
-		/*
-
-		ByteBuffer buffer = ByteBuffer.allocate(4);
-		buffer.putInt(0, 4);
-		try {
-			stopPayload = payloadFactory.createPayload(0, buffer);	
-		} catch (IOException iox) {
-			iox.printStackTrace();
-			logger.error("error on construction: " + iox.getMessage());
-			throw new IllegalStateException(iox);
-		} catch (DataFormatException dfx) {
-			dfx.printStackTrace();
-			logger.error("error on construction: " + dfx.getMessage());
-			throw new IllegalStateException(dfx);
-		}
-
-		*/
+        this.outputEngine = outputEngine;
+        this.outputChannel = outputEngine.lookUpEngineBySourceID(new SourceID4B(0));
+        this.cacheMgr = cacheMgr;
+        idMap.put(102, 5);
+        idMap.put(202, 4);
+        idMap.put(302, 16);
 	}
 
-	
+	public void setDebugChannel(WritableByteChannel ch) { dbgChan = ch; }
+    
 	/**
 	 * We are assuming that this consumes buffers which adhaere to
 	 * the TestDAQ standard 32-byte 'iiq8xq' header.
@@ -78,74 +54,40 @@ public class SecondaryStreamConsumer implements BufferConsumer
 		buf.position(buf.position() + 8);
 		long utc  = buf.getLong();
 
-		logger.debug("Consuming rec length = " + recl + " type = " + fmtid +
-					" mbid = " + String.format("%012x", mbid) + 
-					" utc = " +  utc);
-		
-		DOMID8B domId   = new DOMID8B(mbid);
-		UTCTime8B utcTime = new UTCTime8B(utc);
-
-		if (recl == 32 && mbid == 0L) {
-			logger.info("Stopping payload destinations");
-			//payloadOutput.getPayloadDestinationCollection().writePayload(stopPayload);
-			payloadOutput.getPayloadDestinationCollection().stopAllPayloadDestinations();
-			return;
-		}
-
-		Payload payload = null;
-		try 
-		{
-			ByteBuffer payload_buffer = null;
-			switch (fmtid)
-			{
-			case 102: // Monitor record
-				payload_buffer = MonitorPayloadFactory.createFormattedBufferFromDomHubRecord(
-						byteBufferCache, domId, buf.position(), buf, utcTime
-					);
-				logger.debug("Created MonitorPayload: RECL = " + 
-							 payload_buffer.getInt(0) + " TYPE = " +
-							 payload_buffer.getInt(4));
-				if (payload_buffer != null)
-					payload = payloadFactory.createPayload(0, payload_buffer);
-				if (payload != null)
-					payloadOutput.getPayloadDestinationCollection().writePayload(payload);
-				break;
-			case 202: // TCAL record
-				payload_buffer = TimeCalibrationPayloadFactory.createFormattedBufferFromDomHubRecord
-					(
-					 byteBufferCache, domId, buf.position(), buf, utcTime
-					);
-				logger.debug("Created TcalPayload: RECL = " + 
-							 payload_buffer.getInt(0) + " TYPE = " +
-							 payload_buffer.getInt(4));
-				if (payload_buffer != null)
-					payload = payloadFactory.createPayload(0, payload_buffer);
-				if (payload != null)
-					payloadOutput.getPayloadDestinationCollection().writePayload(payload);
-				break;
-			case 302: // Supernova record
-				payload_buffer = SuperNovaPayloadFactory.createFormattedBufferFromDomHubRecord(
-						byteBufferCache, domId,	buf.position(), buf, utcTime
-					);
-				logger.debug("Created SupernovaPayload: RECL = " + 
-							 payload_buffer.getInt(0) + " TYPE = " +
-							 payload_buffer.getInt(4));
-				if (payload_buffer != null)
-					payload = payloadFactory.createPayload(0, payload_buffer);
-				if (payload != null)
-					payloadOutput.getPayloadDestinationCollection().writePayload(payload);
-				break;
-			}
-		}
-		catch (DataFormatException dfx)
-		{
-			logger.warn(dfx.getMessage());
-		}
-		if (payload != null) {
-			payload.recycle();
-		}
-		// Update the buffer - skip over the TD header
-		buf.position(buf.position() + recl - 32);
-	}
-
+        if (recl == 32 && mbid == 0L) 
+        {
+            logger.info("Stopping payload destinations");
+/*            ByteBuffer stopSignal = cacheMgr.acquireBuffer(4);
+            stopSignal.putInt(0, 4);
+            stopSignal.position(0);
+            stopSignal.limit(4);
+            outputChannel.receiveByteBuffer(stopSignal);
+            try
+            {
+                Thread.sleep(100);
+            }
+            catch (InterruptedException intx)
+            {
+                // pass
+            }
+*/            outputEngine.getPayloadDestinationCollection().stopAllPayloadDestinations();
+        }
+        else
+        {
+    		ByteBuffer payloadBuffer = cacheMgr.acquireBuffer(recl-8);
+            payloadBuffer.putInt(recl-8);
+            payloadBuffer.putInt(idMap.get(fmtid));
+            payloadBuffer.putLong(utc);
+            payloadBuffer.putLong(mbid);
+            payloadBuffer.put(buf);
+            payloadBuffer.flip();
+            if (dbgChan != null) 
+            {
+                dbgChan.write(payloadBuffer);
+                payloadBuffer.rewind();
+            }
+            outputChannel.receiveByteBuffer(payloadBuffer);
+        }
+    }
 }
+

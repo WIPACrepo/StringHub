@@ -60,8 +60,8 @@ public class SimDataCollector extends AbstractDataCollector {
 	public SimDataCollector(DOMChannelInfo chanInfo, 
 			WritableByteChannel hitsOut,
 			WritableByteChannel moniOut,
-			WritableByteChannel tcalOut,
-			WritableByteChannel supernovaOut)
+            WritableByteChannel supernovaOut,
+			WritableByteChannel tcalOut)
 	{
 		this.mbid = chanInfo.mbid;
 		this.card = chanInfo.card;
@@ -69,23 +69,48 @@ public class SimDataCollector extends AbstractDataCollector {
 		this.dom  = chanInfo.dom;
 		this.numericMBID = Long.parseLong(this.mbid, 16);
 		this.hitsOut = hitsOut;
-		//this.moniOut = moniOut;
+		this.moniOut = moniOut;
 		//this.tcalOut = tcalOut;
-		//this.supernovaOut = supernovaOut;
-		this.moniOut = null;
-		this.tcalOut = null;
-		this.supernovaOut = null;
+		this.supernovaOut = supernovaOut;
 		runLevel  = IDLE;
 		numHits = 0;
 		loopCounter = 0;
 	}
 
-	public void close() { }
+	public void close() 
+    { 
+        try 
+        {
+            if (hitsOut != null) {
+                hitsOut.close();
+                hitsOut = null;
+            }
+            if (moniOut != null) {
+                moniOut.close();
+                moniOut = null;
+            }
+            if (tcalOut != null) {
+                tcalOut.close();
+                tcalOut = null;
+            }
+            if (supernovaOut != null) {
+                supernovaOut.close();
+                supernovaOut = null;
+            }
+        } 
+        catch (IOException iox) 
+        {
+            iox.printStackTrace();
+            logger.error("Error closing pipe sinks: " + iox.getMessage());
+        }        
+    }
 
 	public void setConfig(DOMConfiguration config) 
 	{
 	    this.rate = config.getSimNoiseRate();
+        logger.info("Setting simDOM noise rate to " + rate);
         this.pulserRate = config.getPulserRate();
+        logger.info("Setting simDOM pulser rate to " + pulserRate);
 	}
 
 	public void signalConfigure() 
@@ -136,15 +161,31 @@ public class SimDataCollector extends AbstractDataCollector {
 	public void signalShutdown() 
 	{
 		logger.info("Shutting down data collector [" + card + "" + pair + "" + dom + "]");
-		stopRunLoop = true;
+		setRunStopFlag(true);
 	}
+    
+    public synchronized void setRunStopFlag(boolean val)
+    {
+        stopRunLoop = val;
+    }
+    
+    public synchronized boolean keepRunning()
+    {
+        return !stopRunLoop;
+    }
 	
-	@Override 
+    
+    @Override 
 	public void run()
 	{
-		stopRunLoop = false;
-		
+		setRunStopFlag(false);
+
+        logger.info("Entering run loop.");
+        
 		runCore();
+        
+        logger.info("Exited runCore() loop.");
+        
 		try
 		{
 			if (hitsOut != null) hitsOut.write(StreamBinder.endOfStream());
@@ -178,7 +219,7 @@ public class SimDataCollector extends AbstractDataCollector {
 			// Simulate the device open latency
 			Thread.sleep(1400);
 
-			while (!stopRunLoop)
+			while (keepRunning())
 			{
 				boolean needSomeSleep = true;
 
@@ -188,7 +229,8 @@ public class SimDataCollector extends AbstractDataCollector {
 				{
 					// Simulate configure time
 					Thread.sleep(500);
-					setRunLevel(2);
+					setRunLevel(CONFIGURED);
+                    logger.info("DOM is now configured.");
 				}
 				else if (queryDaqRunLevel() == STARTING)
 				{
@@ -206,7 +248,8 @@ public class SimDataCollector extends AbstractDataCollector {
 				{
 					long currTime = System.currentTimeMillis();
 					int nHits = generateHits(currTime);
-					int nMoni = generateMoni(currTime);
+					generateMoni(currTime);
+                    generateSupernova(currTime);
 					if (nHits > 0) needSomeSleep = false; 
 				}
 				else if (queryDaqRunLevel() == STOPPING)
@@ -240,7 +283,42 @@ public class SimDataCollector extends AbstractDataCollector {
 		
 	}
 	
-	/**
+	private int generateSupernova(long currTime) throws IOException {
+        if (currTime - lastSupernova < 1000L) return 0;
+        // Simulate SN wrap-around
+        if (currTime - lastSupernova > 10000L) lastSupernova = currTime - 10000L;
+        int dtms = (int) (currTime - lastSupernova);
+        int nsn = dtms * 10000 / 16384;
+        lastSupernova = currTime;
+        short recl = (short) (10 + nsn);
+        ByteBuffer buf = ByteBuffer.allocate(recl+32);
+        long utc = (currTime - t0) * 10000000L;
+        long clk = utc / 500L;
+	    buf.putInt(recl+32);
+        buf.putInt(302);
+        buf.putLong(numericMBID);
+        buf.putLong(0L);
+        buf.putLong(utc);
+        buf.putShort(recl);
+        buf.putShort((short) 300);
+        buf.put((byte) ((clk >> 40) & 0xff));
+        buf.put((byte) ((clk >> 32) & 0xff));
+        buf.put((byte) ((clk >> 24) & 0xff));
+        buf.put((byte) ((clk >> 16) & 0xff));
+        buf.put((byte) ((clk >>  8) & 0xff));
+        buf.put((byte) clk);
+        for (int i = 0; i < nsn; i++)
+        {
+            int scaler = poissonRandom.nextInt(300 * 0.0016384);
+            if (scaler > 15) scaler = 15;
+            buf.put((byte) scaler);
+        }
+        buf.flip();
+        if (supernovaOut != null) supernovaOut.write(buf); 
+        return 1;
+    }
+
+    /**
 	 * Contains all the yucky hit generation logic
 	 * @return number of hits generated in the time interval
 	 */
