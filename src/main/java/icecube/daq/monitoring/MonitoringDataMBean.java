@@ -143,7 +143,7 @@ public interface MonitoringDataMBean
      *
      * @return num readouts sent
      */
-    //long getNumReadoutsSent();
+    long getNumReadoutsSent();
 
     /**
      * Get number of recycled payloads.
