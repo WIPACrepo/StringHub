@@ -19,14 +19,14 @@ import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
 import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.monitoring.DataCollectorMonitor;
-import icecube.daq.payload.ByteBufferCache;
-import icecube.daq.payload.IByteBufferCache;
-import icecube.daq.payload.IPayloadDestinationCollection;
-import icecube.daq.payload.MasterPayloadFactory;
+import icecube.daq.payload.*;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
+import icecube.daq.trigger.control.StringTriggerHandler;
+import icecube.daq.trigger.control.IStringTriggerHandler;
+import icecube.daq.trigger.impl.TriggerRequestPayloadFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -136,12 +136,16 @@ public class StringHubComponent extends DAQComponent
 	private int nch;
 	private DataCollectorMonitor collectorMonitor;
 
-	public StringHubComponent(int hubId) throws Exception
+    private boolean enableTriggering = false;
+    private IStringTriggerHandler triggerHandler;
+
+    public StringHubComponent(int hubId) throws Exception
 	{
 		super(DAQCmdInterface.DAQ_STRING_HUB, hubId);
 	
         this.hubId = hubId;
-        
+        final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
+
 		bufferManager  = new ByteBufferCache(64, 250000000L, 200000000L, "PyrateBufferManager");
 		addCache(bufferManager);
 		addMBean(bufferManager.getCacheName(), bufferManager);
@@ -155,19 +159,34 @@ public class StringHubComponent extends DAQComponent
 		nch            = 0;
 		
 		logger.info("starting up StringHub component " + hubId);
-		
-        final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
-        PayloadDestinationOutputEngine hitOut =
-            new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "hitOut");
-        hitOut.registerBufferManager(bufferManager);
-		
-		// Rule is component xx80 - xx99 -> icetop
-		if ((hubId % 100) > 80) 
-			addEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
-        else
-			addEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
 
-        IPayloadDestinationCollection hitColl = hitOut.getPayloadDestinationCollection();
+        // Setup the output engine
+        PayloadDestinationOutputEngine hitOut = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "hitOut");
+        hitOut.registerBufferManager(bufferManager);
+
+        // Rule is component xx80 - xx99 -> icetop
+        if ((hubId % 100) > 80)
+            addEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
+        else
+            addEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
+
+        // Check if triggering is enabled
+        IPayloadDestinationCollection hitColl;
+        if (enableTriggering) {
+            ISourceID sourceId = SourceIdRegistry.getISourceIDFromNameAndId(COMPONENT_NAME, hubId);
+            triggerHandler = new StringTriggerHandler(sourceId);
+            triggerHandler.setMasterPayloadFactory(payloadFactory);
+            triggerHandler.setPayloadDestinationCollection(hitOut.getPayloadDestinationCollection());
+
+            // This is the output of the Sender
+            IPayloadDestination payloadDestination = new ByteBufferPayloadDestination(triggerHandler, bufferManager);
+            hitColl = new PayloadDestinationCollection(payloadDestination);
+        } else {
+
+            // This is the output of the Sender
+            hitColl = hitOut.getPayloadDestinationCollection();
+        }
+
         sender.setHitOutputDestination(hitColl);
         
         RequestReader reqIn;
