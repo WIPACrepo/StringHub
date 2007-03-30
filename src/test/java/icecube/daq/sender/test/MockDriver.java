@@ -7,7 +7,6 @@ import icecube.daq.dor.TimeCalib;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
 
 class MockDriver
     implements IDriver
@@ -70,40 +69,6 @@ class MockDriver
 
     public void softboot(int card, int pair, char dom)
         throws IOException
-    {
-        // do nothing
-    }
-    
-    public void commReset(int card, int pair, char dom)
-    {
-        // do nothing here too!
-    }
-
-    public String getComstat(int card, int pair, char dom)
-        throws IOException
-    {
-        return "";
-    }
-
-    public void resetComstat(int card, int pair, char dom)
-        throws IOException
-    {
-        // do nothing
-    }
-
-    public String getFPGARegs(int card)
-        throws IOException
-    {
-        return "";
-    }
-
-    public HashMap<String, Integer> getFPGARegisters(int card) throws IOException
-    {
-        // TODO Auto-generated method stub
-        return new HashMap<String, Integer>();
-    }
-
-    public void setBlocking(boolean block) throws IOException
     {
         // do nothing
     }

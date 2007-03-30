@@ -249,7 +249,7 @@ class RequestGenerator
         buf.checkOffset(PAYLOAD_ENVELOPE_SIZE);
 
         final int globalRequestType =
-            IReadoutRequestElement.READOUT_TYPE_GLOBAL;
+            IReadoutRequestElement.READOUT_TYPE_IIIT_GLOBAL;
 
         // readout request header
         buf.addShort(globalRequestType);

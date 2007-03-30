@@ -6,15 +6,14 @@ public class DOMConfiguration implements Serializable
 {
 	private static final long serialVersionUID = 2L;
 
-	private int hardwareMonitorInterval = 30*40000000;
+	private int hardwareMonitorInterval = 1000000000;
 	private int configMonitorInterval = 2000000000;
-	private int fastMonitorInterval   = 40000000;
 	private TriggerMode triggerMode = TriggerMode.SPE;
 	private boolean compressionEnabled = false;
 	private EngineeringRecordFormat engFormat = new EngineeringRecordFormat();
 	private short[] dacs = new short[] { 
-			850, 2300,  350, 2250,  850, 2300,  350, 2130,
-			600,  560,  800,    0, 1023,  800,  450, 1023,
+			850, 2300,  350, 2250,  850, 2300, 350, 2130,
+			600,  560,  800,    0, 1023,    0,   0,    0
 			};
 	private MuxState mux = MuxState.OFF;
 	private short pmt_hv = -1;
@@ -28,36 +27,6 @@ public class DOMConfiguration implements Serializable
 	private boolean pedestalSubtract = false;
 	private boolean simulation = false;
 	private double simNoiseRate = 25.0;
-	
-	public DOMConfiguration()
-	{
-	    
-	}
-	
-	/**
-	 * Copy constructor
-	 */
-	public DOMConfiguration(DOMConfiguration c)
-	{
-	    this.hardwareMonitorInterval = c.hardwareMonitorInterval;
-	    this.compressionEnabled = c.compressionEnabled;
-	    this.configMonitorInterval = c.configMonitorInterval;
-	    this.dacs = c.dacs;
-	    this.engFormat = c.engFormat;
-	    this.lc = c.lc;
-	    this.mux = c.mux;
-	    this.pedestalSubtract = c.pedestalSubtract;
-	    this.pmt_hv = c.pmt_hv;
-	    this.pulserMode = c.pulserMode;
-	    this.pulserRate = c.pulserRate;
-	    this.scalerDeadtime = c.scalerDeadtime;
-	    this.simNoiseRate = c.simNoiseRate;
-	    this.simulation = c.simulation;
-	    this.supernovaDeadtime = c.supernovaDeadtime;
-	    this.supernovaEnabled = c.supernovaEnabled;
-	    this.supernovaSpe = c.supernovaSpe;
-	    this.triggerMode  = c.triggerMode;
-	}
 	
 	/**
 	 * Turn on delta compression in the DOM.  Calling this function
@@ -193,16 +162,6 @@ public class DOMConfiguration implements Serializable
 	 */
 	public void setHardwareMonitorInterval(int hardwareMonitorInterval) {
 		this.hardwareMonitorInterval = hardwareMonitorInterval;
-	}
-	
-	public int getFastMonitorInterval() 
-	{
-	    return fastMonitorInterval;
-	}
-	
-	public void setFastMonitorInterval(int fastIval)
-	{
-	    fastMonitorInterval = fastIval;
 	}
 	
 	/**

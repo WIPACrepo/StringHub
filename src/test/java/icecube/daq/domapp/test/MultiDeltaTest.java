@@ -26,7 +26,7 @@ import org.apache.log4j.Logger;
  * @author krokodil
  *
  */
-public class MultiDeltaTestApp 
+public class MultiDeltaTest 
 {
 	private short[] fadcRaw;
 	private short[][] atwdRaw;
@@ -45,13 +45,13 @@ public class MultiDeltaTestApp
 		buf.order(ByteOrder.LITTLE_ENDIAN);
 		while (buf.remaining() > 0)
 		{
-			MultiDeltaTestApp test = new MultiDeltaTestApp(buf);
+			MultiDeltaTest test = new MultiDeltaTest(buf);
 			if (test.check())
 				System.err.println("Buffer validated.");
 		}
 	}
 	
-	private MultiDeltaTestApp(ByteBuffer buf)
+	private MultiDeltaTest(ByteBuffer buf)
 	{
 		// allocate memory
 		fadcRaw = new short[256];

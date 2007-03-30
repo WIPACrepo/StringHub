@@ -55,8 +55,7 @@ public class DOMIO {
 	 */
 	public int send(ByteBuffer buf) throws IOException {
 		int nw = channel.write(buf);
-        if (logger.isDebugEnabled())
-            logger.debug("ch=(" + card + ", " + pair + ", " + dom + ") xmit " + nw + " bytes to DOM.");
+		logger.debug("ch=(" + card + ", " + pair + ", " + dom + ") xmit " + nw + " bytes to DOM.");
 		return nw;
 	}
 	
@@ -68,11 +67,8 @@ public class DOMIO {
 	 */
 	public ByteBuffer recv() throws IOException {
 		in.clear();
-		
-	    int nr = channel.read(in);
-		
-        if (logger.isDebugEnabled())
-            logger.debug("ch=(" + card + ", " + pair + ", " + dom + ") read " + nr + " bytes from DOM.");
+		int nr = channel.read(in);
+		logger.debug("ch=(" + card + ", " + pair + ", " + dom + ") read " + nr + " bytes from DOM.");
 		in.flip();
 		return in;
 	}

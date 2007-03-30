@@ -85,7 +85,7 @@ public class DataCollectorMonitor implements DataCollectorMonitorMBean
 		String[] lev = new String[n];
 		int i=0;
 		for (AbstractDataCollector adc : collectors)
-			lev[i++] = adc.getRunLevel().toString();
+			lev[i++] = adc.getRunLevel();
 		return lev;
 	}
 	

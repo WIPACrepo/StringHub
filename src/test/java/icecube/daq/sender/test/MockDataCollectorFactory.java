@@ -74,7 +74,7 @@ public class MockDataCollectorFactory
             new MockDOMApp(mbId, simulationTime, rate);
 
         DataCollector dc
-            = new DataCollector(chInfo.card, chInfo.pair, chInfo.dom, null,
+            = new DataCollector(chInfo.card, chInfo.pair, chInfo.dom,
                                 hitChan, moniChan, snChan, tcalChan,
                                 new MockDriver(), new MockRAPCal(), da);
 

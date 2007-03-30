@@ -3,9 +3,9 @@ package icecube.daq.stringhub;
 import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.juggler.component.DAQCompServer;
 import icecube.daq.juggler.component.DAQComponent;
+import icecube.daq.payload.ByteBufferCache;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.MasterPayloadFactory;
-import icecube.daq.payload.VitreousBufferCache;
 
 public class MockTriggerBridge extends DAQComponent {
 
@@ -17,7 +17,7 @@ public class MockTriggerBridge extends DAQComponent {
 	{
 		super(DAQCmdInterface.DAQ_GLOBAL_TRIGGER, 0);
 		
-		genericCacheManager = new VitreousBufferCache();
+		genericCacheManager = new ByteBufferCache(256, 10000000, 10000000, "TriggerCacheManager");
 		addCache(genericCacheManager);
 		
 		masterPayloadFactory = new MasterPayloadFactory(genericCacheManager);

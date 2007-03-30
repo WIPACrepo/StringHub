@@ -60,11 +60,7 @@ public enum MessageType {
 		this.subtype  = (byte) subtype;
 	}
 	
-	public byte getFacility() { return facility; }
-	public byte getSubtype() { return subtype; }
-	public boolean equals(byte type, byte subtype)
-	{
-	    return this.facility == type && this.subtype == subtype;
-	}
+	byte getFacility() { return facility; }
+	byte getSubtype() { return subtype; }
 	
 }

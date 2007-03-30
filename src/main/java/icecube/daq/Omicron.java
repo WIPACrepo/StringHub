@@ -5,7 +5,6 @@ import icecube.daq.bindery.StreamBinder;
 import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.DataCollector;
-import icecube.daq.domapp.RunLevel;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
 
@@ -85,12 +84,14 @@ public class Omicron {
 			Pipe pipe = Pipe.open();
 			FileOutputStream fOutMoni = new FileOutputStream(outputBaseName + "-" + chInfo.mbid + ".moni");
 			DataCollector dc = new DataCollector(
-					chInfo.card, chInfo.pair, chInfo.dom, config, 
+					chInfo.card, chInfo.pair, chInfo.dom, 
 					pipe.sink(), fOutMoni.getChannel(), null, null
 					);
 			bind.register(pipe.source(), cwd);
+			dc.setConfig(config);
 			collectors.add(dc);
 			logger.debug("Starting new DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ").");
+			dc.start();
 			logger.debug("DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ") started.");
 		}
 		
@@ -101,7 +102,7 @@ public class Omicron {
 		
 		// wait about 1.5 sec for DOMs to open up
 		logger.info("Sleeping for DOM devfile open");
-		Thread.sleep(10000);
+		Thread.sleep(1500);
 		
 		// List of objects that need removal
 		ArrayList<DataCollector> reaper = new ArrayList<DataCollector>();
@@ -139,12 +140,12 @@ public class Omicron {
 			}
 			else
 			{
-				while (!dc.getRunLevel().equals(RunLevel.CONFIGURED) && System.currentTimeMillis() - t0 < 15000L)
+				while (dc.queryDaqRunLevel() != 2 && System.currentTimeMillis() - t0 < 10000L)
 				{
 					logger.debug("Waiting of DC " + dc.getName() + " to configure.");
 					Thread.sleep(500);
 				}
-				if (!dc.getRunLevel().equals(RunLevel.CONFIGURED))
+				if (dc.queryDaqRunLevel() != 2)
 				{
 					logger.warn("Collector " + dc.getName() + " stuck configuring: coup de grace.");
 					dc.interrupt();
@@ -176,7 +177,7 @@ public class Omicron {
 		}
 		
 		for (DataCollector dc : collectors) {
-			while (dc.isAlive() && !dc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(100);
+			while (dc.isAlive() && dc.queryDaqRunLevel() != 2) Thread.sleep(100);
 			dc.signalShutdown();
 		}
 
