@@ -10,56 +10,56 @@ public interface MonitoringDataMBean
      *
      * @return average hits per readout
      */
-    long getAverageHitsPerReadout();
+    //long getAverageHitsPerReadout();
 
     /**
      * Get back-end timing profile.
      *
      * @return back end timing
      */
-    String getBackEndTiming();
+    //String getBackEndTiming();
 
     /**
      * Get current rate of hits per second.
      *
      * @return hits per second
      */
-    double getHitsPerSecond();
+    //double getHitsPerSecond();
 
     /**
      * Get the time of the most recently queued hit.
      *
      * @return latest time
      */
-    long getLatestHitTime();
+    //long getLatestHitTime();
 
     /**
      * Get the end time of the most recent readout data payload.
      *
      * @return latest readout data end time
      */
-    long[] getLatestReadoutTimes();
+    //long[] getLatestReadoutTimes();
 
     /**
      * Get number of hits which could not be loaded.
      *
      * @return num bad hits
      */
-    long getNumBadHits();
+    //long getNumBadHits();
 
     /**
      * Number of readout requests which could not be loaded.
      *
      * @return num bad readout requests
      */
-    long getNumBadReadoutRequests();
+    //long getNumBadReadoutRequests();
 
     /**
      * Get number of passes through the main loop without a request.
      *
      * @return num empty loops
      */
-    long getNumEmptyLoops();
+    //long getNumEmptyLoops();
 
     /**
      * Get number of hits cached for readout being built
@@ -73,7 +73,7 @@ public interface MonitoringDataMBean
      *
      * @return num hits discarded
      */
-    long getNumHitsDiscarded();
+    //long getNumHitsDiscarded();
 
     /**
      * Get number of hits queued for processing.
@@ -94,21 +94,21 @@ public interface MonitoringDataMBean
      *
      * @return num null hits
      */
-    long getNumNullHits();
+    //long getNumNullHits();
 
     /**
      * Get number of readouts which could not be created.
      *
      * @return num null readouts
      */
-    long getNumNullReadouts();
+    //long getNumNullReadouts();
 
     /**
      * Number of readout requests dropped while stopping.
      *
      * @return num readout requests dropped
      */
-    long getNumReadoutRequestsDropped();
+    //long getNumReadoutRequestsDropped();
 
     /**
      * Number of readout requests currectly queued for processing.
@@ -129,14 +129,14 @@ public interface MonitoringDataMBean
      *
      * @return num readouts failed
      */
-    long getNumReadoutsFailed();
+    //long getNumReadoutsFailed();
 
     /**
      * Get number of empty readouts which were ignored.
      *
      * @return num readouts ignored
      */
-    long getNumReadoutsIgnored();
+    //long getNumReadoutsIgnored();
 
     /**
      * Get number of readouts sent.
@@ -150,96 +150,12 @@ public interface MonitoringDataMBean
      *
      * @return num recycled
      */
-    long getNumRecycled();
+    //long getNumRecycled();
 
     /**
      * Get number of hits not used for a readout.
      *
      * @return num unused hits
      */
-    long getNumUnusedHits();
-
-    /**
-     * Get current rate of readout requests per second.
-     *
-     * @return readout requests per second
-     */
-    double getReadoutRequestsPerSecond();
-
-    /**
-     * Get current rate of readouts per second.
-     *
-     * @return readouts per second
-     */
-    double getReadoutsPerSecond();
-
-    /**
-     * Get total number of hits which could not be loaded since last reset.
-     *
-     * @return total bad hits
-     */
-    long getTotalBadHits();
-
-    /**
-     * Total number of stop messages received from the splicer.
-     *
-     * @return total data stops received
-     */
-    long getTotalDataStopsReceived();
-
-    /**
-     * Total number of hits thrown away since last reset.
-     *
-     * @return total hits discarded
-     */
-    long getTotalHitsDiscarded();
-
-    /**
-     * Total number of hits received since last reset.
-     *
-     * @return total hits received
-     */
-    long getTotalHitsReceived();
-
-    /**
-     * Total number of readout requests received since the last reset.
-     *
-     * @return total readout requests received
-     */
-    long getTotalReadoutRequestsReceived();
-
-    /**
-     * Total number of readouts since last reset which could not be sent.
-     *
-     * @return total readouts failed
-     */
-    long getTotalReadoutsFailed();
-
-    /**
-     * Total number of empty readouts which were ignored since the last reset.
-     *
-     * @return total readouts ignored
-     */
-    long getTotalReadoutsIgnored();
-
-    /**
-     * Total number of readouts sent since last reset.
-     *
-     * @return total readouts sent
-     */
-    long getTotalReadoutsSent();
-
-    /**
-     * Total number of stop messages received from the event builder.
-     *
-     * @return total request stops received
-     */
-    long getTotalRequestStopsReceived();
-
-    /**
-     * Total number of stop messages sent to the string processors
-     *
-     * @return total stops sent
-     */
-    long getTotalStopsSent();
+    //long getNumUnusedHits();
 }

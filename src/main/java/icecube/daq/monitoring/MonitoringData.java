@@ -17,20 +17,6 @@ public class MonitoringData
     }
 
     /**
-     * Get average number of hits per readout.
-     *
-     * @return average hits per readout
-     */
-    public long getAverageHitsPerReadout()
-    {
-        if (sender == null) {
-            return 0;
-        }
-
-        return sender.getAverageHitsPerReadout();
-    }
-
-    /**
      * Get back-end timing profile.
      *
      * @return back end timing
@@ -42,20 +28,6 @@ public class MonitoringData
         }
 
         return sender.getBackEndTiming();
-    }
-
-    /**
-     * Get current rate of hits per second.
-     *
-     * @return hits per second
-     */
-    public double getHitsPerSecond()
-    {
-        if (sender == null) {
-            return 0.0;
-        }
-
-        return sender.getHitsPerSecond();
     }
 
     /**
@@ -325,34 +297,6 @@ public class MonitoringData
     }
 
     /**
-     * Get current rate of readout requests per second.
-     *
-     * @return readout requests per second
-     */
-    public double getReadoutRequestsPerSecond()
-    {
-        if (sender == null) {
-            return 0.0;
-        }
-
-        return sender.getReadoutRequestsPerSecond();
-    }
-
-    /**
-     * Get current rate of readouts per second.
-     *
-     * @return readouts per second
-     */
-    public double getReadoutsPerSecond()
-    {
-        if (sender == null) {
-            return 0.0;
-        }
-
-        return sender.getReadoutsPerSecond();
-    }
-
-    /**
      * Get total number of hits which could not be loaded since last reset.
      *
      * @return total bad hits
@@ -514,10 +458,7 @@ public class MonitoringData
         if (sender == null) {
             buf.append("\n  No sender monitoring data available");
         } else {
-            buf.append("\n  averageHitsPerReadout ").
-                append(getAverageHitsPerReadout());
             buf.append("\n  backEndTiming ").append(getBackEndTiming());
-            buf.append("\n  hitsPerSecond ").append(getHitsPerSecond());
             buf.append("\n  numBadHits ").append(getNumBadHits());
             buf.append("\n  numBadReadoutRequests ").
                 append(getNumBadReadoutRequests());
@@ -541,10 +482,6 @@ public class MonitoringData
             buf.append("\n  numReadoutsSent ").append(getNumReadoutsSent());
             buf.append("\n  numRecycled ").append(getNumRecycled());
             buf.append("\n  numUnusedHits ").append(getNumUnusedHits());
-            buf.append("\n  readoutRequestsPerSecond ").
-                append(getReadoutRequestsPerSecond());
-            buf.append("\n  readoutsPerSecond ").
-                append(getReadoutsPerSecond());
             buf.append("\n  totBadHits ").append(getTotalBadHits());
             buf.append("\n  totDataStopsRcvd ").
                 append(getTotalDataStopsReceived());

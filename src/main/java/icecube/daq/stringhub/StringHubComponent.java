@@ -142,7 +142,7 @@ public class StringHubComponent extends DAQComponent
 	
         this.hubId = hubId;
         
-		bufferManager  = new ByteBufferCache(256, 250000000L, 200000000L, "PyrateBufferManager");
+		bufferManager  = new ByteBufferCache(64, 250000000L, 200000000L, "PyrateBufferManager");
 		addCache(bufferManager);
 		addMBean(bufferManager.getCacheName(), bufferManager);
 
@@ -151,7 +151,7 @@ public class StringHubComponent extends DAQComponent
 
 		payloadFactory = new MasterPayloadFactory(bufferManager);
 		sender         = new Sender(hubId, payloadFactory);
-		isSim          = (hubId > 1000 && hubId <= 2000);
+		isSim          = (hubId >= 1000 && hubId < 2000);
 		nch            = 0;
 		
 		logger.info("starting up StringHub component " + hubId);
@@ -416,8 +416,8 @@ public class StringHubComponent extends DAQComponent
 		try {
 			hitsBind = new StreamBinder(nch, sender, "hits");
 			moniBind = new StreamBinder(nch, monitorConsumer, "moni");
-			snBind   = new StreamBinder(nch, supernovaConsumer, "tcal");
-			tcalBind = new StreamBinder(nch, tcalConsumer, "supernova");
+			snBind   = new StreamBinder(nch, supernovaConsumer, "supernova");
+			tcalBind = new StreamBinder(nch, tcalConsumer, "tcal");
 			collectorMonitor.setBinders(hitsBind, moniBind, tcalBind, snBind);
 		} catch (IOException iox) {
 			logger.error("Error creating StreamBinder: " + iox.getMessage());
