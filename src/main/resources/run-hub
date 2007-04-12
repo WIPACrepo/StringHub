@@ -46,7 +46,7 @@ done
 
 for lib in ${REQ_LIBS}; do
   jar=
-  for i in `find ${REPO_DIR} -name ${lib}\*.jar`; do
+  for i in `find ${REPO_DIR} -name "${lib}-[0-9]*.jar" | sort`; do
     jar="$i"
   done
   if [ -f "$jar" ]; then
