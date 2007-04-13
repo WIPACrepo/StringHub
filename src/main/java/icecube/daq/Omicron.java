@@ -102,7 +102,7 @@ public class Omicron {
 		
 		// wait about 1.5 sec for DOMs to open up
 		logger.info("Sleeping for DOM devfile open");
-		Thread.sleep(1500);
+		Thread.sleep(10000);
 		
 		// List of objects that need removal
 		ArrayList<DataCollector> reaper = new ArrayList<DataCollector>();
