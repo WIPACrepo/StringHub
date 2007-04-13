@@ -75,9 +75,9 @@ public class DataCollector extends AbstractDataCollector
 	
 	// TODO - replace these with properties-supplied constants
 	// for now they are totally reasonable
-	private long threadSleepInterval = 20;
+	private long threadSleepInterval = 100;
 	private long lastDataRead = 0;
-	private long dataReadInterval = 20;
+	private long dataReadInterval = 50;
 	private long lastMoniRead = 0;
 	private long moniReadInterval = 1000;
 	private long lastTcalRead = 0;
@@ -165,25 +165,31 @@ public class DataCollector extends AbstractDataCollector
 	public void close() 
 	{ 
 		if (app != null) app.close();
-		try {
-			
-			if (hitsSink != null) {
+		try 
+        {
+			if (hitsSink != null) 
+            {
 				hitsSink.close();
 				hitsSink = null;
 			}
-			if (moniSink != null) {
+			if (moniSink != null) 
+            {
 				moniSink.close();
 				moniSink = null;
 			}
-			if (tcalSink != null) {
+			if (tcalSink != null) 
+            {
 				tcalSink.close();
 				tcalSink = null;
 			}
-			if (supernovaSink != null) {
+			if (supernovaSink != null) 
+            {
 				supernovaSink.close();
 				supernovaSink = null;
 			}
-		} catch (IOException iox) {
+		} 
+        catch (IOException iox) 
+        {
 			iox.printStackTrace();
 			logger.error("Error closing pipe sinks: " + iox.getMessage());
 		}
@@ -206,12 +212,15 @@ public class DataCollector extends AbstractDataCollector
 	{
 		logger.info("Configuring DOM on " + canonicalName());
 		long configT0 = System.currentTimeMillis();
-		app.setMoniIntervals(config.getHardwareMonitorInterval(), config.getConfigMonitorInterval());
-		if (config.isDeltaCompressionEnabled())
+
+        app.setMoniIntervals(config.getHardwareMonitorInterval(), config.getConfigMonitorInterval());
+		
+        if (config.isDeltaCompressionEnabled())
 			app.setDeltaCompressionFormat();
 		else
 			app.setEngineeringFormat(config.getEngineeringFormat());
-		if (config.getHV() >= 0) 
+		
+        if (config.getHV() >= 0) 
 		{
 			app.enableHV();
 			app.setHV(config.getHV());
@@ -220,7 +229,9 @@ public class DataCollector extends AbstractDataCollector
 		{
 			app.disableHV();
 		}
-		for (byte dac_ch = 0; dac_ch < 16; dac_ch++) 
+		
+        // DAC setting
+        for (byte dac_ch = 0; dac_ch < 16; dac_ch++) 
 			app.writeDAC(dac_ch, config.getDAC(dac_ch));
 		app.setMux(config.getMux());
 		app.setTriggerMode(config.getTriggerMode());
@@ -239,6 +250,15 @@ public class DataCollector extends AbstractDataCollector
 		app.setCableLengths(lc.getCableLengthUp(), lc.getCableLengthDn());
 		app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
 		app.setScalerDeadtime(config.getScalerDeadtime());
+        
+        // Do the pedestal subtraction
+        if (config.getPedestalSubtraction())
+        {
+            // WARN - this is done /w/ HV applied - probably need to 
+            // screen in DOMApp for spurious pulses
+            app.collectPedestals(200, 200, 200);
+        }
+        
 		long configT1 = System.currentTimeMillis();
 		logger.info("Finished DOM configuration - " + canonicalName() + 
 					"; configuration took " + (configT1 - configT0) + " milliseconds.");
@@ -545,11 +565,20 @@ public class DataCollector extends AbstractDataCollector
 		numericMBID = Long.valueOf(mbid, 16).longValue();
 		logger.info("Found DOM " + mbid + " running " + app.getRelease());
 
-		/* 
-		 * Quickly obtain 2 RAPCals prior to the start of data acquisition
-		 * to ensure that first data packets may be time calibrated.
-		 */
-		for (int nTry = 0; nTry < 10 && validRAPCalCount < 2; nTry++) execRapCal();
+		// Grab 1st of 2 RAPCal data points
+		for (int nTry = 0; nTry < 10 && validRAPCalCount < 1; nTry++) execRapCal();
+
+        try
+        {
+            Thread.sleep(250);
+        }
+        catch (InterruptedException intx)
+        {
+            logger.warn(intx);
+        }
+        
+        // Grab 2nd of 2 RAPCal data points
+        for (int nTry = 0; nTry < 10 && validRAPCalCount < 2; nTry++) execRapCal();
 		lastTcalRead = System.currentTimeMillis();
 		
 		/*
