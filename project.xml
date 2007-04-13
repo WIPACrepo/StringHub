@@ -17,7 +17,6 @@
 	    daq-test-util.jar
 	    juggler.jar
 	    payload.jar
-            trigger.jar
 	</libs>
 	<tools></tools>
     </uses>

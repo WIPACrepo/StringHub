@@ -581,10 +581,11 @@ public class DataCollector extends AbstractDataCollector
 				if (t - lastDataRead >= dataReadInterval) 
 				{
 					lastDataRead = t;
-					List<ByteBuffer> dataList = app.getData(5);
+                    final int MSGS_IN_FLIGHT = 1;
+					List<ByteBuffer> dataList = app.getData(MSGS_IN_FLIGHT);
 					for (ByteBuffer data : dataList)
 						dataProcess(data);
-					if (dataList.size() == 5) tired = false;
+					if (dataList.size() == MSGS_IN_FLIGHT) tired = false;
 
 					/* 
 					   Check for DOM readout lagging behind acquisition.

@@ -46,7 +46,7 @@ done
 
 for lib in ${REQ_LIBS}; do
   jar=
-  for i in `find ${REPO_DIR} -name ${lib}\*.jar`; do
+  for i in `find ${REPO_DIR} -name "${lib}-[0-9]*.jar" | sort`; do
     jar="$i"
   done
   if [ -f "$jar" ]; then
@@ -85,13 +85,13 @@ done
 #
 set -- $args
 
-#java -Xmx1024m -Dcom.sun.management.jmxremote.port=8395 \
-#    -Dcom.sun.management.jmxremote.authenticate=false \
-#    -Dcom.sun.management.jmxremote.ssl=false \
-#    -Xdump:heap:events=user \
-export JAVA_HOME=/usr/java/jdk1.5.0_07
-$JAVA_HOME/bin/java -Xmx1024m -Dicecube.daq.stringhub.componentId=$hubId \
+if [ -d /usr/java/jdk1.5.0_07 ]; then
+  export JAVA_HOME=/usr/java/jdk1.5.0_07
+  JAVA=$JAVA_HOME/bin/java
+else
+  JAVA=java
+fi
+
+$JAVA -Xmx1024m -Dicecube.daq.stringhub.componentId=$hubId \
     -Dicecube.daq.bindery.StreamBinder.prescale=1 \
     -cp "$CLASSPATH" icecube.daq.stringhub.Shell $*
-
-
