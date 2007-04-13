@@ -565,20 +565,8 @@ public class DataCollector extends AbstractDataCollector
 		numericMBID = Long.valueOf(mbid, 16).longValue();
 		logger.info("Found DOM " + mbid + " running " + app.getRelease());
 
-		// Grab 1st of 2 RAPCal data points
-		for (int nTry = 0; nTry < 10 && validRAPCalCount < 1; nTry++) execRapCal();
-
-        try
-        {
-            Thread.sleep(250);
-        }
-        catch (InterruptedException intx)
-        {
-            logger.warn(intx);
-        }
-        
-        // Grab 2nd of 2 RAPCal data points
-        for (int nTry = 0; nTry < 10 && validRAPCalCount < 2; nTry++) execRapCal();
+		// Grab 2 RAPCal data points to get started
+		for (int nTry = 0; nTry < 10 && validRAPCalCount < 2; nTry++) execRapCal();
 		lastTcalRead = System.currentTimeMillis();
 		
 		/*
