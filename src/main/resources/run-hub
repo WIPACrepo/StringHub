@@ -85,7 +85,14 @@ done
 #
 set -- $args
 
-if [ -d /usr/java/jdk1.5.0_07 ]; then
+# is this running on SPS?
+#
+case `hostname` in
+sps*) SPS=true;;
+*) SPS="";;
+esac
+
+if [ "$SPS" = "true" -a -d /usr/java/jdk1.5.0_07 ]; then
   export JAVA_HOME=/usr/java/jdk1.5.0_07
   JAVA=$JAVA_HOME/bin/java
 else
