@@ -20,17 +20,20 @@ splicer \
 daq-request-filler \
 daq-log"
 
-REQ_LIBS="log4j \
-dom4j \
-jaxen \
-colt \
-xmlrpc-common \
-xmlrpc-client \
-xmlrpc-server \
-commons-logging \
-concurrent \
-jmxtools \
-ws-commons-util"
+# These are hard-coding version numbers until I can get mvn
+# creating/assembling releases in the form of jar files which have
+# what is (and only what is) needed.
+REQ_LIBS="log4j-1.2.7 \
+dom4j-1.6.1 \
+jaxen-1.1-beta-6 \
+colt-1.0.3 \
+xmlrpc-common-3.0 \
+xmlrpc-client-3.0 \
+xmlrpc-server-3.0 \
+commons-logging-1.0.3 \
+concurrent-1.3.4 \
+jmxtools-1.2.1 \
+ws-commons-util-1.0.1"
 
 missing_jar=
 CLASSPATH=""
@@ -46,7 +49,7 @@ done
 
 for lib in ${REQ_LIBS}; do
   jar=
-  for i in `find ${REPO_DIR} -name "${lib}-[0-9]*.jar" | sort`; do
+  for i in `find ${REPO_DIR} -name "${lib}.jar"`; do
     jar="$i"
   done
   if [ -f "$jar" ]; then
