@@ -593,11 +593,10 @@ public class DataCollector extends AbstractDataCollector
      */
     private void runcore() throws Exception
     {
-
         // Create a watcher timer
         Timer watcher = new Timer(getName() + "-timer");
         InterruptorTask intTask = new InterruptorTask(this);
-        watcher.schedule(intTask, 10000L, 5000L);
+        watcher.schedule(intTask, 15000L, 5000L);
 
         driver.softboot(this.card, this.pair, this.dom);
 
