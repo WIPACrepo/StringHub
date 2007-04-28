@@ -559,9 +559,13 @@ public class DOMApp implements IDOMApp
             cmd.put("\r\n".getBytes()).flip();
             devIO.send(cmd);
             // There are two possibilities now - if we are coming out of a softboot
-            // then the next message will be 4 bytes ('\r\n> ') plus a '\r\n' else 
+            // then the next message will be 4 bytes ('\r\n> ') plus 2 '\r\n' else 
             // it will just be a solo '\r\n' from echoing the send
-            if (devIO.recv().remaining() == 4) devIO.recv();
+            if (devIO.recv().remaining() == 4) 
+            {
+                devIO.recv();
+                devIO.recv();
+            }
             // Now eat up a complain message
             devIO.recv();
             // Now eat up the next command prompt
@@ -572,6 +576,7 @@ public class DOMApp implements IDOMApp
             devIO.send(cmd);
             // Finally eat up the echo back of domapp\r\n
             devIO.recv();
+                
             // Now it should really be going into domapp
             // TODO - find a better way than vapid wait
             Thread.sleep(8500);
