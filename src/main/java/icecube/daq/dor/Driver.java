@@ -47,6 +47,7 @@ public class Driver implements IDriver {
 	}
 
 	public void softboot(int card, int pair, char dom) throws IOException {
+        logger.debug("Softbooting " + card + "" + pair + dom);
 		File file = makeProcfile(card + "" + pair + dom, "softboot");
 		FileOutputStream sb = new FileOutputStream(file);
 		sb.write("reset\n".getBytes());
