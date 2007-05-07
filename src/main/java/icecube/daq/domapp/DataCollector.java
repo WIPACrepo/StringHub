@@ -117,8 +117,7 @@ public class DataCollector extends AbstractDataCollector
     private long                tcalReadInterval      = 1000;
     private long                lastSupernovaRead     = 0;
     private long                supernovaReadInterval = 1000;
-    private boolean             detectLags            = false;
-
+    
     private int                 rapcalExceptionCount  = 0;
     private int                 validRAPCalCount;
 
@@ -132,7 +131,6 @@ public class DataCollector extends AbstractDataCollector
     private long                lastSupernovaUT       = 0L;
 
     private ByteBuffer          daqHeader;
-    private static final long   maxDataDelay          = 300000000000L;
 
     public DataCollector(DOMChannelInfo chInfo, WritableByteChannel out) throws IOException, MessageException
     {
@@ -346,14 +344,18 @@ public class DataCollector extends AbstractDataCollector
                     in.getShort();
                     while (in.remaining() > 0)
                     {
-                        in.mark();
-                        int hitSize = in.getInt() & 0x7ff;
-                        int clkLSB = in.getInt();
-                        logger.debug("hitsize: " + hitSize + " clkLSB: " + clkLSB);
-                        domClock = (((long) clkMSB) << 32) | (((long) clkLSB) & 0xffffffffL);
-                        in.reset();
-                        in.limit(in.position() + hitSize);
+                        // Advance past compression hit header
+                        int word1 = in.getInt();
+                        int word2 = in.getInt();
+                        int word3 = in.getInt();
+                        int hitSize = word1 & 0x7ff;
+                        domClock = (((long) clkMSB) << 32) | (((long) word2) & 0xffffffffL);
+                        in.limit(in.position() + hitSize - 12);
                         numHits++;
+                        // Obfuscated code warning - reuse buffer to rewrite the delta
+                        // format: 1) reassembled 8-byte DOMClock 2) word1 3) word2 
+                        in.position(in.position() - 16);
+                        in.putLong(domClock).putInt(word1).putInt(word3);
                         lastDataUT = genericDataDispatch(hitSize, 3, domClock, in, hitsSink);
                         in.limit(buffer_limit);
                     }
@@ -646,6 +648,7 @@ public class DataCollector extends AbstractDataCollector
             /* Check DATA & MONI - must be in running state (2) */
             if (queryDaqRunLevel() == RUNNING)
             {
+                // Time to do a data collection?
                 if (t - lastDataRead >= dataReadInterval)
                 {
                     lastDataRead = t;
@@ -654,22 +657,9 @@ public class DataCollector extends AbstractDataCollector
                     for (ByteBuffer data : dataList)
                         dataProcess(data);
                     if (dataList.size() == MSGS_IN_FLIGHT) tired = false;
-
-                    /* 
-                     Check for DOM readout lagging behind acquisition.
-                     Reset acquisition if falls too far behind.  Use
-                     the lastTcalUT for reference in case system clock
-                     is incorrect.
-                     */
-                    if (detectLags && (lastDataUT != 0L) && (lastTcalUT - lastDataUT > maxDataDelay))
-                    {
-                        logger.warn("DOM data lag detected: (" + lastTcalUT + ", " + lastDataUT
-                                + ").  Resetting ACQ.");
-                        app.endRun();
-                        app.beginRun();
-                        logger.warn("ACQ restarted.");
-                    }
                 }
+                
+                // What about monitoring?
                 if (t - lastMoniRead >= moniReadInterval)
                 {
                     lastMoniRead = t;
