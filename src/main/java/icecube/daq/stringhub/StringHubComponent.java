@@ -157,15 +157,30 @@ public class StringHubComponent extends DAQComponent
 		logger.info("starting up StringHub component " + hubId);
 		
         final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
-        PayloadDestinationOutputEngine hitOut =
-            new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "hitOut");
-        hitOut.registerBufferManager(bufferManager);
+        PayloadDestinationOutputEngine hitOut;
 		
-		// Rule is component xx80 - xx99 -> icetop
-		if ((hubId % 100) > 80) 
-			addEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
+        /*
+         * Rules are
+         * (1) component xx81 - xx99 : icetop
+         * (2) component xx01 - xx80 : in-ice
+         * (3) component xx00        : amandaHub 
+         */
+        int minorHubId = hubId % 100;
+
+        if (minorHubId == 0)
+        {
+            hitOut = null;
+        }
         else
-			addEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
+        {
+            hitOut = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "hitOut");
+            if (minorHubId > 80)
+                addEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
+            else
+                addEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
+            hitOut.registerBufferManager(bufferManager);
+
+        }
 
         IPayloadDestinationCollection hitColl = hitOut.getPayloadDestinationCollection();
         sender.setHitOutputDestination(hitColl);
