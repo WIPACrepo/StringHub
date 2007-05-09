@@ -924,7 +924,7 @@ public class Sender
             }
 
             switch (elem.getReadoutType()) {
-            case IReadoutRequestElement.READOUT_TYPE_IIIT_GLOBAL:
+            case IReadoutRequestElement.READOUT_TYPE_GLOBAL:
                 return true;
             case IReadoutRequestElement.READOUT_TYPE_II_GLOBAL:
                 if (daqName.equals(DAQCmdInterface.DAQ_STRINGPROCESSOR) ||
