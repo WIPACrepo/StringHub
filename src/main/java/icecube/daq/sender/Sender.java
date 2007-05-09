@@ -449,11 +449,7 @@ public class Sender
                 if (payload == null) {
                     log.error("Couldn't build hit from engineering data");
                 } else {
-                    if (hitDest == null) {
-                        if (log.isErrorEnabled()) {
-                            log.error("Hit destination has not been set");
-                        }
-                    } else {
+                    if (hitDest != null) {
                         try {
                             hitDest.writePayload((Payload) payload);
                         } catch (IOException ioe) {
