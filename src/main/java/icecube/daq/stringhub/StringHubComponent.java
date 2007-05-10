@@ -182,8 +182,10 @@ public class StringHubComponent extends DAQComponent
 
         }
 
-        IPayloadDestinationCollection hitColl = hitOut.getPayloadDestinationCollection();
-        sender.setHitOutputDestination(hitColl);
+        if (hitOut != null) {
+            IPayloadDestinationCollection hitColl = hitOut.getPayloadDestinationCollection();
+            sender.setHitOutputDestination(hitColl);
+        }
         
         RequestReader reqIn;
         try {
