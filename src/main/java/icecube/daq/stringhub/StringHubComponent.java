@@ -170,6 +170,7 @@ public class StringHubComponent extends DAQComponent
         if (minorHubId == 0)
         {
             hitOut = null;
+            sender.setHitOutputDestination(null);
         }
         else
         {
@@ -179,14 +180,10 @@ public class StringHubComponent extends DAQComponent
             else
                 addEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
             hitOut.registerBufferManager(bufferManager);
-
-        }
-
-        if (hitOut != null) {
             IPayloadDestinationCollection hitColl = hitOut.getPayloadDestinationCollection();
             sender.setHitOutputDestination(hitColl);
         }
-        
+
         RequestReader reqIn;
         try {
             reqIn = new RequestReader(COMPONENT_NAME, sender, payloadFactory);
