@@ -600,6 +600,7 @@ public class DataCollector extends AbstractDataCollector
         InterruptorTask intTask = new InterruptorTask(this);
         watcher.schedule(intTask, 15000L, 5000L);
 
+        driver.commReset(this.card, this.pair, this.dom);
         driver.softboot(this.card, this.pair, this.dom);
 
         /*

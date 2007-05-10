@@ -11,5 +11,7 @@ public interface IDriver
         throws IOException, InterruptedException;
 
     void softboot(int card, int pair, char dom) throws IOException;
+    
+    void commReset(int card, int pair, char dom) throws IOException;
 
 }
