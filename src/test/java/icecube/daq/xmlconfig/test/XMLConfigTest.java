@@ -35,9 +35,9 @@ public class XMLConfigTest
 	
 	@Before public void setUp() throws Exception
 	{
-		InputStream xmlIn = ClassLoader.getSystemResourceAsStream("ic3/daq/configuration/sample-config.xml");
+		InputStream xmlIn = getClass().getClassLoader().getResourceAsStream("icecube/daq/configuration/sample-config.xml");
 		xmlConfig = new XMLConfig();
-                xmlConfig.parseXMLConfig(xmlIn);
+		xmlConfig.parseXMLConfig(xmlIn);
 		config = xmlConfig.getDOMConfig("57bc3f3a220d");
 	}
 
