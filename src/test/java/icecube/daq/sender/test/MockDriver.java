@@ -72,4 +72,10 @@ class MockDriver
     {
         // do nothing
     }
+    
+    public void commReset(int card, int pair, char dom)
+    {
+        // do nothing here too!
+    }
+
 }

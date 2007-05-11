@@ -1,4 +1,4 @@
-package icecube.daq.xmlconfig.test;
+package icecube.daq.configuration.test;
 
 import static org.junit.Assert.assertNotNull;
 import icecube.daq.configuration.XMLConfig;
@@ -35,7 +35,7 @@ public class XMLConfigTest
 	
 	@Before public void setUp() throws Exception
 	{
-		InputStream xmlIn = getClass().getClassLoader().getResourceAsStream("icecube/daq/configuration/sample-config.xml");
+        InputStream xmlIn = XMLConfig.class.getResourceAsStream("sample-config.xml");
 		xmlConfig = new XMLConfig();
 		xmlConfig.parseXMLConfig(xmlIn);
 		config = xmlConfig.getDOMConfig("57bc3f3a220d");
