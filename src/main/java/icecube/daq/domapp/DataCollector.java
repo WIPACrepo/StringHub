@@ -677,13 +677,12 @@ public class DataCollector extends AbstractDataCollector
                     while (true)
                     {
                         ByteBuffer sndata = app.getSupernova();
-                        int sn_data_length = sndata.remaining();
-                        if (sn_data_length > 0)
+                        if (sndata.remaining() > 0)
                         {
                             supernovaProcess(sndata);
                             tired = false;
+                            break;
                         }
-                        if (sn_data_length != 11) break;
                     }
                 }
             }
