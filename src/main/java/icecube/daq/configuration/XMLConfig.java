@@ -254,7 +254,8 @@ public class XMLConfig extends DefaultHandler
 		}
 		else if (localName.equals("supernovaMode"))
 		{
-			if (attributes.getValue("enabled").equals("true"))
+            int index = attributes.getIndex("enabled");
+            if (index >= 0 && attributes.getValue(index).equals("true"))
 				currentConfig.enableSupernova();
 			else
 				currentConfig.disableSupernova();
