@@ -344,19 +344,24 @@ public class DataCollector extends AbstractDataCollector
                     in.getShort();
                     while (in.remaining() > 0)
                     {
+                        // create an additional byte buffer to handle re-format of
+                        // the delta payload - I want to insert the re-assembled
+                        // DOMClock in front of the compression header
                         // Advance past compression hit header
                         int word1 = in.getInt();
                         int word2 = in.getInt();
                         int word3 = in.getInt();
                         int hitSize = word1 & 0x7ff;
-                        domClock = (((long) clkMSB) << 32) | (((long) word2) & 0xffffffffL);
                         in.limit(in.position() + hitSize - 12);
+                        ByteBuffer dbuf = ByteBuffer.allocate(hitSize + 4);
+                        dbuf.order(ByteOrder.LITTLE_ENDIAN);
+                        domClock = (((long) clkMSB) << 32) | (((long) word2) & 0xffffffffL);
+                        dbuf.putLong(domClock);
+                        dbuf.putInt(word1);
+                        dbuf.putInt(word3);
+                        dbuf.put(in);
                         numHits++;
-                        // Obfuscated code warning - reuse buffer to rewrite the delta
-                        // format: 1) reassembled 8-byte DOMClock 2) word1 3) word2 
-                        in.position(in.position() - 16);
-                        in.putLong(domClock).putInt(word1).putInt(word3);
-                        lastDataUT = genericDataDispatch(hitSize, 3, domClock, in, hitsSink);
+                        lastDataUT = genericDataDispatch(hitSize, 3, domClock, dbuf, hitsSink);
                         in.limit(buffer_limit);
                     }
                     in.order(ByteOrder.BIG_ENDIAN);
