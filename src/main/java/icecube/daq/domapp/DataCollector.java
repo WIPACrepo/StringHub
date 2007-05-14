@@ -366,7 +366,7 @@ public class DataCollector extends AbstractDataCollector
                         numHits++;
                         dbuf.flip();
                         logger.debug("Processing delta hit len: " + hitSize + " remaining: " + dbuf.remaining());
-                        lastDataUT = genericDataDispatch(hitSize, 3, domClock, dbuf, hitsSink);
+                        lastDataUT = genericDataDispatch(hitSize+4, 3, domClock, dbuf, hitsSink);
                         in.limit(buffer_limit);
                     }
                     in.order(ByteOrder.BIG_ENDIAN);
