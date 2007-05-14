@@ -299,8 +299,11 @@ public class DataCollector extends AbstractDataCollector
         daqHeader.flip();
         GatheringByteChannel g = (GatheringByteChannel) out;
         ByteBuffer bufferArray[] = new ByteBuffer[] { daqHeader, in };
-        long nw = g.write(bufferArray);
-        logger.debug("In DC " + canonicalName() + " - type = " + fmtid + " wrote " + nw + " bytes to " + out);
+        while (in.remaining() > 0)
+        {
+            long nw = g.write(bufferArray);
+            logger.debug("In DC " + canonicalName() + " - type = " + fmtid + " wrote " + nw + " bytes to " + out);
+        }
         return utc;
     }
 
