@@ -361,6 +361,8 @@ public class DataCollector extends AbstractDataCollector
                         dbuf.putInt(word3);
                         dbuf.put(in);
                         numHits++;
+                        dbuf.flip();
+                        logger.debug("Processing delta hit len: " + hitSize + " remaining: " + dbuf.remaining());
                         lastDataUT = genericDataDispatch(hitSize, 3, domClock, dbuf, hitsSink);
                         in.limit(buffer_limit);
                     }
