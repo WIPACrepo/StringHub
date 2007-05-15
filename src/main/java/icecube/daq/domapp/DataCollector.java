@@ -338,13 +338,11 @@ public class DataCollector extends AbstractDataCollector
                     in.limit(buffer_limit);
                     break;
                 case 144: // Delta compressed data
-                    // It gets weird here - FPGA data written LITTLE_ENDIAN
-                    // Also must handle unpacking and applying clock context
-                    // to delta hits compressed in data block starting here.
-                    in.order(ByteOrder.LITTLE_ENDIAN);
                     int clkMSB = in.getShort();
                     logger.debug("clkMSB: " + clkMSB);
                     in.getShort();
+                    // Note byte order change for delta message buffers
+                    in.order(ByteOrder.LITTLE_ENDIAN);
                     while (in.remaining() > 0)
                     {
                         // create an additional byte buffer to handle re-format of
