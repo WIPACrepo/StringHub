@@ -111,6 +111,11 @@ class TinyHitPayload
         return time;
     }
 
+    public int getTriggerMode()
+    {
+        throw new Error("Unimplemented");
+    }
+
     public void loadPayload()
     {
         // ignore
