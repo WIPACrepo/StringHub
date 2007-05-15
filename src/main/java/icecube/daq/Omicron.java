@@ -140,7 +140,7 @@ public class Omicron {
 			}
 			else
 			{
-				while (dc.queryDaqRunLevel() != 2 && System.currentTimeMillis() - t0 < 10000L)
+				while (dc.queryDaqRunLevel() != 2 && System.currentTimeMillis() - t0 < 15000L)
 				{
 					logger.debug("Waiting of DC " + dc.getName() + " to configure.");
 					Thread.sleep(500);
