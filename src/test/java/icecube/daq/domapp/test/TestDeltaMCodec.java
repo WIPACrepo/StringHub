@@ -73,19 +73,21 @@ public class TestDeltaMCodec
 	 */
 	@Test public void testRandomPattern()
 	{
-		Random r = new Random(581229607);
-		for (int loop = 0; loop < 100; loop++)
+		Random r = new Random();
+        short[] vec = new short[256];
+        ByteBuffer buf = ByteBuffer.allocate(1000);
+		for (int loop = 0; loop < 10000; loop++)
 		{
-			short[] vec = new short[1000];
-			ByteBuffer buf = ByteBuffer.allocate(5000);
-			for (int i=0; i<vec.length; i++)
+		    buf.clear();
+            for (int i=0; i<vec.length; i++)
 			{
 				vec[i] = (short) (r.nextInt(900) + 120);
 			}
 			DeltaMCodec codec = new DeltaMCodec(buf);
 			codec.encode(vec);
-			logger.info(String.format("Compression ratio is %.1f%%", 
-					(50.0 * buf.position()) / vec.length));
+			if (loop % 1000 == 0) 
+                logger.info(String.format("Compression ratio is %.1f%%", 
+                        (50.0 * buf.position()) / vec.length));
 			buf.flip();
 			short[] dec = codec.decode(vec.length);
 			
