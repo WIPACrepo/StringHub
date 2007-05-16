@@ -18,6 +18,7 @@ import icecube.daq.payload.PayloadDestination;
 import icecube.daq.payload.PayloadRegistry;
 import icecube.daq.payload.SourceIdRegistry;
 
+import icecube.daq.payload.impl.DomHitDeltaCompressedFormatPayload;
 import icecube.daq.payload.impl.DomHitEngineeringFormatPayload;
 
 import icecube.daq.payload.splicer.Payload;
@@ -29,6 +30,9 @@ import icecube.daq.splicer.Spliceable;
 import icecube.daq.trigger.IHitPayload;
 import icecube.daq.trigger.IReadoutRequest;
 import icecube.daq.trigger.IReadoutRequestElement;
+
+import icecube.daq.trigger.impl.DeltaCompressedFormatHitDataPayload;
+import icecube.daq.trigger.impl.DeltaCompressedFormatHitDataPayloadFactory;
 import icecube.daq.trigger.impl.EngineeringFormatHitDataPayload;
 import icecube.daq.trigger.impl.EngineeringFormatHitDataPayloadFactory;
 import icecube.daq.trigger.impl.HitPayloadFactory;
@@ -296,6 +300,54 @@ class HitSorter
     }
 }
 
+class DomHitFactory
+{
+    private static Log log = LogFactory.getLog(DomHitFactory.class);
+
+    IDomHit createPayload(int offset, ByteBuffer buf)
+        throws DataFormatException, IOException
+    {
+        if (offset != 0) {
+            throw new Error("Offset should always be zero");
+        }
+
+        if (buf.limit() < offset + 4) {
+            throw new Error("Expected buffer with at least " + (offset + 4) +
+                            "bytes, not " + buf.limit() + " (offset=" +
+                            offset + ")");
+        }
+
+        final int len = buf.getInt(offset + 0);
+        if (buf.limit() < offset + len) {
+            throw new Error("Payload at offset " + offset + " requires " +
+                            len + " bytes, but buffer limit is " + buf.limit());
+        }
+
+        final int type = buf.getInt(offset + 4);
+        switch (type) {
+        case 2:
+            DomHitEngineeringFormatPayload engHit =
+                new DomHitEngineeringFormatPayload();
+            engHit.initialize(0, buf);
+            return engHit;
+        case 3:
+        case PayloadRegistry.PAYLOAD_ID_DELTA_HIT:
+            DomHitDeltaCompressedFormatPayload deltaHit =
+                new DomHitDeltaCompressedFormatPayload();
+            // XXX rewrite payload type to match real payload type
+            buf.putInt(offset + 4, deltaHit.getPayloadType());
+            deltaHit.initialize(0, buf);
+            return deltaHit;
+        default:
+            break;
+        }
+
+        log.error("Ignoring unknown hit type " + type + " in " + len +
+                  "-byte payload");
+        return null;
+    }
+}
+
 /**
  * Consume DOM hits from stringHub and readout requests
  * from global trigger and send readout data payloads to event builder.
@@ -317,11 +369,15 @@ public class Sender
     /** Used to sort hits before building readout data payloads. */
     private static final HitSorter HIT_SORTER = new HitSorter();
 
+    protected static final int DEFAULT_TRIGGER_MODE = 2;
+
     private static int nextPayloadNum;
 
     private ISourceID sourceId;
     private EngineeringFormatHitDataPayloadFactory engHitFactory;
+    private DeltaCompressedFormatHitDataPayloadFactory deltaHitFactory;
     private HitPayloadFactory hitFactory;
+    private DomHitFactory domHitFactory;
     private ReadoutRequestPayloadFactory readoutReqFactory;
     private ReadoutDataPayloadFactory readoutDataFactory;
 
@@ -363,7 +419,9 @@ public class Sender
         sourceId = getSourceId(stringHubId);
 
         engHitFactory = new EngineeringFormatHitDataPayloadFactory();
+        deltaHitFactory = new DeltaCompressedFormatHitDataPayloadFactory();
         hitFactory = new HitPayloadFactory();
+        domHitFactory = new DomHitFactory();
 
         final int readoutReqType = PayloadRegistry.PAYLOAD_ID_READOUT_REQUEST;
         readoutReqFactory = (ReadoutRequestPayloadFactory)
@@ -432,10 +490,9 @@ public class Sender
         } else {
             ByteBuffer dupBuf = buf.duplicate();
 
-            DomHitEngineeringFormatPayload engData =
-                new DomHitEngineeringFormatPayload();
+            IDomHit engData;
             try {
-                engData.initialize(0, dupBuf);
+                engData = (IDomHit) domHitFactory.createPayload(0, dupBuf);
                 engData.loadPayload();
             } catch (DataFormatException dfe) {
                 log.error("Could not load engineering data", dfe);
@@ -452,7 +509,7 @@ public class Sender
                                              engData);
 
                 if (payload == null) {
-                    log.error("Couldn't build hit from engineering data");
+                    log.error("Couldn't build hit from DOM hit data");
                 } else {
                     if (hitDest != null) {
                         try {
@@ -498,35 +555,54 @@ public class Sender
         for (Iterator iter = dataList.iterator(); iter.hasNext(); ) {
             IDomHit domHit = (IDomHit) iter.next();
 
-            final int triggerMode = 2;
-
-            DomHitEngineeringFormatPayload engData;
+            IDomHit hitCopy;
             if (!USE_TINY_HITS) {
                 // XXX I'd LOVE to avoid the deepCopy here, but the parent
-                // RequestFiller class is holding a pointer to 'engData'
+                // RequestFiller class is holding a pointer to 'domHit'
                 // and will free it after the ReadoutDataPayload is sent,
                 // so we need to make a copy here in order to avoid
-                // the 'engData' payload being recycled twice.
-                Object obj =
-                    ((DomHitEngineeringFormatPayload) domHit).deepCopy();
-                engData = (DomHitEngineeringFormatPayload) obj;
+                // the 'domHit' payload being recycled twice.
+                hitCopy = (IDomHit) domHit.deepCopy();
             } else {
-                engData = new DomHitEngineeringFormatPayload();
                 try {
-                    engData.initialize(0, domHit.getPayloadBacking());
-                    engData.loadPayload();
+                    ByteBuffer buf = domHit.getPayloadBacking();
+                    hitCopy = (IDomHit) domHitFactory.createPayload(0, buf);
+                    hitCopy.loadPayload();
                 } catch (DataFormatException dfe) {
                     log.error("Could not load engineering data", dfe);
-                    engData = null;
+                    hitCopy = null;
                 } catch (IOException ioe) {
                     log.error("Could not create hit payload", ioe);
-                    engData = null;
+                    hitCopy = null;
                 }
             }
 
-            hitDataList.add(engHitFactory.createPayload(sourceId, -1,
-                                                        triggerMode,
-                                                        engData));
+            Object newHit;
+            switch (hitCopy.getPayloadType()) {
+            case PayloadRegistry.PAYLOAD_ID_DELTA_HIT:
+                DomHitDeltaCompressedFormatPayload delta =
+                    (DomHitDeltaCompressedFormatPayload) hitCopy;
+                newHit = deltaHitFactory.createPayload(sourceId,
+                                                       delta.getTriggerMode(),
+                                                       delta);
+                newHit = delta;
+                break;
+            case PayloadRegistry.PAYLOAD_ID_ENGFORMAT_HIT:
+                DomHitEngineeringFormatPayload engData =
+                    (DomHitEngineeringFormatPayload) hitCopy;
+                newHit = engHitFactory.createPayload(sourceId, -1,
+                                                     engData.getTriggerMode(),
+                                                     engData);
+                break;
+            default:
+                log.error("Unknown hit type " + hitCopy.getPayloadType());
+                newHit = null;
+                break;
+            }
+
+            if (newHit != null) {
+                hitDataList.add(newHit);
+            }
         }
 
         return hitDataList;
