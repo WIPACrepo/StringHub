@@ -125,12 +125,13 @@ public class DataCollector extends AbstractDataCollector
     private int                 numMoni               = 0;
     private int                 numSupernova          = 0;
     private int                 loopCounter           = 0;
-    private long                lastDataUT            = 0L;
-    private long                lastMoniUT            = 0L;
-    private long                lastTcalUT            = 0L;
-    private long                lastSupernovaUT       = 0L;
+    private long                lastDataUT;
+    private long                lastMoniUT;
+    private long                lastTcalUT;
+    private long                lastSupernovaUT;
 
     private ByteBuffer          daqHeader;
+    private long                lastSupernovaDomClock;
 
     public DataCollector(DOMChannelInfo chInfo, WritableByteChannel out) throws IOException, MessageException
     {
@@ -430,6 +431,14 @@ public class DataCollector extends AbstractDataCollector
         while (in.remaining() > 0)
         {
             SupernovaPacket spkt = SupernovaPacket.createFromBuffer(in);
+            // Check for gaps in SN data
+            if (lastSupernovaDomClock != 0L)
+            {
+                long clockDelta = spkt.getClock() - lastSupernovaDomClock;
+                if (clockDelta >> 16 != spkt.getScalers().length) logger.warn("Gap or overlap detected in supernova record");
+            }
+            lastSupernovaDomClock = spkt.getClock();
+            
             if (supernovaSink != null)
             {
                 numSupernova++;
@@ -567,7 +576,14 @@ public class DataCollector extends AbstractDataCollector
     public void run()
     {
 
+        lastDataUT = 0L;
+        lastMoniUT = 0L;
+        lastTcalUT = 0L;
+        lastSupernovaUT = 0L;
+        lastSupernovaDomClock = 0L;
+        
         logger.info("Begin data collection thread");
+        
         try
         {
             runcore();
