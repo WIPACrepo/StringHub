@@ -585,7 +585,6 @@ public class Sender
                 newHit = deltaHitFactory.createPayload(sourceId,
                                                        delta.getTriggerMode(),
                                                        delta);
-                newHit = delta;
                 break;
             case PayloadRegistry.PAYLOAD_ID_ENGFORMAT_HIT:
                 DomHitEngineeringFormatPayload engData =
@@ -1202,7 +1201,7 @@ public class Sender
                 sent = true;
             } catch (IOException ioe) {
                 if (log.isErrorEnabled()) {
-                    log.error("Could not send RequestDataPayload", ioe);
+                    log.error("Could not send ReadoutDataPayload", ioe);
                 }
             }
         }
