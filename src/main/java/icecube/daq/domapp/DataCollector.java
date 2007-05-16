@@ -354,14 +354,14 @@ public class DataCollector extends AbstractDataCollector
                         int word3 = in.getInt();
                         int hitSize = word1 & 0x7ff;
                         domClock = (((long) clkMSB) << 32) | (((long) word2) & 0xffffffffL);
-						short version = 1;
-						short pedestal = (short) 0xdead;
+                        short version = 1;
+                        short pedestal = (short) 0xdead;
                         in.limit(in.position() + hitSize - 12);
                         ByteBuffer dbuf = ByteBuffer.allocate(hitSize + 10);
                         dbuf.order(ByteOrder.LITTLE_ENDIAN);
-						dbuf.putShort((short) 1);
-						dbuf.putShort(version);
-						dbuf.putShort(pedestal);
+                        dbuf.putShort((short) 1);
+                        dbuf.putShort(version);
+                        dbuf.putShort(pedestal);
                         dbuf.putLong(domClock);
                         dbuf.putInt(word1);
                         dbuf.putInt(word3);
@@ -369,7 +369,7 @@ public class DataCollector extends AbstractDataCollector
                         numHits++;
                         dbuf.flip();
                         logger.debug("Processing delta hit len: " + hitSize + " remaining: " + dbuf.remaining());
-                        lastDataUT = genericDataDispatch(hitSize+4, 3, domClock, dbuf, hitsSink);
+                        lastDataUT = genericDataDispatch(dbuf.limit(), 3, domClock, dbuf, hitsSink);
                         in.limit(buffer_limit);
                     }
                     in.order(ByteOrder.BIG_ENDIAN);
