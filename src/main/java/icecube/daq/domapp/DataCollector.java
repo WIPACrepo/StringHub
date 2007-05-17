@@ -356,7 +356,8 @@ public class DataCollector extends AbstractDataCollector
                         int hitSize = word1 & 0x7ff;
                         domClock = (((long) clkMSB) << 32) | (((long) word2) & 0xffffffffL);
                         short version = 1;
-                        short pedestal = (short) 0xdead;
+                        short pedestal = 0;
+                        if (config.getPedestalSubtraction()) pedestal = 1;
                         in.limit(in.position() + hitSize - 12);
                         ByteBuffer dbuf = ByteBuffer.allocate(hitSize + 10);
                         dbuf.order(ByteOrder.LITTLE_ENDIAN);
@@ -629,9 +630,10 @@ public class DataCollector extends AbstractDataCollector
         InterruptorTask intTask = new InterruptorTask(this);
         watcher.schedule(intTask, 15000L, 5000L);
 
-        driver.commReset(this.card, this.pair, this.dom);
-        driver.softboot(this.card, this.pair, this.dom);
-
+        driver.commReset(card, pair, dom);
+        driver.softboot (card, pair, dom);
+        driver.commReset(card, pair, dom);
+        
         /*
          * Initialize the DOMApp - get things setup
          */
