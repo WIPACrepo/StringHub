@@ -183,6 +183,8 @@ public class DataCollector extends AbstractDataCollector
         Element pushA(int recl, int fmtid, long domClock, ByteBuffer buf)
         {
             Element e = new Element(recl, fmtid, domClock, buf);
+            logger.debug("Pushed element into A buffer: # A = " 
+                    + alist.size() + " # B = " + blist.size());
             if (blist.size() != 0)
             {
                 if (blist.getFirst().compareTo(e) >= 0) return e;
@@ -195,6 +197,8 @@ public class DataCollector extends AbstractDataCollector
         Element pushB(int recl, int fmtid, long domClock, ByteBuffer buf)
         {
             Element e = new Element(recl, fmtid, domClock, buf);
+            logger.debug("Pushed element into B buffer: # A = " 
+                    + alist.size() + " # B = " + blist.size());
             if (alist.size() != 0)
             {
                 if (alist.getFirst().compareTo(e) >= 0) return e;
@@ -458,11 +462,13 @@ public class DataCollector extends AbstractDataCollector
                         dbuf.put(in);
                         numHits++;
                         dbuf.flip();
-                        logger.debug("Processing delta hit len: " + hitSize + " remaining: " + dbuf.remaining());
+                        logger.debug("Processing delta hit from ATWD " 
+                                + atwdChip + " - len: " + hitSize 
+                                + " remaining: " + dbuf.remaining());
                         if (atwdChip == 0)
-                            e = abBuffer.pushA(dbuf.limit(), 3, domClock, dbuf);
+                            e = abBuffer.pushA(dbuf.remaining(), 3, domClock, dbuf);
                         else
-                            e = abBuffer.pushB(dbuf.limit(), 3, domClock, dbuf);
+                            e = abBuffer.pushB(dbuf.remaining(), 3, domClock, dbuf);
                         if (e != null) lastDataUT = genericDataDispatch(e.recl, e.fmtid, e.domClock, e.buf, hitsSink);
                         in.limit(buffer_limit);
                     }
