@@ -180,34 +180,29 @@ public class DataCollector extends AbstractDataCollector
             blist = new LinkedList<Element>();
         }
         
-        Element pushA(int recl, int fmtid, long domClock, ByteBuffer buf)
+        void pushA(int recl, int fmtid, long domClock, ByteBuffer buf)
         {
             Element e = new Element(recl, fmtid, domClock, buf);
-            logger.debug("Pushed element into A buffer: # A = " 
+            logger.debug("Pushed element into A buffer: domClock = " + domClock + " # A = " 
                     + alist.size() + " # B = " + blist.size());
-            Element ret = null;
-            if (blist.size() != 0)
-            {
-                if (blist.getFirst().compareTo(e) >= 0) return e;
-                ret = blist.removeFirst();
-            }
             alist.addLast(e);
-            return ret;
         }
         
-        Element pushB(int recl, int fmtid, long domClock, ByteBuffer buf)
+        void pushB(int recl, int fmtid, long domClock, ByteBuffer buf)
         {
             Element e = new Element(recl, fmtid, domClock, buf);
-            logger.debug("Pushed element into B buffer: # A = " 
+            logger.debug("Pushed element into B buffer: domClock = " + domClock + " # A = " 
                     + alist.size() + " # B = " + blist.size());
-            Element ret = null;
-            if (alist.size() != 0)
-            {
-                if (alist.getFirst().compareTo(e) >= 0) return e;
-                ret = alist.removeFirst();
-            }
             blist.addLast(e);
-            return ret;
+        }
+        
+        Element pop()
+        {
+            if (alist.size() == 0 || blist.size() == 0) return null;
+            if (alist.getFirst().compareTo(blist.getFirst()) > 0)
+                return blist.removeFirst();
+            else
+                return alist.removeFirst();
         }
     }
     
@@ -423,12 +418,16 @@ public class DataCollector extends AbstractDataCollector
                     dbuf = ByteBuffer.allocate(in.remaining());
                     dbuf.put(in);
                     dbuf.flip();
-                    HitBufferAB.Element e;
                     if (atwdChip == 0)
-                        e = abBuffer.pushA(len, 2, domClock, dbuf);
+                        abBuffer.pushA(len, 2, domClock, dbuf);
                     else
-                        e = abBuffer.pushB(len, 2, domClock, dbuf);
-                    if (e != null) lastDataUT = genericDataDispatch(e.recl, e.fmtid, e.domClock, e.buf, hitsSink);
+                        abBuffer.pushB(len, 2, domClock, dbuf);
+                    while (true) 
+                    {
+                        HitBufferAB.Element e = abBuffer.pop();
+                        if (e == null) break;
+                        lastDataUT = genericDataDispatch(e.recl, e.fmtid, e.domClock, e.buf, hitsSink);
+                    }
                     in.limit(buffer_limit);
                     break;
                 case 144: // Delta compressed data
@@ -468,10 +467,15 @@ public class DataCollector extends AbstractDataCollector
                                 + atwdChip + " - len: " + hitSize 
                                 + " remaining: " + dbuf.remaining());
                         if (atwdChip == 0)
-                            e = abBuffer.pushA(dbuf.remaining(), 3, domClock, dbuf);
+                            abBuffer.pushA(dbuf.remaining(), 3, domClock, dbuf);
                         else
-                            e = abBuffer.pushB(dbuf.remaining(), 3, domClock, dbuf);
-                        if (e != null) lastDataUT = genericDataDispatch(e.recl, e.fmtid, e.domClock, e.buf, hitsSink);
+                            abBuffer.pushB(dbuf.remaining(), 3, domClock, dbuf);
+                        while (true) 
+                        {
+                            HitBufferAB.Element e = abBuffer.pop();
+                            if (e == null) break;
+                            lastDataUT = genericDataDispatch(e.recl, e.fmtid, e.domClock, e.buf, hitsSink);
+                        }
                         in.limit(buffer_limit);
                     }
                     in.order(ByteOrder.BIG_ENDIAN);
