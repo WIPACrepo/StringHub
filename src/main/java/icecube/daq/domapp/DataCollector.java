@@ -185,13 +185,14 @@ public class DataCollector extends AbstractDataCollector
             Element e = new Element(recl, fmtid, domClock, buf);
             logger.debug("Pushed element into A buffer: # A = " 
                     + alist.size() + " # B = " + blist.size());
+            Element ret = null;
             if (blist.size() != 0)
             {
                 if (blist.getFirst().compareTo(e) >= 0) return e;
-                alist.addLast(e);
-                return blist.removeFirst();
+                ret = blist.removeFirst();
             }
-            return null;
+            alist.addLast(e);
+            return ret;
         }
         
         Element pushB(int recl, int fmtid, long domClock, ByteBuffer buf)
@@ -199,13 +200,14 @@ public class DataCollector extends AbstractDataCollector
             Element e = new Element(recl, fmtid, domClock, buf);
             logger.debug("Pushed element into B buffer: # A = " 
                     + alist.size() + " # B = " + blist.size());
+            Element ret = null;
             if (alist.size() != 0)
             {
                 if (alist.getFirst().compareTo(e) >= 0) return e;
-                blist.addLast(e);
-                return alist.removeFirst();
+                ret = alist.removeFirst();
             }
-            return null;
+            blist.addLast(e);
+            return ret;
         }
     }
     
