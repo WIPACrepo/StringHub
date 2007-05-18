@@ -19,6 +19,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -132,7 +133,79 @@ public class DataCollector extends AbstractDataCollector
 
     private ByteBuffer          daqHeader;
     private long                lastSupernovaDomClock;
+    private HitBufferAB         abBuffer;
+    
+    /**
+     * A helper class to deal with the now-less-than-trivial
+     * hit buffering which circumvents the hit out-of-order
+     * issues.
+     * @author kael
+     *
+     */
+    private class HitBufferAB
+    {
+        class Element implements Comparable<Element>
+        {
+            int recl;
+            int fmtid;
+            long domClock;
+            long utc;
+            ByteBuffer buf;
+            
+            Element(int recl, int fmtid, long domClock, ByteBuffer buf)
+            {
+                this.recl = recl;
+                this.fmtid = fmtid;
+                this.domClock = domClock;
+                this.utc = rapcal.domToUTC(domClock).in_0_1ns();
+                this.buf = buf;
+            }
 
+            public int compareTo(Element o)
+            {
+                if (this.domClock > o.domClock)
+                    return 1;
+                else if (this.domClock < o.domClock)
+                    return -1;
+                else
+                    return 0;
+            }
+        }
+        
+        private LinkedList<Element> alist, blist; 
+        
+        HitBufferAB()
+        {
+            alist = new LinkedList<Element>();
+            blist = new LinkedList<Element>();
+        }
+        
+        Element pushA(int recl, int fmtid, long domClock, ByteBuffer buf)
+        {
+            Element e = new Element(recl, fmtid, domClock, buf);
+            if (blist.size() != 0)
+            {
+                if (blist.getFirst().compareTo(e) >= 0) return e;
+                alist.addLast(e);
+                return blist.removeFirst();
+            }
+            return null;
+        }
+        
+        Element pushB(int recl, int fmtid, long domClock, ByteBuffer buf)
+        {
+            Element e = new Element(recl, fmtid, domClock, buf);
+            if (alist.size() != 0)
+            {
+                if (alist.getFirst().compareTo(e) >= 0) return e;
+                blist.addLast(e);
+                return alist.removeFirst();
+            }
+            return null;
+        }
+    }
+    
+    
     public DataCollector(DOMChannelInfo chInfo, WritableByteChannel out) throws IOException, MessageException
     {
         this(chInfo.card, chInfo.pair, chInfo.dom, out, null, null, null);
@@ -184,6 +257,7 @@ public class DataCollector extends AbstractDataCollector
         runLevel = IDLE;
         gpsOffset = new UTC(0L);
         daqHeader = ByteBuffer.allocate(32);
+        abBuffer  = new HitBufferAB();
     }
 
     public void close()
@@ -299,7 +373,7 @@ public class DataCollector extends AbstractDataCollector
         daqHeader.putLong(utc);
         daqHeader.flip();
         GatheringByteChannel g = (GatheringByteChannel) out;
-        ByteBuffer bufferArray[] = new ByteBuffer[] { daqHeader, in };
+        ByteBuffer[] bufferArray = new ByteBuffer[] { daqHeader, in };
         while (in.remaining() > 0)
         {
             long nw = g.write(bufferArray);
@@ -324,18 +398,31 @@ public class DataCollector extends AbstractDataCollector
             short fmt = in.getShort();
             if (hitsSink != null)
             {
+                
+                int atwdChip;
                 long domClock;
+                ByteBuffer dbuf;
                 switch (fmt)
                 {
                 case 1:
                 case 2: // Engineering format data
                     // strip out the clock word - advance pointer
+                    in.position(pos + 4);
+                    atwdChip = in.get() & 1;
                     in.position(pos + 10);
                     domClock = DOMAppUtil.decodeSixByteClock(in);
                     in.position(pos);
                     in.limit(in.position() + len);
                     numHits++;
-                    lastDataUT = genericDataDispatch(len, 2, domClock, in, hitsSink);
+                    dbuf = ByteBuffer.allocate(in.remaining());
+                    dbuf.put(in);
+                    dbuf.flip();
+                    HitBufferAB.Element e;
+                    if (atwdChip == 0)
+                        e = abBuffer.pushA(len, 2, domClock, dbuf);
+                    else
+                        e = abBuffer.pushB(len, 2, domClock, dbuf);
+                    if (e != null) lastDataUT = genericDataDispatch(e.recl, e.fmtid, e.domClock, e.buf, hitsSink);
                     in.limit(buffer_limit);
                     break;
                 case 144: // Delta compressed data
@@ -354,12 +441,13 @@ public class DataCollector extends AbstractDataCollector
                         int word2 = in.getInt();
                         int word3 = in.getInt();
                         int hitSize = word1 & 0x7ff;
+                        atwdChip = (word1 >> 11) & 1;
                         domClock = (((long) clkMSB) << 32) | (((long) word2) & 0xffffffffL);
                         short version = 1;
                         short pedestal = 0;
                         if (config.getPedestalSubtraction()) pedestal = 1;
                         in.limit(in.position() + hitSize - 12);
-                        ByteBuffer dbuf = ByteBuffer.allocate(hitSize + 10);
+                        dbuf = ByteBuffer.allocate(hitSize + 10);
                         dbuf.order(ByteOrder.LITTLE_ENDIAN);
                         dbuf.putShort((short) 1);
                         dbuf.putShort(version);
@@ -371,7 +459,11 @@ public class DataCollector extends AbstractDataCollector
                         numHits++;
                         dbuf.flip();
                         logger.debug("Processing delta hit len: " + hitSize + " remaining: " + dbuf.remaining());
-                        lastDataUT = genericDataDispatch(dbuf.limit(), 3, domClock, dbuf, hitsSink);
+                        if (atwdChip == 0)
+                            e = abBuffer.pushA(dbuf.limit(), 3, domClock, dbuf);
+                        else
+                            e = abBuffer.pushB(dbuf.limit(), 3, domClock, dbuf);
+                        if (e != null) lastDataUT = genericDataDispatch(e.recl, e.fmtid, e.domClock, e.buf, hitsSink);
                         in.limit(buffer_limit);
                     }
                     in.order(ByteOrder.BIG_ENDIAN);
