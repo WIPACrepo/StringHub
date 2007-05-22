@@ -134,6 +134,7 @@ public class DataCollector extends AbstractDataCollector
     private ByteBuffer          daqHeader;
     private long                nextSupernovaDomClock;
     private HitBufferAB         abBuffer;
+    private int numSupernovaGaps;
     
     /**
      * A helper class to deal with the now-less-than-trivial
@@ -537,9 +538,11 @@ public class DataCollector extends AbstractDataCollector
         {
             SupernovaPacket spkt = SupernovaPacket.createFromBuffer(in);
             // Check for gaps in SN data
-            if ((nextSupernovaDomClock != 0L) && (spkt.getClock() != nextSupernovaDomClock))
-                logger.warn("Gap or overlap detected in supernova record");
-            nextSupernovaDomClock = spkt.getClock() + spkt.getScalers().length << 16;
+            if ((nextSupernovaDomClock != 0L) && (spkt.getClock() != nextSupernovaDomClock) && numSupernovaGaps++ < 100)
+                logger.warn("Gap or overlap in SN rec: next = " + nextSupernovaDomClock 
+                        + " - current = " + spkt.getClock());
+            
+            nextSupernovaDomClock = spkt.getClock() + (spkt.getScalers().length << 16);
             
             if (supernovaSink != null)
             {
@@ -683,6 +686,7 @@ public class DataCollector extends AbstractDataCollector
         lastTcalUT = 0L;
         lastSupernovaUT = 0L;
         nextSupernovaDomClock = 0L;
+        numSupernovaGaps = 0;
         
         logger.info("Begin data collection thread");
         
