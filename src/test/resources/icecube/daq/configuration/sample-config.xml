@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<domConfigList xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="domconfig.xsd" configId="10102030">
-
+<domConfigList>
     <creator>Kael Hanson</creator>
     
     <description>
@@ -25,35 +24,34 @@
                 </atwd>
             </engineeringFormat> 
         </format>
-        <triggerMode>spe</triggerMode>
-        <atwd0TriggerBias>828</atwd0TriggerBias>
-        <atwd0RampTop>2100</atwd0RampTop>
-        <atwd0RampRate>370</atwd0RampRate>
-        <atwdAnalogRef>1750</atwdAnalogRef>
-        <atwd1TriggerBias>843</atwd1TriggerBias>
-        <atwd1RampTop>2300</atwd1RampTop>
-        <atwd1RampRate>366</atwd1RampRate>
-        <frontEndPedestal>1975</frontEndPedestal>
+        <triggerMode>			spe </triggerMode>
+        <atwd0TriggerBias>		828 </atwd0TriggerBias>
+        <atwd0RampTop>		   2100 </atwd0RampTop>
+        <atwd0RampRate>		370 </atwd0RampRate>
+        <atwdAnalogRef>	   1750 </atwdAnalogRef>
+        <atwd1TriggerBias>     843 </atwd1TriggerBias>
+        <atwd1RampTop>        2343 </atwd1RampTop>
+        <atwd1RampRate>        366 </atwd1RampRate>
+        <frontEndPedestal>    1975 </frontEndPedestal>
         <mpeTriggerDiscriminator>665</mpeTriggerDiscriminator>
         <speTriggerDiscriminator>569</speTriggerDiscriminator>
-        <fastAdcRef>820</fastAdcRef>
-        <internalPulser>30</internalPulser>
-        <ledBrightness>1023</ledBrightness>
-        <frontEndAmpLowerClamp>0</frontEndAmpLowerClamp>
-        <flasherDelay>0</flasherDelay>
-        <muxBias>0</muxBias>
-        <pmtHighVoltage>2846</pmtHighVoltage>
-        <analogMux>off</analogMux>
-        <pulserMode>beacon</pulserMode>
-        <pulserRate>58</pulserRate>
+        <fastAdcRef>			820 </fastAdcRef>
+        <internalPulser>		 30 </internalPulser>
+        <ledBrightness>	   1019 </ledBrightness>
+        <muxBias>                0 </muxBias>
+        <pmtHighVoltage>      2846 </pmtHighVoltage>
+        <analogMux>            off </analogMux>
+        <pulserMode>        beacon </pulserMode>
+        <pulserRate>            18 </pulserRate>
+		<hardwareMonitorInterval>4.2</hardwareMonitorInterval>
         <localCoincidence>
             <type>soft</type>
             <mode>up-or-down</mode>
-            <txMode>both</txMode>
+            <txMode>down</txMode>
             <source>spe</source>
             <span>3</span>
             <preTrigger>1250</preTrigger>
-            <postTrigger>1250</postTrigger>
+            <postTrigger>1450</postTrigger>
             <cableLength dir="up" dist="1">650</cableLength>
             <cableLength dir="up" dist="2">1300</cableLength>
             <cableLength dir="down" dist="1">575</cableLength>

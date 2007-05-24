@@ -1,8 +1,11 @@
 package icecube.daq.configuration.test;
 
+import static org.junit.Assert.*;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.DOMConfiguration;
+import icecube.daq.domapp.TriggerMode;
 import icecube.daq.domapp.test.TestDeltaMCodec;
 
 import java.io.InputStream;
@@ -49,17 +52,30 @@ public class XMLConfigTest
 	
 	@Test public void testFormat()
 	{
+        assertFalse(config.isDeltaCompressionEnabled());
+        assertEquals((short) 128, config.getEngineeringFormat().atwdSamples(0));
+        assertEquals((short)  32, config.getEngineeringFormat().atwdSamples(1));
+        assertEquals((short)  32, config.getEngineeringFormat().atwdSamples(2));
+        assertEquals((short)   0, config.getEngineeringFormat().atwdSamples(3));
+        assertEquals((short) 200, config.getEngineeringFormat().fadcSamples());
 	}
 	
 	@Test public void testTrigger()
 	{
+        assertEquals(TriggerMode.SPE, config.getTriggerMode());
+        assertEquals((short) 665, config.getDAC(8));
+        assertEquals((short) 569, config.getDAC(9));
 	}
 	
 	@Test public void testLocalCoincidence()
 	{
+        assertEquals(1250, config.getLC().getPreTrigger());
+        assertEquals(1450, config.getLC().getPostTrigger());
+        assertEquals((byte) 3, config.getLC().getSpan());
 	}
 	
-	@Test public void testSupernova()
+	@Test public void testMonitorIntervals()
 	{
+        assertEquals(168000000, config.getHardwareMonitorInterval());
 	}
 }

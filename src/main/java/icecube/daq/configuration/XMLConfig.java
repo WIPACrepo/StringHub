@@ -220,6 +220,10 @@ public class XMLConfig extends DefaultHandler
 		        spe = false;
 			currentConfig.setSupernovaSpe(spe);
 		}
+        else if (localName.equals("hardwareMonitorInterval"))
+        {
+            currentConfig.setHardwareMonitorInterval((int) (40000000 * Double.parseDouble(text))); 
+        }
 		else if (localName.equals("noiseRate"))
 		{
 			currentConfig.setSimNoiseRate(Double.parseDouble(text));
