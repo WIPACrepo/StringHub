@@ -328,7 +328,7 @@ class DomHitFactory
         case 2:
             DomHitEngineeringFormatPayload engHit =
                 new DomHitEngineeringFormatPayload();
-            engHit.initialize(0, buf);
+            engHit.initialize(offset + 0, buf);
             return engHit;
         case 3:
         case PayloadRegistry.PAYLOAD_ID_DELTA_HIT:
@@ -336,7 +336,7 @@ class DomHitFactory
                 new DomHitDeltaCompressedFormatPayload();
             // XXX rewrite payload type to match real payload type
             buf.putInt(offset + 4, deltaHit.getPayloadType());
-            deltaHit.initialize(0, buf);
+            deltaHit.initialize(offset + 0, buf);
             return deltaHit;
         default:
             break;
