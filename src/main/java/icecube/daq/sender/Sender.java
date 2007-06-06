@@ -382,7 +382,6 @@ public class Sender
     private ReadoutDataPayloadFactory readoutDataFactory;
 
     private IPayloadDestinationCollection hitDest;
-    private RequestInputEngine reqInputEngine;
     private IPayloadDestinationCollection dataDest;
 
     /** list of payloads to be deleted after back end has stopped */
