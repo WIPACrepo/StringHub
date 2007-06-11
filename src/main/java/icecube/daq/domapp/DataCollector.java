@@ -733,11 +733,14 @@ public class DataCollector extends AbstractDataCollector
         // Create a watcher timer
         Timer watcher = new Timer(getName() + "-timer");
         InterruptorTask intTask = new InterruptorTask(this);
-        watcher.schedule(intTask, 15000L, 5000L);
+        watcher.schedule(intTask, 18000L, 5000L);
 
         driver.commReset(card, pair, dom);
+        Thread.sleep(250);
         driver.softboot (card, pair, dom);
+        Thread.sleep(1500);
         driver.commReset(card, pair, dom);
+        Thread.sleep(250);
         
         /*
          * Initialize the DOMApp - get things setup
@@ -755,8 +758,7 @@ public class DataCollector extends AbstractDataCollector
         logger.info("Found DOM " + mbid + " running " + app.getRelease());
 
         // Grab 2 RAPCal data points to get started
-        for (int nTry = 0; nTry < 10 && validRAPCalCount < 2; nTry++)
-            execRapCal();
+        for (int nTry = 0; nTry < 10 && validRAPCalCount < 2; nTry++) execRapCal();
         lastTcalRead = System.currentTimeMillis();
 
         /*
