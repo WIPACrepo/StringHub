@@ -14,6 +14,7 @@ import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.util.UTC;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -739,19 +740,42 @@ public class DataCollector extends AbstractDataCollector
         Thread.sleep(250);
         driver.softboot (card, pair, dom);
         Thread.sleep(1500);
-        driver.commReset(card, pair, dom);
-        Thread.sleep(250);
+
+		FileNotFoundException savedEx = null;
+
+		for (int i = 0; i < 2; i++) {
+			driver.commReset(card, pair, dom);
+			Thread.sleep(250);
         
-        /*
-         * Initialize the DOMApp - get things setup
-         */
-        if (app == null)
-        {
-            // If app is null it implies the collector has deferred
-            // opening of the DOR devfile to the thread.
-            app = new DOMApp(this.card, this.pair, this.dom);
+			/*
+			 * Initialize the DOMApp - get things setup
+			 */
+			if (app == null)
+			{
+				// If app is null it implies the collector has deferred
+				// opening of the DOR devfile to the thread.
+				try {
+					app = new DOMApp(this.card, this.pair, this.dom);
+					// if we got app, we can quit
+					break;
+				} catch (FileNotFoundException ex) {
+					app = null;
+					savedEx = ex;
+				}
+			}
         }
                 
+		if (app == null) {
+			if (savedEx != null) {
+				throw savedEx;
+			}
+
+			throw new FileNotFoundException("Couldn't open DOMApp");
+		} else if (savedEx != null) {
+			logger.error("Successful DOMApp retry after initial failure",
+						 savedEx);
+		}
+
         app.transitionToDOMApp();
         mbid = app.getMainboardID();
         numericMBID = Long.valueOf(mbid, 16).longValue();
