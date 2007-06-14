@@ -46,7 +46,31 @@ public class Driver implements IDriver {
 		return info.substring(info.length() - 12);
 	}
 
-	public void softboot(int card, int pair, char dom) throws IOException {
+    /**
+     * Reset the communications such as to bring back from a hardware timeout.
+     * @param card 0 to 7
+     * @param pair 0 to 3 
+     * @param dom 'A' or 'B'
+     * @throws IOException
+     */
+    public void commReset(int card, int pair, char dom) throws IOException
+    {
+        String cwd = card + "" + pair + dom;
+        logger.debug("Issuing a communications reset on " + cwd);
+        File file = makeProcfile(cwd, "is-communicating");
+        FileOutputStream iscomm = new FileOutputStream(file);
+        iscomm.write("reset\n".getBytes());
+        iscomm.close();
+    }
+    
+    /**
+     * @param card 0 to 7
+     * @param pair 0 to 3
+     * @param dom 'A' or 'B'
+     * @throws IOException when the procfile write fails for some reason
+     */
+	public void softboot(int card, int pair, char dom) throws IOException 
+    {
         logger.debug("Softbooting " + card + "" + pair + dom);
 		File file = makeProcfile(card + "" + pair + dom, "softboot");
 		FileOutputStream sb = new FileOutputStream(file);
@@ -54,6 +78,12 @@ public class Driver implements IDriver {
 		sb.close();
 	}
 
+    /**
+     * Get the list of DOMs that are turned on, communicating, and in iceboot
+     * or above (i.e. not in configboot)
+     * @return list of DOMChannelInfo structures.
+     * @throws IOException
+     */
 	public LinkedList<DOMChannelInfo> discoverActiveDOMs() throws IOException {
 		char ab[] = { 'A', 'B' };
 		LinkedList<DOMChannelInfo> channelList = new LinkedList<DOMChannelInfo>();

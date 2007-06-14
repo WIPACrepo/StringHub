@@ -220,6 +220,10 @@ public class XMLConfig extends DefaultHandler
 		        spe = false;
 			currentConfig.setSupernovaSpe(spe);
 		}
+        else if (localName.equals("hardwareMonitorInterval"))
+        {
+            currentConfig.setHardwareMonitorInterval((int) (40000000 * Double.parseDouble(text))); 
+        }
 		else if (localName.equals("noiseRate"))
 		{
 			currentConfig.setSimNoiseRate(Double.parseDouble(text));
@@ -254,7 +258,8 @@ public class XMLConfig extends DefaultHandler
 		}
 		else if (localName.equals("supernovaMode"))
 		{
-			if (attributes.getValue("enabled").equals("true"))
+            int index = attributes.getIndex("enabled");
+            if (index >= 0 && attributes.getValue(index).equals("true"))
 				currentConfig.enableSupernova();
 			else
 				currentConfig.disableSupernova();

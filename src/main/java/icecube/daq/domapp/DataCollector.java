@@ -14,11 +14,13 @@ import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.util.UTC;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -117,8 +119,7 @@ public class DataCollector extends AbstractDataCollector
     private long                tcalReadInterval      = 1000;
     private long                lastSupernovaRead     = 0;
     private long                supernovaReadInterval = 1000;
-    private boolean             detectLags            = false;
-
+    
     private int                 rapcalExceptionCount  = 0;
     private int                 validRAPCalCount;
 
@@ -126,14 +127,88 @@ public class DataCollector extends AbstractDataCollector
     private int                 numMoni               = 0;
     private int                 numSupernova          = 0;
     private int                 loopCounter           = 0;
-    private long                lastDataUT            = 0L;
-    private long                lastMoniUT            = 0L;
-    private long                lastTcalUT            = 0L;
-    private long                lastSupernovaUT       = 0L;
+    private long                lastDataUT;
+    private long                lastMoniUT;
+    private long                lastTcalUT;
+    private long                lastSupernovaUT;
 
     private ByteBuffer          daqHeader;
-    private static final long   maxDataDelay          = 300000000000L;
+    private long                nextSupernovaDomClock;
+    private HitBufferAB         abBuffer;
+    private int numSupernovaGaps;
+    
+    /**
+     * A helper class to deal with the now-less-than-trivial
+     * hit buffering which circumvents the hit out-of-order
+     * issues.
+     * @author kael
+     *
+     */
+    private class HitBufferAB
+    {
+        class Element implements Comparable<Element>
+        {
+            int recl;
+            int fmtid;
+            long domClock;
+            long utc;
+            ByteBuffer buf;
+            
+            Element(int recl, int fmtid, long domClock, ByteBuffer buf)
+            {
+                this.recl = recl;
+                this.fmtid = fmtid;
+                this.domClock = domClock;
+                this.utc = rapcal.domToUTC(domClock).in_0_1ns();
+                this.buf = buf;
+            }
 
+            public int compareTo(Element o)
+            {
+                if (this.domClock > o.domClock)
+                    return 1;
+                else if (this.domClock < o.domClock)
+                    return -1;
+                else
+                    return 0;
+            }
+        }
+        
+        private LinkedList<Element> alist, blist; 
+        
+        HitBufferAB()
+        {
+            alist = new LinkedList<Element>();
+            blist = new LinkedList<Element>();
+        }
+        
+        void pushA(int recl, int fmtid, long domClock, ByteBuffer buf)
+        {
+            Element e = new Element(recl, fmtid, domClock, buf);
+            logger.debug("Pushed element into A buffer: domClock = " + domClock + " # A = " 
+                    + alist.size() + " # B = " + blist.size());
+            alist.addLast(e);
+        }
+        
+        void pushB(int recl, int fmtid, long domClock, ByteBuffer buf)
+        {
+            Element e = new Element(recl, fmtid, domClock, buf);
+            logger.debug("Pushed element into B buffer: domClock = " + domClock + " # A = " 
+                    + alist.size() + " # B = " + blist.size());
+            blist.addLast(e);
+        }
+        
+        Element pop()
+        {
+            if (alist.size() == 0 || blist.size() == 0) return null;
+            if (alist.getFirst().compareTo(blist.getFirst()) > 0)
+                return blist.removeFirst();
+            else
+                return alist.removeFirst();
+        }
+    }
+    
+    
     public DataCollector(DOMChannelInfo chInfo, WritableByteChannel out) throws IOException, MessageException
     {
         this(chInfo.card, chInfo.pair, chInfo.dom, out, null, null, null);
@@ -185,6 +260,7 @@ public class DataCollector extends AbstractDataCollector
         runLevel = IDLE;
         gpsOffset = new UTC(0L);
         daqHeader = ByteBuffer.allocate(32);
+        abBuffer  = new HitBufferAB();
     }
 
     public void close()
@@ -300,9 +376,12 @@ public class DataCollector extends AbstractDataCollector
         daqHeader.putLong(utc);
         daqHeader.flip();
         GatheringByteChannel g = (GatheringByteChannel) out;
-        ByteBuffer bufferArray[] = new ByteBuffer[] { daqHeader, in };
-        long nw = g.write(bufferArray);
-        logger.debug("In DC " + canonicalName() + " - type = " + fmtid + " wrote " + nw + " bytes to " + out);
+        ByteBuffer[] bufferArray = new ByteBuffer[] { daqHeader, in };
+        while (in.remaining() > 0)
+        {
+            long nw = g.write(bufferArray);
+            logger.debug("In DC " + canonicalName() + " - type = " + fmtid + " wrote " + nw + " bytes to " + out);
+        }
         return utc;
     }
 
@@ -322,39 +401,83 @@ public class DataCollector extends AbstractDataCollector
             short fmt = in.getShort();
             if (hitsSink != null)
             {
+                
+                int atwdChip;
                 long domClock;
+                ByteBuffer dbuf;
                 switch (fmt)
                 {
                 case 1:
                 case 2: // Engineering format data
                     // strip out the clock word - advance pointer
+                    in.position(pos + 4);
+                    atwdChip = in.get() & 1;
                     in.position(pos + 10);
                     domClock = DOMAppUtil.decodeSixByteClock(in);
                     in.position(pos);
                     in.limit(in.position() + len);
                     numHits++;
-                    lastDataUT = genericDataDispatch(len, 2, domClock, in, hitsSink);
+                    dbuf = ByteBuffer.allocate(in.remaining());
+                    dbuf.put(in);
+                    dbuf.flip();
+                    if (atwdChip == 0)
+                        abBuffer.pushA(len, 2, domClock, dbuf);
+                    else
+                        abBuffer.pushB(len, 2, domClock, dbuf);
+                    while (true) 
+                    {
+                        HitBufferAB.Element e = abBuffer.pop();
+                        if (e == null) break;
+                        lastDataUT = genericDataDispatch(e.recl, e.fmtid, e.domClock, e.buf, hitsSink);
+                    }
                     in.limit(buffer_limit);
                     break;
                 case 144: // Delta compressed data
-                    // It gets weird here - FPGA data written LITTLE_ENDIAN
-                    // Also must handle unpacking and applying clock context
-                    // to delta hits compressed in data block starting here.
-                    in.order(ByteOrder.LITTLE_ENDIAN);
                     int clkMSB = in.getShort();
                     logger.debug("clkMSB: " + clkMSB);
                     in.getShort();
+                    // Note byte order change for delta message buffers
+                    in.order(ByteOrder.LITTLE_ENDIAN);
                     while (in.remaining() > 0)
                     {
-                        in.mark();
-                        int hitSize = in.getInt() & 0x7ff;
-                        int clkLSB = in.getInt();
-                        logger.debug("hitsize: " + hitSize + " clkLSB: " + clkLSB);
-                        domClock = (((long) clkMSB) << 32) | (((long) clkLSB) & 0xffffffffL);
-                        in.reset();
-                        in.limit(in.position() + hitSize);
+                        // create an additional byte buffer to handle re-format of
+                        // the delta payload - I want to insert the re-assembled
+                        // DOMClock in front of the compression header
+                        // Advance past compression hit header
+                        int word1 = in.getInt();
+                        int word2 = in.getInt();
+                        int word3 = in.getInt();
+                        int hitSize = word1 & 0x7ff;
+                        atwdChip = (word1 >> 11) & 1;
+                        domClock = (((long) clkMSB) << 32) | (((long) word2) & 0xffffffffL);
+                        short version = 1;
+                        short pedestal = 0;
+                        if (config.getPedestalSubtraction()) pedestal = 1;
+                        in.limit(in.position() + hitSize - 12);
+                        dbuf = ByteBuffer.allocate(hitSize + 10);
+                        dbuf.order(ByteOrder.LITTLE_ENDIAN);
+                        dbuf.putShort((short) 1);
+                        dbuf.putShort(version);
+                        dbuf.putShort(pedestal);
+                        dbuf.putLong(domClock);
+                        dbuf.putInt(word1);
+                        dbuf.putInt(word3);
+                        dbuf.put(in);
                         numHits++;
-                        lastDataUT = genericDataDispatch(hitSize, 3, domClock, in, hitsSink);
+                        dbuf.flip();
+                        logger.debug("Processing delta hit from ATWD " 
+                                + atwdChip + " - len: " + hitSize 
+                                + " remaining: " + dbuf.remaining());
+                        if (atwdChip == 0)
+                            abBuffer.pushA(dbuf.remaining(), 3, domClock, dbuf);
+                        else
+                            abBuffer.pushB(dbuf.remaining(), 3, domClock, dbuf);
+                        while (true) 
+                        {
+                            HitBufferAB.Element e = abBuffer.pop();
+                            if (e == null) break;
+                            lastDataUT = genericDataDispatch(e.recl, e.fmtid, e.domClock, e.buf, hitsSink);
+                        }
                         in.limit(buffer_limit);
                     }
                     in.order(ByteOrder.BIG_ENDIAN);
@@ -415,6 +538,13 @@ public class DataCollector extends AbstractDataCollector
         while (in.remaining() > 0)
         {
             SupernovaPacket spkt = SupernovaPacket.createFromBuffer(in);
+            // Check for gaps in SN data
+            if ((nextSupernovaDomClock != 0L) && (spkt.getClock() != nextSupernovaDomClock) && numSupernovaGaps++ < 100)
+                logger.warn("Gap or overlap in SN rec: next = " + nextSupernovaDomClock 
+                        + " - current = " + spkt.getClock());
+            
+            nextSupernovaDomClock = spkt.getClock() + (spkt.getScalers().length << 16);
+            
             if (supernovaSink != null)
             {
                 numSupernova++;
@@ -552,7 +682,15 @@ public class DataCollector extends AbstractDataCollector
     public void run()
     {
 
+        lastDataUT = 0L;
+        lastMoniUT = 0L;
+        lastTcalUT = 0L;
+        lastSupernovaUT = 0L;
+        nextSupernovaDomClock = 0L;
+        numSupernovaGaps = 0;
+        
         logger.info("Begin data collection thread");
+        
         try
         {
             runcore();
@@ -596,28 +734,55 @@ public class DataCollector extends AbstractDataCollector
         // Create a watcher timer
         Timer watcher = new Timer(getName() + "-timer");
         InterruptorTask intTask = new InterruptorTask(this);
-        watcher.schedule(intTask, 15000L, 5000L);
+        watcher.schedule(intTask, 18000L, 5000L);
 
-        driver.softboot(this.card, this.pair, this.dom);
+        driver.commReset(card, pair, dom);
+        Thread.sleep(250);
+        driver.softboot (card, pair, dom);
+        Thread.sleep(1500);
 
-        /*
-         * Initialize the DOMApp - get things setup
-         */
-        if (app == null)
-        {
-            // If app is null it implies the collector has deferred
-            // opening of the DOR devfile to the thread.
-            app = new DOMApp(this.card, this.pair, this.dom);
+		FileNotFoundException savedEx = null;
+
+		for (int i = 0; i < 2; i++) {
+			driver.commReset(card, pair, dom);
+			Thread.sleep(250);
+        
+			/*
+			 * Initialize the DOMApp - get things setup
+			 */
+			if (app == null)
+			{
+				// If app is null it implies the collector has deferred
+				// opening of the DOR devfile to the thread.
+				try {
+					app = new DOMApp(this.card, this.pair, this.dom);
+					// if we got app, we can quit
+					break;
+				} catch (FileNotFoundException ex) {
+					app = null;
+					savedEx = ex;
+				}
+			}
         }
                 
+		if (app == null) {
+			if (savedEx != null) {
+				throw savedEx;
+			}
+
+			throw new FileNotFoundException("Couldn't open DOMApp");
+		} else if (savedEx != null) {
+			logger.error("Successful DOMApp retry after initial failure",
+						 savedEx);
+		}
+
         app.transitionToDOMApp();
         mbid = app.getMainboardID();
         numericMBID = Long.valueOf(mbid, 16).longValue();
         logger.info("Found DOM " + mbid + " running " + app.getRelease());
 
         // Grab 2 RAPCal data points to get started
-        for (int nTry = 0; nTry < 10 && validRAPCalCount < 2; nTry++)
-            execRapCal();
+        for (int nTry = 0; nTry < 10 && validRAPCalCount < 2; nTry++) execRapCal();
         lastTcalRead = System.currentTimeMillis();
 
         /*
@@ -646,6 +811,7 @@ public class DataCollector extends AbstractDataCollector
             /* Check DATA & MONI - must be in running state (2) */
             if (queryDaqRunLevel() == RUNNING)
             {
+                // Time to do a data collection?
                 if (t - lastDataRead >= dataReadInterval)
                 {
                     lastDataRead = t;
@@ -654,22 +820,9 @@ public class DataCollector extends AbstractDataCollector
                     for (ByteBuffer data : dataList)
                         dataProcess(data);
                     if (dataList.size() == MSGS_IN_FLIGHT) tired = false;
-
-                    /* 
-                     Check for DOM readout lagging behind acquisition.
-                     Reset acquisition if falls too far behind.  Use
-                     the lastTcalUT for reference in case system clock
-                     is incorrect.
-                     */
-                    if (detectLags && (lastDataUT != 0L) && (lastTcalUT - lastDataUT > maxDataDelay))
-                    {
-                        logger.warn("DOM data lag detected: (" + lastTcalUT + ", " + lastDataUT
-                                + ").  Resetting ACQ.");
-                        app.endRun();
-                        app.beginRun();
-                        logger.warn("ACQ restarted.");
-                    }
                 }
+                
+                // What about monitoring?
                 if (t - lastMoniRead >= moniReadInterval)
                 {
                     lastMoniRead = t;
@@ -686,13 +839,12 @@ public class DataCollector extends AbstractDataCollector
                     while (true)
                     {
                         ByteBuffer sndata = app.getSupernova();
-                        int sn_data_length = sndata.remaining();
-                        if (sn_data_length > 0)
+                        if (sndata.remaining() > 0)
                         {
                             supernovaProcess(sndata);
                             tired = false;
+                            break;
                         }
-                        if (sn_data_length != 11) break;
                     }
                 }
             }
