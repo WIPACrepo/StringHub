@@ -782,7 +782,7 @@ public class DataCollector extends AbstractDataCollector
         // Create a watcher timer
         Timer watcher = new Timer(getName() + "-timer");
         InterruptorTask intTask = new InterruptorTask(this);
-        watcher.schedule(intTask, 18000L, 5000L);
+        watcher.schedule(intTask, 28000L, 5000L);
 
 		// Wrap up in retry loop - sometimes getMainboardID fails/times out
 		// DOM is in a strange state here
