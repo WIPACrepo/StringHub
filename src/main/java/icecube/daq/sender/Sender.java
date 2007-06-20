@@ -1139,7 +1139,7 @@ public class Sender
         final int payloadNum = nextPayloadNum++;
 
         // build readout data
-        Payload readout =
+        IPayload readout =
             readoutDataFactory.createPayload(uid, payloadNum, true, sourceId,
                                              startTime, endTime, tmpHits);
 
@@ -1149,7 +1149,7 @@ public class Sender
             pay.recycle();
         }
 
-        return readout;
+        return (ILoadablePayload) readout;
     }
 
     /**
