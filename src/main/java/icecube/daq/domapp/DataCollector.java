@@ -20,6 +20,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.channels.ClosedByInterruptException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Timer;
@@ -723,19 +724,9 @@ public class DataCollector extends AbstractDataCollector
 
     } /* END OF run() METHOD */
 
-    /**
-     * This is a deeper run - basically I want a nice way of efficiently getting
-     * the stop signals written - a simple return to a wrapper which handles
-     * this seems best. So the thread run method will handle that recovery
-     * process
-     */
-    private void runcore() throws Exception
-    {
-        // Create a watcher timer
-        Timer watcher = new Timer(getName() + "-timer");
-        InterruptorTask intTask = new InterruptorTask(this);
-        watcher.schedule(intTask, 18000L, 5000L);
-
+	/** Wrap up softboot -> domapp behavior */
+	private IDOMApp softbootToDomapp() throws Exception 
+	{
         driver.commReset(card, pair, dom);
         Thread.sleep(250);
         driver.softboot (card, pair, dom);
@@ -776,9 +767,42 @@ public class DataCollector extends AbstractDataCollector
 						 savedEx);
 		}
 
-        app.transitionToDOMApp();
-        mbid = app.getMainboardID();
-        numericMBID = Long.valueOf(mbid, 16).longValue();
+		app.transitionToDOMApp();
+		return app;
+	}
+
+    /**
+     * This is a deeper run - basically I want a nice way of efficiently getting
+     * the stop signals written - a simple return to a wrapper which handles
+     * this seems best. So the thread run method will handle that recovery
+     * process
+     */
+    private void runcore() throws Exception
+    {
+        // Create a watcher timer
+        Timer watcher = new Timer(getName() + "-timer");
+        InterruptorTask intTask = new InterruptorTask(this);
+        watcher.schedule(intTask, 28000L, 5000L);
+
+		// Wrap up in retry loop - sometimes getMainboardID fails/times out
+		// DOM is in a strange state here
+		// this is a workaround for "Type 3" dropped DOMs
+		numericMBID = 0;
+		int NT      = 2;
+		for(int i=0; i<NT; i++) {
+			try {
+				app = softbootToDomapp();
+				mbid = app.getMainboardID();
+				numericMBID = Long.valueOf(mbid, 16).longValue();
+				break;
+			} catch (ClosedByInterruptException ex) {
+				logger.error("Timeout on trial "+i+" getting DOM ID", ex);
+			}
+		}
+		if(numericMBID == 0) {
+			throw new Exception("Couldn't get DOM MB ID after "+NT+" trials.");
+		}
+
         logger.info("Found DOM " + mbid + " running " + app.getRelease());
 
         // Grab 2 RAPCal data points to get started

@@ -18,7 +18,7 @@ public class DOMConnector
 	/** DOM data collectors. */
 	private ArrayList<AbstractDataCollector> collectors;
 	private static final Logger logger = Logger.getLogger(DOMConnector.class);
-	private static final long CONFIGURE_TIMEOUT = 15000L;
+	private static final long CONFIGURE_TIMEOUT = 30000L;
 	private static final long DESTROY_TIMEOUT   = 15000L;
 	private static final long STOP_TIMEOUT      = 15000L;
 
