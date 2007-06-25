@@ -27,8 +27,8 @@ public class MonitorRecordFactoryTest {
 	@Before public void setUp()
 	{
 		ReadableByteChannel channel =  Channels.newChannel(
-				ClassLoader.getSystemResourceAsStream(
-						"icecube/daq/domapp/test/monitest.dat"
+				MonitorRecordFactoryTest.class.getResourceAsStream(
+						"monitest.dat"
 						)
 					);
 		assertNotNull("Couldn't get channel", channel);
