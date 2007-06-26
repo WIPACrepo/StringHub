@@ -795,7 +795,13 @@ public class DataCollector extends AbstractDataCollector
                 mbid = app.getMainboardID();
                 numericMBID = Long.valueOf(mbid, 16).longValue();
                 break;
-            } catch (ClosedByInterruptException ex) {
+            } catch (MessageException ex) {
+                if (ex.getCause() == null &&
+                    !(ex.getCause() instanceof
+                      ClosedByInterruptException))
+                {
+                    throw ex;
+                }
                 logger.error("Timeout on trial "+i+" getting DOM ID", ex);
             }
         }
