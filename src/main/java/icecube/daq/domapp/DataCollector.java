@@ -796,7 +796,7 @@ public class DataCollector extends AbstractDataCollector
                 numericMBID = Long.valueOf(mbid, 16).longValue();
                 break;
             } catch (MessageException ex) {
-                if (ex.getCause() == null &&
+                if (ex.getCause() != null &&
                     !(ex.getCause() instanceof
                       ClosedByInterruptException))
                 {
