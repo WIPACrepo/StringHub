@@ -1,4 +1,4 @@
-/* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
+/* -*- mode: java; indent-tabs-mode:f; tab-width:4 -*- */
 
 package icecube.daq.domapp;
 
@@ -724,52 +724,52 @@ public class DataCollector extends AbstractDataCollector
 
     } /* END OF run() METHOD */
 
-	/** Wrap up softboot -> domapp behavior */
-	private IDOMApp softbootToDomapp() throws Exception 
-	{
+    /** Wrap up softboot -> domapp behavior */
+    private IDOMApp softbootToDomapp() throws Exception 
+    {
         driver.commReset(card, pair, dom);
         Thread.sleep(250);
         driver.softboot (card, pair, dom);
         Thread.sleep(1500);
 
-		FileNotFoundException savedEx = null;
+        FileNotFoundException savedEx = null;
 
-		for (int i = 0; i < 2; i++) {
-			driver.commReset(card, pair, dom);
-			Thread.sleep(250);
+        for (int i = 0; i < 2; i++) {
+            driver.commReset(card, pair, dom);
+            Thread.sleep(250);
         
-			/*
-			 * Initialize the DOMApp - get things setup
-			 */
-			if (app == null)
-			{
-				// If app is null it implies the collector has deferred
-				// opening of the DOR devfile to the thread.
-				try {
-					app = new DOMApp(this.card, this.pair, this.dom);
-					// if we got app, we can quit
-					break;
-				} catch (FileNotFoundException ex) {
-					app = null;
-					savedEx = ex;
-				}
-			}
+            /*
+             * Initialize the DOMApp - get things setup
+             */
+            if (app == null)
+            {
+                // If app is null it implies the collector has deferred
+                // opening of the DOR devfile to the thread.
+                try {
+                    app = new DOMApp(this.card, this.pair, this.dom);
+                    // if we got app, we can quit
+                    break;
+                } catch (FileNotFoundException ex) {
+                    app = null;
+                    savedEx = ex;
+                }
+            }
         }
                 
-		if (app == null) {
-			if (savedEx != null) {
-				throw savedEx;
-			}
+        if (app == null) {
+            if (savedEx != null) {
+                throw savedEx;
+            }
 
-			throw new FileNotFoundException("Couldn't open DOMApp");
-		} else if (savedEx != null) {
-			logger.error("Successful DOMApp retry after initial failure",
-						 savedEx);
-		}
+            throw new FileNotFoundException("Couldn't open DOMApp");
+        } else if (savedEx != null) {
+            logger.error("Successful DOMApp retry after initial failure",
+                         savedEx);
+        }
 
-		app.transitionToDOMApp();
-		return app;
-	}
+        app.transitionToDOMApp();
+        return app;
+    }
 
     /**
      * This is a deeper run - basically I want a nice way of efficiently getting
@@ -784,24 +784,24 @@ public class DataCollector extends AbstractDataCollector
         InterruptorTask intTask = new InterruptorTask(this);
         watcher.schedule(intTask, 28000L, 5000L);
 
-		// Wrap up in retry loop - sometimes getMainboardID fails/times out
-		// DOM is in a strange state here
-		// this is a workaround for "Type 3" dropped DOMs
-		numericMBID = 0;
-		int NT      = 2;
-		for(int i=0; i<NT; i++) {
-			try {
-				app = softbootToDomapp();
-				mbid = app.getMainboardID();
-				numericMBID = Long.valueOf(mbid, 16).longValue();
-				break;
-			} catch (ClosedByInterruptException ex) {
-				logger.error("Timeout on trial "+i+" getting DOM ID", ex);
-			}
-		}
-		if(numericMBID == 0) {
-			throw new Exception("Couldn't get DOM MB ID after "+NT+" trials.");
-		}
+        // Wrap up in retry loop - sometimes getMainboardID fails/times out
+        // DOM is in a strange state here
+        // this is a workaround for "Type 3" dropped DOMs
+        numericMBID = 0;
+        int NT      = 2;
+        for(int i=0; i<NT; i++) {
+            try {
+                app = softbootToDomapp();
+                mbid = app.getMainboardID();
+                numericMBID = Long.valueOf(mbid, 16).longValue();
+                break;
+            } catch (ClosedByInterruptException ex) {
+                logger.error("Timeout on trial "+i+" getting DOM ID", ex);
+            }
+        }
+        if(numericMBID == 0) {
+            throw new Exception("Couldn't get DOM MB ID after "+NT+" trials.");
+        }
 
         logger.info("Found DOM " + mbid + " running " + app.getRelease());
 
