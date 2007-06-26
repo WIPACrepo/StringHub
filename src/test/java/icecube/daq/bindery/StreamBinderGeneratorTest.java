@@ -42,7 +42,6 @@ public class StreamBinderGeneratorTest {
                 BufferConsumerChannel out =
                     new BufferConsumerChannel(pipe.sink());
 		StreamBinder bind = new StreamBinder(ngen, out);
-		bind.start();
 		for (int i = 0; i < ngen; i++) {
 			Pipe p = Pipe.open();
 			p.source().configureBlocking(false);
@@ -50,6 +49,7 @@ public class StreamBinderGeneratorTest {
 			Generator gen = new Generator(i+10, p.sink(), simulationTime, 300.0);
 			gen.start();
 		}
+		bind.start();
 		logger.info("Starting event sequence.");
 		ByteBuffer buf = ByteBuffer.allocate(100000);
 		boolean stop = false;
