@@ -725,7 +725,7 @@ public class DataCollector extends AbstractDataCollector
     } /* END OF run() METHOD */
 
     /** Wrap up softboot -> domapp behavior */
-    private IDOMApp softbootToDomapp() throws Exception 
+    private IDOMApp softbootToDomapp() throws IOException, InterruptedException
     {
         driver.commReset(card, pair, dom);
         Thread.sleep(250);
@@ -792,21 +792,27 @@ public class DataCollector extends AbstractDataCollector
         for(int i=0; i<NT; i++) {
             try {
                 app = softbootToDomapp();
-                try{
+                try {
                     mbid = app.getMainboardID();
                 } catch (MessageException ex) {
+                    // if exception is wrapping a ClosedByInterruptException,
+                    //   then throw the original exception
                     if (ex.getCause() != null &&
-                        ex.getCause() instanceof ClosedByInterruptException))
+                        ex.getCause() instanceof ClosedByInterruptException)
                     {
                         throw (ClosedByInterruptException) ex.getCause();
                     }
 
+                    // otherwise, throw the MessageException
                     throw ex;
                 }
                 numericMBID = Long.valueOf(mbid, 16).longValue();
                 break;
             } catch (ClosedByInterruptException ex) {
-                Thread.currentThread.interrupted();
+                // clear the interrupt so it doesn't cause future problems
+                Thread.currentThread().interrupted();
+
+                // log exception and continue
                 logger.error("Timeout on trial "+i+" getting DOM ID", ex);
             }
         }
