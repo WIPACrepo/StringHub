@@ -27,14 +27,24 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <configuration>
-          <archive>
-            <manifest>
-              <mainClass>icecube.daq.stringhub.Shell</mainClass>
-              <addClasspath>true</addClasspath>
-            </manifest>
-          </archive>
-        </configuration>
+        <executions>
+          <execution>
+            <id>StringHub-comp</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>comp</classifier>
+              <archive>
+                <manifest>
+                  <mainClass>icecube.daq.stringhub.Shell</mainClass>
+                  <addClasspath>true</addClasspath>
+                  <classpathPrefix>../lib</classpathPrefix>
+                </manifest>
+              </archive>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
     <resources>
