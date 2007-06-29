@@ -19,10 +19,10 @@ import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
 import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.monitoring.DataCollectorMonitor;
-import icecube.daq.payload.ByteBufferCache;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.MasterPayloadFactory;
+import icecube.daq.payload.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
 import icecube.daq.util.DOMRegistry;
@@ -123,7 +123,7 @@ public class StringHubComponent extends DAQComponent
 	private boolean isSim = false;
 	private Driver driver = Driver.getInstance();
 	private Sender sender;
-	private ByteBufferCache bufferManager;
+	private IByteBufferCache bufferManager;
 	private MasterPayloadFactory payloadFactory;
 	private DOMRegistry domRegistry;
 	private PayloadDestinationOutputEngine   moniPayloadDest, tcalPayloadDest, supernovaPayloadDest; 
@@ -142,9 +142,11 @@ public class StringHubComponent extends DAQComponent
 	
         this.hubId = hubId;
         
-		bufferManager  = new ByteBufferCache(64, 250000000L, 200000000L, "PyrateBufferManager");
+		final String bufName = "PyrateBufferManager";
+
+		bufferManager  = new VitreousBufferCache();
 		addCache(bufferManager);
-		addMBean(bufferManager.getCacheName(), bufferManager);
+		addMBean(bufName, bufferManager);
 
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
