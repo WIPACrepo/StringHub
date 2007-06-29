@@ -792,16 +792,21 @@ public class DataCollector extends AbstractDataCollector
         for(int i=0; i<NT; i++) {
             try {
                 app = softbootToDomapp();
-                mbid = app.getMainboardID();
-                numericMBID = Long.valueOf(mbid, 16).longValue();
-                break;
-            } catch (MessageException ex) {
-                if (ex.getCause() != null &&
-                    !(ex.getCause() instanceof
-                      ClosedByInterruptException))
-                {
+                try{
+                    mbid = app.getMainboardID();
+                } catch (MessageException ex) {
+                    if (ex.getCause() != null &&
+                        ex.getCause() instanceof ClosedByInterruptException))
+                    {
+                        throw (ClosedByInterruptException) ex.getCause();
+                    }
+
                     throw ex;
                 }
+                numericMBID = Long.valueOf(mbid, 16).longValue();
+                break;
+            } catch (ClosedByInterruptException ex) {
+                Thread.currentThread.interrupted();
                 logger.error("Timeout on trial "+i+" getting DOM ID", ex);
             }
         }
