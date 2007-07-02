@@ -9,7 +9,10 @@ import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 
@@ -177,6 +180,34 @@ public class Driver implements IDriver {
 		return txt;
 	}
 	
+    /**
+     * Access the DOR card FPGA registers.  They are returned as a dictionary
+     * of Key: Value pairs where Key is the 
+     */
+    public HashMap<String, Integer> getFPGARegisters(int card) throws IOException
+    {
+        HashMap<String, Integer> registerMap = new HashMap<String, Integer>();
+        File f = makeProcfile("" + card, "fpga");
+        FileInputStream fis = new FileInputStream(f);
+        BufferedReader r = new BufferedReader(new InputStreamReader(fis));
+        Pattern pat = Pattern.compile("([A-Z]+)\\s+(0x[0-9a-f]+)");
+        while (true)
+        {
+            String txt = r.readLine();
+            if (txt.length() == 0) break;
+            Matcher m  = pat.matcher(txt);
+            if (m.matches())
+            {
+                String key = m.group(1);
+                Integer val = Integer.valueOf(m.group(2), 16);
+                registerMap.put(key, val);
+            }
+            String[] tokens = txt.split("\\s+");
+            
+        }
+        return registerMap;
+    }
+    
 	/**
 	 * Manipulate the chain of procfile directories of form 
 	 * /driver_root/cardX/pairY/domZ/filename
@@ -184,7 +215,8 @@ public class Driver implements IDriver {
 	 * @param filename
 	 * @return
 	 */
-	public File makeProcfile(String cwd, String filename) {
+	public File makeProcfile(String cwd, String filename) 
+    {
 		File f = driver_root;
 		if (cwd.length() > 0)
 			f = new File(driver_root, "card" + cwd.charAt(0));
@@ -211,3 +243,4 @@ class GPSSynch {
 		cached = null;
 	}
 }
+

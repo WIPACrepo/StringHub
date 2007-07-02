@@ -1,6 +1,7 @@
 package icecube.daq.dor;
 
 import java.io.IOException;
+import java.util.HashMap;
 
 public interface IDriver
 {
@@ -13,5 +14,7 @@ public interface IDriver
     void softboot(int card, int pair, char dom) throws IOException;
     
     void commReset(int card, int pair, char dom) throws IOException;
+    
+    HashMap<String, Integer> getFPGARegisters(int card) throws IOException;
 
 }
