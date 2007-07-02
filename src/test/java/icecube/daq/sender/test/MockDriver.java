@@ -79,6 +79,24 @@ class MockDriver
         // do nothing here too!
     }
 
+    public String getComstat(int card, int pair, char dom)
+        throws IOException
+    {
+        return "";
+    }
+
+    public void resetComstat(int card, int pair, char dom)
+        throws IOException
+    {
+        // do nothing
+    }
+
+    public String getFPGARegs(int card)
+        throws IOException
+    {
+        return "";
+    }
+
     public HashMap<String, Integer> getFPGARegisters(int card) throws IOException
     {
         // TODO Auto-generated method stub
