@@ -67,6 +67,7 @@ public class Driver implements IDriver {
     }
     
     /**
+     * Perform soft reset operation on DOM
      * @param card 0 to 7
      * @param pair 0 to 3
      * @param dom 'A' or 'B'
@@ -80,6 +81,40 @@ public class Driver implements IDriver {
 		sb.write("reset\n".getBytes());
 		sb.close();
 	}
+
+    /**
+     * Reset communications statistics
+     * @param card 0 to 7
+     * @param pair 0 to 3
+     * @param dom 'A' or 'B'
+     * @throws IOException when the procfile write fails for some reason
+     */
+    public void resetComstat(int card, int pair, char dom) throws IOException {
+	File file = makeProcfile(card + "" + pair + dom, "comstat");
+	FileOutputStream sb = new FileOutputStream(file);
+	sb.write("reset\n".getBytes());
+	sb.close();
+    }
+
+    /** 
+     * Get communication statistics
+     * @param card 0 to 7
+     * @param pair 0 to 3
+     * @param dom 'A' or 'B'
+     * @throws IOException when the procfile write fails for some reason
+     */
+    public String getComstat(int card, int pair, char dom) throws IOException {
+	return getProcfileText(makeProcfile(card + "" + pair + dom, "comstat"));
+    }
+
+    /** 
+     * Get FPGA register space (except FIFOs)
+     * @param card 0 to 7
+     * @throws IOException when the procfile write fails for some reason
+     */
+    public String getFPGARegs(int card) throws IOException {
+	return getProcfileText(makeProcfile(card + "", "fpga"));
+    }
 
     /**
      * Get the list of DOMs that are turned on, communicating, and in iceboot

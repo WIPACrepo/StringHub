@@ -17,4 +17,10 @@ public interface IDriver
     
     HashMap<String, Integer> getFPGARegisters(int card) throws IOException;
 
+    public void resetComstat(int card, int pair, char dom) throws IOException;
+
+    public String getComstat(int card, int pair, char dom) throws IOException;
+
+    public String getFPGARegs(int card) throws IOException;
+
 }
