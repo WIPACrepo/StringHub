@@ -104,7 +104,7 @@ public class Driver implements IDriver {
      * @throws IOException when the procfile write fails for some reason
      */
     public String getComstat(int card, int pair, char dom) throws IOException {
-	return getProcfileText(makeProcfile(card + "" + pair + dom, "comstat"));
+	return getProcfileMultilineText(makeProcfile(card + "" + pair + dom, "comstat"));
     }
 
     /** 
@@ -113,7 +113,7 @@ public class Driver implements IDriver {
      * @throws IOException when the procfile write fails for some reason
      */
     public String getFPGARegs(int card) throws IOException {
-	return getProcfileText(makeProcfile(card + "", "fpga"));
+	return getProcfileMultilineText(makeProcfile(card + "", "fpga"));
     }
 
     /**
@@ -213,6 +213,19 @@ public class Driver implements IDriver {
 		logger.debug(file.getAbsolutePath() + " >> " + txt);
 		fis.close();
 		return txt;
+	}
+
+	private String getProcfileMultilineText(File file) throws IOException {
+		FileInputStream fis = new FileInputStream(file);
+		BufferedReader r = new BufferedReader(new InputStreamReader(fis));
+		String ret = "";
+		String txt;
+		while((txt = r.readLine()) != null) {
+		    ret += txt+"\n";
+		    logger.debug(file.getAbsolutePath() + " >> " + txt);
+		}
+		fis.close();
+		return ret;
 	}
 	
     /**
