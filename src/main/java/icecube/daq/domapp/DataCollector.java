@@ -831,6 +831,7 @@ public class DataCollector extends AbstractDataCollector
                 logger.error("Timeout on trial "+i+" getting DOM ID", ex);
 				logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
 				logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
+				app = null; /* We have to do this to guarantee that we reopen when we retry */
             }
         }
         if(numericMBID == 0) {
