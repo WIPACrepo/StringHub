@@ -486,8 +486,12 @@ public class DataCollector extends AbstractDataCollector
                         catch (IllegalArgumentException illargx)
                         {
                             logger.error("Caught IllegalArgument Exception in dataProcess: dumping compressed header words: " 
-                                    + Integer.toHexString(word1) + ", " + Integer.toHexString(word2)
-                                    + Integer.toHexString(word3));
+                                    + Integer.toHexString(word1) 
+                                    + ", " + Integer.toHexString(word2)
+                                    + ", " + Integer.toHexString(word3)
+                                    + " - in.position() = " + in.position()
+                                    + " - in.remaining() = " + in.remaining()
+                                    + " - in.capacity() = " + in.capacity());
                             return;
                         }
                     }
