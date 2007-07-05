@@ -454,32 +454,42 @@ public class DataCollector extends AbstractDataCollector
                         short version = 1;
                         short pedestal = 0;
                         if (config.getPedestalSubtraction()) pedestal = 1;
-                        in.limit(in.position() + hitSize - 12);
-                        dbuf = ByteBuffer.allocate(hitSize + 10);
-                        dbuf.order(ByteOrder.LITTLE_ENDIAN);
-                        dbuf.putShort((short) 1);
-                        dbuf.putShort(version);
-                        dbuf.putShort(pedestal);
-                        dbuf.putLong(domClock);
-                        dbuf.putInt(word1);
-                        dbuf.putInt(word3);
-                        dbuf.put(in);
-                        numHits++;
-                        dbuf.flip();
-                        logger.debug("Processing delta hit from ATWD " 
-                                + atwdChip + " - len: " + hitSize 
-                                + " remaining: " + dbuf.remaining());
-                        if (atwdChip == 0)
-                            abBuffer.pushA(dbuf.remaining(), 3, domClock, dbuf);
-                        else
-                            abBuffer.pushB(dbuf.remaining(), 3, domClock, dbuf);
-                        while (true) 
+                        try
                         {
-                            HitBufferAB.Element e = abBuffer.pop();
-                            if (e == null) break;
-                            lastDataUT = genericDataDispatch(e.recl, e.fmtid, e.domClock, e.buf, hitsSink);
+                            in.limit(in.position() + hitSize - 12);
+                            dbuf = ByteBuffer.allocate(hitSize + 10);
+                            dbuf.order(ByteOrder.LITTLE_ENDIAN);
+                            dbuf.putShort((short) 1);
+                            dbuf.putShort(version);
+                            dbuf.putShort(pedestal);
+                            dbuf.putLong(domClock);
+                            dbuf.putInt(word1);
+                            dbuf.putInt(word3);
+                            dbuf.put(in);
+                            numHits++;
+                            dbuf.flip();
+                            logger.debug("Processing delta hit from ATWD " 
+                                    + atwdChip + " - len: " + hitSize 
+                                    + " remaining: " + dbuf.remaining());
+                            if (atwdChip == 0)
+                                abBuffer.pushA(dbuf.remaining(), 3, domClock, dbuf);
+                            else
+                                abBuffer.pushB(dbuf.remaining(), 3, domClock, dbuf);
+                            while (true) 
+                            {
+                                HitBufferAB.Element e = abBuffer.pop();
+                                if (e == null) break;
+                                lastDataUT = genericDataDispatch(e.recl, e.fmtid, e.domClock, e.buf, hitsSink);
+                            }
+                            in.limit(buffer_limit);
                         }
-                        in.limit(buffer_limit);
+                        catch (IllegalArgumentException illargx)
+                        {
+                            logger.error("Caught IllegalArgument Exception in dataProcess: dumping compressed header words: " 
+                                    + Integer.toHexString(word1) + ", " + Integer.toHexString(word2)
+                                    + Integer.toHexString(word3));
+                            return;
+                        }
                     }
                     in.order(ByteOrder.BIG_ENDIAN);
                     break;
