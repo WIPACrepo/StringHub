@@ -492,7 +492,7 @@ public class DataCollector extends AbstractDataCollector
                                     + " - in.position() = " + in.position()
                                     + " - in.remaining() = " + in.remaining()
                                     + " - in.capacity() = " + in.capacity());
-                            return;
+                            throw illargx;
                         }
                     }
                     in.order(ByteOrder.BIG_ENDIAN);
