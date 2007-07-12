@@ -536,52 +536,34 @@ public class DOMApp implements IDOMApp
      */
     public boolean transitionToDOMApp() throws IOException, InterruptedException
     {
-        try
+        ByteBuffer cmd = ByteBuffer.allocate(8);
+        // Issue a clear - something gets out-of-sorts in the iceboot
+        // command decoder
+        cmd.put("\r\n".getBytes()).flip();
+        devIO.send(cmd);
+        // There are two possibilities now - if we are coming out of a softboot
+        // then the next message will be 4 bytes ('\r\n> ') plus 2 '\r\n' else 
+        // it will just be a solo '\r\n' from echoing the send
+        if (devIO.recv().remaining() == 4) 
         {
-            getMainboardID();
-            try
-            {
-                endRun();
-                logger.info("DOMApp run stopped.");
-            }
-            catch (MessageException mex)
-            {
-                logger.info("DOMApp in idle state");
-            }
-            return false;
+            devIO.recv();
+            devIO.recv();
         }
-        catch (MessageException mex)
-        {
-            logger.info("could not get DOMApp mainboard ID - maybe in iceboot.");
-            ByteBuffer cmd = ByteBuffer.allocate(8);
-            // Issue a clear - something gets out-of-sorts in the iceboot
-            // command decoder
-            cmd.put("\r\n".getBytes()).flip();
-            devIO.send(cmd);
-            // There are two possibilities now - if we are coming out of a softboot
-            // then the next message will be 4 bytes ('\r\n> ') plus 2 '\r\n' else 
-            // it will just be a solo '\r\n' from echoing the send
-            if (devIO.recv().remaining() == 4) 
-            {
-                devIO.recv();
-                devIO.recv();
-            }
-            // Now eat up a complain message
-            devIO.recv();
-            // Now eat up the next command prompt
-            devIO.recv();
-            logger.info("Putting DOM into domapp.");
-            cmd.clear();
-            cmd.put("domapp\r\n".getBytes()).flip();
-            devIO.send(cmd);
-            // Finally eat up the echo back of domapp\r\n
-            devIO.recv();
-                
-            // Now it should really be going into domapp
-            // TODO - find a better way than vapid wait
-            Thread.sleep(8500);
-            return true;
-        }
+        // Now eat up a complain message
+        devIO.recv();
+        // Now eat up the next command prompt
+        devIO.recv();
+        logger.info("Putting DOM into domapp.");
+        cmd.clear();
+        cmd.put("domapp\r\n".getBytes()).flip();
+        devIO.send(cmd);
+        // Finally eat up the echo back of domapp\r\n
+        devIO.recv();
+            
+        // Now it should really be going into domapp
+        // TODO - find a better way than vapid wait
+        Thread.sleep(8500);
+        return true;
     }
 
     /*
