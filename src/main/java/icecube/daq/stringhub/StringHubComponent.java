@@ -309,7 +309,9 @@ public class StringHubComponent extends DAQComponent
 			logger.info("Number of domConfigNodes found: " + configNodeList.size());
 			for (Node configNode : configNodeList) {
 				String tag = configNode.getText();
-				File configFile = new File(domConfigsDirectory, tag + ".xml");
+				if (!tag.endsWith(".xml"))
+					tag = tag + ".xml";
+				File configFile = new File(domConfigsDirectory, tag);
 				logger.info("Configuring " + realism 
 							+ " - loading config from " 
 							+ configFile.getAbsolutePath());			
