@@ -178,9 +178,9 @@ public class StringHubComponent extends DAQComponent
         {
             hitOut = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "hitOut");
             if (minorHubId > 80)
-                addEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
+                addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
             else
-                addEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
+                addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
             hitOut.registerBufferManager(bufferManager);
             IPayloadDestinationCollection hitColl = hitOut.getPayloadDestinationCollection();
             sender.setHitOutputDestination(hitColl);
