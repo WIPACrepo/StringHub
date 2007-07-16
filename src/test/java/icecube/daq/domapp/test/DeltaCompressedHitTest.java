@@ -3,7 +3,6 @@ package icecube.daq.domapp.test;
 
 import static org.junit.Assert.assertEquals;
 import icecube.daq.domapp.DeltaCompressedHit;
-import icecube.daq.stringhub.test.MockAppender;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -15,7 +14,6 @@ import junit.framework.JUnit4TestAdapter;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -24,7 +22,6 @@ public class DeltaCompressedHitTest
 {
 	private DeltaCompressedHit hit;
 	private static final Logger logger = Logger.getLogger(DeltaCompressedHitTest.class);
-	private static final MockAppender appender = new MockAppender();
 	
 	/**
 	 * This should make the tests JUnit 3.8 compatible
@@ -38,9 +35,8 @@ public class DeltaCompressedHitTest
 	@BeforeClass public static void initialize() throws Exception
 	{
 		// Init the logging system
-		BasicConfigurator.resetConfiguration();
-		BasicConfigurator.configure(appender);
-		//appender.setVerbose(true).setLevel(Level.INFO);
+		BasicConfigurator.configure();
+		Logger.getRootLogger().setLevel(Level.INFO);
 	}
 	
 	@Before
@@ -72,13 +68,6 @@ public class DeltaCompressedHitTest
 			throw ex;
 		}
 
-	}
-
-	@After
-	public void tearDown() throws Exception 
-	{
-		assertEquals("Bad number of log messages",
-			     0, appender.getNumberOfMessages());
 	}
 
 	@Test 

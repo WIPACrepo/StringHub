@@ -1,9 +1,6 @@
 package icecube.daq.bindery;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-
-import icecube.daq.stringhub.test.MockAppender;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -13,7 +10,6 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.junit.Test;
-import org.junit.After;
 
 import cern.jet.random.Exponential;
 import cern.jet.random.engine.MersenneTwister;
@@ -22,21 +18,14 @@ import cern.jet.random.engine.RandomEngine;
 public class StreamBinderGeneratorTest {
 
 	private static final Logger logger = Logger.getLogger(StreamBinderGeneratorTest.class);
-	private static final MockAppender appender = new MockAppender();
 	
 	public StreamBinderGeneratorTest() {
-		BasicConfigurator.resetConfiguration();
-		BasicConfigurator.configure(appender);
-		//appender.setVerbose(true).setLevel(Level.INFO);
+		BasicConfigurator.configure();
+		// Logger.getLogger(StreamBinder.class).setLevel(Level.INFO);
+		// Logger.getLogger(StreamBinderTest.class).setLevel(Level.DEBUG);
+		Logger.getRootLogger().setLevel(Level.INFO);
 	}
 	
-	@After
-	public void tearDown() throws Exception 
-	{
-		assertEquals("Bad number of log messages",
-			     0, appender.getNumberOfMessages());
-	}
-
 	/**
 	 * 
 	 * @throws IOException

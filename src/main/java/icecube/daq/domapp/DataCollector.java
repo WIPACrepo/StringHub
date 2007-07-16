@@ -809,7 +809,6 @@ public class DataCollector extends AbstractDataCollector
         numericMBID = 0;
         int NT      = 2;
         for(int i=0; i<NT; i++) {
-            intTask.ping();
             try {
                 app = softbootToDomapp();
                 try {
@@ -842,7 +841,7 @@ public class DataCollector extends AbstractDataCollector
         if(numericMBID == 0) {
             throw new Exception("Couldn't get DOM MB ID after "+NT+" trials.");
         }
-		intTask.ping();
+
         logger.info("Found DOM " + mbid + " running " + app.getRelease());
 
         // Grab 2 RAPCal data points to get started
