@@ -277,7 +277,7 @@ public class StreamBinder extends Thread implements Counter
          */
         public void readRecords(ReadableByteChannel ch) throws IOException
         {
-            int nr = ch.read(iobuf);
+            ch.read(iobuf);
             iobuf.flip();
             while (iobuf.remaining() >= 4)
             {
