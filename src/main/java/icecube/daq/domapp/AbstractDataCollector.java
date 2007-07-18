@@ -137,4 +137,9 @@ public abstract class AbstractDataCollector extends Thread
 	public abstract long getNumTcal();
 	public abstract long getNumSupernova();
 	public abstract long getAcquisitionLoopCount();
+	
+	public long getLastTcalTime()
+	{
+	    return 0L;
+	}
 }

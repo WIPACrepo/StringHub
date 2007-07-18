@@ -487,13 +487,14 @@ public class StringHubComponent extends DAQComponent
 		}		
 	}
 	
-	public void startSubrun(List<FlasherboardConfiguration> flasherConfigs) throws DAQCompException
+	public long startSubrun(List<FlasherboardConfiguration> flasherConfigs) throws DAQCompException
 	{
 	    /*
 	     * Useful to keep operators from accidentally powering up two 
 	     * flasherboards simultaneously.
 	     */
 	    boolean[] wirePairSemaphore = new boolean[32];
+	    long validXTime = 0L;
 	    
 	    try
 	    {
@@ -538,8 +539,11 @@ public class StringHubComponent extends DAQComponent
     	                adc.signalStartRun();
     	                while (!adc.getRunLevel().equals(RunLevel.RUNNING)) Thread.sleep(50);
     	            }
+                    long t = adc.getLastTcalTime();
+                    if (t > validXTime) validXTime = t;
     	        }
     	    }
+    	    return validXTime;
 	    }
 	    catch (InterruptedException intx)
 	    {

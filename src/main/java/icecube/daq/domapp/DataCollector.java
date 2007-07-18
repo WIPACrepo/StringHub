@@ -885,15 +885,28 @@ public class DataCollector extends AbstractDataCollector
                 
             case STARTING:
                 logger.info("Got START RUN signal " + canonicalName());
-                System.out.println("Got START RUN signal " + canonicalName());
-                app.beginRun();
+                if (flasherConfig != null)
+                {
+                   logger.info("Starting flasher run.");
+                   app.beginFlasherRun(
+                           (short) flasherConfig.getBrightness(), 
+                           (short) flasherConfig.getWidth(), 
+                           (short) flasherConfig.getDelay(), 
+                           (short) flasherConfig.getMask(), 
+                           (short) flasherConfig.getRate());
+                }
+                else
+                {
+                    logger.info("Starting normal data-taking run.");
+                    app.beginRun();
+                }
+                    
                 logger.info("DOM is running.");
                 setRunLevel(RunLevel.RUNNING);
                 break;
                 
             case STOPPING:
                 logger.info("Got STOP RUN signal " + canonicalName());
-                System.out.println("Got STOP RUN signal " + canonicalName());
                 app.endRun();
                 // Write the end-of-stream token
                 if (hitsSink != null) hitsSink.write(StreamBinder.endOfStream());
@@ -981,4 +994,12 @@ public class DataCollector extends AbstractDataCollector
         // TODO Auto-generated method stub
         return null;
     }
+
+    @Override
+    public long getLastTcalTime()
+    {
+        // TODO Auto-generated method stub
+        return lastTcalUT;
+    }
+    
 }
