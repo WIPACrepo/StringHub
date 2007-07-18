@@ -72,8 +72,8 @@ public class DataCollectorFactory
         DataCollector dc;
         try {
             dc = new DataCollector(chInfo.card, chInfo.pair, chInfo.dom,
-                                   chan, null, null, null,
-                                   Driver.getInstance(), rapcal, app);
+                    null, chan, null, null, null,
+                    Driver.getInstance(), rapcal, app);
         } catch (MessageException me) {
             LOGGER.fatal("Couldn't create data collector for dom " +
                          chInfo.mbid, me);

@@ -6,8 +6,12 @@ import icecube.daq.bindery.StreamBinder;
 import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.AbstractDataCollector;
+import icecube.daq.domapp.BadEngineeringFormat;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.DataCollector;
+import icecube.daq.domapp.EngineeringRecordFormat;
+import icecube.daq.domapp.MuxState;
+import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
@@ -27,6 +31,7 @@ import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
+import icecube.daq.util.FlasherboardConfiguration;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -37,6 +42,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.Pipe;
 import java.nio.channels.SelectableChannel;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -135,6 +141,7 @@ public class StringHubComponent extends DAQComponent
 	private String configured = "NO";
 	private int nch;
 	private DataCollectorMonitor collectorMonitor;
+	private HashMap<String, DOMConfiguration> pristineConfigurations;
 
 	public StringHubComponent(int hubId) throws Exception
 	{
@@ -186,6 +193,9 @@ public class StringHubComponent extends DAQComponent
             sender.setHitOutputDestination(hitColl);
         }
 
+        // Allocate the map for the pristine baseline run configurations
+        pristineConfigurations = new HashMap<String, DOMConfiguration>();
+        
         RequestReader reqIn;
         try {
             reqIn = new RequestReader(COMPONENT_NAME, sender, payloadFactory);
@@ -337,6 +347,8 @@ public class StringHubComponent extends DAQComponent
 			{
 				DOMConfiguration config = xmlConfig.getDOMConfig(chanInfo.mbid);
 				if (config == null) continue;
+				
+				pristineConfigurations.put(chanInfo.mbid, config);
 
 				String cwd = chanInfo.card + "" + chanInfo.pair + chanInfo.dom;
 
@@ -354,23 +366,20 @@ public class StringHubComponent extends DAQComponent
 				AbstractDataCollector dc;
 				if (isSim)
 				{
-					dc = new SimDataCollector(chanInfo, hitPipe.sink(), 
+					dc = new SimDataCollector(chanInfo, config, hitPipe.sink(), 
 											  moniPipe.sink(), snPipe.sink(), 
 											  tcalPipe.sink());
 				}
 				else
 				{
 					dc = new DataCollector(
-							chanInfo.card, chanInfo.pair, chanInfo.dom, 
+							chanInfo.card, chanInfo.pair, chanInfo.dom, config,
 							hitPipe.sink(), moniPipe.sink(), snPipe.sink(), tcalPipe.sink()
 						);
 				}
 
-				/* queue up the config */
-				dc.setConfig(config);
 				conn.add(dc);
 				logger.debug("Starting new DataCollector thread on (" + cwd + ").");
-				dc.start();
 				logger.debug("DataCollector thread on (" + cwd + ") started.");				
 			}
 
@@ -402,7 +411,7 @@ public class StringHubComponent extends DAQComponent
 	}
 
 	/**
-	 * Controller wants stringhub to start sending data.  Tell DOMs to start up.
+	 * Controller wants StringHub to start sending data.  Tell DOMs to start up.
 	 */
 	public void starting() throws DAQCompException
 	{
@@ -476,6 +485,70 @@ public class StringHubComponent extends DAQComponent
 			e.printStackTrace();
 			throw new DAQCompException("Couldn't start DOMs", e);
 		}		
+	}
+	
+	public void startSubrun(List<FlasherboardConfiguration> flasherConfigs) throws DAQCompException
+	{
+	    /*
+	     * Useful to keep operators from accidentally powering up two 
+	     * flasherboards simultaneously.
+	     */
+	    boolean[] wirePairSemaphore = new boolean[32];
+	    
+	    try
+	    {
+    	    for (FlasherboardConfiguration fbc : flasherConfigs)
+    	    {
+    	        String mbid = fbc.getMainboardID();
+    	        for (AbstractDataCollector adc : conn.getCollectors())
+    	        {
+    	            if (adc.getMainboardId().equals(mbid))
+    	            {
+    	                /*
+    	                 * stop anything that is currently running on this DOM
+    	                 * and begin a new flasher run
+    	                 */
+    	                int pairIndex = 4 * adc.getCard() + adc.getPair();
+    	                if (wirePairSemaphore[pairIndex])
+    	                    throw new DAQCompException("Cannot activate > 1 flasher run per DOR wire pair.");
+    	                wirePairSemaphore[pairIndex] = true;
+    	                adc.signalStopRun();
+    	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
+                        DOMConfiguration config = new DOMConfiguration(adc.getConfig());
+                        config.setHV(300);
+                        EngineeringRecordFormat fmt = new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 128 }); 
+                        config.setEngineeringFormat(fmt);
+                        config.setMux(MuxState.FB_CURRENT);
+                        adc.setConfig(config);
+                        adc.signalConfigure();
+                        while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
+                        adc.setFlasherConfig(fbc);
+                        adc.signalStartRun();
+                        while (!adc.getRunLevel().equals(RunLevel.RUNNING)) Thread.sleep(50);
+    	            }
+    	            else if (adc.getFlasherConfig() != null)
+    	            {
+    	                // Channel was previously flashing - should be turned off
+    	                adc.signalStopRun();
+    	                adc.setFlasherConfig(null);
+                        adc.setConfig(pristineConfigurations.get(mbid));
+    	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
+    	                adc.signalConfigure();
+    	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
+    	                adc.signalStartRun();
+    	                while (!adc.getRunLevel().equals(RunLevel.RUNNING)) Thread.sleep(50);
+    	            }
+    	        }
+    	    }
+	    }
+	    catch (InterruptedException intx)
+	    {
+	        throw new DAQCompException("INTX", intx);
+	    }
+	    catch (BadEngineeringFormat befx)
+	    {
+	        throw new DAQCompException("BEFX", befx);
+	    }
 	}
 	
 	public void stopping()
