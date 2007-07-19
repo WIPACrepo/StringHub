@@ -536,30 +536,20 @@ public class DOMApp implements IDOMApp
      */
     public boolean transitionToDOMApp() throws IOException, InterruptedException
     {
-        ByteBuffer cmd = ByteBuffer.allocate(8);
+        ByteBuffer cmd = ByteBuffer.allocate(20);
         // Issue a clear - something gets out-of-sorts in the iceboot
         // command decoder
-        cmd.put("\r\n".getBytes()).flip();
+        cmd.put("\r\ndomapp\r\n".getBytes()).flip();
         devIO.send(cmd);
-        // There are two possibilities now - if we are coming out of a softboot
-        // then the next message will be 4 bytes ('\r\n> ') plus 2 '\r\n' else 
-        // it will just be a solo '\r\n' from echoing the send
-        if (devIO.recv().remaining() == 4) 
+        while (true)
         {
-            devIO.recv();
-            devIO.recv();
+            ByteBuffer rmsg = devIO.recv();
+            byte[] bmsg = new byte[rmsg.remaining()];
+            rmsg.get(bmsg);
+            String btxt = new String(bmsg);
+            logger.debug("i2da " + btxt);
+            if (btxt.contains("domapp")) break;
         }
-        // Now eat up a complain message
-        devIO.recv();
-        // Now eat up the next command prompt
-        devIO.recv();
-        logger.info("Putting DOM into domapp.");
-        cmd.clear();
-        cmd.put("domapp\r\n".getBytes()).flip();
-        devIO.send(cmd);
-        // Finally eat up the echo back of domapp\r\n
-        devIO.recv();
-            
         // Now it should really be going into domapp
         // TODO - find a better way than vapid wait
         Thread.sleep(8500);
