@@ -495,6 +495,8 @@ public class StringHubComponent extends DAQComponent
 	     */
 	    boolean[] wirePairSemaphore = new boolean[32];
 	    long validXTime = 0L;
+
+	    logger.info("Beginning subrun");
 	    
 	    try
 	    {
@@ -525,7 +527,13 @@ public class StringHubComponent extends DAQComponent
                         while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
                         adc.setFlasherConfig(fbc);
                         adc.signalStartRun();
-                        while (!adc.getRunLevel().equals(RunLevel.RUNNING)) Thread.sleep(50);
+                        long t0 = System.currentTimeMillis();
+                        
+                        while (!adc.getRunLevel().equals(RunLevel.RUNNING)) 
+                        {
+                            if (System.currentTimeMillis() - t0 > 1000) break;
+                            Thread.sleep(50);
+                        }
     	            }
     	            else if (adc.getFlasherConfig() != null)
     	            {
@@ -543,6 +551,7 @@ public class StringHubComponent extends DAQComponent
                     if (t > validXTime) validXTime = t;
     	        }
     	    }
+    	    logger.info("Subrun time is " + validXTime);
     	    return validXTime;
 	    }
 	    catch (InterruptedException intx)
