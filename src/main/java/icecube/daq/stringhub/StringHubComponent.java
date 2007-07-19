@@ -518,7 +518,7 @@ public class StringHubComponent extends DAQComponent
     	                adc.signalStopRun();
     	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
                         DOMConfiguration config = new DOMConfiguration(adc.getConfig());
-                        config.setHV(300);
+                        config.setHV(0);
                         EngineeringRecordFormat fmt = new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 128 }); 
                         config.setEngineeringFormat(fmt);
                         config.setMux(MuxState.FB_CURRENT);
@@ -529,9 +529,8 @@ public class StringHubComponent extends DAQComponent
                         adc.signalStartRun();
                         long t0 = System.currentTimeMillis();
                         
-                        while (!adc.getRunLevel().equals(RunLevel.RUNNING)) 
+                        while (!adc.getRunLevel().equals(RunLevel.RUNNING) && !adc.getRunLevel().equals(RunLevel.ZOMBIE)) 
                         {
-                            if (System.currentTimeMillis() - t0 > 1000) break;
                             Thread.sleep(50);
                         }
     	            }
