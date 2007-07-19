@@ -104,7 +104,6 @@ public class DataCollector extends AbstractDataCollector
     private WritableByteChannel moniSink;
     private WritableByteChannel tcalSink;
     private WritableByteChannel supernovaSink;
-    private DOMConfiguration    config;
     
     private static final Logger logger                = Logger.getLogger(DataCollector.class);
 
