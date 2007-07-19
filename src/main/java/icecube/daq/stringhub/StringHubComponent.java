@@ -525,6 +525,7 @@ public class StringHubComponent extends DAQComponent
                         adc.setConfig(config);
                         adc.signalConfigure();
                         while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
+                        Thread.sleep(1000);
                         adc.setFlasherConfig(fbc);
                         adc.signalStartRun();
                         long t0 = System.currentTimeMillis();
