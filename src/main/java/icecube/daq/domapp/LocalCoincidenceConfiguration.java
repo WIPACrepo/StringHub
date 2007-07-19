@@ -49,8 +49,8 @@ public class LocalCoincidenceConfiguration
 		source		= Source.SPE;
 		preTrigger	= 1000;
 		postTrigger	= 1000;
-		cableLengthUp = new short[4];
-		cableLengthDn = new short[4];
+		cableLengthUp = new short[] { 1000, 1000, 1000, 1000 };
+		cableLengthDn = new short[] { 1000, 1000, 1000, 1000 };
 		span = 1;
 	}
 

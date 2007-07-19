@@ -10,6 +10,8 @@ import icecube.daq.domapp.BadEngineeringFormat;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.DataCollector;
 import icecube.daq.domapp.EngineeringRecordFormat;
+import icecube.daq.domapp.LCType;
+import icecube.daq.domapp.LocalCoincidenceConfiguration;
 import icecube.daq.domapp.MuxState;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
@@ -531,6 +533,7 @@ public class StringHubComponent extends DAQComponent
                     DOMConfiguration config = new DOMConfiguration(adc.getConfig());
                     config.setHV(-1);
                     config.setTriggerMode(TriggerMode.FB);
+                    config.setLC(new LocalCoincidenceConfiguration());
                     EngineeringRecordFormat fmt = new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 128 }); 
                     config.setEngineeringFormat(fmt);
                     config.setMux(MuxState.FB_CURRENT);
