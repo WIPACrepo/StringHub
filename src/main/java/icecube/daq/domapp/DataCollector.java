@@ -138,9 +138,6 @@ public class DataCollector extends AbstractDataCollector
     private HitBufferAB         abBuffer;
     private int                 numSupernovaGaps;
     
-    private Thread              thread;
-    
-    
     /**
      * A helper class to deal with the now-less-than-trivial
      * hit buffering which circumvents the hit out-of-order
@@ -260,7 +257,8 @@ public class DataCollector extends AbstractDataCollector
         this.app = app;
         assert this.driver != null;
         assert this.rapcal != null;
-
+        this.config = config;
+        
         logger.debug("DC " + canonicalName() + " hitsSink = " + hitsSink);
         logger.debug("DC " + canonicalName() + " moniSink = " + moniSink);
         logger.debug("DC " + canonicalName() + " tcalSink = " + tcalSink);
@@ -272,8 +270,7 @@ public class DataCollector extends AbstractDataCollector
         gpsOffset = new UTC(0L);
         daqHeader = ByteBuffer.allocate(32);
         abBuffer  = new HitBufferAB();
-        
-        thread = new Thread(this, "DataCollector-" + card + "" + pair + dom);
+        start();
     }
 
     public void close()
@@ -312,11 +309,6 @@ public class DataCollector extends AbstractDataCollector
     private String canonicalName()
     {
         return "[" + card + "" + pair + dom + "]";
-    }
-
-    public void setConfig(DOMConfiguration config)
-    {
-        this.config = config;
     }
 
     /**
