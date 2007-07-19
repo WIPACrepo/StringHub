@@ -973,19 +973,6 @@ public class DataCollector extends AbstractDataCollector
         }
     }
 
-
-    public String getMainboardId()
-    {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    public RunLevel getRunLevel()
-    {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
     @Override
     public long getLastTcalTime()
     {
