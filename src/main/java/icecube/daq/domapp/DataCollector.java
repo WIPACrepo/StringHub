@@ -341,10 +341,16 @@ public class DataCollector extends AbstractDataCollector
             app.writeDAC(dac_ch, config.getDAC(dac_ch));
         app.setMux(config.getMux());
         app.setTriggerMode(config.getTriggerMode());
-        if (config.getPulserMode() == PulserMode.BEACON)
-            app.pulserOff();
-        else
-            app.pulserOn();
+        
+        // If trigger mode is Flasher then don't touch the pulser mode
+        if (config.getTriggerMode() != TriggerMode.FB)
+        {
+            if (config.getPulserMode() == PulserMode.BEACON)
+                app.pulserOff();
+            else
+                app.pulserOn();
+        }
+        
         app.setPulserRate(config.getPulserRate());
         LocalCoincidenceConfiguration lc = config.getLC();
         app.setLCType(lc.getType());
