@@ -518,14 +518,14 @@ public class StringHubComponent extends DAQComponent
     	                adc.signalStopRun();
     	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
                         DOMConfiguration config = new DOMConfiguration(adc.getConfig());
-                        config.setHV(0);
+                        config.setHV(-1);
                         EngineeringRecordFormat fmt = new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 128 }); 
                         config.setEngineeringFormat(fmt);
                         config.setMux(MuxState.FB_CURRENT);
                         adc.setConfig(config);
                         adc.signalConfigure();
                         while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
-                        Thread.sleep(1000);
+                        Thread.sleep(100);
                         adc.setFlasherConfig(fbc);
                         adc.signalStartRun();
                         long t0 = System.currentTimeMillis();
