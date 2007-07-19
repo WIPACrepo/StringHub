@@ -500,56 +500,61 @@ public class StringHubComponent extends DAQComponent
 	    
 	    try
 	    {
-    	    for (FlasherboardConfiguration fbc : flasherConfigs)
-    	    {
-    	        String mbid = fbc.getMainboardID();
-    	        for (AbstractDataCollector adc : conn.getCollectors())
-    	        {
-    	            if (adc.getMainboardId().equals(mbid))
+	        for (AbstractDataCollector adc : conn.getCollectors())
+	        {
+	            String mbid = adc.getMainboardId();
+	            FlasherboardConfiguration flasherConfig = null;
+	            
+	            // Hunt for this DOM channel in the flasher config list
+	            for (FlasherboardConfiguration fbc : flasherConfigs)
+	            {
+    	            if (fbc.getMainboardID().equals(mbid))
     	            {
-    	                /*
-    	                 * stop anything that is currently running on this DOM
-    	                 * and begin a new flasher run
-    	                 */
-    	                int pairIndex = 4 * adc.getCard() + adc.getPair();
-    	                if (wirePairSemaphore[pairIndex])
-    	                    throw new DAQCompException("Cannot activate > 1 flasher run per DOR wire pair.");
-    	                wirePairSemaphore[pairIndex] = true;
-    	                adc.signalStopRun();
-    	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
-                        DOMConfiguration config = new DOMConfiguration(adc.getConfig());
-                        config.setHV(-1);
-                        EngineeringRecordFormat fmt = new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 128 }); 
-                        config.setEngineeringFormat(fmt);
-                        config.setMux(MuxState.FB_CURRENT);
-                        adc.setConfig(config);
-                        adc.signalConfigure();
-                        while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
-                        Thread.sleep(100);
-                        adc.setFlasherConfig(fbc);
-                        adc.signalStartRun();
-                        long t0 = System.currentTimeMillis();
-                        
-                        while (!adc.getRunLevel().equals(RunLevel.RUNNING) && !adc.getRunLevel().equals(RunLevel.ZOMBIE)) 
-                        {
-                            Thread.sleep(50);
-                        }
+    	                flasherConfig = fbc;
+    	                break;
     	            }
-    	            else if (adc.getFlasherConfig() != null)
-    	            {
-    	                // Channel was previously flashing - should be turned off
-    	                adc.signalStopRun();
-    	                adc.setFlasherConfig(null);
-                        adc.setConfig(pristineConfigurations.get(mbid));
-    	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
-    	                adc.signalConfigure();
-    	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
-    	                adc.signalStartRun();
-    	                while (!adc.getRunLevel().equals(RunLevel.RUNNING)) Thread.sleep(50);
-    	            }
-                    long t = adc.getLastTcalTime();
-                    if (t > validXTime) validXTime = t;
-    	        }
+	            }
+	            
+	            if (flasherConfig != null)
+	            {
+	                /*
+	                 * stop anything that is currently running on this DOM
+	                 * and begin a new flasher run
+	                 */
+	                int pairIndex = 4 * adc.getCard() + adc.getPair();
+	                if (wirePairSemaphore[pairIndex])
+	                    throw new DAQCompException("Cannot activate > 1 flasher run per DOR wire pair.");
+	                wirePairSemaphore[pairIndex] = true;
+	                adc.signalStopRun();
+	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
+                    DOMConfiguration config = new DOMConfiguration(adc.getConfig());
+                    config.setHV(-1);
+                    EngineeringRecordFormat fmt = new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 128 }); 
+                    config.setEngineeringFormat(fmt);
+                    config.setMux(MuxState.FB_CURRENT);
+                    adc.setConfig(config);
+                    adc.signalConfigure();
+                    while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
+                    Thread.sleep(100);
+                    adc.setFlasherConfig(flasherConfig);
+                    adc.signalStartRun();
+                    while (!adc.getRunLevel().equals(RunLevel.RUNNING) && !adc.getRunLevel().equals(RunLevel.ZOMBIE)) 
+                        Thread.sleep(50);
+	            }
+	            else if (adc.getFlasherConfig() != null)
+	            {
+	                // Channel was previously flashing - should be turned off
+	                adc.signalStopRun();
+	                adc.setFlasherConfig(null);
+                    adc.setConfig(pristineConfigurations.get(mbid));
+	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
+	                adc.signalConfigure();
+	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
+	                adc.signalStartRun();
+	                while (!adc.getRunLevel().equals(RunLevel.RUNNING)) Thread.sleep(50);
+	            }
+                long t = adc.getLastTcalTime();
+                if (t > validXTime) validXTime = t;
     	    }
     	    logger.info("Subrun time is " + validXTime);
     	    return validXTime;
