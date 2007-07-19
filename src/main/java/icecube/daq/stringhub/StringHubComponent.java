@@ -13,6 +13,7 @@ import icecube.daq.domapp.EngineeringRecordFormat;
 import icecube.daq.domapp.MuxState;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
+import icecube.daq.domapp.TriggerMode;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
 import icecube.daq.io.PayloadDestinationOutputEngine;
@@ -529,6 +530,7 @@ public class StringHubComponent extends DAQComponent
 	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
                     DOMConfiguration config = new DOMConfiguration(adc.getConfig());
                     config.setHV(-1);
+                    config.setTriggerMode(TriggerMode.FB);
                     EngineeringRecordFormat fmt = new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 128 }); 
                     config.setEngineeringFormat(fmt);
                     config.setMux(MuxState.FB_CURRENT);
