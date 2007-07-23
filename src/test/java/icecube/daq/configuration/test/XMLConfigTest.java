@@ -7,6 +7,7 @@ import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.TriggerMode;
 import icecube.daq.domapp.test.TestDeltaMCodec;
+import icecube.daq.stringhub.test.MockAppender;
 
 import java.io.InputStream;
 
@@ -19,6 +20,8 @@ import org.junit.BeforeClass;
 
 public class XMLConfigTest 
 {
+	private static final MockAppender appender = new MockAppender();
+
 	private XMLConfig xmlConfig;
 	private DOMConfiguration config;
 	
@@ -33,7 +36,8 @@ public class XMLConfigTest
 		
 	@BeforeClass public static void initialize() throws Exception
 	{
-		BasicConfigurator.configure();
+		BasicConfigurator.resetConfiguration();
+		BasicConfigurator.configure(appender);
 	}
 	
 	@Before public void setUp() throws Exception
