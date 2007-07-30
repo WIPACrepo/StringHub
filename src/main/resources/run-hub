@@ -18,7 +18,8 @@ daq-io \
 daq-common \
 splicer \
 daq-request-filler \
-daq-log"
+daq-log \
+trigger"
 
 REQ_LIBS="log4j \
 dom4j \

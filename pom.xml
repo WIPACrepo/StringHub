@@ -80,6 +80,11 @@
     </dependency>
 
     <dependency>
+      <groupId>edu.wisc.icecube</groupId>
+      <artifactId>trigger</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>colt</groupId>
       <artifactId>colt</artifactId>
     </dependency>

@@ -19,14 +19,24 @@ import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
 import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.monitoring.DataCollectorMonitor;
-import icecube.daq.payload.ByteBufferCache;
+import icecube.daq.payload.ByteBufferPayloadDestination;
 import icecube.daq.payload.IByteBufferCache;
+import icecube.daq.payload.IPayloadDestination;
 import icecube.daq.payload.IPayloadDestinationCollection;
+import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.MasterPayloadFactory;
+import icecube.daq.payload.PayloadDestinationCollection;
+import icecube.daq.payload.SourceIdRegistry;
+import icecube.daq.payload.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
+import icecube.daq.trigger.control.StringTriggerHandler;
+import icecube.daq.trigger.control.IStringTriggerHandler;
+import icecube.daq.trigger.control.ITriggerControl;
+import icecube.daq.trigger.component.GlobalConfiguration;
+import icecube.daq.trigger.config.TriggerBuilder;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -38,6 +48,7 @@ import java.nio.channels.Pipe;
 import java.nio.channels.SelectableChannel;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Iterator;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -123,7 +134,7 @@ public class StringHubComponent extends DAQComponent
 	private boolean isSim = false;
 	private Driver driver = Driver.getInstance();
 	private Sender sender;
-	private ByteBufferCache bufferManager;
+	private IByteBufferCache bufferManager;
 	private MasterPayloadFactory payloadFactory;
 	private DOMRegistry domRegistry;
 	private PayloadDestinationOutputEngine   moniPayloadDest, tcalPayloadDest, supernovaPayloadDest; 
@@ -136,15 +147,22 @@ public class StringHubComponent extends DAQComponent
 	private int nch;
 	private DataCollectorMonitor collectorMonitor;
 
+	private boolean enableTriggering = false;
+	private ISourceID sourceId;
+	private IStringTriggerHandler triggerHandler;
+
 	public StringHubComponent(int hubId) throws Exception
 	{
 		super(DAQCmdInterface.DAQ_STRING_HUB, hubId);
 	
         this.hubId = hubId;
-        
-		bufferManager  = new ByteBufferCache(64, 250000000L, 200000000L, "PyrateBufferManager");
+        final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
+
+		final String bufName = "PyrateBufferManager";
+
+		bufferManager  = new VitreousBufferCache();
 		addCache(bufferManager);
-		addMBean(bufferManager.getCacheName(), bufferManager);
+		addMBean(bufName, bufferManager);
 
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
@@ -155,8 +173,8 @@ public class StringHubComponent extends DAQComponent
 		nch            = 0;
 		
 		logger.info("starting up StringHub component " + hubId);
-		
-        final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
+
+        // Setup the output engine
         PayloadDestinationOutputEngine hitOut;
 		
         /*
@@ -176,14 +194,33 @@ public class StringHubComponent extends DAQComponent
         {
             hitOut = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "hitOut");
             if (minorHubId > 80)
-                addEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
+                addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
             else
-                addEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
+                addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
             hitOut.registerBufferManager(bufferManager);
-            IPayloadDestinationCollection hitColl = hitOut.getPayloadDestinationCollection();
-            sender.setHitOutputDestination(hitColl);
         }
 
+        // Check if triggering is enabled
+        IPayloadDestinationCollection hitColl;
+        if (enableTriggering) {
+            sourceId = SourceIdRegistry.getISourceIDFromNameAndId(COMPONENT_NAME, hubId);
+            triggerHandler = new StringTriggerHandler(sourceId);
+            triggerHandler.setMasterPayloadFactory(payloadFactory);
+            triggerHandler.setPayloadDestinationCollection(hitOut.getPayloadDestinationCollection());
+
+            // This is the output of the Sender
+            IPayloadDestination payloadDestination = new ByteBufferPayloadDestination(triggerHandler, bufferManager);
+            hitColl = new PayloadDestinationCollection(payloadDestination);
+        } else if (hitOut == null) {
+            hitColl = null;
+        } else {
+
+            // This is the output of the Sender
+            hitColl = hitOut.getPayloadDestinationCollection();
+        }
+
+        sender.setHitOutputDestination(hitColl);
+        
         RequestReader reqIn;
         try {
             reqIn = new RequestReader(COMPONENT_NAME, sender, payloadFactory);
@@ -307,7 +344,9 @@ public class StringHubComponent extends DAQComponent
 			logger.info("Number of domConfigNodes found: " + configNodeList.size());
 			for (Node configNode : configNodeList) {
 				String tag = configNode.getText();
-				File configFile = new File(domConfigsDirectory, tag + ".xml");
+				if (!tag.endsWith(".xml"))
+					tag = tag + ".xml";
+				File configFile = new File(domConfigsDirectory, tag);
 				logger.info("Configuring " + realism 
 							+ " - loading config from " 
 							+ configFile.getAbsolutePath());			
@@ -394,8 +433,14 @@ public class StringHubComponent extends DAQComponent
 			e.printStackTrace();
 			throw new DAQCompException(e.getMessage());
 		}
-		
-	}
+
+
+        // If triggers are enabled, configure them
+        if (enableTriggering) {
+            configureTrigger(configName);
+        }
+
+    }
 
 	/**
 	 * Controller wants stringhub to start sending data.  Tell DOMs to start up.
@@ -490,5 +535,27 @@ public class StringHubComponent extends DAQComponent
 
         logger.info("Returning from stop.");
 	}
+
+    private void configureTrigger(String configName) throws DAQCompException {
+        // Lookup the trigger configuration
+        String triggerConfiguration;
+        String globalConfigurationFileName = configurationPath + "/" + configName + ".xml";
+        try {
+            triggerConfiguration = GlobalConfiguration.getTriggerConfig(globalConfigurationFileName);
+        } catch (Exception e) {
+            logger.error("Error extracting trigger configuration name from global configuraion file.", e);
+            throw new DAQCompException("Cannot get trigger configuration name.", e);
+        }
+        String triggerConfigFileName = configurationPath + "/trigger/" + triggerConfiguration + ".xml";
+
+        // Add triggers to the trigger manager
+        List currentTriggers = TriggerBuilder.buildTriggers(triggerConfigFileName, sourceId);
+        Iterator triggerIter = currentTriggers.iterator();
+        while (triggerIter.hasNext()) {
+            ITriggerControl trigger = (ITriggerControl) triggerIter.next();
+            trigger.setTriggerHandler(triggerHandler);
+        }
+        triggerHandler.addTriggers(currentTriggers);
+    }
 
 }

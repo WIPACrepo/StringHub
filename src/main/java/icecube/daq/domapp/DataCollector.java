@@ -1,4 +1,4 @@
-/* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
+/* -*- mode: java; indent-tabs-mode:f; tab-width:4 -*- */
 
 package icecube.daq.domapp;
 
@@ -454,32 +454,46 @@ public class DataCollector extends AbstractDataCollector
                         short version = 1;
                         short pedestal = 0;
                         if (config.getPedestalSubtraction()) pedestal = 1;
-                        in.limit(in.position() + hitSize - 12);
-                        dbuf = ByteBuffer.allocate(hitSize + 10);
-                        dbuf.order(ByteOrder.LITTLE_ENDIAN);
-                        dbuf.putShort((short) 1);
-                        dbuf.putShort(version);
-                        dbuf.putShort(pedestal);
-                        dbuf.putLong(domClock);
-                        dbuf.putInt(word1);
-                        dbuf.putInt(word3);
-                        dbuf.put(in);
-                        numHits++;
-                        dbuf.flip();
-                        logger.debug("Processing delta hit from ATWD " 
-                                + atwdChip + " - len: " + hitSize 
-                                + " remaining: " + dbuf.remaining());
-                        if (atwdChip == 0)
-                            abBuffer.pushA(dbuf.remaining(), 3, domClock, dbuf);
-                        else
-                            abBuffer.pushB(dbuf.remaining(), 3, domClock, dbuf);
-                        while (true) 
+                        try
                         {
-                            HitBufferAB.Element e = abBuffer.pop();
-                            if (e == null) break;
-                            lastDataUT = genericDataDispatch(e.recl, e.fmtid, e.domClock, e.buf, hitsSink);
+                            in.limit(in.position() + hitSize - 12);
+                            dbuf = ByteBuffer.allocate(hitSize + 10);
+                            dbuf.order(ByteOrder.LITTLE_ENDIAN);
+                            dbuf.putShort((short) 1);
+                            dbuf.putShort(version);
+                            dbuf.putShort(pedestal);
+                            dbuf.putLong(domClock);
+                            dbuf.putInt(word1);
+                            dbuf.putInt(word3);
+                            dbuf.put(in);
+                            numHits++;
+                            dbuf.flip();
+                            logger.debug("Processing delta hit from ATWD " 
+                                    + atwdChip + " - len: " + hitSize 
+                                    + " remaining: " + dbuf.remaining());
+                            if (atwdChip == 0)
+                                abBuffer.pushA(dbuf.remaining(), 3, domClock, dbuf);
+                            else
+                                abBuffer.pushB(dbuf.remaining(), 3, domClock, dbuf);
+                            while (true) 
+                            {
+                                HitBufferAB.Element e = abBuffer.pop();
+                                if (e == null) break;
+                                lastDataUT = genericDataDispatch(e.recl, e.fmtid, e.domClock, e.buf, hitsSink);
+                            }
+                            in.limit(buffer_limit);
                         }
-                        in.limit(buffer_limit);
+                        catch (IllegalArgumentException illargx)
+                        {
+                            logger.error("Caught IllegalArgument Exception in dataProcess: dumping compressed header words: " 
+                                    + Integer.toHexString(word1) 
+                                    + ", " + Integer.toHexString(word2)
+                                    + ", " + Integer.toHexString(word3)
+                                    + " - in.position() = " + in.position()
+                                    + " - in.remaining() = " + in.remaining()
+                                    + " - in.capacity() = " + in.capacity());
+                            throw illargx;
+                        }
                     }
                     in.order(ByteOrder.BIG_ENDIAN);
                     break;
@@ -724,52 +738,55 @@ public class DataCollector extends AbstractDataCollector
 
     } /* END OF run() METHOD */
 
-	/** Wrap up softboot -> domapp behavior */
-	private IDOMApp softbootToDomapp() throws Exception 
-	{
+    /** Wrap up softboot -> domapp behavior */
+    private IDOMApp softbootToDomapp() throws IOException, InterruptedException
+    {
         driver.commReset(card, pair, dom);
         Thread.sleep(250);
         driver.softboot (card, pair, dom);
         Thread.sleep(1500);
 
-		FileNotFoundException savedEx = null;
+        FileNotFoundException savedEx = null;
 
-		for (int i = 0; i < 2; i++) {
-			driver.commReset(card, pair, dom);
-			Thread.sleep(250);
+        for (int i = 0; i < 2; i++) {
+            driver.commReset(card, pair, dom);
+            Thread.sleep(250);
         
-			/*
-			 * Initialize the DOMApp - get things setup
-			 */
-			if (app == null)
-			{
-				// If app is null it implies the collector has deferred
-				// opening of the DOR devfile to the thread.
-				try {
-					app = new DOMApp(this.card, this.pair, this.dom);
-					// if we got app, we can quit
-					break;
-				} catch (FileNotFoundException ex) {
-					app = null;
-					savedEx = ex;
-				}
-			}
+            /*
+             * Initialize the DOMApp - get things setup
+             */
+            if (app == null)
+            {
+                // If app is null it implies the collector has deferred
+                // opening of the DOR devfile to the thread.
+                try {
+                    app = new DOMApp(this.card, this.pair, this.dom);
+                    // if we got app, we can quit
+                    break;
+                } catch (FileNotFoundException ex) {
+					logger.error("Trial "+i+": Open of "+card+""+pair+dom+" failed!");
+					logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
+					logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
+                    app = null;
+                    savedEx = ex;
+                }
+            }
         }
                 
-		if (app == null) {
-			if (savedEx != null) {
-				throw savedEx;
-			}
+        if (app == null) {
+            if (savedEx != null) {
+                throw savedEx;
+            }
 
-			throw new FileNotFoundException("Couldn't open DOMApp");
-		} else if (savedEx != null) {
-			logger.error("Successful DOMApp retry after initial failure",
-						 savedEx);
-		}
+            throw new FileNotFoundException("Couldn't open DOMApp");
+        } else if (savedEx != null) {
+            logger.error("Successful DOMApp retry after initial failure",
+                         savedEx);
+        }
 
-		app.transitionToDOMApp();
-		return app;
-	}
+        app.transitionToDOMApp();
+        return app;
+    }
 
     /**
      * This is a deeper run - basically I want a nice way of efficiently getting
@@ -782,27 +799,50 @@ public class DataCollector extends AbstractDataCollector
         // Create a watcher timer
         Timer watcher = new Timer(getName() + "-timer");
         InterruptorTask intTask = new InterruptorTask(this);
-        watcher.schedule(intTask, 28000L, 5000L);
+        watcher.schedule(intTask, 28000L, 20000L);
 
-		// Wrap up in retry loop - sometimes getMainboardID fails/times out
-		// DOM is in a strange state here
-		// this is a workaround for "Type 3" dropped DOMs
-		numericMBID = 0;
-		int NT      = 2;
-		for(int i=0; i<NT; i++) {
-			try {
-				app = softbootToDomapp();
-				mbid = app.getMainboardID();
-				numericMBID = Long.valueOf(mbid, 16).longValue();
-				break;
-			} catch (ClosedByInterruptException ex) {
-				logger.error("Timeout on trial "+i+" getting DOM ID", ex);
-			}
-		}
-		if(numericMBID == 0) {
-			throw new Exception("Couldn't get DOM MB ID after "+NT+" trials.");
-		}
+		driver.resetComstat(card, pair, dom);
 
+        // Wrap up in retry loop - sometimes getMainboardID fails/times out
+        // DOM is in a strange state here
+        // this is a workaround for "Type 3" dropped DOMs
+        numericMBID = 0;
+        int NT      = 2;
+        for(int i=0; i<NT; i++) {
+            intTask.ping();
+            try {
+                app = softbootToDomapp();
+                try {
+                    mbid = app.getMainboardID();
+                } catch (MessageException ex) {
+                    // if exception is wrapping a ClosedByInterruptException,
+                    //   then throw the original exception
+                    if (ex.getCause() != null &&
+                        ex.getCause() instanceof ClosedByInterruptException)
+                    {
+                        throw (ClosedByInterruptException) ex.getCause();
+                    }
+
+                    // otherwise, throw the MessageException
+                    throw ex;
+                }
+                numericMBID = Long.valueOf(mbid, 16).longValue();
+                break;
+            } catch (ClosedByInterruptException ex) {
+                // clear the interrupt so it doesn't cause future problems
+                Thread.currentThread().interrupted();
+
+                // log exception and continue
+                logger.error("Timeout on trial "+i+" getting DOM ID", ex);
+				logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
+				logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
+				app = null; /* We have to do this to guarantee that we reopen when we retry */
+            }
+        }
+        if(numericMBID == 0) {
+            throw new Exception("Couldn't get DOM MB ID after "+NT+" trials.");
+        }
+		intTask.ping();
         logger.info("Found DOM " + mbid + " running " + app.getRelease());
 
         // Grab 2 RAPCal data points to get started
@@ -841,8 +881,16 @@ public class DataCollector extends AbstractDataCollector
                     lastDataRead = t;
                     final int MSGS_IN_FLIGHT = 1;
                     List<ByteBuffer> dataList = app.getData(MSGS_IN_FLIGHT);
-                    for (ByteBuffer data : dataList)
-                        dataProcess(data);
+                    for (ByteBuffer data : dataList) {
+						try { // Get debug information during Alpaca failures
+							dataProcess(data);
+						} catch (IllegalArgumentException ex) {
+							logger.error("Caught & re-raising IllegalArgumentException");
+							logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
+							logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
+							throw ex;
+						}
+					}
                     if (dataList.size() == MSGS_IN_FLIGHT) tired = false;
                 }
                 
