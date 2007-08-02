@@ -68,18 +68,8 @@ public class DOMIO {
 	 */
 	public ByteBuffer recv() throws IOException {
 		in.clear();
-		int nr = 0;
-		int nb = 0;
 		
-		for ( ; ; )
-		{
-		    nr += channel.read(in);
-		    if (nr >= 2)
-	        {
-		        if (nb == 0) nb = in.getShort();
-	            if (nr >= nb) break;
-	        }
-		}
+	    int nr = channel.read(in);
 		
         if (logger.isDebugEnabled())
             logger.debug("ch=(" + card + ", " + pair + ", " + dom + ") read " + nr + " bytes from DOM.");

@@ -13,6 +13,7 @@ public class DOMApp implements IDOMApp
     private static Logger logger = Logger.getLogger(DOMApp.class);
     private DOMIO         devIO;
     private ByteBuffer    msgBuffer;
+    private ByteBuffer    msgBufferOut;
 
     /**
      * Create a new DOMApp connection object for DOR channel provided
@@ -25,6 +26,7 @@ public class DOMApp implements IDOMApp
     {
         devIO = new DOMIO(card, pair, dom);
         msgBuffer = ByteBuffer.allocate(4092);
+        msgBufferOut = ByteBuffer.allocate(4092);
     }
 
     public void close()
@@ -315,24 +317,35 @@ public class DOMApp implements IDOMApp
         buf.put(in);
         buf.flip();
         logger.debug("sendMessage [" + type.name() + "]");
+        
+        msgBufferOut.clear();
+        
         try
         {
             devIO.send(buf);
-            Thread.yield();
-            ByteBuffer out = devIO.recv();
-            byte r_type = out.get();
-            byte r_subt = out.get();
+            
+            // Loop on receive - allow partial receives
+            while (msgBufferOut.position() < 8 || msgBufferOut.position() < msgBufferOut.getShort(2) + 8)
+            {
+                Thread.yield();
+                ByteBuffer out = devIO.recv();
+                msgBufferOut.put(out);
+            }
+            byte r_type = msgBufferOut.get();
+            byte r_subt = msgBufferOut.get();
+            short dataLength = msgBufferOut.getShort();
             if (r_type != type.getFacility() || r_subt != type.getSubtype())
             {
-                logger.error("Return message type/subtype does not match outgoing message (" + r_type + ", "
+                logger.error("Return message type/subtype does not match outgoing "
+                        + "message (" 
+                        + r_type + ", "
                         + r_subt + ").");
                 throw new MessageException(type, 1001);
             }
-            if (out.limit() < 8) throw new MessageException(type, 1);
-            int status = out.get(7);
-            out.position(8);
+            int status = msgBufferOut.get(7);
+            msgBufferOut.position(8);
             if (status != 1) throw new MessageException(type, 1);
-            return out.slice();
+            return msgBufferOut.slice();
         }
         catch (IOException e)
         {
