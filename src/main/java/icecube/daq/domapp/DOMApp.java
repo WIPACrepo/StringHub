@@ -331,6 +331,7 @@ public class DOMApp implements IDOMApp
                 ByteBuffer out = devIO.recv();
                 msgBufferOut.put(out);
             }
+            msgBufferOut.flip();
             byte r_type = msgBufferOut.get();
             byte r_subt = msgBufferOut.get();
             short dataLength = msgBufferOut.getShort();
