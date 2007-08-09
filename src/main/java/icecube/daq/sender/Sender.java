@@ -12,6 +12,7 @@ import icecube.daq.payload.ILoadablePayload;
 import icecube.daq.payload.IPayload;
 import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.ISourceID;
+import icecube.daq.payload.IWriteablePayload;
 import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.MasterPayloadFactory;
 import icecube.daq.payload.PayloadDestination;
@@ -512,7 +513,7 @@ public class Sender
                 } else {
                     if (hitDest != null) {
                         try {
-                            hitDest.writePayload((Payload) payload);
+                            hitDest.writePayload((IWriteablePayload) payload);
                         } catch (IOException ioe) {
                             if (log.isErrorEnabled()) {
                                 log.error("Could not send HitPayload", ioe);
@@ -1196,7 +1197,7 @@ public class Sender
             }
         } else {
             try {
-                dataDest.writePayload((Payload) payload);
+                dataDest.writePayload((IWriteablePayload) payload);
                 sent = true;
             } catch (IOException ioe) {
                 if (log.isErrorEnabled()) {
