@@ -152,6 +152,7 @@ public class Driver implements IDriver {
 		RandomAccessFile tcalib = new RandomAccessFile(file, "rw");
 		FileChannel ch = tcalib.getChannel();
 		
+		logger.debug("Initiating TCAL sequence");
 		tcalib.writeBytes("single\n");
 		for (int iTry = 0; iTry < 5; iTry++)
 		{

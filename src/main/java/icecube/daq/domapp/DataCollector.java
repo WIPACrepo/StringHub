@@ -93,7 +93,6 @@ public class DataCollector extends AbstractDataCollector
     private int                 card;
     private int                 pair;
     private char                dom;
-    private String              mbid;
     private long                numericMBID;
     private IDOMApp             app;
     private GPSInfo             gps;
@@ -105,8 +104,7 @@ public class DataCollector extends AbstractDataCollector
     private WritableByteChannel moniSink;
     private WritableByteChannel tcalSink;
     private WritableByteChannel supernovaSink;
-    private DOMConfiguration    config;
-    private int                 runLevel;
+    
     private static final Logger logger                = Logger.getLogger(DataCollector.class);
 
     // TODO - replace these with properties-supplied constants
@@ -136,7 +134,7 @@ public class DataCollector extends AbstractDataCollector
     private ByteBuffer          daqHeader;
     private long                nextSupernovaDomClock;
     private HitBufferAB         abBuffer;
-    private int numSupernovaGaps;
+    private int                 numSupernovaGaps;
     
     /**
      * A helper class to deal with the now-less-than-trivial
@@ -212,27 +210,36 @@ public class DataCollector extends AbstractDataCollector
     
     public DataCollector(DOMChannelInfo chInfo, WritableByteChannel out) throws IOException, MessageException
     {
-        this(chInfo.card, chInfo.pair, chInfo.dom, out, null, null, null);
+        this(chInfo.card, chInfo.pair, chInfo.dom, null, out, null, null, null);
     }
 
     public DataCollector(int card, int pair, char dom, WritableByteChannel out) throws IOException,
             MessageException
     {
-        this(card, pair, dom, out, null, null, null);
+        this(card, pair, dom, null, out, null, null, null);
     }
 
-    public DataCollector(int card, int pair, char dom, WritableByteChannel outHits,
+    public DataCollector(
+            int card, int pair, char dom, 
+            DOMConfiguration config,
+            WritableByteChannel outHits,
             WritableByteChannel outMoni, WritableByteChannel outSupernova, WritableByteChannel outTcal)
             throws IOException, MessageException
     {
-        this(card, pair, dom, outHits, outMoni, outSupernova, outTcal, Driver.getInstance(),
+        this(card, pair, dom, config, 
+                outHits, outMoni, outSupernova, outTcal, Driver.getInstance(),
                 new LeadingEdgeRAPCal(50.0), null);
     }
 
-    public DataCollector(int card, int pair, char dom, WritableByteChannel outHits,
-            WritableByteChannel outMoni, WritableByteChannel outSupernova, WritableByteChannel outTcal,
+    public DataCollector(int card, int pair, char dom, 
+            DOMConfiguration config,
+            WritableByteChannel outHits,
+            WritableByteChannel outMoni, 
+            WritableByteChannel outSupernova, 
+            WritableByteChannel outTcal,
             IDriver driver, RAPCal rapcal, IDOMApp app) throws IOException, MessageException
     {
+        super(card, pair, dom);
         this.card = card;
         this.pair = pair;
         this.dom = dom;
@@ -248,9 +255,8 @@ public class DataCollector extends AbstractDataCollector
         this.app = app;
         assert this.driver != null;
         assert this.rapcal != null;
-
-        setName("DataCollector-" + card + "" + pair + dom);
-
+        this.config = config;
+        
         logger.debug("DC " + canonicalName() + " hitsSink = " + hitsSink);
         logger.debug("DC " + canonicalName() + " moniSink = " + moniSink);
         logger.debug("DC " + canonicalName() + " tcalSink = " + tcalSink);
@@ -258,10 +264,11 @@ public class DataCollector extends AbstractDataCollector
 
         gps = null;
 
-        runLevel = IDLE;
+        runLevel = RunLevel.IDLE;
         gpsOffset = new UTC(0L);
         daqHeader = ByteBuffer.allocate(32);
         abBuffer  = new HitBufferAB();
+        start();
     }
 
     public void close()
@@ -302,11 +309,6 @@ public class DataCollector extends AbstractDataCollector
         return "[" + card + "" + pair + dom + "]";
     }
 
-    public void setConfig(DOMConfiguration config)
-    {
-        this.config = config;
-    }
-
     /**
      * Applies the configuration in this.config to the DOM
      * 
@@ -339,10 +341,16 @@ public class DataCollector extends AbstractDataCollector
             app.writeDAC(dac_ch, config.getDAC(dac_ch));
         app.setMux(config.getMux());
         app.setTriggerMode(config.getTriggerMode());
-        if (config.getPulserMode() == PulserMode.BEACON)
-            app.pulserOff();
-        else
-            app.pulserOn();
+        
+        // If trigger mode is Flasher then don't touch the pulser mode
+        if (config.getTriggerMode() != TriggerMode.FB)
+        {
+            if (config.getPulserMode() == PulserMode.BEACON)
+                app.pulserOff();
+            else
+                app.pulserOn();
+        }
+        
         app.setPulserRate(config.getPulserRate());
         LocalCoincidenceConfiguration lc = config.getLC();
         app.setLCType(lc.getType());
@@ -569,63 +577,9 @@ public class DataCollector extends AbstractDataCollector
         }
     }
 
-    /**
-     * Get the current RunLevel of this DataCollector
-     * 
-     * @return integer-valued RunLevel code TODO make this an Enum
-     */
-    public synchronized int queryDaqRunLevel()
-    {
-        return runLevel;
-    }
-
-    private synchronized void setRunLevel(int level)
-    {
-        runLevel = level;
-    }
-
     public synchronized void signalShutdown()
     {
         stop_thread = true;
-    }
-
-    public void signalStartRun()
-    {
-        if (queryDaqRunLevel() != CONFIGURED)
-        {
-            logger.error("Attempt to start DOM in wrong state (" + queryDaqRunLevel() + ")");
-            throw new IllegalStateException();
-        }
-        setRunLevel(STARTING);
-    }
-
-    /**
-     * Signal the DataCollector to terminate data collection. Note that this may
-     * not be immediate. Callers should poll the run state and otherwise not
-     * make any assumptions on the run being stopped.
-     */
-    public void signalStopRun()
-    {
-        switch (queryDaqRunLevel())
-        {
-        case RUNNING:
-            setRunLevel(STOPPING);
-            break;
-        default:
-            logger.info("Ignoring redundant stop.");
-            break;
-        }
-    }
-
-    public void signalConfigure()
-    {
-        if (queryDaqRunLevel() == ZOMBIE) return;
-        if (queryDaqRunLevel() > CONFIGURED)
-        {
-            logger.error("Attempt to configure DOM in state above CONFIGURED.");
-            throw new IllegalStateException();
-        }
-        setRunLevel(CONFIGURING);
     }
 
     public String toString()
@@ -642,12 +596,9 @@ public class DataCollector extends AbstractDataCollector
             TimeCalib tcal = driver.readTCAL(card, pair, dom);
             rapcal.update(tcal, gpsOffset);
 
-            // TODO I don't know why this sleep is in here
-            // take out - and discard by 6/2007 if no problems
-            // Thread.sleep(100);
             validRAPCalCount++;
 
-            if (queryDaqRunLevel() == RUNNING)
+            if (getRunLevel().equals(RunLevel.RUNNING))
             {
                 tcalProcess(tcal, gps);
             }
@@ -717,7 +668,7 @@ public class DataCollector extends AbstractDataCollector
         }
 
         // HACK tell the caller that I am configured
-        setRunLevel(ZOMBIE);
+        setRunLevel(RunLevel.ZOMBIE);
 
         // clear interrupted flag if it is set
         interrupted();
@@ -859,7 +810,7 @@ public class DataCollector extends AbstractDataCollector
             long t = System.currentTimeMillis();
             boolean tired = true;
 
-            // Ping the interruptor task
+            // Ping the watchdog task
             intTask.ping();
 
             loopCounter++;
@@ -867,14 +818,14 @@ public class DataCollector extends AbstractDataCollector
             /* Do TCAL and GPS -- this always runs regardless of the run state */
             if (t - lastTcalRead >= tcalReadInterval)
             {
-                logger.debug("Doing TCAL - runLevel is " + queryDaqRunLevel());
+                logger.debug("Doing TCAL - runLevel is " + getRunLevel());
                 lastTcalRead = t;
                 execRapCal();
             }
 
-            /* Check DATA & MONI - must be in running state (2) */
-            if (queryDaqRunLevel() == RUNNING)
+            switch (getRunLevel())
             {
+            case RUNNING:
                 // Time to do a data collection?
                 if (t - lastDataRead >= dataReadInterval)
                 {
@@ -882,15 +833,15 @@ public class DataCollector extends AbstractDataCollector
                     final int MSGS_IN_FLIGHT = 1;
                     List<ByteBuffer> dataList = app.getData(MSGS_IN_FLIGHT);
                     for (ByteBuffer data : dataList) {
-						try { // Get debug information during Alpaca failures
-							dataProcess(data);
-						} catch (IllegalArgumentException ex) {
-							logger.error("Caught & re-raising IllegalArgumentException");
-							logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
-							logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
-							throw ex;
-						}
-					}
+                        try { // Get debug information during Alpaca failures
+                            dataProcess(data);
+                        } catch (IllegalArgumentException ex) {
+                            logger.error("Caught & re-raising IllegalArgumentException");
+                            logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
+                            logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
+                            throw ex;
+                        }
+                    }
                     if (dataList.size() == MSGS_IN_FLIGHT) tired = false;
                 }
                 
@@ -919,34 +870,48 @@ public class DataCollector extends AbstractDataCollector
                         }
                     }
                 }
-            }
-            else if (queryDaqRunLevel() == CONFIGURING)
-            {
+                break;
+                
+            case CONFIGURING:
                 /* Need to handle a configure */
                 logger.info("Got CONFIGURE signal.");
                 configure();
                 logger.info("DOM is configured.");
-                setRunLevel(CONFIGURED);
-            }
-            else if (queryDaqRunLevel() == STARTING)
-            {
+                setRunLevel(RunLevel.CONFIGURED);
+                break;
+                
+            case STARTING:
                 logger.info("Got START RUN signal " + canonicalName());
-                System.out.println("Got START RUN signal " + canonicalName());
-                app.beginRun();
+                if (flasherConfig != null)
+                {
+                   logger.info("Starting flasher run.");
+                   app.beginFlasherRun(
+                           (short) flasherConfig.getBrightness(), 
+                           (short) flasherConfig.getWidth(), 
+                           (short) flasherConfig.getDelay(), 
+                           (short) flasherConfig.getMask(), 
+                           (short) flasherConfig.getRate());
+                }
+                else
+                {
+                    logger.info("Starting normal data-taking run.");
+                    app.beginRun();
+                }
+                    
                 logger.info("DOM is running.");
-                setRunLevel(RUNNING);
-            }
-            else if (queryDaqRunLevel() == STOPPING)
-            {
+                setRunLevel(RunLevel.RUNNING);
+                break;
+                
+            case STOPPING:
                 logger.info("Got STOP RUN signal " + canonicalName());
-                System.out.println("Got STOP RUN signal " + canonicalName());
                 app.endRun();
                 // Write the end-of-stream token
                 if (hitsSink != null) hitsSink.write(StreamBinder.endOfStream());
                 if (moniSink != null) moniSink.write(StreamBinder.endOfMoniStream());
                 if (tcalSink != null) tcalSink.write(StreamBinder.endOfTcalStream());
                 if (supernovaSink != null) supernovaSink.write(StreamBinder.endOfSupernovaStream());
-                setRunLevel(CONFIGURED);
+                setRunLevel(RunLevel.CONFIGURED);
+                break;
             }
 
             if (tired)
@@ -1013,4 +978,12 @@ public class DataCollector extends AbstractDataCollector
             pinged = true;
         }
     }
+
+    @Override
+    public long getLastTcalTime()
+    {
+        // TODO Auto-generated method stub
+        return lastTcalUT;
+    }
+    
 }

@@ -12,6 +12,7 @@ import org.apache.log4j.Logger;
 import icecube.daq.domapp.AbstractDataCollector;
 import icecube.daq.domapp.BadEngineeringFormat;
 import icecube.daq.domapp.DOMConfiguration;
+import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.domapp.EngineeringRecordFormat;
 import icecube.daq.domapp.TriggerMode;
@@ -127,21 +128,21 @@ public class CollectorShell
 		FileChannel ch = output.getChannel();
 		
 		String mbid = "0123456789ab";
-		
+
+		// TODO figure out what I was doing here
 		csh.collector = new SimDataCollector(
 				new DOMChannelInfo(mbid, card, pair, dom), ch
 				);
-		csh.collector.setConfig(csh.config);
 		csh.collector.start();
 		
 		// move the collector through its states
 		// while (csh.collector.queryDaqRunLevel() == 0) Thread.sleep(100);
 		csh.collector.signalConfigure();
-		while (csh.collector.queryDaqRunLevel() != 2) Thread.sleep(100);
+		while (!csh.collector.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(100);
 		csh.collector.signalStartRun();
 		Thread.sleep(rlm);
 		csh.collector.signalStopRun();
-		while (csh.collector.queryDaqRunLevel() != 2) Thread.sleep(100);
+		while (!csh.collector.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(100);
 		csh.collector.signalShutdown();
 		csh.collector.join();
 			
