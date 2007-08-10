@@ -28,6 +28,36 @@ public class DOMConfiguration implements Serializable
 	private boolean simulation = false;
 	private double simNoiseRate = 25.0;
 	
+	public DOMConfiguration()
+	{
+	    
+	}
+	
+	/**
+	 * Copy constructor
+	 */
+	public DOMConfiguration(DOMConfiguration c)
+	{
+	    this.hardwareMonitorInterval = c.hardwareMonitorInterval;
+	    this.compressionEnabled = c.compressionEnabled;
+	    this.configMonitorInterval = c.configMonitorInterval;
+	    this.dacs = c.dacs;
+	    this.engFormat = c.engFormat;
+	    this.lc = c.lc;
+	    this.mux = c.mux;
+	    this.pedestalSubtract = c.pedestalSubtract;
+	    this.pmt_hv = c.pmt_hv;
+	    this.pulserMode = c.pulserMode;
+	    this.pulserRate = c.pulserRate;
+	    this.scalerDeadtime = c.scalerDeadtime;
+	    this.simNoiseRate = c.simNoiseRate;
+	    this.simulation = c.simulation;
+	    this.supernovaDeadtime = c.supernovaDeadtime;
+	    this.supernovaEnabled = c.supernovaEnabled;
+	    this.supernovaSpe = c.supernovaSpe;
+	    this.triggerMode  = c.triggerMode;
+	}
+	
 	/**
 	 * Turn on delta compression in the DOM.  Calling this function
 	 * also turns off engineering format.

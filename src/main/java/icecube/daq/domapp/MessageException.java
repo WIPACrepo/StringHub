@@ -16,4 +16,9 @@ public class MessageException extends Exception {
 		this.status = status;
 	}
 	
+	public String toString()
+	{
+	    return type.toString() + " - status: " + Integer.toHexString(status);
+	}
+	
 }
