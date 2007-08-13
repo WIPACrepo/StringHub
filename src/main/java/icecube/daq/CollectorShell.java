@@ -31,6 +31,7 @@ public class CollectorShell
 {
 	private AbstractDataCollector collector;
 	private DOMConfiguration config;
+	private static final Logger logger = Logger.getLogger(CollectorShell.class);
 	
 	CollectorShell()
 	{
@@ -200,8 +201,9 @@ public class CollectorShell
 		Thread.sleep(rlm);
 		csh.collector.signalStopRun();
 		while (!csh.collector.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(100);
+		logger.info("Shutting down");
 		csh.collector.signalShutdown();
-			
+		logger.info("Exit.");
 	}
 }
 
