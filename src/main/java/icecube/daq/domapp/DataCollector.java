@@ -657,9 +657,12 @@ public class DataCollector extends AbstractDataCollector
         
         logger.info("Begin data collection thread");
         
+        // Create a watcher timer
+        Timer watcher = new Timer(getName() + "-timer");
+
         try
         {
-            runcore();
+            runcore(watcher);
         }
         catch (Exception x)
         {
@@ -670,6 +673,8 @@ public class DataCollector extends AbstractDataCollector
             setRunLevel(RunLevel.ZOMBIE);
         }
 
+        watcher.cancel();
+        
         // clear interrupted flag if it is set
         interrupted();
 
@@ -747,12 +752,10 @@ public class DataCollector extends AbstractDataCollector
      * this seems best. So the thread run method will handle that recovery
      * process
      */
-    private void runcore() throws Exception
+    private void runcore(Timer watcher) throws Exception
     {
-        // Create a watcher timer
-        Timer watcher = new Timer(getName() + "-timer");
         InterruptorTask intTask = new InterruptorTask(this);
-        watcher.schedule(intTask, 28000L, 20000L);
+        watcher.schedule(intTask, 15000L, 5000L);
 
 		driver.resetComstat(card, pair, dom);
 
