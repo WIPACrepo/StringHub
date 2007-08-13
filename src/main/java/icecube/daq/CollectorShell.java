@@ -12,10 +12,13 @@ import org.apache.log4j.Logger;
 import icecube.daq.domapp.AbstractDataCollector;
 import icecube.daq.domapp.BadEngineeringFormat;
 import icecube.daq.domapp.DOMConfiguration;
+import icecube.daq.domapp.DataCollector;
+import icecube.daq.domapp.MuxState;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.domapp.EngineeringRecordFormat;
 import icecube.daq.domapp.TriggerMode;
+import icecube.daq.domapp.LocalCoincidenceConfiguration.Type;
 import icecube.daq.dor.DOMChannelInfo;
 
 /**
@@ -34,7 +37,26 @@ public class CollectorShell
 		config = new DOMConfiguration();
 	}
 	
-	private void parseOption(String option) throws BadEngineeringFormat
+	/**
+	 * Parse the options sent to the collector shell.  Options are
+	 * <dl>
+	 * <dt>-engformat=(<i>NFADC</i>, <i>NATWD0[:12]</i>, ...)</dt>
+	 * <dd>Set the engineering record format</dd>
+	 * <dt>-delta</dt>
+	 * <dd>Set delta compressed output</dd>
+	 * <dt>-hv=<i>HV</i></dt>
+	 * <dd>Set the PMT high voltage in ADC counts (0.5 V units)</dd>
+	 * <dt>-spe=<i>SPE</i></dt>
+	 * <dd>Set the SPE disc value</dd>
+	 * <dt>-mpe=<i>MPE</i></dt>
+	 * <dd>Set the MPE disc value</dd>
+	 * <dt>-trigger=(<i>forced | spe | mpe | flasher</i>)</dt>
+	 * <dd>Specify the DOM trigger source</dd>
+	 * </dl>
+	 * @param option
+	 * @throws BadEngineeringFormat
+	 */
+	public void parseOption(String option) throws BadEngineeringFormat
 	{
 		if (option.startsWith("engformat="))
 		{
@@ -89,6 +111,22 @@ public class CollectorShell
 		{
 			config.setPulserRate(Short.parseShort(option.substring(12)));
 		}
+		else if (option.startsWith("mux="))
+		{
+		    String muxOpt = option.substring(4);
+		    for (MuxState m : MuxState.values())
+		    {
+		        if (muxOpt.equalsIgnoreCase(m.toString()))
+		        {
+		            config.setMux(m);
+		            break;
+		        }
+		    }
+		}
+		else if (option.equals("slc"))
+		{
+		    config.getLC().setType(Type.SOFT);
+		}
 		else if (option.equals("debug"))
 		{
 			Logger.getRootLogger().setLevel(Level.DEBUG);
@@ -99,13 +137,19 @@ public class CollectorShell
 	{
 		CollectorShell csh = new CollectorShell();
 		BasicConfigurator.configure();
-		Logger.getRootLogger().setLevel(Level.DEBUG);
+		Logger.getRootLogger().setLevel(Level.INFO);
+		
 		int iarg = 0;
+		boolean simMode = false;
+		
 		while (iarg < args.length)
 		{
 			String arg = args[iarg];
 			if (arg.charAt(0) != '-') break;
-			csh.parseOption(arg.substring(1));
+			if (arg.substring(1).equalsIgnoreCase("sim")) 
+			    simMode = true;
+			else
+			    csh.parseOption(arg.substring(1));
 			iarg++;
 		}
 			
@@ -124,19 +168,34 @@ public class CollectorShell
 		char dom = cwd.charAt(2);
 		
 		// next argument is output filename
-		FileOutputStream output = new FileOutputStream(args[iarg++]);
-		FileChannel ch = output.getChannel();
+		String outBase = args[iarg++];
 		
-		String mbid = "0123456789ab";
+		FileOutputStream hitsOut = new FileOutputStream(outBase + ".hits");
+		FileChannel hitsChannel = hitsOut.getChannel();
 
-		// TODO figure out what I was doing here
-		csh.collector = new SimDataCollector(
-				new DOMChannelInfo(mbid, card, pair, dom), ch
-				);
+		FileOutputStream moniOut = new FileOutputStream(outBase + ".moni");
+        FileChannel moniChannel = moniOut.getChannel();
+        
+        FileOutputStream tcalOut = new FileOutputStream(outBase + ".tcal");
+        FileChannel tcalChannel = tcalOut.getChannel();
+        
+        FileOutputStream snOut = new FileOutputStream(outBase + ".sn");
+        FileChannel snChannel = snOut.getChannel();
+		
+        if (simMode)
+        {
+            String mbid = "0123456789ab";
+            csh.collector = new SimDataCollector(new DOMChannelInfo(mbid, card, pair, dom), csh.config,
+                    hitsChannel, moniChannel, tcalChannel, snChannel);
+        }
+        else
+        {
+    		csh.collector = new DataCollector(card, pair, dom, csh.config, 
+    		        hitsChannel, moniChannel, tcalChannel, snChannel);
+        }
+        
 		csh.collector.start();
 		
-		// move the collector through its states
-		// while (csh.collector.queryDaqRunLevel() == 0) Thread.sleep(100);
 		csh.collector.signalConfigure();
 		while (!csh.collector.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(100);
 		csh.collector.signalStartRun();
