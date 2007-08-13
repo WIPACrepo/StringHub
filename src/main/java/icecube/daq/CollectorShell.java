@@ -201,7 +201,6 @@ public class CollectorShell
 		csh.collector.signalStopRun();
 		while (!csh.collector.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(100);
 		csh.collector.signalShutdown();
-		csh.collector.join();
 			
 	}
 }

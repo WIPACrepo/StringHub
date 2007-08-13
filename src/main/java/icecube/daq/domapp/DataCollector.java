@@ -686,6 +686,8 @@ public class DataCollector extends AbstractDataCollector
         {
             logger.error(iox);
         }
+        
+        logger.info("End data collection thread.");
 
     } /* END OF run() METHOD */
 
