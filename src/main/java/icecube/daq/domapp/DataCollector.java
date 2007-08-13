@@ -665,10 +665,10 @@ public class DataCollector extends AbstractDataCollector
         {
             x.printStackTrace();
             logger.error("Intercepted error in DataCollector runcore: " + x);
-        }
+            // HACK tell the caller that I am configured
 
-        // HACK tell the caller that I am configured
-        setRunLevel(RunLevel.ZOMBIE);
+            setRunLevel(RunLevel.ZOMBIE);
+        }
 
         // clear interrupted flag if it is set
         interrupted();
