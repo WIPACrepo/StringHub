@@ -759,13 +759,18 @@ public class DataCollector extends AbstractDataCollector
         // this is a workaround for "Type 3" dropped DOMs
         numericMBID = 0;
         int NT      = 2;
-        for(int i=0; i<NT; i++) {
+        for(int i = 0; i < NT; i++) 
+        {
             intTask.ping();
-            try {
+            try 
+            {
                 app = softbootToDomapp();
-                try {
+                try 
+                {
                     mbid = app.getMainboardID();
-                } catch (MessageException ex) {
+                } 
+                catch (MessageException ex) 
+                {
                     // if exception is wrapping a ClosedByInterruptException,
                     //   then throw the original exception
                     if (ex.getCause() != null &&
@@ -779,9 +784,11 @@ public class DataCollector extends AbstractDataCollector
                 }
                 numericMBID = Long.valueOf(mbid, 16).longValue();
                 break;
-            } catch (ClosedByInterruptException ex) {
+            } 
+            catch (ClosedByInterruptException ex) 
+            {
                 // clear the interrupt so it doesn't cause future problems
-                Thread.currentThread().interrupted();
+                Thread.interrupted();
 
                 // log exception and continue
                 logger.error("Timeout on trial "+i+" getting DOM ID", ex);
@@ -790,9 +797,10 @@ public class DataCollector extends AbstractDataCollector
 				app = null; /* We have to do this to guarantee that we reopen when we retry */
             }
         }
-        if(numericMBID == 0) {
+        
+        if (numericMBID == 0)
             throw new Exception("Couldn't get DOM MB ID after "+NT+" trials.");
-        }
+        
 		intTask.ping();
         logger.info("Found DOM " + mbid + " running " + app.getRelease());
 
