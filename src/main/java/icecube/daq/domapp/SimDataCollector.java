@@ -382,12 +382,6 @@ public class SimDataCollector extends AbstractDataCollector
         return mbid;
     }
 
-    public RunLevel getRunLevel()
-    {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
     public void start()
     {
         // TODO Auto-generated method stub
