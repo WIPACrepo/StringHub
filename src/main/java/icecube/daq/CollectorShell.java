@@ -1,13 +1,19 @@
 package icecube.daq;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.log4j.PropertyConfigurator;
 
 import icecube.daq.domapp.AbstractDataCollector;
 import icecube.daq.domapp.BadEngineeringFormat;
@@ -18,6 +24,7 @@ import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.domapp.EngineeringRecordFormat;
 import icecube.daq.domapp.TriggerMode;
+import icecube.daq.domapp.LocalCoincidenceConfiguration.RxMode;
 import icecube.daq.domapp.LocalCoincidenceConfiguration.Type;
 import icecube.daq.dor.DOMChannelInfo;
 
@@ -33,9 +40,53 @@ public class CollectorShell
 	private DOMConfiguration config;
 	private static final Logger logger = Logger.getLogger(CollectorShell.class);
 	
-	CollectorShell()
+	private CollectorShell(Properties props)
 	{
 		config = new DOMConfiguration();
+		
+		if (props.containsKey("icecube.daq.collectorshell.lc.type"))
+		{
+		    String lcType = props.getProperty("icecube.daq.collectorshell.lc.type");
+		    if (lcType.equalsIgnoreCase("hard"))
+		        config.getLC().setType(Type.HARD);
+		    else if (lcType.equalsIgnoreCase("soft"))
+		        config.getLC().setType(Type.SOFT);
+		}
+		
+		if (props.containsKey("icecube.daq.collectorshell.lc.rxmode"))
+		{
+		    String rxMode = props.getProperty("icecube.daq.collectorshell.lc.rxmode");
+		    if (rxMode.equalsIgnoreCase("none"))
+		        config.getLC().setRxMode(RxMode.RXNONE);
+		    else if (rxMode.equalsIgnoreCase("up"))
+		        config.getLC().setRxMode(RxMode.RXUP);
+		    else if (rxMode.equalsIgnoreCase("down"))
+		        config.getLC().setRxMode(RxMode.RXDOWN);
+		    else if (rxMode.equalsIgnoreCase("both"))
+		        config.getLC().setRxMode(RxMode.RXBOTH);
+		}
+		
+		if (props.containsKey("icecube.daq.collectorshell.lc.span"))
+		{
+		    config.getLC().setSpan((byte) Integer.parseInt(
+		            props.getProperty("icecube.daq.collectorshell.lc.span")
+		            ));
+		}
+		
+        if (props.containsKey("icecube.daq.collectorshell.lc.pretrig"))
+        {
+            config.getLC().setPreTrigger(Integer.parseInt(
+                    props.getProperty("icecube.daq.collectorshell.lc.pretrig")
+                    ));
+        }
+
+        if (props.containsKey("icecube.daq.collectorshell.lc.posttrig"))
+        {
+            config.getLC().setPostTrigger(Integer.parseInt(
+                    props.getProperty("icecube.daq.collectorshell.lc.posttrig")
+                    ));
+        }
+
 	}
 	
 	/**
@@ -45,6 +96,8 @@ public class CollectorShell
 	 * <dd>Set the engineering record format</dd>
 	 * <dt>-delta</dt>
 	 * <dd>Set delta compressed output</dd>
+	 * <dt>-pedsub</dt>
+	 * <dd>Subtract pedestals in the DOM</dd>
 	 * <dt>-hv=<i>HV</i></dt>
 	 * <dd>Set the PMT high voltage in ADC counts (0.5 V units)</dd>
 	 * <dt>-spe=<i>SPE</i></dt>
@@ -128,6 +181,10 @@ public class CollectorShell
 		{
 		    config.getLC().setType(Type.SOFT);
 		}
+		else if (option.equals("pedsub"))
+		{
+		    config.setPedestalSubtraction(true);
+		}
 		else if (option.equals("debug"))
 		{
 			Logger.getRootLogger().setLevel(Level.DEBUG);
@@ -136,9 +193,18 @@ public class CollectorShell
 		
 	public static void main(String[] args) throws Exception
 	{
-		CollectorShell csh = new CollectorShell();
-		BasicConfigurator.configure();
-		Logger.getRootLogger().setLevel(Level.INFO);
+	    Properties props = new Properties();
+        try
+        {
+            props.load(new FileInputStream("collectorshell.properties"));
+            PropertyConfigurator.configure(props);
+        }
+        catch (IOException iox)
+        {
+            BasicConfigurator.configure();
+        }
+
+		CollectorShell csh = new CollectorShell(props);
 		
 		int iarg = 0;
 		boolean simMode = false;
