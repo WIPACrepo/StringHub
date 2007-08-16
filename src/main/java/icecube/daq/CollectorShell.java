@@ -27,6 +27,7 @@ import icecube.daq.domapp.TriggerMode;
 import icecube.daq.domapp.LocalCoincidenceConfiguration.RxMode;
 import icecube.daq.domapp.LocalCoincidenceConfiguration.Type;
 import icecube.daq.dor.DOMChannelInfo;
+import icecube.daq.util.FlasherboardConfiguration;
 
 /**
  * A collector shell wraps a single DataCollector so that it may be 
@@ -38,11 +39,20 @@ public class CollectorShell
 {
 	private AbstractDataCollector collector;
 	private DOMConfiguration config;
+	private FlasherboardConfiguration flasherConfig;
 	private static final Logger logger = Logger.getLogger(CollectorShell.class);
 	
-	private CollectorShell(Properties props)
+	public CollectorShell()
+	{
+	    this(null);
+	}
+	
+	public CollectorShell(Properties props)
 	{
 		config = new DOMConfiguration();
+		flasherConfig = null;
+		
+		if (props == null) return;
 		
 		if (props.containsKey("icecube.daq.collectorshell.lc.type"))
 		{
@@ -106,6 +116,8 @@ public class CollectorShell
 	 * <dd>Set the MPE disc value</dd>
 	 * <dt>-trigger=(<i>forced | spe | mpe | flasher</i>)</dt>
 	 * <dd>Specify the DOM trigger source</dd>
+	 * <dt>-flasher[:width=w,brightness=b,rate=r,delay=d,mask=hex]</dt>
+	 * <dd>Start a flasherboard run with the given parameters</dd>
 	 * </dl>
 	 * @param option
 	 * @throws BadEngineeringFormat
@@ -185,10 +197,53 @@ public class CollectorShell
 		{
 		    config.setPedestalSubtraction(true);
 		}
+		else if (option.startsWith("flasher"))
+		{
+		    flasherConfig = new FlasherboardConfiguration();
+		    if (option.length() > 8 && option.charAt(7) == ':')
+		    {
+		        Pattern p = Pattern.compile("(\\w+)=(\\w+)");
+		        String[] flOpts = option.substring(8).split(",");
+		        for (String flop : flOpts)
+		        {
+		            Matcher m = p.matcher(flop);
+		            if (m.matches())
+		            {
+		                String arg = m.group(1);
+		                String val = m.group(2);
+		                if (arg.equalsIgnoreCase("brightness"))
+		                {
+		                    flasherConfig.setBrightness(Integer.parseInt(val));
+		                }
+		                else if (arg.equalsIgnoreCase("width"))
+		                {
+		                    flasherConfig.setWidth(Integer.parseInt(val));
+		                }
+		                else if (arg.equalsIgnoreCase("delay"))
+		                {
+		                    flasherConfig.setDelay(Integer.parseInt(val));
+		                }
+		                else if (arg.equalsIgnoreCase("rate"))
+		                {
+		                    flasherConfig.setRate(Integer.parseInt(val));
+		                } 
+		                else if (arg.equalsIgnoreCase("mask"))
+		                {
+		                    flasherConfig.setMask(Integer.parseInt(val, 16));
+		                }
+		            }
+		        }
+		    }
+		}
 		else if (option.equals("debug"))
 		{
 			Logger.getRootLogger().setLevel(Level.DEBUG);
 		}
+	}
+	
+	public FlasherboardConfiguration getFlasherConfig()
+	{
+	    return flasherConfig;
 	}
 		
 	public static void main(String[] args) throws Exception
@@ -261,6 +316,7 @@ public class CollectorShell
     		        hitsChannel, moniChannel, tcalChannel, snChannel);
         }
         
+        csh.collector.setFlasherConfig(csh.flasherConfig);
 		csh.collector.signalConfigure();
 		while (!csh.collector.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(100);
 		csh.collector.signalStartRun();
