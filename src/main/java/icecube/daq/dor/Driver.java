@@ -67,6 +67,20 @@ public class Driver implements IDriver {
     }
     
     /**
+     * Set blocking / non-blocking mode of the DOR driver
+     * @param block if true the driver will be put into blocking mode
+     */
+    public void setBlocking(boolean block) throws IOException
+    {
+        File file = makeProcfile("blocking");
+        FileOutputStream blockingFile = new FileOutputStream(file);
+        if (block)
+            blockingFile.write("1\n".getBytes());
+        else
+            blockingFile.write("0\n".getBytes());
+    }
+    
+    /**
      * Perform soft reset operation on DOM
      * @param card 0 to 7
      * @param pair 0 to 3
@@ -126,14 +140,14 @@ public class Driver implements IDriver {
 		char ab[] = { 'A', 'B' };
 		LinkedList<DOMChannelInfo> channelList = new LinkedList<DOMChannelInfo>();
 		for (int card = 0; card < 8; card ++) {
-			File cdir = makeProcfile("" + card);
+			File cdir = makeProcfileDir("" + card);
 			if (!cdir.exists()) continue;
 			for (int pair = 0; pair < 4; pair++) {
-				File pdir = makeProcfile("" + card + "" + pair);
+				File pdir = makeProcfileDir("" + card + "" + pair);
 				if (!pdir.exists() || !power(card, pair)) continue;
 				logger.info("Found powered pair on (" + card + ", " + pair + ").");
 				for (int dom = 0; dom < 2; dom++) {
-					File ddir = makeProcfile("" + card + "" + pair + ab[dom]);
+					File ddir = makeProcfileDir("" + card + "" + pair + ab[dom]);
 					if (ddir.exists()) {
 						String mbid = getProcfileID(card, pair, ab[dom]);
 						if (mbid.matches("[0-9a-f]{12}") && !mbid.equals("000000000000")) {
@@ -278,7 +292,23 @@ public class Driver implements IDriver {
 		return f;
 	}
 	
-	public File makeProcfile(String cwd) {
+	/**
+	 * This makes a 'top-level' procfile File
+	 * @param cwd
+	 * @return
+	 */
+	public File makeProcfile(String filename)
+	{
+	    return makeProcfile("", filename);
+	}
+	
+	/**
+	 * Make only the directory portion of the procfile
+	 * @param cwd card/pair/dom string
+	 * @return
+	 */
+	public File makeProcfileDir(String cwd) 
+	{
 		return makeProcfile(cwd, null);
 	}
 }

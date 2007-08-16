@@ -313,6 +313,8 @@ public class StringHubComponent extends DAQComponent
 		}
 		else
 		{
+		    // put the driver into blocking mode
+		    driver.setBlocking(true);
 			activeDOMs = driver.discoverActiveDOMs();
 			logger.info("Found " + activeDOMs.size() + " active DOMs.");
 		}
