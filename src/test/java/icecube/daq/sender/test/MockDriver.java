@@ -103,4 +103,8 @@ class MockDriver
         return new HashMap<String, Integer>();
     }
 
+    public void setBlocking(boolean block) throws IOException
+    {
+        // do nothing
+    }
 }
