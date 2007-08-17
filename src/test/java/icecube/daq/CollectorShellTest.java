@@ -33,10 +33,8 @@ public class CollectorShellTest
     @Test
     public void testParseOptionFlasher() throws Exception
     {
-        shell = new CollectorShell();
         shell.parseOption("flasher");
         assertNotNull(shell.getFlasherConfig());
-        shell = new CollectorShell();
         shell.parseOption("flasher:width=14,delay=150,brightness=48,rate=100,mask=55ff");
         FlasherboardConfiguration fc = shell.getFlasherConfig();
         assertEquals(48, fc.getBrightness());
@@ -44,6 +42,15 @@ public class CollectorShellTest
         assertEquals(150, fc.getDelay());
         assertEquals(0x55ff, fc.getMask());
         assertEquals(100, fc.getRate());
+    }
+    
+    @Test
+    public void testParseOptionDAC() throws Exception
+    {
+        shell.parseOption("dac03=1588");
+        shell.parseOption("dac14=395");
+        assertEquals((short) 1588, shell.getConfig().getDAC(3));
+        assertEquals((short) 395,  shell.getConfig().getDAC(14));
     }
 
 }

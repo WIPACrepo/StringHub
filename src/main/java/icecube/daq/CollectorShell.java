@@ -235,6 +235,12 @@ public class CollectorShell
 		        }
 		    }
 		}
+		else if (option.startsWith("dac"))
+		{
+		    int dac = Integer.parseInt(option.substring(3, 5));
+		    int val = Integer.parseInt(option.substring(6));
+		    config.setDAC(dac, val);
+		}
 		else if (option.equals("debug"))
 		{
 			Logger.getRootLogger().setLevel(Level.DEBUG);
@@ -244,6 +250,11 @@ public class CollectorShell
 	public FlasherboardConfiguration getFlasherConfig()
 	{
 	    return flasherConfig;
+	}
+	
+	public DOMConfiguration getConfig()
+	{
+	    return config;
 	}
 		
 	public static void main(String[] args) throws Exception
