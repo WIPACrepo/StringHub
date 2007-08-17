@@ -21,6 +21,7 @@ import java.nio.ByteOrder;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.channels.ClosedByInterruptException;
+import java.text.DecimalFormat;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Timer;
@@ -105,8 +106,9 @@ public class DataCollector extends AbstractDataCollector
     private WritableByteChannel tcalSink;
     private WritableByteChannel supernovaSink;
     
-    private static final Logger logger                = Logger.getLogger(DataCollector.class);
-
+    private static final Logger         logger  = Logger.getLogger(DataCollector.class);
+    private static final DecimalFormat  fmt     = new DecimalFormat("#0.000000000");
+    
     // TODO - replace these with properties-supplied constants
     // for now they are totally reasonable
     private long                threadSleepInterval   = 100;
@@ -929,6 +931,7 @@ public class DataCollector extends AbstractDataCollector
 
             if (tired)
             {
+                logger.debug("Runcore loop is tired - sleeping " + threadSleepInterval + " ms.");
                 try
                 {
                     Thread.sleep(threadSleepInterval);
@@ -973,7 +976,7 @@ public class DataCollector extends AbstractDataCollector
     {
         Thread  thread;
         boolean pinged;
-
+        
         InterruptorTask(Thread thread)
         {
             this.thread = thread;
@@ -988,6 +991,10 @@ public class DataCollector extends AbstractDataCollector
 
         synchronized void ping()
         {
+            if (logger.isDebugEnabled())
+            {
+                logger.debug("pinged at " + fmt.format(System.nanoTime() * 1.0E-09));
+            }
             pinged = true;
         }
     }
