@@ -111,9 +111,9 @@ public class DataCollector extends AbstractDataCollector
     
     // TODO - replace these with properties-supplied constants
     // for now they are totally reasonable
-    private long                threadSleepInterval   = 100;
+    private long                threadSleepInterval   = 50;
     private long                lastDataRead          = 0;
-    private long                dataReadInterval      = 50;
+    private long                dataReadInterval      = 20;
     private long                lastMoniRead          = 0;
     private long                moniReadInterval      = 1000;
     private long                lastTcalRead          = 0;
