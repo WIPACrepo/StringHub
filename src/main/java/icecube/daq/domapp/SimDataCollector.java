@@ -29,21 +29,20 @@ public class SimDataCollector extends AbstractDataCollector
 	private WritableByteChannel moniOut;
 	private WritableByteChannel tcalOut;
 	private WritableByteChannel supernovaOut;
-	private long clock;
-	private long t0;
-	private long lastGenHit;           // right edge of previous hit generation time window
-	private long lastMoni;             // last moni record
-	private long lastTcal;             // last time a Tcal was generated
-	private long lastSupernova;        // last time a SN record was generated
-    private long lastBeacon;           // keep track of the beacon hits ...
-	private long numericMBID;
-	private RandomEngine rand = new MersenneTwister(new java.util.Date());
+	private long   clock;
+	private long   t0;
+	private long   lastGenHit;           // right edge of previous hit generation time window
+	private long   lastMoni;             // last moni record
+	private long   lastTcal;             // last time a Tcal was generated
+	private long   lastSupernova;        // last time a SN record was generated
+    private long   lastBeacon;           // keep track of the beacon hits ...
+	private long   numericMBID;
+	private RandomEngine   rand = new MersenneTwister(new java.util.Date());
 	private Poisson poissonRandom = new Poisson(1.0, rand);
-	private RunLevel runLevel;
 	private double rate;
-	private boolean stopRunLoop;
-	private long numHits;
-	private long loopCounter;
+	private boolean        stopRunLoop;
+	private long   numHits;
+	private long   loopCounter;
     private double pulserRate = 1.0;
     
     private Thread thread;
