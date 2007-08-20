@@ -357,11 +357,6 @@ public class Sender
     extends RequestFiller
     implements BufferConsumer, SenderMonitor
 {
-    /** Hack around lack of official string hub source ID. */
-    public static final int STRING_HUB_SOURCE_ID = 12000;
-    /** Hack around lack of official string hub name. */
-    public static final String DAQ_STRING_HUB = "stringHub";
-
     private static Log log = LogFactory.getLog(Sender.class);
 
     /** <tt>true</tt> if we should use the tiny hit payload */
@@ -878,7 +873,7 @@ public class Sender
 
     private static ISourceID getSourceId(int compId)
     {
-        final String compName = DAQ_STRING_HUB;
+        final String compName = DAQCmdInterface.DAQ_STRING_HUB;
 
         return SourceIdRegistry.getISourceIDFromNameAndId(compName, compId);
     }
