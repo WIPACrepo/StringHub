@@ -13,7 +13,7 @@ public class DOMConfiguration implements Serializable
 	private EngineeringRecordFormat engFormat = new EngineeringRecordFormat();
 	private short[] dacs = new short[] { 
 			850, 2300,  350, 2250,  850, 2300, 350, 2130,
-			600,  560,  800,    0, 1023,    0, 450,  800,
+			600,  560,  800,    0, 1023,    0, 450,  500,
 			};
 	private MuxState mux = MuxState.OFF;
 	private short pmt_hv = -1;
