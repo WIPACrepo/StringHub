@@ -106,15 +106,28 @@ public abstract class AbstractDataCollector extends Thread
 	
 	public void signalStopRun()
 	{
-	    switch (getRunLevel())
-	    {
-	    case RUNNING:
-	        setRunLevel(RunLevel.STOPPING);
-	        break;
+        switch (getRunLevel())
+        {
+        case RUNNING:
+            setRunLevel(RunLevel.STOPPING);
+            break;
         default:
-            logger.info("Ignoring redundant stop from run level " + runLevel);
-	    }
+            logger.info("Ignoring stop from run level " + runLevel);
+        }
 	}
+	
+    public void signalPauseRun()
+    {
+        switch (getRunLevel())
+        {
+        case RUNNING:
+            setRunLevel(RunLevel.PAUSING);
+            break;
+        default:
+            logger.warn("Ignoring pause from run level " + runLevel);
+        }
+        
+    }
 	
 	public abstract void signalShutdown();
 	

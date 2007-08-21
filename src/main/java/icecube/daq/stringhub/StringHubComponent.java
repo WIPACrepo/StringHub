@@ -571,7 +571,7 @@ public class StringHubComponent extends DAQComponent
 	                if (wirePairSemaphore[pairIndex])
 	                    throw new DAQCompException("Cannot activate > 1 flasher run per DOR wire pair.");
 	                wirePairSemaphore[pairIndex] = true;
-	                adc.signalStopRun();
+	                adc.signalPauseRun();
 	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
                     DOMConfiguration config = new DOMConfiguration(adc.getConfig());
                     config.setHV(-1);
@@ -592,7 +592,7 @@ public class StringHubComponent extends DAQComponent
 	            else if (adc.getFlasherConfig() != null)
 	            {
 	                // Channel was previously flashing - should be turned off
-	                adc.signalStopRun();
+	                adc.signalPauseRun();
 	                adc.setFlasherConfig(null);
                     adc.setConfig(pristineConfigurations.get(mbid));
 	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);

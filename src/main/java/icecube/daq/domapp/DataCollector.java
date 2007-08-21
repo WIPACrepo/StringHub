@@ -917,6 +917,12 @@ public class DataCollector extends AbstractDataCollector
                 setRunLevel(RunLevel.RUNNING);
                 break;
                 
+            case PAUSING:
+                logger.info("Got PAUSE RUN signal " + canonicalName());
+                app.endRun();
+                setRunLevel(RunLevel.CONFIGURED);
+                break;
+                
             case STOPPING:
                 logger.info("Got STOP RUN signal " + canonicalName());
                 app.endRun();
