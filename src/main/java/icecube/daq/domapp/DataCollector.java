@@ -132,6 +132,7 @@ public class DataCollector extends AbstractDataCollector
     private long                lastMoniUT;
     private long                lastTcalUT;
     private long                lastSupernovaUT;
+    private volatile long       runStartUT = 0L;
 
     private ByteBuffer          daqHeader;
     private long                nextSupernovaDomClock;
@@ -912,7 +913,17 @@ public class DataCollector extends AbstractDataCollector
                     logger.info("Starting normal data-taking run.");
                     app.beginRun();
                 }
+                
+                /* Get the run start time */
+                try
+                {
+                    TimeCalib rst = driver.readTCAL(card, pair, dom);
+                    runStartUT = rapcal.domToUTC(rst.getDomTx().in_0_1ns() / 250L).in_0_1ns();
+                }
+                catch (IOException iox)
+                {
                     
+                }
                 logger.info("DOM is running.");
                 setRunLevel(RunLevel.RUNNING);
                 break;
@@ -950,6 +961,11 @@ public class DataCollector extends AbstractDataCollector
         } /* END RUN LOOP */
     } /* END METHOD */
 
+    public long getRunStartTime()
+    {
+        return runStartUT;
+    }
+    
     public long getNumHits()
     {
         return numHits;

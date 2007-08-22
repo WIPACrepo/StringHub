@@ -137,6 +137,15 @@ public abstract class AbstractDataCollector extends Thread
 	    return runLevel;
 	}
 	
+	/**
+	 * Subclasses should override to provide last run start time in 0.1 ns ticks.
+	 * @return
+	 */
+	public long getRunStartTime()
+	{
+	    return 0L;
+	}
+	
 	public synchronized void setRunLevel(RunLevel runLevel)
 	{
 	    this.runLevel = runLevel;
