@@ -117,6 +117,18 @@ public abstract class AbstractDataCollector extends Thread
         }
 	}
 	
+	public void signalStartSubRun()
+	{
+	    switch (getRunLevel())
+	    {
+	    case CONFIGURED:
+	        setRunLevel(RunLevel.STARTING_SUBRUN);
+	        break;
+        default:
+            logger.warn("Cannot start subrun on DOM at run level " + runLevel);
+	    }
+	}
+	
     public void signalPauseRun()
     {
         switch (getRunLevel())

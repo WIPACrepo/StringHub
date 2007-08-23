@@ -28,6 +28,12 @@ public enum RunLevel
     STARTING,
     
     /**
+     * Go through the motions to start a subrun.  This requires
+     * a fairly intricate dance.
+     */
+    STARTING_SUBRUN,
+    
+    /**
      * The data collector is actively taking data from a DOM.
      */
     RUNNING,
@@ -36,7 +42,7 @@ public enum RunLevel
      * Has gotten STOP signal but DOM hasn't yet stopped.
      */
     STOPPING,
-    
+    STOPPING_SUBRUN,
     /**
      * Has gotten PAUSE signal but DOM hasn't yet stopped.
      * Pausing is like stopping but the output streams are 

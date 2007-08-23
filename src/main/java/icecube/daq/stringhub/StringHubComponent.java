@@ -544,77 +544,50 @@ public class StringHubComponent extends DAQComponent
 
 	    logger.info("Beginning subrun");
 	    
-	    try
-	    {
-	        for (AbstractDataCollector adc : conn.getCollectors())
-	        {
-	            String mbid = adc.getMainboardId();
-	            FlasherboardConfiguration flasherConfig = null;
-	            
-	            // Hunt for this DOM channel in the flasher config list
-	            for (FlasherboardConfiguration fbc : flasherConfigs)
+        for (AbstractDataCollector adc : conn.getCollectors())
+        {
+            String mbid = adc.getMainboardId();
+            FlasherboardConfiguration flasherConfig = null;
+            
+            // Hunt for this DOM channel in the flasher config list
+            for (FlasherboardConfiguration fbc : flasherConfigs)
+            {
+	            if (fbc.getMainboardID().equals(mbid))
 	            {
-    	            if (fbc.getMainboardID().equals(mbid))
-    	            {
-    	                flasherConfig = fbc;
-    	                break;
-    	            }
+	                flasherConfig = fbc;
+	                break;
 	            }
-	            
-	            if (flasherConfig != null)
-	            {
-	                /*
-	                 * stop anything that is currently running on this DOM
-	                 * and begin a new flasher run
-	                 */
-	                int pairIndex = 4 * adc.getCard() + adc.getPair();
-	                if (wirePairSemaphore[pairIndex])
-	                    throw new DAQCompException("Cannot activate > 1 flasher run per DOR wire pair.");
-	                wirePairSemaphore[pairIndex] = true;
-	                adc.signalPauseRun();
-	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
-                    DOMConfiguration config = new DOMConfiguration(adc.getConfig());
-                    config.setHV(-1);
-                    config.setTriggerMode(TriggerMode.FB);
-                    config.setLC(new LocalCoincidenceConfiguration());
-                    EngineeringRecordFormat fmt = new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 128 }); 
-                    config.setEngineeringFormat(fmt);
-                    config.setMux(MuxState.FB_CURRENT);
-                    adc.setConfig(config);
-                    adc.signalConfigure();
-                    while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
-                    Thread.sleep(100);
-                    adc.setFlasherConfig(flasherConfig);
-                    adc.signalStartRun();
-                    while (!adc.getRunLevel().equals(RunLevel.RUNNING) && !adc.getRunLevel().equals(RunLevel.ZOMBIE)) 
-                        Thread.sleep(50);
-	            }
-	            else if (adc.getFlasherConfig() != null)
-	            {
-	                // Channel was previously flashing - should be turned off
-	                adc.signalPauseRun();
-	                adc.setFlasherConfig(null);
-                    adc.setConfig(pristineConfigurations.get(mbid));
-	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
-	                adc.signalConfigure();
-	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
-	                adc.signalStartRun();
-	                while (!adc.getRunLevel().equals(RunLevel.RUNNING)) Thread.sleep(50);
-	            }
-                long t = adc.getLastTcalTime();
+            }
+            
+            if (flasherConfig != null)
+            {
+                int pairIndex = 4 * adc.getCard() + adc.getPair();
+                if (wirePairSemaphore[pairIndex])
+                    throw new DAQCompException("Cannot activate > 1 flasher run per DOR wire pair.");
+                wirePairSemaphore[pairIndex] = true;
+            }
+            adc.setFlasherConfig(flasherConfig);
+            adc.signalStartSubRun();
+            long t = adc.getLastTcalTime();
+            if (t > validXTime) validXTime = t;
+	    }
+
+        for (AbstractDataCollector adc : conn.getCollectors())
+        {
+            if (adc.getRunLevel() == RunLevel.ZOMBIE) continue;
+            try
+            {
+                while (adc.getRunLevel() != RunLevel.RUNNING) Thread.sleep(100);
+                long t = adc.getRunStartTime();
                 if (t > validXTime) validXTime = t;
-    	    }
-    	    logger.info("Subrun time is " + validXTime);
-    	    return validXTime;
-	    }
-	    catch (InterruptedException intx)
-	    {
-	        throw new DAQCompException("INTX", intx);
-	    }
-	    catch (BadEngineeringFormat befx)
-	    {
-	        throw new DAQCompException("BEFX", befx);
-	    }
+            }
+            catch (InterruptedException intx)
+            {
+                logger.warn("Interrupted sleep on ADC subrun start.");
+            }
+        }
+	    logger.info("Subrun time is " + validXTime);
+	    return validXTime;
 	}
 	
 	public void stopping()

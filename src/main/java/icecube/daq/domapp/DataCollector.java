@@ -317,7 +317,7 @@ public class DataCollector extends AbstractDataCollector
      * 
      * @throws MessageException
      */
-    private void configure() throws MessageException
+    private void configure(DOMConfiguration config) throws MessageException
     {
         logger.info("Configuring DOM on " + canonicalName());
         long configT0 = System.currentTimeMillis();
@@ -585,6 +585,19 @@ public class DataCollector extends AbstractDataCollector
         stop_thread = true;
     }
 
+    private void storeRunStartTime() throws InterruptedException
+    {
+        try
+        {
+            TimeCalib rst = driver.readTCAL(card, pair, dom);
+            runStartUT = rapcal.domToUTC(rst.getDomTx().in_0_1ns() / 250L).in_0_1ns();
+        }
+        catch (IOException iox)
+        {
+            logger.warn("I/O error on TCAL read to determine run start time.");
+        }
+    }
+    
     public String toString()
     {
         return getName();
@@ -891,40 +904,50 @@ public class DataCollector extends AbstractDataCollector
             case CONFIGURING:
                 /* Need to handle a configure */
                 logger.info("Got CONFIGURE signal.");
-                configure();
+                configure(config);
                 logger.info("DOM is configured.");
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
                 
             case STARTING:
                 logger.info("Got START RUN signal " + canonicalName());
+                app.beginRun();
+                storeRunStartTime();
+                logger.info("DOM is running.");
+                setRunLevel(RunLevel.RUNNING);
+                break;
+                
+            case STARTING_SUBRUN:
+                setRunLevel(RunLevel.STOPPING_SUBRUN);
+                app.endRun();
+                setRunLevel(RunLevel.CONFIGURING);
                 if (flasherConfig != null)
                 {
-                   logger.info("Starting flasher run.");
-                   app.beginFlasherRun(
-                           (short) flasherConfig.getBrightness(), 
-                           (short) flasherConfig.getWidth(), 
-                           (short) flasherConfig.getDelay(), 
-                           (short) flasherConfig.getMask(), 
-                           (short) flasherConfig.getRate());
+                    logger.info("Starting flasher subrun");
+                    DOMConfiguration tempConfig = new DOMConfiguration(config);
+                    tempConfig.setHV(-1);
+                    tempConfig.setTriggerMode(TriggerMode.FB);
+                    tempConfig.setLC(new LocalCoincidenceConfiguration());
+                    tempConfig.setEngineeringFormat(
+                            new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 128 })
+                            );
+                    tempConfig.setMux(MuxState.FB_CURRENT);
+                    configure(tempConfig);
+                    app.beginFlasherRun(
+                            (short) flasherConfig.getBrightness(), 
+                            (short) flasherConfig.getWidth(),
+                            (short) flasherConfig.getDelay(), 
+                            (short) flasherConfig.getMask(), 
+                            (short) flasherConfig.getRate()
+                            );
                 }
                 else
                 {
-                    logger.info("Starting normal data-taking run.");
+                    logger.info("Returning to non-flashing state");
+                    configure(config);
                     app.beginRun();
                 }
-                
-                /* Get the run start time */
-                try
-                {
-                    TimeCalib rst = driver.readTCAL(card, pair, dom);
-                    runStartUT = rapcal.domToUTC(rst.getDomTx().in_0_1ns() / 250L).in_0_1ns();
-                }
-                catch (IOException iox)
-                {
-                    
-                }
-                logger.info("DOM is running.");
+                storeRunStartTime();
                 setRunLevel(RunLevel.RUNNING);
                 break;
                 
@@ -944,6 +967,7 @@ public class DataCollector extends AbstractDataCollector
                 if (supernovaSink != null) supernovaSink.write(StreamBinder.endOfSupernovaStream());
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
+                
             }
 
             if (tired)
