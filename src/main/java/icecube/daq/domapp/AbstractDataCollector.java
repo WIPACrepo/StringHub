@@ -121,7 +121,7 @@ public abstract class AbstractDataCollector extends Thread
 	{
 	    switch (getRunLevel())
 	    {
-	    case CONFIGURED:
+	    case RUNNING:
 	        setRunLevel(RunLevel.STARTING_SUBRUN);
 	        break;
         default:
