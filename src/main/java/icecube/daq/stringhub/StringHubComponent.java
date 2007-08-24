@@ -566,10 +566,15 @@ public class StringHubComponent extends DAQComponent
                     throw new DAQCompException("Cannot activate > 1 flasher run per DOR wire pair.");
                 wirePairSemaphore[pairIndex] = true;
             }
-            adc.setFlasherConfig(flasherConfig);
-            adc.signalStartSubRun();
-            long t = adc.getLastTcalTime();
-            if (t > validXTime) validXTime = t;
+            
+            boolean stateChange = flasherConfig != null || adc.getFlasherConfig() != null;
+            if (stateChange)
+            {
+                adc.setFlasherConfig(flasherConfig);
+                adc.signalStartSubRun();
+                long t = adc.getLastTcalTime();
+                if (t > validXTime) validXTime = t;
+            }
 	    }
 
         for (AbstractDataCollector adc : conn.getCollectors())
