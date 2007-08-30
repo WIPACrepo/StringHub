@@ -572,8 +572,6 @@ public class StringHubComponent extends DAQComponent
             {
                 adc.setFlasherConfig(flasherConfig);
                 adc.signalStartSubRun();
-                long t = adc.getLastTcalTime();
-                if (t > validXTime) validXTime = t;
             }
 	    }
 
