@@ -38,6 +38,14 @@ public class Driver implements IDriver {
 		return instance;
 	}
 
+	public float getCurrent(int card, int pair) throws IOException {
+	    String currentText = getProcfileText(makeProcfile(card + "" + pair, "current"));
+	    Pattern p = Pattern.compile("is ([0-9]+) mA");
+	    Matcher m = p.matcher(currentText);
+	    if (m.find()) return Float.parseFloat(m.group(1));
+	    return 0.0f;
+	}
+	
 	public boolean power(int card, int pair) throws IOException {
 		File file = makeProcfile("" + card + "" + pair, "pwr");
 		String info = getProcfileText(file);
