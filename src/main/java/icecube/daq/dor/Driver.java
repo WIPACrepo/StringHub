@@ -261,20 +261,18 @@ public class Driver implements IDriver {
         File f = makeProcfile("" + card, "fpga");
         FileInputStream fis = new FileInputStream(f);
         BufferedReader r = new BufferedReader(new InputStreamReader(fis));
-        Pattern pat = Pattern.compile("([A-Z]+)\\s+(0x[0-9a-f]+)");
+        Pattern pat = Pattern.compile("([A-Z]+)\\s+0x([0-9a-f]+)");
         while (true)
         {
             String txt = r.readLine();
-            if (txt.length() == 0) break;
+            if (txt == null || txt.length() == 0) break;
             Matcher m  = pat.matcher(txt);
             if (m.matches())
             {
                 String key = m.group(1);
-                Integer val = Integer.valueOf(m.group(2), 16);
-                registerMap.put(key, val);
+                long val   = Long.parseLong(m.group(2), 16);
+                registerMap.put(key, new Integer((int) (val & 0xffffffffL)));
             }
-            String[] tokens = txt.split("\\s+");
-            
         }
         return registerMap;
     }
