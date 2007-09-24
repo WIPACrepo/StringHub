@@ -194,6 +194,10 @@ public class SimDataCollector extends AbstractDataCollector
                     lastTcal   = t;
                     lastSupernova = t;
                     break;
+				case STARTING_SUBRUN:
+                    // go to start run
+                    Thread.sleep(20);
+                    setRunLevel(RunLevel.RUNNING);
 				case RUNNING:
                     long currTime = System.currentTimeMillis();
                     int nHits = generateHits(currTime);
