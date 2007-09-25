@@ -4,7 +4,7 @@ public class LocalCoincidenceConfiguration
 {
 	public enum RxMode 
 	{ 
-		RXNONE, RXBOTH, RXUP, RXDOWN;
+		RXNONE, RXEITHER, RXUP, RXDOWN, RXBOTH, RXHDRS;
 		public byte asByte() { return (byte) ordinal(); }
 	}
 	
