@@ -9,6 +9,8 @@ public class MessageException extends Exception {
 	
 	public MessageException(Exception e) {
 		super(e);
+        type = null;
+        status = 0;
 	}
 	
 	public MessageException(MessageType type, int status) {
@@ -18,7 +20,10 @@ public class MessageException extends Exception {
 	
 	public String toString()
 	{
-	    return type.toString() + " - status: " + Integer.toHexString(status);
+	    if (type != null)
+	        return type.toString() + " - status: " + Integer.toHexString(status);
+	    // Ok - it's a wrapped exception so just spit out its error message
+	    return getCause().toString();
 	}
 	
 }
