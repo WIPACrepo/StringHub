@@ -346,6 +346,9 @@ public class StringHubComponent extends DAQComponent
 			// Lookup the connected DOMs
 			discover();
 			
+			if (activeDOMs.size() == 0)
+			    throw new DAQCompException("No Active DOMs on hub.");
+			
 			// Parse out tags from 'master configuration' file
 			File domConfigsDirectory = new File(configurationPath, "domconfigs");
 			File masterConfigFile = new File(configurationPath, configName + ".xml");
@@ -375,6 +378,9 @@ public class StringHubComponent extends DAQComponent
 			for (DOMChannelInfo chanInfo : activeDOMs)
 				if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) nch++;
 	
+			if (nch == 0)
+			    throw new DAQCompException("No Active DOMs on Hub selected in configuration.");
+			
 			logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
 			
 			// Must make sure to release file resources associated with the previous
