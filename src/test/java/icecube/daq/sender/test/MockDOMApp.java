@@ -280,4 +280,9 @@ class MockDOMApp
 		// TODO Auto-generated method stub
 		return new ArrayList<ByteBuffer>();
 	}
+
+    public void setMoniIntervals(int hw, int config, int fast) throws MessageException
+    {
+        // another do-nothing method
+    }
 }

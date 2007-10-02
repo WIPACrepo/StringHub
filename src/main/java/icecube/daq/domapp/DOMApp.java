@@ -495,6 +495,13 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.SET_MONI_IVAL, buf);
     }
 
+    public void setMoniIntervals(int hw, int config, int fast) throws MessageException
+    {
+        ByteBuffer buf = ByteBuffer.allocate(12);
+        buf.putInt(hw).putInt(config).putInt(fast).flip();
+        sendMessage(MessageType.SET_MONI_IVAL, buf);
+    }
+    
     /*
      * (non-Javadoc)
      * 
