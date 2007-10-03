@@ -771,7 +771,7 @@ public class DataCollector extends AbstractDataCollector
     private void runcore(Timer watcher) throws Exception
     {
         InterruptorTask intTask = new InterruptorTask(this);
-        watcher.schedule(intTask, 28000L, 5000L);
+        watcher.schedule(intTask, 30000L, 20000L);
 
 		driver.resetComstat(card, pair, dom);
 
