@@ -684,8 +684,8 @@ public class DataCollector extends AbstractDataCollector
         {
             x.printStackTrace();
             logger.error("Intercepted error in DataCollector runcore: " + x);
-            // HACK tell the caller that I am configured
-
+            // HACK set run level to ZOMBIE so that controller knows
+            // that this channel has expired and does not wait.
             setRunLevel(RunLevel.ZOMBIE);
         }
 
@@ -716,28 +716,24 @@ public class DataCollector extends AbstractDataCollector
     private IDOMApp softbootToDomapp() throws IOException, InterruptedException
     {
         driver.commReset(card, pair, dom);
-        Thread.sleep(250);
         driver.softboot (card, pair, dom);
-        Thread.sleep(1500);
 
         FileNotFoundException savedEx = null;
 
         for (int i = 0; i < 2; i++) {
             driver.commReset(card, pair, dom);
-            Thread.sleep(250);
         
-            /*
-             * Initialize the DOMApp - get things setup
-             */
             if (app == null)
             {
                 // If app is null it implies the collector has deferred
                 // opening of the DOR devfile to the thread.
-                try {
+                try 
+                {
                     app = new DOMApp(this.card, this.pair, this.dom);
-                    // if we got app, we can quit
                     break;
-                } catch (FileNotFoundException ex) {
+                } 
+                catch (FileNotFoundException ex) 
+                {
 					logger.error("Trial "+i+": Open of "+card+""+pair+dom+" failed!");
 					logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
 					logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
@@ -747,15 +743,14 @@ public class DataCollector extends AbstractDataCollector
             }
         }
                 
-        if (app == null) {
-            if (savedEx != null) {
-                throw savedEx;
-            }
-
+        if (app == null) 
+        {
+            if (savedEx != null) throw savedEx;
             throw new FileNotFoundException("Couldn't open DOMApp");
-        } else if (savedEx != null) {
-            logger.error("Successful DOMApp retry after initial failure",
-                         savedEx);
+        } 
+        else if (savedEx != null) 
+        {
+            logger.error("Successful DOMApp retry after initial failure", savedEx);
         }
 
         app.transitionToDOMApp();

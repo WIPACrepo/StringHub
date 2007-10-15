@@ -560,23 +560,37 @@ public class DOMApp implements IDOMApp
         ByteBuffer cmd = ByteBuffer.allocate(20);
         // Issue a clear - something gets out-of-sorts in the iceboot
         // command decoder
-        cmd.put("\r\ndomapp\r\n".getBytes()).flip();
-        devIO.send(cmd);
-	while (true)
-        {
-	    ByteBuffer rmsg = devIO.recv();
-	    byte[] bmsg = new byte[rmsg.remaining()];
-            rmsg.get(bmsg);
-	    String btxt = new String(bmsg);
-	    logger.debug("i2da " + btxt);
-	    if (btxt.contains("domapp")) break;
-	}
-        // Now it should really be going into domapp
-        // TODO - find a better way than vapid wait
-        Thread.sleep(8500);
+        talkToIceboot("s\" domapp.sbi.gz\" find if gunzip fpga endif .");
+        talkToIceboot("s\" domapp.gz\" find if gunzip exec endif", false);
         return true;
     }
 
+    private String talkToIceboot(String cmd) throws IOException
+    {
+        return talkToIceboot(cmd, true);
+    }
+    
+    private String talkToIceboot(String cmd, boolean expectPrompt) throws IOException
+    {
+        ByteBuffer buf = ByteBuffer.allocate(256);
+        buf.put(cmd.getBytes());
+        buf.put("\r\n".getBytes()).flip();
+        int n = buf.remaining();
+        devIO.send(buf);
+        StringBuffer txt = new StringBuffer();
+        while (true)
+        {
+            ByteBuffer ret = devIO.recv();
+            byte[] bytearray = new byte[ret.remaining()];
+            ret.get(bytearray);
+            String fragment = new String(bytearray);
+            if (fragment.equals("> \n")) break;
+            txt.append(fragment);
+            if (!expectPrompt && txt.length() == n) break;
+        } 
+        return txt.toString();
+    }
+    
     /*
      * (non-Javadoc)
      * 
