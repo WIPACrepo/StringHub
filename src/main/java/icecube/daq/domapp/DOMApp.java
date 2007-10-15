@@ -562,7 +562,7 @@ public class DOMApp implements IDOMApp
         // command decoder
         talkToIceboot("s\" domapp.sbi.gz\" find if gunzip fpga endif .");
         // Exec DOMApp & wait for "DOMAPP READY" message from DOMApp
-        talkToIceboot("s\" domapp.gz\" find if gunzip exec endif", "DOMAPP READY");
+        talkToIceboot("s\" domapp.gz\" find if gunzip exec endif", "DOMAPP READY\n");
         return true;
     }
 
