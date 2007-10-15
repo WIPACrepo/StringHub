@@ -561,22 +561,24 @@ public class DOMApp implements IDOMApp
         // Issue a clear - something gets out-of-sorts in the iceboot
         // command decoder
         talkToIceboot("s\" domapp.sbi.gz\" find if gunzip fpga endif .");
-        talkToIceboot("s\" domapp.gz\" find if gunzip exec endif", false);
+        // Exec DOMApp & wait for "DOMAPP READY" message from DOMApp
+        talkToIceboot("s\" domapp.gz\" find if gunzip exec endif", "DOMAPP READY");
         return true;
     }
 
     private String talkToIceboot(String cmd) throws IOException
     {
-        return talkToIceboot(cmd, true);
+        return talkToIceboot(cmd, "> \n");
     }
     
-    private String talkToIceboot(String cmd, boolean expectPrompt) throws IOException
+    private String talkToIceboot(String cmd, String expect) throws IOException
     {
         ByteBuffer buf = ByteBuffer.allocate(256);
         buf.put(cmd.getBytes());
         buf.put("\r\n".getBytes()).flip();
         int n = buf.remaining();
         devIO.send(buf);
+        logger.debug("Sending: " + cmd);
         StringBuffer txt = new StringBuffer();
         while (true)
         {
@@ -584,9 +586,9 @@ public class DOMApp implements IDOMApp
             byte[] bytearray = new byte[ret.remaining()];
             ret.get(bytearray);
             String fragment = new String(bytearray);
-            if (fragment.equals("> \n")) break;
+            logger.debug("Received: " + fragment);
+            if (fragment.equals(expect)) break;
             txt.append(fragment);
-            if (!expectPrompt && txt.length() == n) break;
         } 
         return txt.toString();
     }
