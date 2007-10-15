@@ -19,9 +19,6 @@ public class DOMConnector
 	/** DOM data collectors. */
 	private ArrayList<AbstractDataCollector> collectors;
 	private static final Logger logger = Logger.getLogger(DOMConnector.class);
-	private static final long CONFIGURE_TIMEOUT = 30000L;
-	private static final long DESTROY_TIMEOUT   = 15000L;
-	private static final long STOP_TIMEOUT      = 15000L;
 
 	/**
 	 * Create a DAQ input connector.
@@ -50,8 +47,6 @@ public class DOMConnector
 	 */
 	public void configure()
 	{
-		long configT0 = System.currentTimeMillis();
-
 		for (AbstractDataCollector dc : collectors)
 			dc.signalConfigure();
 
@@ -63,9 +58,6 @@ public class DOMConnector
 			{
 				try {
 					Thread.sleep(100);
-					if (System.currentTimeMillis() - configT0 > CONFIGURE_TIMEOUT) {
-						logger.error("Configure timed out.");
-					}
 				} catch (InterruptedException ie) {
 					// ignore interrupts
 				}
@@ -84,7 +76,6 @@ public class DOMConnector
 	public void destroy()
 		throws Exception
 	{
-		long destroyT0 = System.currentTimeMillis();
 		for (AbstractDataCollector dc : collectors) {
 			dc.signalShutdown();
 			dc.close();
@@ -95,9 +86,6 @@ public class DOMConnector
 				   !dc.getRunLevel().equals(RunLevel.ZOMBIE)) 
 			{
 				Thread.sleep(50);
-				if (System.currentTimeMillis() - destroyT0 > DESTROY_TIMEOUT) {
-					logger.error("Destroy timed out.");
-				}
 			}
 		}
 	}
@@ -194,7 +182,6 @@ public class DOMConnector
 	public void stopProcessing()
 		throws Exception
 	{
-		long stopT0 = System.currentTimeMillis();
 		for (AbstractDataCollector dc : collectors) {
 			dc.signalStopRun();
 		}
@@ -205,9 +192,6 @@ public class DOMConnector
 			{
 				try {
 					Thread.sleep(25);
-					if (System.currentTimeMillis() - stopT0 > STOP_TIMEOUT) {
-						logger.error("Stop timed out.");
-					}
 				} catch (InterruptedException ie) {
 					// ignore interrupts
 				}
