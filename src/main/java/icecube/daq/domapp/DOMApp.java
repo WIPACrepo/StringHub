@@ -145,7 +145,7 @@ public class DOMApp implements IDOMApp
         }
         catch (IOException e)
         {
-            throw new MessageException(e);
+            throw new MessageException(MessageType.GET_DATA, e);
         }
 
         ArrayList<ByteBuffer> outC = new ArrayList<ByteBuffer>();
@@ -158,7 +158,9 @@ public class DOMApp implements IDOMApp
                 ByteBuffer out = devIO.recv();
                 logger.debug("Received part " + i + " of multimessage.");
                 int status = out.get(7);
-                if (status != 1) throw new MessageException(MessageType.GET_DATA, status);
+                if (status != 1) throw new MessageException(
+                        MessageType.GET_DATA, out.get(0), out.get(1),
+                        status);
                 if (out.remaining() > 8)
                 {
                     ByteBuffer x = ByteBuffer.allocate(out.remaining() - 8);
@@ -169,7 +171,7 @@ public class DOMApp implements IDOMApp
             }
             catch (IOException e)
             {
-                throw new MessageException(e);
+                throw new MessageException(MessageType.GET_DATA, e);
             }
         }
         return outC;
@@ -332,25 +334,16 @@ public class DOMApp implements IDOMApp
                 msgBufferOut.put(out);
             }
             msgBufferOut.flip();
-            byte r_type = msgBufferOut.get();
-            byte r_subt = msgBufferOut.get();
-            short dataLength = msgBufferOut.getShort();
-            if (r_type != type.getFacility() || r_subt != type.getSubtype())
-            {
-                logger.error("Return message type/subtype does not match outgoing "
-                        + "message (" 
-                        + r_type + ", "
-                        + r_subt + ").");
-                throw new MessageException(type, 1001);
-            }
+            short dataLength = msgBufferOut.getShort(2);
             int status = msgBufferOut.get(7);
             msgBufferOut.position(8);
-            if (status != 1) throw new MessageException(type, 1);
+            if (!(type.equals(msgBufferOut.get(0), msgBufferOut.get(1)) && status == 1)) 
+                throw new MessageException(type, msgBufferOut.get(0), msgBufferOut.get(1), status);
             return msgBufferOut.slice();
         }
         catch (IOException e)
         {
-            throw new MessageException(e);
+            throw new MessageException(type, e);
         }
     }
 
