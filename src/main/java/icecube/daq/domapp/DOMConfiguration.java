@@ -6,8 +6,9 @@ public class DOMConfiguration implements Serializable
 {
 	private static final long serialVersionUID = 2L;
 
-	private int hardwareMonitorInterval = 1000000000;
+	private int hardwareMonitorInterval = 30*40000000;
 	private int configMonitorInterval = 2000000000;
+	private int fastMonitorInterval   = 600000000;
 	private TriggerMode triggerMode = TriggerMode.SPE;
 	private boolean compressionEnabled = false;
 	private EngineeringRecordFormat engFormat = new EngineeringRecordFormat();
@@ -192,6 +193,16 @@ public class DOMConfiguration implements Serializable
 	 */
 	public void setHardwareMonitorInterval(int hardwareMonitorInterval) {
 		this.hardwareMonitorInterval = hardwareMonitorInterval;
+	}
+	
+	public int getFastMonitorInterval() 
+	{
+	    return fastMonitorInterval;
+	}
+	
+	public void setFastMonitorInterval(int fastIval)
+	{
+	    fastMonitorInterval = fastIval;
 	}
 	
 	/**

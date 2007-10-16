@@ -322,7 +322,11 @@ public class DataCollector extends AbstractDataCollector
         logger.info("Configuring DOM on " + canonicalName());
         long configT0 = System.currentTimeMillis();
 
-        app.setMoniIntervals(config.getHardwareMonitorInterval(), config.getConfigMonitorInterval());
+        app.setMoniIntervals(
+                config.getHardwareMonitorInterval(), 
+                config.getConfigMonitorInterval(),
+                config.getFastMonitorInterval()
+                );
 
         if (config.isDeltaCompressionEnabled())
             app.setDeltaCompressionFormat();

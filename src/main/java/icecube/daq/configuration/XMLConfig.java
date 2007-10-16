@@ -228,6 +228,10 @@ public class XMLConfig extends DefaultHandler
         {
             currentConfig.setHardwareMonitorInterval((int) (40000000 * Double.parseDouble(text))); 
         }
+        else if (localName.equals("fastMonitorInterval"))
+        {
+            currentConfig.setFastMonitorInterval((int) (40000000 * Double.parseDouble(text)));
+        }
 		else if (localName.equals("noiseRate"))
 		{
 			currentConfig.setSimNoiseRate(Double.parseDouble(text));
