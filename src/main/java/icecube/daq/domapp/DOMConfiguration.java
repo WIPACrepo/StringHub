@@ -8,7 +8,7 @@ public class DOMConfiguration implements Serializable
 
 	private int hardwareMonitorInterval = 30*40000000;
 	private int configMonitorInterval = 2000000000;
-	private int fastMonitorInterval   = 600000000;
+	private int fastMonitorInterval   = 40000000;
 	private TriggerMode triggerMode = TriggerMode.SPE;
 	private boolean compressionEnabled = false;
 	private EngineeringRecordFormat engFormat = new EngineeringRecordFormat();

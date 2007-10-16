@@ -530,7 +530,8 @@ public class DataCollector extends AbstractDataCollector
             // logger.debug("processing monitoring record - " + in.remaining() +
             // " bytes remaining.");
             MonitorRecord monitor = MonitorRecordFactory.createFromBuffer(in);
-            if (monitor instanceof AsciiMonitorRecord) logger.info(monitor.toString());
+            if (monitor instanceof AsciiMonitorRecord &&
+                    logger.isDebugEnabled()) logger.debug(monitor.toString());
             if (moniSink != null)
             {
                 numMoni++;
