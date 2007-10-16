@@ -81,5 +81,6 @@ public class XMLConfigTest
 	@Test public void testMonitorIntervals()
 	{
         assertEquals(168000000, config.getHardwareMonitorInterval());
+        assertEquals(60000000, config.getFastMonitorInterval());
 	}
 }

@@ -44,6 +44,7 @@
         <pulserMode>        beacon </pulserMode>
         <pulserRate>            18 </pulserRate>
 		<hardwareMonitorInterval>4.2</hardwareMonitorInterval>
+		<fastMonitorInterval>    1.5</fastMonitorInterval>
         <localCoincidence>
             <type>soft</type>
             <mode>up-or-down</mode>
