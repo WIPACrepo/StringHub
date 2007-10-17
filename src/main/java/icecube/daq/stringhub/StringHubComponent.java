@@ -139,6 +139,14 @@ public class StringHubComponent extends DAQComponent
 
 	private static final Logger logger = Logger.getLogger(StringHubComponent.class);
 	
+	/** svn version information */
+    private static final HashMap SVN_VER_INFO;
+    static {
+		SVN_VER_INFO = new HashMap(4);
+		SVN_VER_INFO.put("id",  "$Id: StringHubComponent.java 2146 2007-10-17 01:37:59Z ksb $");
+		SVN_VER_INFO.put("url", "$URL: http://code.icecube.wisc.edu/daq/projects/StringHub/trunk/src/main/java/icecube/daq/stringhub/StringHubComponent.java $");
+    }
+
     private int hubId;
 	private boolean isSim = false;
 	private Driver driver = Driver.getInstance();
@@ -636,6 +644,16 @@ public class StringHubComponent extends DAQComponent
             trigger.setTriggerHandler(triggerHandler);
         }
         triggerHandler.addTriggers(currentTriggers);
+    }
+
+    /**
+     * Return this component's svn version info as a HashMap.
+     *
+     * @return svn version info (id, url) as a HashMap
+     */
+    public HashMap getVersionInfo()
+    {
+		return SVN_VER_INFO;
     }
 
 }
