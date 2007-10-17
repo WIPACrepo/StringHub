@@ -148,13 +148,14 @@ public class StreamBinder extends Thread implements Counter
                         if (logger.isDebugEnabled())
                             logger.debug(getName() + "sending buffer to sender RECL = " + buf.getInt(0)
                                     + " - TYPE = " + buf.getInt(4) + " - UTC = " + currentUT.toString());
-                        if (buf.getInt(0) == 32 && buf.getLong(8) == 0L && buf.getLong(24) == Long.MAX_VALUE)
-                            running = false;
-                        if ((outputCounter++ % prescale) == 0L)
+                        if (buf.getInt(0) == 32 && buf.getLong(8) == 0L && 
+                                buf.getLong(24) == Long.MAX_VALUE)
                         {
-                            while (buf.remaining() > 0)
-                                out.consume(buf);
+                            // Saw the EOS token
+                            running = false;
                         }
+                        while (buf.remaining() > 0)
+                            out.consume(buf);
                         // Update the lastUT
                         lastUT = currentUT;
                     }
@@ -167,6 +168,8 @@ public class StreamBinder extends Thread implements Counter
                 break;
             }
         }
+        
+        logger.info("Binder processing thread exiting.");
 
         try
         {
@@ -277,7 +280,7 @@ public class StreamBinder extends Thread implements Counter
          */
         public void readRecords(ReadableByteChannel ch) throws IOException
         {
-            int nr = ch.read(iobuf);
+            ch.read(iobuf);
             iobuf.flip();
             while (iobuf.remaining() >= 4)
             {

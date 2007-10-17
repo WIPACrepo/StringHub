@@ -4,6 +4,7 @@ package icecube.daq.stringhub;
 
 import org.apache.log4j.Logger;
 import icecube.daq.domapp.AbstractDataCollector;
+import icecube.daq.domapp.RunLevel;
 import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQConnector;
 
@@ -18,9 +19,6 @@ public class DOMConnector
 	/** DOM data collectors. */
 	private ArrayList<AbstractDataCollector> collectors;
 	private static final Logger logger = Logger.getLogger(DOMConnector.class);
-	private static final long CONFIGURE_TIMEOUT = 15000L;
-	private static final long DESTROY_TIMEOUT   = 15000L;
-	private static final long STOP_TIMEOUT      = 15000L;
 
 	/**
 	 * Create a DAQ input connector.
@@ -49,22 +47,17 @@ public class DOMConnector
 	 */
 	public void configure()
 	{
-		long configT0 = System.currentTimeMillis();
-
 		for (AbstractDataCollector dc : collectors)
 			dc.signalConfigure();
 
 		int configured_counter = 0;
 		// wait for things to configure
 		for (AbstractDataCollector dc : collectors) {
-			while (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED &&
-				   dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE)
+			while (!dc.getRunLevel().equals(RunLevel.CONFIGURED) &&
+				   !dc.getRunLevel().equals(RunLevel.ZOMBIE))
 			{
 				try {
 					Thread.sleep(100);
-					if (System.currentTimeMillis() - configT0 > CONFIGURE_TIMEOUT) {
-						logger.error("Configure timed out.");
-					}
 				} catch (InterruptedException ie) {
 					// ignore interrupts
 				}
@@ -83,19 +76,16 @@ public class DOMConnector
 	public void destroy()
 		throws Exception
 	{
-		long destroyT0 = System.currentTimeMillis();
 		for (AbstractDataCollector dc : collectors) {
 			dc.signalShutdown();
 			dc.close();
 		}
 
 		for (AbstractDataCollector dc : collectors) {
-			while (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED &&
-				   dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE) {
+			while (!dc.getRunLevel().equals(RunLevel.CONFIGURED) &&
+				   !dc.getRunLevel().equals(RunLevel.ZOMBIE)) 
+			{
 				Thread.sleep(50);
-				if (System.currentTimeMillis() - destroyT0 > DESTROY_TIMEOUT) {
-					logger.error("Destroy timed out.");
-				}
 			}
 		}
 	}
@@ -128,9 +118,11 @@ public class DOMConnector
 	 */
 	public boolean isRunning()
 	{
-		for (AbstractDataCollector dc : collectors) {
-			if (dc.queryDaqRunLevel() != AbstractDataCollector.RUNNING &&
-				dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE) {
+		for (AbstractDataCollector dc : collectors) 
+		{
+			if (!dc.getRunLevel().equals(RunLevel.RUNNING) &&
+				!dc.getRunLevel().equals(RunLevel.ZOMBIE)) 
+			{
 				return false;
 			}
 		}
@@ -145,9 +137,11 @@ public class DOMConnector
 	 */
 	public boolean isStopped()
 	{
-		for (AbstractDataCollector dc : collectors) {
-			if (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED &&
-				dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE) {
+		for (AbstractDataCollector dc : collectors) 
+		{
+			if (!dc.getRunLevel().equals(RunLevel.CONFIGURED) &&
+				!dc.getRunLevel().equals(RunLevel.ZOMBIE)) 
+			{
 				return false;
 			}
 		}
@@ -173,8 +167,9 @@ public class DOMConnector
 	public void startProcessing()
 		throws Exception
 	{
-		for (AbstractDataCollector dc : collectors) {
-			if (dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE)
+		for (AbstractDataCollector dc : collectors) 
+		{
+			if (!dc.getRunLevel().equals(RunLevel.ZOMBIE))
 				dc.signalStartRun();
 		}
 	}
@@ -187,20 +182,16 @@ public class DOMConnector
 	public void stopProcessing()
 		throws Exception
 	{
-		long stopT0 = System.currentTimeMillis();
 		for (AbstractDataCollector dc : collectors) {
 			dc.signalStopRun();
 		}
 
 		for (AbstractDataCollector dc : collectors) {
-			while (dc.queryDaqRunLevel() != AbstractDataCollector.CONFIGURED &&
-				   dc.queryDaqRunLevel() != AbstractDataCollector.ZOMBIE)
+			while (!dc.getRunLevel().equals(RunLevel.CONFIGURED) &&
+				   !dc.getRunLevel().equals(RunLevel.ZOMBIE))
 			{
 				try {
 					Thread.sleep(25);
-					if (System.currentTimeMillis() - stopT0 > STOP_TIMEOUT) {
-						logger.error("Stop timed out.");
-					}
 				} catch (InterruptedException ie) {
 					// ignore interrupts
 				}

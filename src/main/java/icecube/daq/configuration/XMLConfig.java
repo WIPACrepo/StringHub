@@ -170,11 +170,15 @@ public class XMLConfig extends DefaultHandler
 				if (text.equals("none"))
 					currentConfig.getLC().setRxMode(LocalCoincidenceConfiguration.RxMode.RXNONE);
 				else if (text.equals("up-or-down"))
-					currentConfig.getLC().setRxMode(LocalCoincidenceConfiguration.RxMode.RXBOTH);
+					currentConfig.getLC().setRxMode(LocalCoincidenceConfiguration.RxMode.RXEITHER);
 				else if (text.equals("up"))
 					currentConfig.getLC().setRxMode(LocalCoincidenceConfiguration.RxMode.RXUP);
 				else if (text.equals("down"))
 					currentConfig.getLC().setRxMode(LocalCoincidenceConfiguration.RxMode.RXDOWN);
+				else if (text.equals("up-and-down"))
+				    currentConfig.getLC().setRxMode(LocalCoincidenceConfiguration.RxMode.RXBOTH);
+				else if (text.equals("headers-only"))
+				    currentConfig.getLC().setRxMode(LocalCoincidenceConfiguration.RxMode.RXHDRS);
 			}
 			else if (localName.equals("txMode"))
 			{
@@ -220,6 +224,14 @@ public class XMLConfig extends DefaultHandler
 		        spe = false;
 			currentConfig.setSupernovaSpe(spe);
 		}
+        else if (localName.equals("hardwareMonitorInterval"))
+        {
+            currentConfig.setHardwareMonitorInterval((int) (40000000 * Double.parseDouble(text))); 
+        }
+        else if (localName.equals("fastMonitorInterval"))
+        {
+            currentConfig.setFastMonitorInterval((int) (40000000 * Double.parseDouble(text)));
+        }
 		else if (localName.equals("noiseRate"))
 		{
 			currentConfig.setSimNoiseRate(Double.parseDouble(text));
@@ -254,7 +266,8 @@ public class XMLConfig extends DefaultHandler
 		}
 		else if (localName.equals("supernovaMode"))
 		{
-			if (attributes.getValue("enabled").equals("true"))
+            int index = attributes.getIndex("enabled");
+            if (index >= 0 && attributes.getValue(index).equals("true"))
 				currentConfig.enableSupernova();
 			else
 				currentConfig.disableSupernova();

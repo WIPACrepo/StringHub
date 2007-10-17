@@ -23,58 +23,62 @@ import cern.jet.random.engine.RandomEngine;
  * @author krokodil
  *
  */
-public class SimDataCollector extends AbstractDataCollector {
-
+public class SimDataCollector extends AbstractDataCollector
+{
 	private WritableByteChannel hitsOut;
 	private WritableByteChannel moniOut;
 	private WritableByteChannel tcalOut;
 	private WritableByteChannel supernovaOut;
-	private String mbid;
-	private int card;
-	private int pair;
-	private char dom;
-	private long clock;
-	private long t0;
-	private long lastGenHit;           // right edge of previous hit generation time window
-	private long lastMoni;             // last moni record
-	private long lastTcal;             // last time a Tcal was generated
-	private long lastSupernova;        // last time a SN record was generated
-    private long lastBeacon;           // keep track of the beacon hits ...
-	private long numericMBID;
-	private RandomEngine rand = new MersenneTwister(new java.util.Date());
+	private long   clock;
+	private long   t0;
+	private long   lastGenHit;           // right edge of previous hit generation time window
+	private long   lastMoni;             // last moni record
+	private long   lastTcal;             // last time a Tcal was generated
+	private long   lastSupernova;        // last time a SN record was generated
+    private long   lastBeacon;           // keep track of the beacon hits ...
+	private long   numericMBID;
+	private RandomEngine   rand = new MersenneTwister(new java.util.Date());
 	private Poisson poissonRandom = new Poisson(1.0, rand);
-	private int runLevel;
 	private double rate;
-	private boolean stopRunLoop;
-	private long numHits;
-	private long loopCounter;
+	private boolean        stopRunLoop;
+	private long   numHits;
+	private long   loopCounter;
     private double pulserRate = 1.0;
+    
+    private Thread thread;
 
 	private final static Logger logger = Logger.getLogger(SimDataCollector.class);
 	
 	public SimDataCollector(DOMChannelInfo chanInfo, WritableByteChannel hitsOut)
 	{
-		this(chanInfo, hitsOut, null, null, null);
+		this(chanInfo, null, hitsOut, null, null, null);
 	}
 
-	public SimDataCollector(DOMChannelInfo chanInfo, 
+	public SimDataCollector(
+	        DOMChannelInfo chanInfo, 
+	        DOMConfiguration config,
 			WritableByteChannel hitsOut,
 			WritableByteChannel moniOut,
             WritableByteChannel supernovaOut,
 			WritableByteChannel tcalOut)
 	{
+	    super(chanInfo.card, chanInfo.pair, chanInfo.dom);
 		this.mbid = chanInfo.mbid;
-		this.card = chanInfo.card;
-		this.pair = chanInfo.pair;
-		this.dom  = chanInfo.dom;
 		this.numericMBID = Long.parseLong(this.mbid, 16);
 		this.hitsOut = hitsOut;
 		this.moniOut = moniOut;
 		this.tcalOut = tcalOut;
 		this.supernovaOut = supernovaOut;
-		runLevel  = IDLE;
+		runLevel  = RunLevel.IDLE;
 		numHits = 0;
 		loopCounter = 0;
+		if (config != null)
+		{
+		    rate = config.getSimNoiseRate();
+		    pulserRate = config.getPulserRate();
+		}
+		thread = new Thread(this, "SimDataCollector-" + card + "" + pair + dom);
+		thread.start();
 	}
 
 	public void close() 
@@ -105,59 +109,6 @@ public class SimDataCollector extends AbstractDataCollector {
         }        
     }
 
-	public void setConfig(DOMConfiguration config) 
-	{
-	    this.rate = config.getSimNoiseRate();
-        logger.info("Setting simDOM noise rate to " + rate);
-        this.pulserRate = config.getPulserRate();
-        logger.info("Setting simDOM pulser rate to " + pulserRate);
-	}
-
-	public void signalConfigure() 
-	{
-		logger.info("Got (DOM) configure message - telling thread to configure DOMs.");
-		if (queryDaqRunLevel() > CONFIGURED)
-		{
-			logger.error("Cannot configure DOM (even a simulated one) in state " + runLevel);
-			throw new IllegalStateException();
-		}
-		logger.info("Configuring simulated DataCollector " + getName());
-		setRunLevel(CONFIGURING);
-	}
-
-	public void signalStartRun() 
-	{
-		logger.info("Got start run message - telling collection thread to start.");
-		if (queryDaqRunLevel() != CONFIGURED)
-		{
-			logger.error("Cannot start run on DOM in state " + runLevel);
-			throw new IllegalStateException();
-		}
-		setRunLevel(STARTING);
-	}
-
-	public void signalStopRun() 
-	{
-		logger.info("Got stop run message - telling collection thread to stop.");
-		if (queryDaqRunLevel() != RUNNING)
-		{
-			logger.error("Cannot stop run that is not running -- runLevel = " + runLevel);
-			throw new IllegalStateException();
-		}
-		setRunLevel(STOPPING);
-	}
-
-	public synchronized int queryDaqRunLevel() 
-	{
-		return runLevel;
-	}
-
-	private synchronized void setRunLevel(int runLevel)
-	{
-		this.runLevel = runLevel;
-	}
-	
-	@Override
 	public void signalShutdown() 
 	{
 		logger.info("Shutting down data collector [" + card + "" + pair + "" + dom + "]");
@@ -175,7 +126,6 @@ public class SimDataCollector extends AbstractDataCollector {
     }
 	
     
-    @Override 
 	public void run()
 	{
 		setRunStopFlag(false);
@@ -225,43 +175,45 @@ public class SimDataCollector extends AbstractDataCollector {
 
 				loopCounter++;
 
-				if (queryDaqRunLevel() == CONFIGURING) 
+				switch (getRunLevel())
 				{
-					// Simulate configure time
-					Thread.sleep(500);
-					setRunLevel(CONFIGURED);
+				case CONFIGURING:
+                    // Simulate configure time
+                    Thread.sleep(500);
+                    setRunLevel(RunLevel.CONFIGURED);
                     logger.info("DOM is now configured.");
-				}
-				else if (queryDaqRunLevel() == STARTING)
-				{
-					// go to start run
-					Thread.sleep(20);
-					setRunLevel(RUNNING);
-					long t = System.currentTimeMillis();
-					lastGenHit = t;
+                    break;
+				case STARTING:
+                    // go to start run
+                    Thread.sleep(20);
+                    setRunLevel(RunLevel.RUNNING);
+                    long t = System.currentTimeMillis();
+                    lastGenHit = t;
                     lastBeacon = t;
-					lastMoni   = t;
-					lastTcal   = t;
-					lastSupernova = t;
-				}
-				else if (queryDaqRunLevel() == RUNNING)
-				{
-					long currTime = System.currentTimeMillis();
-					int nHits = generateHits(currTime);
-					generateMoni(currTime);
+                    lastMoni   = t;
+                    lastTcal   = t;
+                    lastSupernova = t;
+                    break;
+				case STARTING_SUBRUN:
+                    // go to start run
+                    Thread.sleep(20);
+                    setRunLevel(RunLevel.RUNNING);
+				case RUNNING:
+                    long currTime = System.currentTimeMillis();
+                    int nHits = generateHits(currTime);
+                    generateMoni(currTime);
                     generateSupernova(currTime);
-					if (nHits > 0) needSomeSleep = false; 
-				}
-				else if (queryDaqRunLevel() == STOPPING)
-				{
-					Thread.sleep(100);
-					logger.info("Stopping data collection");
-					if (hitsOut != null) hitsOut.write(StreamBinder.endOfStream());
-					if (moniOut != null) moniOut.write(StreamBinder.endOfStream());
-					if (tcalOut != null) tcalOut.write(StreamBinder.endOfStream());
-					if (supernovaOut != null) supernovaOut.write(StreamBinder.endOfStream());
-					logger.debug("Flushed binders.");
-					setRunLevel(CONFIGURED);
+                    if (nHits > 0) needSomeSleep = false; 
+                    break;
+				case STOPPING:
+                    Thread.sleep(100);
+                    logger.info("Stopping data collection");
+                    if (hitsOut != null) hitsOut.write(StreamBinder.endOfStream());
+                    if (moniOut != null) moniOut.write(StreamBinder.endOfStream());
+                    if (tcalOut != null) tcalOut.write(StreamBinder.endOfStream());
+                    if (supernovaOut != null) supernovaOut.write(StreamBinder.endOfStream());
+                    logger.debug("Flushed binders.");
+                    setRunLevel(RunLevel.CONFIGURED);
 				}
 				
 				// CPU reduction action
@@ -427,5 +379,16 @@ public class SimDataCollector extends AbstractDataCollector {
 	public long getAcquisitionLoopCount() {
 		return loopCounter;
 	}
+
+    public String getMainboardId()
+    {
+        return mbid;
+    }
+
+    public void start()
+    {
+        // TODO Auto-generated method stub
+        
+    }
 
 }
