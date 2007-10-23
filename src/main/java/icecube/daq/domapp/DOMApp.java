@@ -557,8 +557,10 @@ public class DOMApp implements IDOMApp
         logger.info("FPGA reload returns: " + status);
         // Exec DOMApp & wait for "DOMAPP READY" message from DOMApp
         String expect = "DOMAPP READY";
-        if (Boolean.getBoolean("icecube.daq.domapp.reticence")) expect = null;
+        boolean reticence = Boolean.getBoolean("icecube.daq.domapp.reticence"); 
+        if (reticence) expect = null;
         talkToIceboot("s\" domapp.gz\" find if gunzip exec endif", expect);
+        if (reticence) Thread.sleep(8500);
         return true;
     }
 
