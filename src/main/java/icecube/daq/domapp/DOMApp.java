@@ -553,8 +553,8 @@ public class DOMApp implements IDOMApp
         ByteBuffer cmd = ByteBuffer.allocate(20);
         // Issue a clear - something gets out-of-sorts in the iceboot
         // command decoder
-        talkToIceboot("s\" domapp.sbi.gz\" find if gunzip fpga endif .");
-        talkToIceboot("set-comm-params");
+        String status = talkToIceboot("s\" domapp.sbi.gz\" find if gunzip fpga endif . set-comm-params");
+        logger.info("FPGA reload returns: " + status);
         // Exec DOMApp & wait for "DOMAPP READY" message from DOMApp
         talkToIceboot("s\" domapp.gz\" find if gunzip exec endif", "DOMAPP READY\n");
         return true;
@@ -584,7 +584,7 @@ public class DOMApp implements IDOMApp
             if (fragment.equals(expect)) break;
             txt.append(fragment);
         } 
-        return txt.toString();
+        return txt.substring(cmd.length());
     }
     
     /*
