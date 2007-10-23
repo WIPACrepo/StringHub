@@ -556,7 +556,9 @@ public class DOMApp implements IDOMApp
         String status = talkToIceboot("s\" domapp.sbi.gz\" find if gunzip fpga endif . set-comm-params");
         logger.info("FPGA reload returns: " + status);
         // Exec DOMApp & wait for "DOMAPP READY" message from DOMApp
-        talkToIceboot("s\" domapp.gz\" find if gunzip exec endif", "DOMAPP READY\n");
+        String expect = "DOMAPP READY";
+        if (Boolean.getBoolean("icecube.daq.domapp.reticence")) expect = null;
+        talkToIceboot("s\" domapp.gz\" find if gunzip exec endif", expect);
         return true;
     }
 
@@ -573,6 +575,18 @@ public class DOMApp implements IDOMApp
         int n = buf.remaining();
         devIO.send(buf);
         logger.debug("Sending: " + cmd);
+        StringBuffer echo = new StringBuffer();
+        while (!echo.equals(cmd))
+        {
+            ByteBuffer ret = devIO.recv();
+            byte[] bytearray = new byte[ret.remaining()];
+            ret.get(bytearray);
+            String fragment = new String(bytearray);
+            echo.append(fragment);
+            logger.debug("Received: " + fragment);
+        } 
+        if (expect == null) return "";
+        logger.debug("Echoback from iceboot received - expecting ... " + expect);
         StringBuffer txt = new StringBuffer();
         while (true)
         {
@@ -580,11 +594,10 @@ public class DOMApp implements IDOMApp
             byte[] bytearray = new byte[ret.remaining()];
             ret.get(bytearray);
             String fragment = new String(bytearray);
-            logger.debug("Received: " + fragment);
-            if (fragment.equals(expect)) break;
+            if (fragment.contains(expect)) break;
             txt.append(fragment);
-        } 
-        return txt.substring(cmd.length());
+        }
+        return txt.toString();
     }
     
     /*
