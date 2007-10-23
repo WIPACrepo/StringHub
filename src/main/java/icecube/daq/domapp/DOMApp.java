@@ -575,15 +575,14 @@ public class DOMApp implements IDOMApp
         int n = buf.remaining();
         devIO.send(buf);
         logger.debug("Sending: " + cmd);
-        StringBuffer echo = new StringBuffer();
-        while (!echo.equals(cmd))
+        while (true)
         {
             ByteBuffer ret = devIO.recv();
             byte[] bytearray = new byte[ret.remaining()];
             ret.get(bytearray);
             String fragment = new String(bytearray);
-            echo.append(fragment);
             logger.debug("Received: " + fragment);
+            if (fragment.equals(cmd)) break;
         } 
         if (expect == null) return "";
         logger.debug("Echoback from iceboot received - expecting ... " + expect);
