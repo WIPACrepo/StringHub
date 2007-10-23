@@ -582,7 +582,7 @@ public class DOMApp implements IDOMApp
             ret.get(bytearray);
             String fragment = new String(bytearray);
             logger.debug("Received: " + fragment);
-            if (fragment.equals(cmd)) break;
+            if (fragment.contains(cmd)) break;
         } 
         if (expect == null) return "";
         logger.debug("Echoback from iceboot received - expecting ... " + expect);
