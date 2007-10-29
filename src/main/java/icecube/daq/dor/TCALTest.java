@@ -1,6 +1,10 @@
+/**
+ * TCALTest is a test fixture for TCALs.
+ */
 package icecube.daq.dor;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import icecube.daq.rapcal.LeadingEdgeRAPCal;
 import icecube.daq.rapcal.RAPCal;
@@ -23,17 +27,20 @@ public class TCALTest
 
     private void run(int n) throws Exception
     {
+        ArrayList<Double> cableLengthList = new ArrayList<Double>();
         rapcal.update(driver.readTCAL(card, pair, dom), driver.readGPS(card).getOffset());
         for (int iter = 0; iter < n; iter++)
         {
             GPSInfo gps = driver.readGPS(card);
             TimeCalib tcal = driver.readTCAL(card, pair, dom);
             rapcal.update(tcal, gps.getOffset());
-            System.out.println("T:" + 
-                    " " + tcal.getDorTx() + " " + gps.getOffset() + 
-                    " " + rapcal.cableLength() + 
-                    " " + rapcal.clockRatio());
+            System.out.println(
+                    tcal.getDorTx() + " " + gps.getOffset() + " " +  
+                    rapcal.cableLength() + " " +
+                    rapcal.clockRatio());
+            cableLengthList.add(rapcal.cableLength());
         }
+        
 
     }
     public static void main(String[] args) throws Exception
