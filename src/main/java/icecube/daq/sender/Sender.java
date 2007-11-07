@@ -86,6 +86,11 @@ class TinyHitPayload
         return domId;
     }
 
+    public int getLocalCoincidenceMode()
+    {
+        throw new Error("Unimplemented");
+    }
+
     public ByteBuffer getPayloadBacking()
     {
         return byteBuf;
@@ -401,6 +406,9 @@ public class Sender
     /** end time of most recent readout data */
     private long latestReadoutEndTime;
 
+    /** Set to <tt>true</tt> to forward hits with LCMode==0 to the trigger */
+    private boolean forwardLC0Hits;
+
     /**
      * Create a readout request filler.
      *
@@ -505,7 +513,9 @@ public class Sender
 
                 if (payload == null) {
                     log.error("Couldn't build hit from DOM hit data");
-                } else {
+                } else if (forwardLC0Hits ||
+                           ((IDomHit) payload).getLocalCoincidenceMode() != 0)
+                {
                     if (hitDest != null) {
                         try {
                             hitDest.writePayload((IWriteablePayload) payload);
