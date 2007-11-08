@@ -514,7 +514,7 @@ public class Sender
                 if (payload == null) {
                     log.error("Couldn't build hit from DOM hit data");
                 } else if (forwardLC0Hits ||
-                           ((IDomHit) payload).getLocalCoincidenceMode() != 0)
+                           ((IDomHit) engData).getLocalCoincidenceMode() != 0)
                 {
                     if (hitDest != null) {
                         try {
