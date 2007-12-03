@@ -143,9 +143,9 @@ public class StringHubComponent extends DAQComponent
 	private boolean isSim = false;
 	private Driver driver = Driver.getInstance();
 	private Sender sender;
-	private IByteBufferCache bufferManager;
 	private MasterPayloadFactory payloadFactory;
 	private DOMRegistry domRegistry;
+	private IByteBufferCache moniBufMgr, tcalBufMgr, snBufMgr;
 	private PayloadDestinationOutputEngine   moniPayloadDest, tcalPayloadDest, supernovaPayloadDest; 
 	private DOMConnector conn = null;
 	private List<DOMChannelInfo> activeDOMs;
@@ -170,14 +170,14 @@ public class StringHubComponent extends DAQComponent
 
 		final String bufName = "PyrateBufferManager";
 
-		bufferManager  = new VitreousBufferCache();
-		addCache(bufferManager);
-		addMBean(bufName, bufferManager);
+		IByteBufferCache hitBufMgr  = new VitreousBufferCache();
+		addCache(hitBufMgr);
+		//addMBean(bufName, hitBufMgr);
 
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
 
-		payloadFactory = new MasterPayloadFactory(bufferManager);
+		payloadFactory = new MasterPayloadFactory(hitBufMgr);
 		sender         = new Sender(hubId, payloadFactory);
 		isSim          = (hubId >= 1000 && hubId < 2000);
 		nch            = 0;
@@ -207,7 +207,7 @@ public class StringHubComponent extends DAQComponent
                 addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
             else
                 addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
-            hitOut.registerBufferManager(bufferManager);
+            hitOut.registerBufferManager(hitBufMgr);
         }
 
         // Check if triggering is enabled
@@ -219,7 +219,7 @@ public class StringHubComponent extends DAQComponent
             triggerHandler.setPayloadOutput(hitOut.getPayloadDestinationCollection());
 
             // This is the output of the Sender
-            IPayloadDestination payloadDestination = new ByteBufferPayloadDestination(triggerHandler, bufferManager);
+            IPayloadDestination payloadDestination = new ByteBufferPayloadDestination(triggerHandler, hitBufMgr);
             hitColl = new PayloadDestinationCollection(payloadDestination);
         } else if (hitOut == null) {
             hitColl = null;
@@ -244,7 +244,7 @@ public class StringHubComponent extends DAQComponent
 
         PayloadDestinationOutputEngine dataOut =
             new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "dataOut");
-        dataOut.registerBufferManager(bufferManager);
+        dataOut.registerBufferManager(hitBufMgr);
         addMonitoredEngine(DAQConnector.TYPE_READOUT_DATA, dataOut);
 
         IPayloadDestinationCollection dataColl = dataOut.getPayloadDestinationCollection();
@@ -258,14 +258,22 @@ public class StringHubComponent extends DAQComponent
 		addMBean("datacollectormonitor", collectorMonitor);
 		
         // Following are the payload output engines for the secondary streams
+		moniBufMgr  = new VitreousBufferCache();
+		addCache(DAQConnector.TYPE_MONI_DATA, moniBufMgr);
         moniPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "moniOut");
-        moniPayloadDest.registerBufferManager(bufferManager);
+        moniPayloadDest.registerBufferManager(moniBufMgr);
         addMonitoredEngine(DAQConnector.TYPE_MONI_DATA, moniPayloadDest);
+
+		tcalBufMgr  = new VitreousBufferCache();
+		addCache(DAQConnector.TYPE_TCAL_DATA, tcalBufMgr);
         tcalPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "tcalOut");
-        tcalPayloadDest.registerBufferManager(bufferManager);
+        tcalPayloadDest.registerBufferManager(tcalBufMgr);
         addMonitoredEngine(DAQConnector.TYPE_TCAL_DATA, tcalPayloadDest);
+
+		snBufMgr  = new VitreousBufferCache();
+		addCache(DAQConnector.TYPE_SN_DATA, snBufMgr);
         supernovaPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
-        supernovaPayloadDest.registerBufferManager(bufferManager);
+        supernovaPayloadDest.registerBufferManager(snBufMgr);
         addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaPayloadDest);
     }
 
@@ -469,9 +477,9 @@ public class StringHubComponent extends DAQComponent
 	{
 		logger.info("Have I been configured? " + configured);
 
-		SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, bufferManager, moniPayloadDest);
-		SecondaryStreamConsumer supernovaConsumer =	new SecondaryStreamConsumer(hubId, bufferManager, supernovaPayloadDest);
-		SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId,bufferManager, tcalPayloadDest);
+		SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniBufMgr, moniPayloadDest);
+		SecondaryStreamConsumer supernovaConsumer =	new SecondaryStreamConsumer(hubId, snBufMgr, supernovaPayloadDest);
+		SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId, tcalBufMgr, tcalPayloadDest);
 
         if (Boolean.getBoolean("icecube.daq.stringhub.secondaryStream.debug"))
         {
@@ -645,7 +653,7 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 2351 2007-12-03 17:19:40Z dglo $";
+		return "$Id: StringHubComponent.java 2359 2007-12-03 20:55:45Z dglo $";
     }
 
 }
