@@ -216,7 +216,7 @@ public class StringHubComponent extends DAQComponent
             sourceId = SourceIdRegistry.getISourceIDFromNameAndId(COMPONENT_NAME, hubId);
             triggerHandler = new StringTriggerHandler(sourceId);
             triggerHandler.setMasterPayloadFactory(payloadFactory);
-            triggerHandler.setPayloadDestinationCollection(hitOut.getPayloadDestinationCollection());
+            triggerHandler.setPayloadOutput(hitOut.getPayloadDestinationCollection());
 
             // This is the output of the Sender
             IPayloadDestination payloadDestination = new ByteBufferPayloadDestination(triggerHandler, bufferManager);
@@ -645,7 +645,7 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 2168 2007-10-20 01:15:02Z ksb $";
+		return "$Id: StringHubComponent.java 2351 2007-12-03 17:19:40Z dglo $";
     }
 
 }
