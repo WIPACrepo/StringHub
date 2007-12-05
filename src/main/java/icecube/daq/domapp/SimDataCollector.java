@@ -5,6 +5,7 @@ import icecube.daq.dor.DOMChannelInfo;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -202,6 +203,7 @@ public class SimDataCollector extends AbstractDataCollector
                     long currTime = System.currentTimeMillis();
                     int nHits = generateHits(currTime);
                     generateMoni(currTime);
+                    generateTCal(currTime);
                     generateSupernova(currTime);
                     if (nHits > 0) needSomeSleep = false; 
                     break;
@@ -235,6 +237,39 @@ public class SimDataCollector extends AbstractDataCollector
 		
 	}
 	
+	private int generateTCal(long currTime) throws IOException
+	{
+	    final short tcalWf[] = new short[] {
+	        501, 500, 503, 505, 499, 499, 505, 500,
+	        501, 500, 500, 502, 500, 500, 503, 499,
+	        500, 499, 497, 499, 500, 500, 501, 500,
+	        501, 501, 500, 499, 500, 500, 501, 500,
+	        513, 550, 616, 690, 761, 819, 864, 898,
+	        925, 949, 958, 929, 856, 751, 630, 518,
+	        424, 346, 277, 207, 156, 137, 148,   0,
+	          0,   0,   0,   0,   0,   0,   0,   0
+	    };
+	    
+	    if (currTime - lastTcal < 1000L) return 0;
+	    lastTcal = currTime;
+	    ByteBuffer buf = ByteBuffer.allocate(346);
+	    long utc = (currTime - t0) * 10000000L;
+	    buf.putInt(346).putInt(202).putLong(numericMBID).putLong(0L).putLong(utc);
+	    buf.order(ByteOrder.LITTLE_ENDIAN);
+	    buf.putShort((short) 224).putShort((short) 1);
+	    long dorTx = utc / 500L;
+	    long dorRx = dorTx + 100000L;
+	    long domRx = dorTx + 49000L;
+	    long domTx = dorTx + 51000L;
+	    buf.putLong(dorTx).putLong(dorRx);
+        for (int i = 0; i < 64; i++) buf.putShort(tcalWf[i]);
+	    buf.putLong(domRx).putLong(domTx);
+        for (int i = 0; i < 64; i++) buf.putShort(tcalWf[i]);
+        buf.flip();
+        if (tcalOut != null) tcalOut.write(buf);
+	    return 1;
+	}
+	
 	private int generateSupernova(long currTime) throws IOException {
         if (currTime - lastSupernova < 1000L) return 0;
         // Simulate SN wrap-around
@@ -245,7 +280,7 @@ public class SimDataCollector extends AbstractDataCollector
         short recl = (short) (10 + nsn);
         ByteBuffer buf = ByteBuffer.allocate(recl+32);
         long utc = (currTime - t0) * 10000000L;
-        long clk = utc / 500L;
+        long clk = utc / 250L;
 	    buf.putInt(recl+32);
         buf.putInt(302);
         buf.putLong(numericMBID);
