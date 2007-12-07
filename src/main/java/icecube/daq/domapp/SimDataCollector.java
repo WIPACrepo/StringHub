@@ -252,9 +252,10 @@ public class SimDataCollector extends AbstractDataCollector
 	    
 	    if (currTime - lastTcal < 1000L) return 0;
 	    lastTcal = currTime;
-	    ByteBuffer buf = ByteBuffer.allocate(346);
+	    final int tcalRecl = 324;
+	    ByteBuffer buf = ByteBuffer.allocate(tcalRecl);
 	    long utc = (currTime - t0) * 10000000L;
-	    buf.putInt(346).putInt(202).putLong(numericMBID).putLong(0L).putLong(utc);
+	    buf.putInt(tcalRecl).putInt(202).putLong(numericMBID).putLong(0L).putLong(utc);
 	    buf.order(ByteOrder.LITTLE_ENDIAN);
 	    buf.putShort((short) 224).putShort((short) 1);
 	    long dorTx = utc / 500L;
