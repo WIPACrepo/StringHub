@@ -245,6 +245,10 @@ public class CollectorShell
 		{
 			Logger.getRootLogger().setLevel(Level.DEBUG);
 		}
+		else if (option.equals("info"))
+		{
+		    Logger.getRootLogger().setLevel(Level.INFO);
+		}
 	}
 	
 	public FlasherboardConfiguration getFlasherConfig()
