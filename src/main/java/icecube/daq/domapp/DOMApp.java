@@ -201,6 +201,25 @@ public class DOMApp implements IDOMApp
         return sendMessage(MessageType.GET_MONI);
     }
 
+    public MuxState getMux() throws MessageException
+    {
+        ByteBuffer buf = sendMessage(MessageType.GET_MUX_CH);
+        int muxCh = buf.get();
+        switch (muxCh)
+        {
+        case -1: return MuxState.OFF;
+        case 0: return MuxState.OSC_OUTPUT;
+        case 1: return MuxState.SQUARE_40MHZ;
+        case 2: return MuxState.LED_CURRENT;
+        case 3: return MuxState.FB_CURRENT;
+        case 4: return MuxState.UPPER_LC;
+        case 5: return MuxState.LOWER_LC;
+        case 6: return MuxState.COMM_ADC_INPUT;
+        case 7: return MuxState.FE_PULSER;
+        default: throw new MessageException(MessageType.GET_MUX_CH, 
+                new IllegalArgumentException(muxCh + " is not a valid MUXer channel"));
+        }
+    }
     /*
      * (non-Javadoc)
      * 
