@@ -327,10 +327,15 @@ public class CollectorShell
     		        hitsChannel, moniChannel, tcalChannel, snChannel);
         }
         
-        csh.collector.setFlasherConfig(csh.flasherConfig);
 		csh.collector.signalConfigure();
 		while (!csh.collector.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(100);
 		csh.collector.signalStartRun();
+		if (csh.flasherConfig != null)
+		{
+		    Thread.sleep(2000L);
+	        csh.collector.setFlasherConfig(csh.flasherConfig);
+	        csh.collector.signalStartSubRun();
+		}
 		Thread.sleep(rlm);
 		csh.collector.signalStopRun();
 		while (!csh.collector.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(100);
