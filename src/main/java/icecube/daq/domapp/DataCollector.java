@@ -177,36 +177,66 @@ public class DataCollector extends AbstractDataCollector
         }
         
         private LinkedList<Element> alist, blist; 
+        /** 
+         * 'Head' elements for A/B to improve performance by
+         * relegating the costly LinkedList accesses to those
+         * rare cases when you need them.
+         */
+        private Element ahead, bhead;
         
         HitBufferAB()
         {
             alist = new LinkedList<Element>();
             blist = new LinkedList<Element>();
+            ahead = null;
+            bhead = null;
         }
         
         void pushA(int recl, int fmtid, long domClock, ByteBuffer buf)
         {
             Element e = new Element(recl, fmtid, domClock, buf);
-            logger.debug("Pushed element into A buffer: domClock = " + domClock + " # A = " 
-                    + alist.size() + " # B = " + blist.size());
-            alist.addLast(e);
+            if (logger.isDebugEnabled())
+                logger.debug("Pushed element into A buffer: domClock = " + domClock + " # A = " 
+                        + alist.size() + " # B = " + blist.size());
+            if (ahead != null) alist.addLast(ahead);
+            ahead = e;
         }
         
         void pushB(int recl, int fmtid, long domClock, ByteBuffer buf)
         {
             Element e = new Element(recl, fmtid, domClock, buf);
-            logger.debug("Pushed element into B buffer: domClock = " + domClock + " # A = " 
-                    + alist.size() + " # B = " + blist.size());
-            blist.addLast(e);
+            if (logger.isDebugEnabled())
+                logger.debug("Pushed element into B buffer: domClock = " + domClock + " # A = " 
+                        + alist.size() + " # B = " + blist.size());
+            if (bhead != null) blist.addLast(e);
+            bhead = e;
+        }
+        
+        private Element popA()
+        {
+           Element x = ahead;
+           ahead = null;
+           if (!alist.isEmpty()) ahead = alist.removeFirst();
+           return x;
+        }
+        
+        private Element popB()
+        {
+            Element x = bhead;
+            bhead = null;
+            if (!blist.isEmpty()) bhead = blist.removeFirst();
+            return x;
         }
         
         Element pop()
         {
-            if (alist.size() == 0 || blist.size() == 0) return null;
-            if (alist.getFirst().compareTo(blist.getFirst()) > 0)
-                return blist.removeFirst();
+            boolean aEmpty = (ahead == null && alist.size() == 0);
+            boolean bEmpty = (bhead == null && blist.size() == 0); 
+            if (aEmpty || bEmpty) return null;
+            if (ahead.compareTo(bhead) > 0)
+                return popA();
             else
-                return alist.removeFirst();
+                return popB();
         }
     }
     
