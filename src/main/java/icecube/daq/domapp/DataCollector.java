@@ -208,7 +208,7 @@ public class DataCollector extends AbstractDataCollector
             if (logger.isDebugEnabled())
                 logger.debug("Pushed element into B buffer: domClock = " + domClock + " # A = " 
                         + alist.size() + " # B = " + blist.size());
-            if (bhead != null) blist.addLast(e);
+            if (bhead != null) blist.addLast(bhead);
             bhead = e;
         }
         
@@ -230,10 +230,8 @@ public class DataCollector extends AbstractDataCollector
         
         Element pop()
         {
-            boolean aEmpty = (ahead == null && alist.size() == 0);
-            boolean bEmpty = (bhead == null && blist.size() == 0); 
-            if (aEmpty || bEmpty) return null;
-            if (ahead.compareTo(bhead) > 0)
+            if (ahead == null || bhead == null) return null;
+            if (ahead.compareTo(bhead) < 0)
                 return popA();
             else
                 return popB();
@@ -426,7 +424,11 @@ public class DataCollector extends AbstractDataCollector
         while (in.remaining() > 0)
         {
             long nw = g.write(bufferArray);
-            logger.debug("In DC " + canonicalName() + " - type = " + fmtid + " wrote " + nw + " bytes to " + out);
+            if (logger.isDebugEnabled())
+                logger.debug(
+                        "In DC " + canonicalName() + " - type = " + 
+                        fmtid + " wrote " + nw + " bytes to " + out
+                        );
         }
         return utc;
     }
@@ -480,7 +482,6 @@ public class DataCollector extends AbstractDataCollector
                     break;
                 case 144: // Delta compressed data
                     int clkMSB = in.getShort();
-                    logger.debug("clkMSB: " + clkMSB);
                     in.getShort();
                     // Note byte order change for delta message buffers
                     in.order(ByteOrder.LITTLE_ENDIAN);
@@ -513,9 +514,6 @@ public class DataCollector extends AbstractDataCollector
                             dbuf.put(in);
                             numHits++;
                             dbuf.flip();
-                            logger.debug("Processing delta hit from ATWD " 
-                                    + atwdChip + " - len: " + hitSize 
-                                    + " remaining: " + dbuf.remaining());
                             if (atwdChip == 0)
                                 abBuffer.pushA(dbuf.remaining(), 3, domClock, dbuf);
                             else
@@ -565,8 +563,13 @@ public class DataCollector extends AbstractDataCollector
             if (moniSink != null)
             {
                 numMoni++;
-                lastMoniUT = genericDataDispatch(monitor.getLength(), 102, monitor.getClock(), monitor
-                        .getBuffer(), moniSink);
+                lastMoniUT = genericDataDispatch(
+                        monitor.getLength(),
+                        102, 
+                        monitor.getClock(), 
+                        monitor.getBuffer(),
+                        moniSink
+                        );
             }
         }
     }
