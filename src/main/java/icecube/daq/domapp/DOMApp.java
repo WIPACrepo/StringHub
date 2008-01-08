@@ -337,7 +337,8 @@ public class DOMApp implements IDOMApp
         // Tack on the data payload
         buf.put(in);
         buf.flip();
-        logger.debug("sendMessage [" + type.name() + "]");
+        if (logger.isDebugEnabled())
+            logger.debug("sendMessage [" + type.name() + "]");
         
         msgBufferOut.clear();
         
