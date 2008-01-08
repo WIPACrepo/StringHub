@@ -153,7 +153,6 @@ public class DataCollector extends AbstractDataCollector
             int recl;
             int fmtid;
             long domClock;
-            long utc;
             ByteBuffer buf;
             
             Element(int recl, int fmtid, long domClock, ByteBuffer buf)
@@ -161,7 +160,6 @@ public class DataCollector extends AbstractDataCollector
                 this.recl = recl;
                 this.fmtid = fmtid;
                 this.domClock = domClock;
-                this.utc = rapcal.domToUTC(domClock).in_0_1ns();
                 this.buf = buf;
             }
 
