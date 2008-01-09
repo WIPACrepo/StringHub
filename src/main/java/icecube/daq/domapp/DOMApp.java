@@ -145,7 +145,7 @@ public class DOMApp implements IDOMApp
         }
         catch (IOException e)
         {
-            throw new MessageException(e);
+            throw new MessageException(MessageType.GET_DATA, e);
         }
 
         ArrayList<ByteBuffer> outC = new ArrayList<ByteBuffer>();
@@ -158,7 +158,9 @@ public class DOMApp implements IDOMApp
                 ByteBuffer out = devIO.recv();
                 logger.debug("Received part " + i + " of multimessage.");
                 int status = out.get(7);
-                if (status != 1) throw new MessageException(MessageType.GET_DATA, status);
+                if (status != 1) throw new MessageException(
+                        MessageType.GET_DATA, out.get(0), out.get(1),
+                        status);
                 if (out.remaining() > 8)
                 {
                     ByteBuffer x = ByteBuffer.allocate(out.remaining() - 8);
@@ -169,7 +171,7 @@ public class DOMApp implements IDOMApp
             }
             catch (IOException e)
             {
-                throw new MessageException(e);
+                throw new MessageException(MessageType.GET_DATA, e);
             }
         }
         return outC;
@@ -199,6 +201,25 @@ public class DOMApp implements IDOMApp
         return sendMessage(MessageType.GET_MONI);
     }
 
+    public MuxState getMux() throws MessageException
+    {
+        ByteBuffer buf = sendMessage(MessageType.GET_MUX_CH);
+        int muxCh = buf.get();
+        switch (muxCh)
+        {
+        case -1: return MuxState.OFF;
+        case 0: return MuxState.OSC_OUTPUT;
+        case 1: return MuxState.SQUARE_40MHZ;
+        case 2: return MuxState.LED_CURRENT;
+        case 3: return MuxState.FB_CURRENT;
+        case 4: return MuxState.UPPER_LC;
+        case 5: return MuxState.LOWER_LC;
+        case 6: return MuxState.COMM_ADC_INPUT;
+        case 7: return MuxState.FE_PULSER;
+        default: throw new MessageException(MessageType.GET_MUX_CH, 
+                new IllegalArgumentException(muxCh + " is not a valid MUXer channel"));
+        }
+    }
     /*
      * (non-Javadoc)
      * 
@@ -316,7 +337,8 @@ public class DOMApp implements IDOMApp
         // Tack on the data payload
         buf.put(in);
         buf.flip();
-        logger.debug("sendMessage [" + type.name() + "]");
+        if (logger.isDebugEnabled())
+            logger.debug("sendMessage [" + type.name() + "]");
         
         msgBufferOut.clear();
         
@@ -332,25 +354,16 @@ public class DOMApp implements IDOMApp
                 msgBufferOut.put(out);
             }
             msgBufferOut.flip();
-            byte r_type = msgBufferOut.get();
-            byte r_subt = msgBufferOut.get();
-            short dataLength = msgBufferOut.getShort();
-            if (r_type != type.getFacility() || r_subt != type.getSubtype())
-            {
-                logger.error("Return message type/subtype does not match outgoing "
-                        + "message (" 
-                        + r_type + ", "
-                        + r_subt + ").");
-                throw new MessageException(type, 1001);
-            }
+            short dataLength = msgBufferOut.getShort(2);
             int status = msgBufferOut.get(7);
             msgBufferOut.position(8);
-            if (status != 1) throw new MessageException(type, 1);
+            if (!(type.equals(msgBufferOut.get(0), msgBufferOut.get(1)) && status == 1)) 
+                throw new MessageException(type, msgBufferOut.get(0), msgBufferOut.get(1), status);
             return msgBufferOut.slice();
         }
         catch (IOException e)
         {
-            throw new MessageException(e);
+            throw new MessageException(type, e);
         }
     }
 
@@ -495,6 +508,13 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.SET_MONI_IVAL, buf);
     }
 
+    public void setMoniIntervals(int hw, int config, int fast) throws MessageException
+    {
+        ByteBuffer buf = ByteBuffer.allocate(12);
+        buf.putInt(hw).putInt(config).putInt(fast).flip();
+        sendMessage(MessageType.SET_MONI_IVAL, buf);
+    }
+    
     /*
      * (non-Javadoc)
      * 
@@ -553,23 +573,54 @@ public class DOMApp implements IDOMApp
         ByteBuffer cmd = ByteBuffer.allocate(20);
         // Issue a clear - something gets out-of-sorts in the iceboot
         // command decoder
-        cmd.put("\r\ndomapp\r\n".getBytes()).flip();
-        devIO.send(cmd);
-        while (true)
-        {
-            ByteBuffer rmsg = devIO.recv();
-            byte[] bmsg = new byte[rmsg.remaining()];
-            rmsg.get(bmsg);
-            String btxt = new String(bmsg);
-            logger.debug("i2da " + btxt);
-            if (btxt.contains("domapp")) break;
-        }
-        // Now it should really be going into domapp
-        // TODO - find a better way than vapid wait
-        Thread.sleep(8500);
+        String status = talkToIceboot("s\" domapp.sbi.gz\" find if gunzip fpga endif . set-comm-params");
+        logger.info("FPGA reload returns: " + status);
+        // Exec DOMApp & wait for "DOMAPP READY" message from DOMApp
+        String expect = "DOMAPP READY";
+        boolean reticence = Boolean.getBoolean("icecube.daq.domapp.reticence"); 
+        if (reticence) expect = null;
+        talkToIceboot("s\" domapp.gz\" find if gunzip exec endif", expect);
+        if (reticence) Thread.sleep(8500);
         return true;
     }
 
+    private String talkToIceboot(String cmd) throws IOException
+    {
+        return talkToIceboot(cmd, "> \n");
+    }
+    
+    private String talkToIceboot(String cmd, String expect) throws IOException
+    {
+        ByteBuffer buf = ByteBuffer.allocate(256);
+        buf.put(cmd.getBytes());
+        buf.put("\r\n".getBytes()).flip();
+        int n = buf.remaining();
+        devIO.send(buf);
+        logger.debug("Sending: " + cmd);
+        while (true)
+        {
+            ByteBuffer ret = devIO.recv();
+            byte[] bytearray = new byte[ret.remaining()];
+            ret.get(bytearray);
+            String fragment = new String(bytearray);
+            logger.debug("Received: " + fragment);
+            if (fragment.contains(cmd)) break;
+        } 
+        if (expect == null) return "";
+        logger.debug("Echoback from iceboot received - expecting ... " + expect);
+        StringBuffer txt = new StringBuffer();
+        while (true)
+        {
+            ByteBuffer ret = devIO.recv();
+            byte[] bytearray = new byte[ret.remaining()];
+            ret.get(bytearray);
+            String fragment = new String(bytearray);
+            if (fragment.contains(expect)) break;
+            txt.append(fragment);
+        }
+        return txt.toString();
+    }
+    
     /*
      * (non-Javadoc)
      * 

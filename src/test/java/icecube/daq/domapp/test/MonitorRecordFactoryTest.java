@@ -51,7 +51,10 @@ public class MonitorRecordFactoryTest {
 		while (monibuf.hasRemaining())
 		{
 			MonitorRecord rec = MonitorRecordFactory.createFromBuffer(monibuf);
-			if (rec instanceof AsciiMonitorRecord) System.out.println(rec);
+                        if (rec instanceof AsciiMonitorRecord) {
+                            assertEquals("Bad record data",
+                                         "MONI SELF TEST OK", rec.toString());
+                        }
 		}
 		
 	}

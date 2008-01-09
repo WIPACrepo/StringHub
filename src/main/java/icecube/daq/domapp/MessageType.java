@@ -11,6 +11,7 @@ public enum MessageType {
 	QUERY_HV(2, 22),
 	SET_TRIG_MODE(2, 31),
 	MUX_SELECT(2, 35),
+	GET_MUX_CH(2, 36),
 	SET_PULSER_RATE(2, 37),
 	GET_PULSER_RATE(2, 38),
 	SET_PULSER_ON(2, 39),
@@ -60,7 +61,11 @@ public enum MessageType {
 		this.subtype  = (byte) subtype;
 	}
 	
-	byte getFacility() { return facility; }
-	byte getSubtype() { return subtype; }
+	public byte getFacility() { return facility; }
+	public byte getSubtype() { return subtype; }
+	public boolean equals(byte type, byte subtype)
+	{
+	    return this.facility == type && this.subtype == subtype;
+	}
 	
 }

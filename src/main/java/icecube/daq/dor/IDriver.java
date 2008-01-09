@@ -15,6 +15,8 @@ public interface IDriver
     
     void commReset(int card, int pair, char dom) throws IOException;
     
+    void setBlocking(boolean block) throws IOException;
+    
     HashMap<String, Integer> getFPGARegisters(int card) throws IOException;
 
     public void resetComstat(int card, int pair, char dom) throws IOException;

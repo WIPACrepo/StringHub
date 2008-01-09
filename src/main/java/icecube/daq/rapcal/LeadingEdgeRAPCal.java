@@ -7,11 +7,11 @@ import icecube.daq.util.UTC;
 
 public class LeadingEdgeRAPCal implements RAPCal {
 	
-	UTC[] 	t0, t1;
-	double 	ratio;
-	double 	clen;
-	double 	threshold;
-	UTC 	gpsOffset;
+	private UTC[] 	t0, t1;
+	private double 	ratio;
+	private double 	clen;
+	private double 	threshold;
+	private UTC 	gpsOffset;
 	private static final Logger logger = Logger.getLogger(LeadingEdgeRAPCal.class);
 	
 	public LeadingEdgeRAPCal(double threshold) {
@@ -36,7 +36,8 @@ public class LeadingEdgeRAPCal implements RAPCal {
 		
 		logger.debug("" + t1[0] + " " + t1[1] + " " + t1[2] + " " + t1[3]);
 		
-		if (t0 != null) {
+		if (t0 != null) 
+		{
 			double dor_dt = UTC.subtract(t1[0], t0[0]);
 			double dom_dt = UTC.subtract(t1[1], t0[1]);
 			ratio = dor_dt / dom_dt;
@@ -50,21 +51,20 @@ public class LeadingEdgeRAPCal implements RAPCal {
 		
 	}
 	
-	public double cableLength() {
-		return clen;
-	}
+	public double cableLength() { return clen; }
 
-	public double clockRatio() {
-		return ratio;
-	}
+	public double clockRatio() { return ratio; }
 	
-	public UTC domToUTC(long domclk) {
+	public UTC domToUTC(long domclk) 
+	{
 		if (t1 == null) return null;
-		return UTC.add(gpsOffset, 
-					   UTC.add(t1[0], 
-							   ratio * UTC.subtract(new UTC(250L * domclk), 
-													t1[1]) + clen)
-					   );
+		return UTC.add(
+		        gpsOffset, 
+		        UTC.add(
+		                t1[0], 
+		                ratio * UTC.subtract(new UTC(250L * domclk), t1[1]) + clen
+		                )
+				   );
 	}
 	
 	/**
@@ -74,8 +74,8 @@ public class LeadingEdgeRAPCal implements RAPCal {
 	 * @return leading edge correction to the RAPCal waveform in units of seconds.
 	 * @throws RAPCalException when something goes wrong with the edge detection
 	 */
-	private double getLECorrection(short[] w) throws RAPCalException {
-		
+	private double getLECorrection(short[] w) throws RAPCalException 
+	{
 		// compute mean of leading samples
 		double mean = 0.0;
 		for (int i = 0; i < 10; i++) mean += w[i];

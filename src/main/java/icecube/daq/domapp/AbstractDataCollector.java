@@ -41,6 +41,7 @@ public abstract class AbstractDataCollector extends Thread
         runLevel  = RunLevel.INITIALIZING;
         config    = null;
         flasherConfig = null;
+        setName(card + "" + pair + dom);
     }
     
     public int getCard() { return card; }
@@ -106,21 +107,55 @@ public abstract class AbstractDataCollector extends Thread
 	
 	public void signalStopRun()
 	{
+        switch (getRunLevel())
+        {
+        case RUNNING:
+            setRunLevel(RunLevel.STOPPING);
+            break;
+        default:
+            logger.info("Ignoring stop from run level " + runLevel);
+        }
+	}
+	
+	public void signalStartSubRun()
+	{
 	    switch (getRunLevel())
 	    {
 	    case RUNNING:
-	        setRunLevel(RunLevel.STOPPING);
+	        setRunLevel(RunLevel.STARTING_SUBRUN);
 	        break;
         default:
-            logger.info("Ignoring redundant stop from run level " + runLevel);
+            logger.warn("Cannot start subrun on DOM at run level " + runLevel);
 	    }
 	}
+	
+    public void signalPauseRun()
+    {
+        switch (getRunLevel())
+        {
+        case RUNNING:
+            setRunLevel(RunLevel.PAUSING);
+            break;
+        default:
+            logger.warn("Ignoring pause from run level " + runLevel);
+        }
+        
+    }
 	
 	public abstract void signalShutdown();
 	
 	public synchronized RunLevel getRunLevel()
 	{
 	    return runLevel;
+	}
+	
+	/**
+	 * Subclasses should override to provide last run start time in 0.1 ns ticks.
+	 * @return
+	 */
+	public long getRunStartTime()
+	{
+	    return 0L;
 	}
 	
 	public synchronized void setRunLevel(RunLevel runLevel)

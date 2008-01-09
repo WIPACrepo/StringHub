@@ -38,6 +38,14 @@ public class Driver implements IDriver {
 		return instance;
 	}
 
+	public float getCurrent(int card, int pair) throws IOException {
+	    String currentText = getProcfileText(makeProcfile(card + "" + pair, "current"));
+	    Pattern p = Pattern.compile("is ([0-9]+) mA");
+	    Matcher m = p.matcher(currentText);
+	    if (m.find()) return Float.parseFloat(m.group(1));
+	    return 0.0f;
+	}
+	
 	public boolean power(int card, int pair) throws IOException {
 		File file = makeProcfile("" + card + "" + pair, "pwr");
 		String info = getProcfileText(file);
@@ -64,6 +72,20 @@ public class Driver implements IDriver {
         FileOutputStream iscomm = new FileOutputStream(file);
         iscomm.write("reset\n".getBytes());
         iscomm.close();
+    }
+    
+    /**
+     * Set blocking / non-blocking mode of the DOR driver
+     * @param block if true the driver will be put into blocking mode
+     */
+    public void setBlocking(boolean block) throws IOException
+    {
+        File file = makeProcfile("blocking");
+        FileOutputStream blockingFile = new FileOutputStream(file);
+        if (block)
+            blockingFile.write("1\n".getBytes());
+        else
+            blockingFile.write("0\n".getBytes());
     }
     
     /**
@@ -126,14 +148,14 @@ public class Driver implements IDriver {
 		char ab[] = { 'A', 'B' };
 		LinkedList<DOMChannelInfo> channelList = new LinkedList<DOMChannelInfo>();
 		for (int card = 0; card < 8; card ++) {
-			File cdir = makeProcfile("" + card);
+			File cdir = makeProcfileDir("" + card);
 			if (!cdir.exists()) continue;
 			for (int pair = 0; pair < 4; pair++) {
-				File pdir = makeProcfile("" + card + "" + pair);
+				File pdir = makeProcfileDir("" + card + "" + pair);
 				if (!pdir.exists() || !power(card, pair)) continue;
 				logger.info("Found powered pair on (" + card + ", " + pair + ").");
 				for (int dom = 0; dom < 2; dom++) {
-					File ddir = makeProcfile("" + card + "" + pair + ab[dom]);
+					File ddir = makeProcfileDir("" + card + "" + pair + ab[dom]);
 					if (ddir.exists()) {
 						String mbid = getProcfileID(card, pair, ab[dom]);
 						if (mbid.matches("[0-9a-f]{12}") && !mbid.equals("000000000000")) {
@@ -239,20 +261,18 @@ public class Driver implements IDriver {
         File f = makeProcfile("" + card, "fpga");
         FileInputStream fis = new FileInputStream(f);
         BufferedReader r = new BufferedReader(new InputStreamReader(fis));
-        Pattern pat = Pattern.compile("([A-Z]+)\\s+(0x[0-9a-f]+)");
+        Pattern pat = Pattern.compile("([A-Z]+)\\s+0x([0-9a-f]+)");
         while (true)
         {
             String txt = r.readLine();
-            if (txt.length() == 0) break;
+            if (txt == null || txt.length() == 0) break;
             Matcher m  = pat.matcher(txt);
             if (m.matches())
             {
                 String key = m.group(1);
-                Integer val = Integer.valueOf(m.group(2), 16);
-                registerMap.put(key, val);
+                long val   = Long.parseLong(m.group(2), 16);
+                registerMap.put(key, new Integer((int) (val & 0xffffffffL)));
             }
-            String[] tokens = txt.split("\\s+");
-            
         }
         return registerMap;
     }
@@ -278,7 +298,23 @@ public class Driver implements IDriver {
 		return f;
 	}
 	
-	public File makeProcfile(String cwd) {
+	/**
+	 * This makes a 'top-level' procfile File
+	 * @param cwd
+	 * @return
+	 */
+	public File makeProcfile(String filename)
+	{
+	    return makeProcfile("", filename);
+	}
+	
+	/**
+	 * Make only the directory portion of the procfile
+	 * @param cwd card/pair/dom string
+	 * @return
+	 */
+	public File makeProcfileDir(String cwd) 
+	{
 		return makeProcfile(cwd, null);
 	}
 }

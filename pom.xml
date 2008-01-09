@@ -23,6 +23,30 @@
   </scm>
 
   <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>StringHub-comp</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>comp</classifier>
+              <archive>
+                <manifest>
+                  <mainClass>icecube.daq.stringhub.Shell</mainClass>
+                  <addClasspath>true</addClasspath>
+                  <classpathPrefix>../lib</classpathPrefix>
+                </manifest>
+              </archive>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
     <resources>
       <resource>
         <directory>src/main/resources</directory>
@@ -53,6 +77,11 @@
     <dependency>
       <groupId>edu.wisc.icecube</groupId>
       <artifactId>juggler</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>edu.wisc.icecube</groupId>
+      <artifactId>trigger</artifactId>
     </dependency>
 
     <dependency>

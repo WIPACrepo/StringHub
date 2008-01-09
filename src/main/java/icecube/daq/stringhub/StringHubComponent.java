@@ -26,14 +26,24 @@ import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
 import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.monitoring.DataCollectorMonitor;
+import icecube.daq.payload.ByteBufferPayloadDestination;
 import icecube.daq.payload.IByteBufferCache;
+import icecube.daq.payload.IPayloadDestination;
 import icecube.daq.payload.IPayloadDestinationCollection;
+import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.MasterPayloadFactory;
+import icecube.daq.payload.PayloadDestinationCollection;
+import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
+import icecube.daq.trigger.control.StringTriggerHandler;
+import icecube.daq.trigger.control.IStringTriggerHandler;
+import icecube.daq.trigger.control.ITriggerControl;
+import icecube.daq.trigger.component.GlobalConfiguration;
+import icecube.daq.trigger.config.TriggerBuilder;
 import icecube.daq.util.FlasherboardConfiguration;
 
 import java.io.File;
@@ -47,6 +57,7 @@ import java.nio.channels.SelectableChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Iterator;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -132,9 +143,9 @@ public class StringHubComponent extends DAQComponent
 	private boolean isSim = false;
 	private Driver driver = Driver.getInstance();
 	private Sender sender;
-	private IByteBufferCache bufferManager;
 	private MasterPayloadFactory payloadFactory;
 	private DOMRegistry domRegistry;
+	private IByteBufferCache moniBufMgr, tcalBufMgr, snBufMgr;
 	private PayloadDestinationOutputEngine   moniPayloadDest, tcalPayloadDest, supernovaPayloadDest; 
 	private DOMConnector conn = null;
 	private List<DOMChannelInfo> activeDOMs;
@@ -146,29 +157,34 @@ public class StringHubComponent extends DAQComponent
 	private DataCollectorMonitor collectorMonitor;
 	private HashMap<String, DOMConfiguration> pristineConfigurations;
 
+	private boolean enableTriggering = false;
+	private ISourceID sourceId;
+	private IStringTriggerHandler triggerHandler;
+
 	public StringHubComponent(int hubId) throws Exception
 	{
 		super(DAQCmdInterface.DAQ_STRING_HUB, hubId);
 	
         this.hubId = hubId;
-        
+        final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
+
 		final String bufName = "PyrateBufferManager";
 
-		bufferManager  = new VitreousBufferCache();
-		addCache(bufferManager);
-		addMBean(bufName, bufferManager);
+		IByteBufferCache hitBufMgr  = new VitreousBufferCache();
+		addCache(hitBufMgr);
+		//addMBean(bufName, hitBufMgr);
 
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
 
-		payloadFactory = new MasterPayloadFactory(bufferManager);
+		payloadFactory = new MasterPayloadFactory(hitBufMgr);
 		sender         = new Sender(hubId, payloadFactory);
 		isSim          = (hubId >= 1000 && hubId < 2000);
 		nch            = 0;
 		
 		logger.info("starting up StringHub component " + hubId);
-		
-        final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
+
+        // Setup the output engine
         PayloadDestinationOutputEngine hitOut;
 		
         /*
@@ -191,11 +207,30 @@ public class StringHubComponent extends DAQComponent
                 addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
             else
                 addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
-            hitOut.registerBufferManager(bufferManager);
-            IPayloadDestinationCollection hitColl = hitOut.getPayloadDestinationCollection();
-            sender.setHitOutputDestination(hitColl);
+            hitOut.registerBufferManager(hitBufMgr);
         }
 
+        // Check if triggering is enabled
+        IPayloadDestinationCollection hitColl;
+        if (enableTriggering) {
+            sourceId = SourceIdRegistry.getISourceIDFromNameAndId(COMPONENT_NAME, hubId);
+            triggerHandler = new StringTriggerHandler(sourceId);
+            triggerHandler.setMasterPayloadFactory(payloadFactory);
+            triggerHandler.setPayloadOutput(hitOut.getPayloadDestinationCollection());
+
+            // This is the output of the Sender
+            IPayloadDestination payloadDestination = new ByteBufferPayloadDestination(triggerHandler, hitBufMgr);
+            hitColl = new PayloadDestinationCollection(payloadDestination);
+        } else if (hitOut == null) {
+            hitColl = null;
+        } else {
+
+            // This is the output of the Sender
+            hitColl = hitOut.getPayloadDestinationCollection();
+        }
+
+        sender.setHitOutputDestination(hitColl);
+        
         // Allocate the map for the pristine baseline run configurations
         pristineConfigurations = new HashMap<String, DOMConfiguration>();
         
@@ -209,7 +244,7 @@ public class StringHubComponent extends DAQComponent
 
         PayloadDestinationOutputEngine dataOut =
             new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "dataOut");
-        dataOut.registerBufferManager(bufferManager);
+        dataOut.registerBufferManager(hitBufMgr);
         addMonitoredEngine(DAQConnector.TYPE_READOUT_DATA, dataOut);
 
         IPayloadDestinationCollection dataColl = dataOut.getPayloadDestinationCollection();
@@ -223,14 +258,22 @@ public class StringHubComponent extends DAQComponent
 		addMBean("datacollectormonitor", collectorMonitor);
 		
         // Following are the payload output engines for the secondary streams
+		moniBufMgr  = new VitreousBufferCache();
+		addCache(DAQConnector.TYPE_MONI_DATA, moniBufMgr);
         moniPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "moniOut");
-        moniPayloadDest.registerBufferManager(bufferManager);
+        moniPayloadDest.registerBufferManager(moniBufMgr);
         addMonitoredEngine(DAQConnector.TYPE_MONI_DATA, moniPayloadDest);
+
+		tcalBufMgr  = new VitreousBufferCache();
+		addCache(DAQConnector.TYPE_TCAL_DATA, tcalBufMgr);
         tcalPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "tcalOut");
-        tcalPayloadDest.registerBufferManager(bufferManager);
+        tcalPayloadDest.registerBufferManager(tcalBufMgr);
         addMonitoredEngine(DAQConnector.TYPE_TCAL_DATA, tcalPayloadDest);
+
+		snBufMgr  = new VitreousBufferCache();
+		addCache(DAQConnector.TYPE_SN_DATA, snBufMgr);
         supernovaPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
-        supernovaPayloadDest.registerBufferManager(bufferManager);
+        supernovaPayloadDest.registerBufferManager(snBufMgr);
         addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaPayloadDest);
     }
 
@@ -278,6 +321,8 @@ public class StringHubComponent extends DAQComponent
 		}
 		else
 		{
+		    // put the driver into blocking mode
+		    driver.setBlocking(true);
 			activeDOMs = driver.discoverActiveDOMs();
 			logger.info("Found " + activeDOMs.size() + " active DOMs.");
 		}
@@ -309,6 +354,9 @@ public class StringHubComponent extends DAQComponent
 			// Lookup the connected DOMs
 			discover();
 			
+			if (activeDOMs.size() == 0)
+			    throw new DAQCompException("No Active DOMs on hub.");
+			
 			// Parse out tags from 'master configuration' file
 			File domConfigsDirectory = new File(configurationPath, "domconfigs");
 			File masterConfigFile = new File(configurationPath, configName + ".xml");
@@ -338,6 +386,9 @@ public class StringHubComponent extends DAQComponent
 			for (DOMChannelInfo chanInfo : activeDOMs)
 				if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) nch++;
 	
+			if (nch == 0)
+			    throw new DAQCompException("No Active DOMs on Hub selected in configuration.");
+			
 			logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
 			
 			// Must make sure to release file resources associated with the previous
@@ -410,8 +461,14 @@ public class StringHubComponent extends DAQComponent
 			e.printStackTrace();
 			throw new DAQCompException(e.getMessage());
 		}
-		
-	}
+
+
+        // If triggers are enabled, configure them
+        if (enableTriggering) {
+            configureTrigger(configName);
+        }
+
+    }
 
 	/**
 	 * Controller wants StringHub to start sending data.  Tell DOMs to start up.
@@ -420,9 +477,9 @@ public class StringHubComponent extends DAQComponent
 	{
 		logger.info("Have I been configured? " + configured);
 
-		SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, bufferManager, moniPayloadDest);
-		SecondaryStreamConsumer supernovaConsumer =	new SecondaryStreamConsumer(hubId, bufferManager, supernovaPayloadDest);
-		SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId,bufferManager, tcalPayloadDest);
+		SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniBufMgr, moniPayloadDest);
+		SecondaryStreamConsumer supernovaConsumer =	new SecondaryStreamConsumer(hubId, snBufMgr, supernovaPayloadDest);
+		SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId, tcalBufMgr, tcalPayloadDest);
 
         if (Boolean.getBoolean("icecube.daq.stringhub.secondaryStream.debug"))
         {
@@ -501,77 +558,53 @@ public class StringHubComponent extends DAQComponent
 
 	    logger.info("Beginning subrun");
 	    
-	    try
-	    {
-	        for (AbstractDataCollector adc : conn.getCollectors())
-	        {
-	            String mbid = adc.getMainboardId();
-	            FlasherboardConfiguration flasherConfig = null;
-	            
-	            // Hunt for this DOM channel in the flasher config list
-	            for (FlasherboardConfiguration fbc : flasherConfigs)
+        for (AbstractDataCollector adc : conn.getCollectors())
+        {
+            String mbid = adc.getMainboardId();
+            FlasherboardConfiguration flasherConfig = null;
+            
+            // Hunt for this DOM channel in the flasher config list
+            for (FlasherboardConfiguration fbc : flasherConfigs)
+            {
+	            if (fbc.getMainboardID().equals(mbid))
 	            {
-    	            if (fbc.getMainboardID().equals(mbid))
-    	            {
-    	                flasherConfig = fbc;
-    	                break;
-    	            }
+	                flasherConfig = fbc;
+	                break;
 	            }
-	            
-	            if (flasherConfig != null)
-	            {
-	                /*
-	                 * stop anything that is currently running on this DOM
-	                 * and begin a new flasher run
-	                 */
-	                int pairIndex = 4 * adc.getCard() + adc.getPair();
-	                if (wirePairSemaphore[pairIndex])
-	                    throw new DAQCompException("Cannot activate > 1 flasher run per DOR wire pair.");
-	                wirePairSemaphore[pairIndex] = true;
-	                adc.signalStopRun();
-	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
-                    DOMConfiguration config = new DOMConfiguration(adc.getConfig());
-                    config.setHV(-1);
-                    config.setTriggerMode(TriggerMode.FB);
-                    config.setLC(new LocalCoincidenceConfiguration());
-                    EngineeringRecordFormat fmt = new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 128 }); 
-                    config.setEngineeringFormat(fmt);
-                    config.setMux(MuxState.FB_CURRENT);
-                    adc.setConfig(config);
-                    adc.signalConfigure();
-                    while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
-                    Thread.sleep(100);
-                    adc.setFlasherConfig(flasherConfig);
-                    adc.signalStartRun();
-                    while (!adc.getRunLevel().equals(RunLevel.RUNNING) && !adc.getRunLevel().equals(RunLevel.ZOMBIE)) 
-                        Thread.sleep(50);
-	            }
-	            else if (adc.getFlasherConfig() != null)
-	            {
-	                // Channel was previously flashing - should be turned off
-	                adc.signalStopRun();
-	                adc.setFlasherConfig(null);
-                    adc.setConfig(pristineConfigurations.get(mbid));
-	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
-	                adc.signalConfigure();
-	                while (!adc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(50);
-	                adc.signalStartRun();
-	                while (!adc.getRunLevel().equals(RunLevel.RUNNING)) Thread.sleep(50);
-	            }
-                long t = adc.getLastTcalTime();
+            }
+            
+            if (flasherConfig != null)
+            {
+                int pairIndex = 4 * adc.getCard() + adc.getPair();
+                if (wirePairSemaphore[pairIndex])
+                    throw new DAQCompException("Cannot activate > 1 flasher run per DOR wire pair.");
+                wirePairSemaphore[pairIndex] = true;
+            }
+            
+            boolean stateChange = flasherConfig != null || adc.getFlasherConfig() != null;
+            if (stateChange)
+            {
+                adc.setFlasherConfig(flasherConfig);
+                adc.signalStartSubRun();
+            }
+	    }
+
+        for (AbstractDataCollector adc : conn.getCollectors())
+        {
+            if (adc.getRunLevel() == RunLevel.ZOMBIE) continue;
+            try
+            {
+                while (adc.getRunLevel() != RunLevel.RUNNING) Thread.sleep(100);
+                long t = adc.getRunStartTime();
                 if (t > validXTime) validXTime = t;
-    	    }
-    	    logger.info("Subrun time is " + validXTime);
-    	    return validXTime;
-	    }
-	    catch (InterruptedException intx)
-	    {
-	        throw new DAQCompException("INTX", intx);
-	    }
-	    catch (BadEngineeringFormat befx)
-	    {
-	        throw new DAQCompException("BEFX", befx);
-	    }
+            }
+            catch (InterruptedException intx)
+            {
+                logger.warn("Interrupted sleep on ADC subrun start.");
+            }
+        }
+	    logger.info("Subrun time is " + validXTime);
+	    return validXTime;
 	}
 	
 	public void stopping()
@@ -590,5 +623,37 @@ public class StringHubComponent extends DAQComponent
 
         logger.info("Returning from stop.");
 	}
+
+    private void configureTrigger(String configName) throws DAQCompException {
+        // Lookup the trigger configuration
+        String triggerConfiguration;
+        String globalConfigurationFileName = configurationPath + "/" + configName + ".xml";
+        try {
+            triggerConfiguration = GlobalConfiguration.getTriggerConfig(globalConfigurationFileName);
+        } catch (Exception e) {
+            logger.error("Error extracting trigger configuration name from global configuraion file.", e);
+            throw new DAQCompException("Cannot get trigger configuration name.", e);
+        }
+        String triggerConfigFileName = configurationPath + "/trigger/" + triggerConfiguration + ".xml";
+
+        // Add triggers to the trigger manager
+        List currentTriggers = TriggerBuilder.buildTriggers(triggerConfigFileName, sourceId);
+        Iterator triggerIter = currentTriggers.iterator();
+        while (triggerIter.hasNext()) {
+            ITriggerControl trigger = (ITriggerControl) triggerIter.next();
+            trigger.setTriggerHandler(triggerHandler);
+        }
+        triggerHandler.addTriggers(currentTriggers);
+    }
+
+    /**
+     * Return this component's svn version id as a String.
+     *
+     * @return svn version id as a String
+     */
+    public String getVersionInfo()
+    {
+		return "$Id: StringHubComponent.java 2359 2007-12-03 20:55:45Z dglo $";
+    }
 
 }

@@ -21,6 +21,7 @@ import java.nio.ByteOrder;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.channels.ClosedByInterruptException;
+import java.text.DecimalFormat;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Timer;
@@ -105,13 +106,14 @@ public class DataCollector extends AbstractDataCollector
     private WritableByteChannel tcalSink;
     private WritableByteChannel supernovaSink;
     
-    private static final Logger logger                = Logger.getLogger(DataCollector.class);
-
+    private static final Logger         logger  = Logger.getLogger(DataCollector.class);
+    private static final DecimalFormat  fmt     = new DecimalFormat("#0.000000000");
+    
     // TODO - replace these with properties-supplied constants
     // for now they are totally reasonable
-    private long                threadSleepInterval   = 100;
+    private long                threadSleepInterval   = 50;
     private long                lastDataRead          = 0;
-    private long                dataReadInterval      = 50;
+    private long                dataReadInterval      = 10;
     private long                lastMoniRead          = 0;
     private long                moniReadInterval      = 1000;
     private long                lastTcalRead          = 0;
@@ -130,6 +132,7 @@ public class DataCollector extends AbstractDataCollector
     private long                lastMoniUT;
     private long                lastTcalUT;
     private long                lastSupernovaUT;
+    private volatile long       runStartUT = 0L;
 
     private ByteBuffer          daqHeader;
     private long                nextSupernovaDomClock;
@@ -150,7 +153,6 @@ public class DataCollector extends AbstractDataCollector
             int recl;
             int fmtid;
             long domClock;
-            long utc;
             ByteBuffer buf;
             
             Element(int recl, int fmtid, long domClock, ByteBuffer buf)
@@ -158,7 +160,6 @@ public class DataCollector extends AbstractDataCollector
                 this.recl = recl;
                 this.fmtid = fmtid;
                 this.domClock = domClock;
-                this.utc = rapcal.domToUTC(domClock).in_0_1ns();
                 this.buf = buf;
             }
 
@@ -174,36 +175,64 @@ public class DataCollector extends AbstractDataCollector
         }
         
         private LinkedList<Element> alist, blist; 
+        /** 
+         * 'Head' elements for A/B to improve performance by
+         * relegating the costly LinkedList accesses to those
+         * rare cases when you need them.
+         */
+        private Element ahead, bhead;
         
         HitBufferAB()
         {
             alist = new LinkedList<Element>();
             blist = new LinkedList<Element>();
+            ahead = null;
+            bhead = null;
         }
         
         void pushA(int recl, int fmtid, long domClock, ByteBuffer buf)
         {
             Element e = new Element(recl, fmtid, domClock, buf);
-            logger.debug("Pushed element into A buffer: domClock = " + domClock + " # A = " 
-                    + alist.size() + " # B = " + blist.size());
-            alist.addLast(e);
+            if (logger.isDebugEnabled())
+                logger.debug("Pushed element into A buffer: domClock = " + domClock + " # A = " 
+                        + alist.size() + " # B = " + blist.size());
+            if (ahead != null) alist.addLast(ahead);
+            ahead = e;
         }
         
         void pushB(int recl, int fmtid, long domClock, ByteBuffer buf)
         {
             Element e = new Element(recl, fmtid, domClock, buf);
-            logger.debug("Pushed element into B buffer: domClock = " + domClock + " # A = " 
-                    + alist.size() + " # B = " + blist.size());
-            blist.addLast(e);
+            if (logger.isDebugEnabled())
+                logger.debug("Pushed element into B buffer: domClock = " + domClock + " # A = " 
+                        + alist.size() + " # B = " + blist.size());
+            if (bhead != null) blist.addLast(bhead);
+            bhead = e;
+        }
+        
+        private Element popA()
+        {
+           Element x = ahead;
+           ahead = null;
+           if (!alist.isEmpty()) ahead = alist.removeFirst();
+           return x;
+        }
+        
+        private Element popB()
+        {
+            Element x = bhead;
+            bhead = null;
+            if (!blist.isEmpty()) bhead = blist.removeFirst();
+            return x;
         }
         
         Element pop()
         {
-            if (alist.size() == 0 || blist.size() == 0) return null;
-            if (alist.getFirst().compareTo(blist.getFirst()) > 0)
-                return blist.removeFirst();
+            if (ahead == null || bhead == null) return null;
+            if (ahead.compareTo(bhead) < 0)
+                return popA();
             else
-                return alist.removeFirst();
+                return popB();
         }
     }
     
@@ -314,12 +343,16 @@ public class DataCollector extends AbstractDataCollector
      * 
      * @throws MessageException
      */
-    private void configure() throws MessageException
+    private void configure(DOMConfiguration config) throws MessageException
     {
         logger.info("Configuring DOM on " + canonicalName());
         long configT0 = System.currentTimeMillis();
 
-        app.setMoniIntervals(config.getHardwareMonitorInterval(), config.getConfigMonitorInterval());
+        app.setMoniIntervals(
+                config.getHardwareMonitorInterval(), 
+                config.getConfigMonitorInterval(),
+                config.getFastMonitorInterval()
+                );
 
         if (config.isDeltaCompressionEnabled())
             app.setDeltaCompressionFormat();
@@ -389,7 +422,11 @@ public class DataCollector extends AbstractDataCollector
         while (in.remaining() > 0)
         {
             long nw = g.write(bufferArray);
-            logger.debug("In DC " + canonicalName() + " - type = " + fmtid + " wrote " + nw + " bytes to " + out);
+            if (logger.isDebugEnabled())
+                logger.debug(
+                        "In DC " + canonicalName() + " - type = " + 
+                        fmtid + " wrote " + nw + " bytes to " + out
+                        );
         }
         return utc;
     }
@@ -443,7 +480,6 @@ public class DataCollector extends AbstractDataCollector
                     break;
                 case 144: // Delta compressed data
                     int clkMSB = in.getShort();
-                    logger.debug("clkMSB: " + clkMSB);
                     in.getShort();
                     // Note byte order change for delta message buffers
                     in.order(ByteOrder.LITTLE_ENDIAN);
@@ -476,9 +512,6 @@ public class DataCollector extends AbstractDataCollector
                             dbuf.put(in);
                             numHits++;
                             dbuf.flip();
-                            logger.debug("Processing delta hit from ATWD " 
-                                    + atwdChip + " - len: " + hitSize 
-                                    + " remaining: " + dbuf.remaining());
                             if (atwdChip == 0)
                                 abBuffer.pushA(dbuf.remaining(), 3, domClock, dbuf);
                             else
@@ -523,12 +556,18 @@ public class DataCollector extends AbstractDataCollector
             // logger.debug("processing monitoring record - " + in.remaining() +
             // " bytes remaining.");
             MonitorRecord monitor = MonitorRecordFactory.createFromBuffer(in);
-            if (monitor instanceof AsciiMonitorRecord) logger.info(monitor.toString());
+            if (monitor instanceof AsciiMonitorRecord &&
+                    logger.isDebugEnabled()) logger.debug(monitor.toString());
             if (moniSink != null)
             {
                 numMoni++;
-                lastMoniUT = genericDataDispatch(monitor.getLength(), 102, monitor.getClock(), monitor
-                        .getBuffer(), moniSink);
+                lastMoniUT = genericDataDispatch(
+                        monitor.getLength(),
+                        102, 
+                        monitor.getClock(), 
+                        monitor.getBuffer(),
+                        moniSink
+                        );
             }
         }
     }
@@ -582,6 +621,19 @@ public class DataCollector extends AbstractDataCollector
         stop_thread = true;
     }
 
+    private void storeRunStartTime() throws InterruptedException
+    {
+        try
+        {
+            TimeCalib rst = driver.readTCAL(card, pair, dom);
+            runStartUT = rapcal.domToUTC(rst.getDomTx().in_0_1ns() / 250L).in_0_1ns();
+        }
+        catch (IOException iox)
+        {
+            logger.warn("I/O error on TCAL read to determine run start time.");
+        }
+    }
+    
     public String toString()
     {
         return getName();
@@ -657,19 +709,24 @@ public class DataCollector extends AbstractDataCollector
         
         logger.info("Begin data collection thread");
         
+        // Create a watcher timer
+        Timer watcher = new Timer(getName() + "-timer");
+
         try
         {
-            runcore();
+            runcore(watcher);
         }
         catch (Exception x)
         {
             x.printStackTrace();
             logger.error("Intercepted error in DataCollector runcore: " + x);
+            // HACK set run level to ZOMBIE so that controller knows
+            // that this channel has expired and does not wait.
+            setRunLevel(RunLevel.ZOMBIE);
         }
 
-        // HACK tell the caller that I am configured
-        setRunLevel(RunLevel.ZOMBIE);
-
+        watcher.cancel();
+        
         // clear interrupted flag if it is set
         interrupted();
 
@@ -686,6 +743,8 @@ public class DataCollector extends AbstractDataCollector
         {
             logger.error(iox);
         }
+        
+        logger.info("End data collection thread.");
 
     } /* END OF run() METHOD */
 
@@ -693,28 +752,24 @@ public class DataCollector extends AbstractDataCollector
     private IDOMApp softbootToDomapp() throws IOException, InterruptedException
     {
         driver.commReset(card, pair, dom);
-        Thread.sleep(250);
         driver.softboot (card, pair, dom);
-        Thread.sleep(1500);
 
         FileNotFoundException savedEx = null;
 
         for (int i = 0; i < 2; i++) {
             driver.commReset(card, pair, dom);
-            Thread.sleep(250);
         
-            /*
-             * Initialize the DOMApp - get things setup
-             */
             if (app == null)
             {
                 // If app is null it implies the collector has deferred
                 // opening of the DOR devfile to the thread.
-                try {
+                try 
+                {
                     app = new DOMApp(this.card, this.pair, this.dom);
-                    // if we got app, we can quit
                     break;
-                } catch (FileNotFoundException ex) {
+                } 
+                catch (FileNotFoundException ex) 
+                {
 					logger.error("Trial "+i+": Open of "+card+""+pair+dom+" failed!");
 					logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
 					logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
@@ -724,15 +779,14 @@ public class DataCollector extends AbstractDataCollector
             }
         }
                 
-        if (app == null) {
-            if (savedEx != null) {
-                throw savedEx;
-            }
-
+        if (app == null) 
+        {
+            if (savedEx != null) throw savedEx;
             throw new FileNotFoundException("Couldn't open DOMApp");
-        } else if (savedEx != null) {
-            logger.error("Successful DOMApp retry after initial failure",
-                         savedEx);
+        } 
+        else if (savedEx != null) 
+        {
+            logger.error("Successful DOMApp retry after initial failure", savedEx);
         }
 
         app.transitionToDOMApp();
@@ -745,12 +799,10 @@ public class DataCollector extends AbstractDataCollector
      * this seems best. So the thread run method will handle that recovery
      * process
      */
-    private void runcore() throws Exception
+    private void runcore(Timer watcher) throws Exception
     {
-        // Create a watcher timer
-        Timer watcher = new Timer(getName() + "-timer");
         InterruptorTask intTask = new InterruptorTask(this);
-        watcher.schedule(intTask, 28000L, 20000L);
+        watcher.schedule(intTask, 30000L, 20000L);
 
 		driver.resetComstat(card, pair, dom);
 
@@ -759,12 +811,18 @@ public class DataCollector extends AbstractDataCollector
         // this is a workaround for "Type 3" dropped DOMs
         numericMBID = 0;
         int NT      = 2;
-        for(int i=0; i<NT; i++) {
-            try {
+        for(int i = 0; i < NT; i++) 
+        {
+            intTask.ping();
+            try 
+            {
                 app = softbootToDomapp();
-                try {
+                try 
+                {
                     mbid = app.getMainboardID();
-                } catch (MessageException ex) {
+                } 
+                catch (MessageException ex) 
+                {
                     // if exception is wrapping a ClosedByInterruptException,
                     //   then throw the original exception
                     if (ex.getCause() != null &&
@@ -778,9 +836,11 @@ public class DataCollector extends AbstractDataCollector
                 }
                 numericMBID = Long.valueOf(mbid, 16).longValue();
                 break;
-            } catch (ClosedByInterruptException ex) {
+            } 
+            catch (ClosedByInterruptException ex) 
+            {
                 // clear the interrupt so it doesn't cause future problems
-                Thread.currentThread().interrupted();
+                Thread.interrupted();
 
                 // log exception and continue
                 logger.error("Timeout on trial "+i+" getting DOM ID", ex);
@@ -789,10 +849,11 @@ public class DataCollector extends AbstractDataCollector
 				app = null; /* We have to do this to guarantee that we reopen when we retry */
             }
         }
-        if(numericMBID == 0) {
+        
+        if (numericMBID == 0)
             throw new Exception("Couldn't get DOM MB ID after "+NT+" trials.");
-        }
-
+        
+		intTask.ping();
         logger.info("Found DOM " + mbid + " running " + app.getRelease());
 
         // Grab 2 RAPCal data points to get started
@@ -874,31 +935,57 @@ public class DataCollector extends AbstractDataCollector
             case CONFIGURING:
                 /* Need to handle a configure */
                 logger.info("Got CONFIGURE signal.");
-                configure();
+                configure(config);
                 logger.info("DOM is configured.");
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
                 
             case STARTING:
                 logger.info("Got START RUN signal " + canonicalName());
+                app.beginRun();
+                storeRunStartTime();
+                logger.info("DOM is running.");
+                setRunLevel(RunLevel.RUNNING);
+                break;
+                
+            case STARTING_SUBRUN:
+                setRunLevel(RunLevel.STOPPING_SUBRUN);
+                app.endRun();
+                setRunLevel(RunLevel.CONFIGURING);
                 if (flasherConfig != null)
                 {
-                   logger.info("Starting flasher run.");
-                   app.beginFlasherRun(
-                           (short) flasherConfig.getBrightness(), 
-                           (short) flasherConfig.getWidth(), 
-                           (short) flasherConfig.getDelay(), 
-                           (short) flasherConfig.getMask(), 
-                           (short) flasherConfig.getRate());
+                    logger.info("Starting flasher subrun");
+                    DOMConfiguration tempConfig = new DOMConfiguration(config);
+                    tempConfig.setHV(-1);
+                    tempConfig.setTriggerMode(TriggerMode.FB);
+                    tempConfig.setLC(new LocalCoincidenceConfiguration());
+                    tempConfig.setEngineeringFormat(
+                            new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 128 })
+                            );
+                    tempConfig.setMux(MuxState.FB_CURRENT);
+                    configure(tempConfig);
+                    app.beginFlasherRun(
+                            (short) flasherConfig.getBrightness(), 
+                            (short) flasherConfig.getWidth(),
+                            (short) flasherConfig.getDelay(), 
+                            (short) flasherConfig.getMask(), 
+                            (short) flasherConfig.getRate()
+                            );
                 }
                 else
                 {
-                    logger.info("Starting normal data-taking run.");
+                    logger.info("Returning to non-flashing state");
+                    configure(config);
                     app.beginRun();
                 }
-                    
-                logger.info("DOM is running.");
+                storeRunStartTime();
                 setRunLevel(RunLevel.RUNNING);
+                break;
+                
+            case PAUSING:
+                logger.info("Got PAUSE RUN signal " + canonicalName());
+                app.endRun();
+                setRunLevel(RunLevel.CONFIGURED);
                 break;
                 
             case STOPPING:
@@ -911,10 +998,12 @@ public class DataCollector extends AbstractDataCollector
                 if (supernovaSink != null) supernovaSink.write(StreamBinder.endOfSupernovaStream());
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
+                
             }
 
             if (tired)
             {
+                logger.debug("Runcore loop is tired - sleeping " + threadSleepInterval + " ms.");
                 try
                 {
                     Thread.sleep(threadSleepInterval);
@@ -927,6 +1016,11 @@ public class DataCollector extends AbstractDataCollector
         } /* END RUN LOOP */
     } /* END METHOD */
 
+    public long getRunStartTime()
+    {
+        return runStartUT;
+    }
+    
     public long getNumHits()
     {
         return numHits;
@@ -959,7 +1053,7 @@ public class DataCollector extends AbstractDataCollector
     {
         Thread  thread;
         boolean pinged;
-
+        
         InterruptorTask(Thread thread)
         {
             this.thread = thread;
@@ -974,6 +1068,10 @@ public class DataCollector extends AbstractDataCollector
 
         synchronized void ping()
         {
+            if (logger.isDebugEnabled())
+            {
+                logger.debug("pinged at " + fmt.format(System.nanoTime() * 1.0E-09));
+            }
             pinged = true;
         }
     }

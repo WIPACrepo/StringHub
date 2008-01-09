@@ -91,7 +91,6 @@ public class Omicron {
 			bind.register(pipe.source(), cwd);
 			collectors.add(dc);
 			logger.debug("Starting new DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ").");
-			dc.start();
 			logger.debug("DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ") started.");
 		}
 		

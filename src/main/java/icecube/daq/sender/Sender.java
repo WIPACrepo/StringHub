@@ -12,6 +12,7 @@ import icecube.daq.payload.ILoadablePayload;
 import icecube.daq.payload.IPayload;
 import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.ISourceID;
+import icecube.daq.payload.IWriteablePayload;
 import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.MasterPayloadFactory;
 import icecube.daq.payload.PayloadDestination;
@@ -83,6 +84,11 @@ class TinyHitPayload
     public long getDomId()
     {
         return domId;
+    }
+
+    public int getLocalCoincidenceMode()
+    {
+        throw new Error("Unimplemented");
     }
 
     public ByteBuffer getPayloadBacking()
@@ -356,11 +362,6 @@ public class Sender
     extends RequestFiller
     implements BufferConsumer, SenderMonitor
 {
-    /** Hack around lack of official string hub source ID. */
-    public static final int STRING_HUB_SOURCE_ID = 12000;
-    /** Hack around lack of official string hub name. */
-    public static final String DAQ_STRING_HUB = "stringHub";
-
     private static Log log = LogFactory.getLog(Sender.class);
 
     /** <tt>true</tt> if we should use the tiny hit payload */
@@ -404,6 +405,9 @@ public class Sender
     private long latestReadoutStartTime;
     /** end time of most recent readout data */
     private long latestReadoutEndTime;
+
+    /** Set to <tt>true</tt> to forward hits with LCMode==0 to the trigger */
+    private boolean forwardLC0Hits;
 
     /**
      * Create a readout request filler.
@@ -509,10 +513,12 @@ public class Sender
 
                 if (payload == null) {
                     log.error("Couldn't build hit from DOM hit data");
-                } else {
+                } else if (forwardLC0Hits ||
+                           ((IDomHit) engData).getLocalCoincidenceMode() != 0)
+                {
                     if (hitDest != null) {
                         try {
-                            hitDest.writePayload((Payload) payload);
+                            hitDest.writePayload((IWriteablePayload) payload);
                         } catch (IOException ioe) {
                             if (log.isErrorEnabled()) {
                                 log.error("Could not send HitPayload", ioe);
@@ -877,7 +883,7 @@ public class Sender
 
     private static ISourceID getSourceId(int compId)
     {
-        final String compName = DAQ_STRING_HUB;
+        final String compName = DAQCmdInterface.DAQ_STRING_HUB;
 
         return SourceIdRegistry.getISourceIDFromNameAndId(compName, compId);
     }
@@ -1196,7 +1202,7 @@ public class Sender
             }
         } else {
             try {
-                dataDest.writePayload((Payload) payload);
+                dataDest.writePayload((IWriteablePayload) payload);
                 sent = true;
             } catch (IOException ioe) {
                 if (log.isErrorEnabled()) {
