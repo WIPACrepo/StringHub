@@ -157,7 +157,7 @@ public class StringHubComponent extends DAQComponent
 	private DataCollectorMonitor collectorMonitor;
 	private HashMap<String, DOMConfiguration> pristineConfigurations;
 
-	private boolean enableTriggering = false;
+	private boolean enableTriggering = true;
 	private ISourceID sourceId;
 	private IStringTriggerHandler triggerHandler;
 
@@ -653,7 +653,7 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 2359 2007-12-03 20:55:45Z dglo $";
+		return "$Id: StringHubComponent.java 2454 2008-01-09 15:46:00Z toale $";
     }
 
 }
