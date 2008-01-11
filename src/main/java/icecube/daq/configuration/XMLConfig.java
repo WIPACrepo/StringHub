@@ -50,7 +50,10 @@ public class XMLConfig extends DefaultHandler
 		"atwd0TriggerBias", "atwd0RampTop", "atwd0RampRate", "atwdAnalogRef",
 		"atwd1TriggerBias", "atwd1RampTop", "atwd1RampRate", "frontEndPedestal",
 		"mpeTriggerDiscriminator", "speTriggerDiscriminator", "fastAdcRef", "internalPulser",
-		"ledBrightness", "frontEndAmpLowerClamp", "flasherDelay", "muxBias"
+		"ledBrightness", "frontEndAmpLowerClamp", "flasherDelay", "muxBias", "flasherRef"
+	};
+	private final static int[] dacChannels = {
+	    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 14
 	};
 	
 	public XMLConfig()
@@ -244,7 +247,8 @@ public class XMLConfig extends DefaultHandler
 				if (localName.equals(dacNames[idac]))
 				{
 					short val = Short.parseShort(text);
-					currentConfig.setDAC(idac, val);
+					int ch = dacChannels[idac];
+					currentConfig.setDAC(ch, val);
 					break;
 				}
 			}
