@@ -196,8 +196,11 @@ public class DataCollector extends AbstractDataCollector
             if (logger.isDebugEnabled())
                 logger.debug("Pushed element into A buffer: domClock = " + domClock + " # A = " 
                         + alist.size() + " # B = " + blist.size());
-            if (ahead != null) alist.addLast(ahead);
-            ahead = e;
+            // If head element occupied then push to end of list - else put onto head
+            if (ahead != null) 
+                alist.addLast(e);
+            else
+                ahead = e;
         }
         
         void pushB(int recl, int fmtid, long domClock, ByteBuffer buf)
@@ -206,8 +209,11 @@ public class DataCollector extends AbstractDataCollector
             if (logger.isDebugEnabled())
                 logger.debug("Pushed element into B buffer: domClock = " + domClock + " # A = " 
                         + alist.size() + " # B = " + blist.size());
-            if (bhead != null) blist.addLast(bhead);
-            bhead = e;
+            // If head element occupied then push to end of list - else put onto head
+            if (bhead != null) 
+                blist.addLast(e);
+            else
+                bhead = e;
         }
         
         private Element popA()
