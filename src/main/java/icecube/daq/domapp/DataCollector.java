@@ -896,19 +896,20 @@ public class DataCollector extends AbstractDataCollector
                 if (t - lastDataRead >= dataReadInterval)
                 {
                     lastDataRead = t;
-                    final int MSGS_IN_FLIGHT = 1;
-                    List<ByteBuffer> dataList = app.getData(MSGS_IN_FLIGHT);
-                    for (ByteBuffer data : dataList) {
-                        try { // Get debug information during Alpaca failures
-                            dataProcess(data);
-                        } catch (IllegalArgumentException ex) {
-                            logger.error("Caught & re-raising IllegalArgumentException");
-                            logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
-                            logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
-                            throw ex;
-                        }
+                    try 
+                    { 
+                        // Get debug information during Alpaca failures
+                        ByteBuffer data = app.getData();
+                        if (data.remaining() > 0) tired = false;
+                        dataProcess(data);
+                    } 
+                    catch (IllegalArgumentException ex) 
+                    {
+                        logger.error("Caught & re-raising IllegalArgumentException");
+                        logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
+                        logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
+                        throw ex;
                     }
-                    if (dataList.size() == MSGS_IN_FLIGHT) tired = false;
                 }
                 
                 // What about monitoring?
