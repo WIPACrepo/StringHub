@@ -433,6 +433,8 @@ public class Sender
         final int readoutDataType = PayloadRegistry.PAYLOAD_ID_READOUT_DATA;
         readoutDataFactory = (ReadoutDataPayloadFactory)
             masterFactory.getPayloadFactory(readoutDataType);
+        
+        forwardLC0Hits = false;
     }
 
     /**
@@ -1272,6 +1274,16 @@ public class Sender
                       " [" + reqStartTime + "-" +
                       reqEndTime + "]");
         }
+    }
+
+    public void forwardIsolatedHitsToTrigger()
+    {
+        forwardIsolatedHitsToTrigger(true);
+    }
+    
+    public void forwardIsolatedHitsToTrigger(boolean forward)
+    {
+        forwardLC0Hits = forward;
     }
 }
 
