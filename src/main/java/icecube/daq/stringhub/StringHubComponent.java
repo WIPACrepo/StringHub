@@ -183,7 +183,7 @@ public class StringHubComponent extends DAQComponent
         int minorHubId = hubId % 100;
 
         hitOut = null;
-        
+
         if (minorHubId > 0)
         {
             hitOut = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "hitOut");
@@ -192,9 +192,9 @@ public class StringHubComponent extends DAQComponent
             else
                 addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
             hitOut.registerBufferManager(hitBufMgr);
+            sender.setHitOutputDestination(hitOut.getPayloadDestinationCollection());
         }
-
-        sender.setHitOutputDestination(hitOut.getPayloadDestinationCollection());
+        
         
         RequestReader reqIn;
         try 
@@ -645,7 +645,7 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 2551 2008-01-28 03:20:31Z kael $";
+		return "$Id: StringHubComponent.java 2570 2008-01-30 12:28:43Z kael $";
     }
 
 }
