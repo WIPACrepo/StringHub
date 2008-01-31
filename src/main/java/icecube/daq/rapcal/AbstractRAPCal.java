@@ -105,6 +105,7 @@ public abstract class AbstractRAPCal implements RAPCal
 		this.expWt = w;
 		lastTcal = null;
 		clenAvg = Double.NaN;
+		hist = new LinkedList<Isochron>();
 	}
 	
 	public void update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException 
