@@ -2,14 +2,12 @@ package icecube.daq.domapp;
 
 
 
-import icecube.daq.domapp.MessageException;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
-import icecube.daq.rapcal.AbstractRAPCal;
+import icecube.daq.rapcal.LeadingEdgeRAPCal;
 import icecube.daq.rapcal.RAPCal;
 
 import java.io.IOException;
-
 import java.nio.channels.WritableByteChannel;
 
 import org.apache.log4j.Logger;
@@ -20,28 +18,8 @@ import org.apache.log4j.Logger;
 public class DataCollectorFactory
     implements IDataCollectorFactory
 {
-    private static final double DEFAULT_RAPCAL_THRESHOLD = 50.0;
-
     private static final Logger LOGGER =
         Logger.getLogger(DataCollectorFactory.class);
-
-    private double rapCalThreshold;
-
-    /**
-     * Create a DataCollector with the default RAPCal threshold.
-     */
-    DataCollectorFactory()
-    {
-        this(DEFAULT_RAPCAL_THRESHOLD);
-    }
-
-    /**
-     * Create a DataCollector with the default RAPCal threshold.
-     */
-    DataCollectorFactory(double rapCalThreshold)
-    {
-        this.rapCalThreshold = rapCalThreshold;
-    }
 
     /**
      * Create a DataCollector using the specified DOM channel, and attach
@@ -59,15 +37,8 @@ public class DataCollectorFactory
                                 WritableByteChannel chan)
         throws IOException, MessageException
     {
-        long mbId;
-        try {
-            mbId = Long.parseLong(chInfo.mbid, 16);
-        } catch (NumberFormatException nfe) {
-            throw new Error("Bad mainboard ID \"" + chInfo.mbid + "\"");
-        }
-
         IDOMApp app = new DOMApp(chInfo.card, chInfo.pair, chInfo.dom);
-        RAPCal rapcal = new AbstractRAPCal(rapCalThreshold);
+        RAPCal rapcal = new LeadingEdgeRAPCal();
 
         DataCollector dc;
         try {
