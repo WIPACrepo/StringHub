@@ -66,6 +66,11 @@ public class TCALTest
             System.exit(1);
         }
         int iarg = 0;
+        while (iarg < args.length && args[iarg].charAt(0) == '-')
+        {
+            String opt = args[iarg].substring(1);
+            if (opt.equals("debug")) Logger.getRootLogger().setLevel(Level.DEBUG);
+        }
 
         int card = Integer.parseInt(args[iarg].substring(0, 1));
         int pair = Integer.parseInt(args[iarg].substring(1, 2));

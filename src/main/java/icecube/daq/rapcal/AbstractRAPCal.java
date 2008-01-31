@@ -74,7 +74,11 @@ public abstract class AbstractRAPCal implements RAPCal
             }
             if (logger.isDebugEnabled())
             {
-                logger.debug(String.format("Ratio-1: %.4f ppm cable dT: %.1f ns", ratio - 1.0, clen));
+                logger.debug(
+                        " t0: " + t0[0] + ", " + t0[1] + ", " + t0[2] + ", " + t0[3] + "\n" +
+                        " t1: " + t1[0] + ", " + t1[1] + ", " + t1[2] + ", " + t1[3] + "\n" +
+                        String.format(" Ratio-1: %.4f ppm cable dT: %.1f ns", ratio - 1.0, clen)
+                        );
             }
         }
         
