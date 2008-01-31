@@ -5,7 +5,7 @@ package icecube.daq.domapp;
 import icecube.daq.domapp.MessageException;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
-import icecube.daq.rapcal.LeadingEdgeRAPCal;
+import icecube.daq.rapcal.AbstractRAPCal;
 import icecube.daq.rapcal.RAPCal;
 
 import java.io.IOException;
@@ -67,7 +67,7 @@ public class DataCollectorFactory
         }
 
         IDOMApp app = new DOMApp(chInfo.card, chInfo.pair, chInfo.dom);
-        RAPCal rapcal = new LeadingEdgeRAPCal(rapCalThreshold);
+        RAPCal rapcal = new AbstractRAPCal(rapCalThreshold);
 
         DataCollector dc;
         try {

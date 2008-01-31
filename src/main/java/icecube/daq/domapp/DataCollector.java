@@ -9,6 +9,7 @@ import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
+import icecube.daq.rapcal.AbstractRAPCal;
 import icecube.daq.rapcal.LeadingEdgeRAPCal;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
@@ -263,7 +264,7 @@ public class DataCollector extends AbstractDataCollector
     {
         this(card, pair, dom, config, 
                 outHits, outMoni, outSupernova, outTcal, Driver.getInstance(),
-                new LeadingEdgeRAPCal(50.0), null);
+                new LeadingEdgeRAPCal(), null);
     }
 
     public DataCollector(int card, int pair, char dom, 
