@@ -17,24 +17,30 @@ public abstract class AbstractRAPCal implements RAPCal
         private double ratio;
         private double clen;
         
-        Isochron(TimeCalib tcal0, UTC gps0, TimeCalib tcal1, UTC gps1)
+        Isochron(TimeCalib tcal0, TimeCalib tcal1, UTC gpsOffset) throws RAPCalException
         {
-            t0 = new UTC[4];
-            t1 = new UTC[4];
+            t0 = setupVierling(tcal0);
+            t1 = setupVierling(tcal1);
             proc();
-            this.gpsOffset = gps1;
+            this.gpsOffset = gpsOffset;
         }
 
         Isochron(Isochron prev, TimeCalib tcal, UTC gpsOffset) throws RAPCalException
         {
             t0 = prev.t1;
-            t1 = new UTC[4];
-            t1[0] = tcal.getDorTx();
-            t1[1] = UTC.add(tcal.getDomRx(), getFineTimeCorrection(tcal.getDomWaveform()));
-            t1[2] = tcal.getDomTx();
-            t1[3] = UTC.add(tcal.getDorRx(), getFineTimeCorrection(tcal.getDorWaveform()));
+            t1 = setupVierling(tcal);
             proc();
             this.gpsOffset = gpsOffset;
+        }
+        
+        private UTC[] setupVierling(TimeCalib tcal) throws RAPCalException
+        {
+            UTC[] t = new UTC[4];
+            t[0] = tcal.getDorTx();
+            t[1] = UTC.add(tcal.getDomRx(), getFineTimeCorrection(tcal.getDomWaveform()));
+            t[2] = tcal.getDomTx();
+            t[3] = UTC.add(tcal.getDorRx(), getFineTimeCorrection(tcal.getDorWaveform()));
+            return t;
         }
         
         /**
@@ -86,7 +92,6 @@ public abstract class AbstractRAPCal implements RAPCal
     private double               clenAvg;
     private final double         expWt;
 
-    private UTC                  lastGpsOffset;
     private static final Logger  logger = Logger.getLogger(AbstractRAPCal.class);
 	
 
@@ -115,12 +120,11 @@ public abstract class AbstractRAPCal implements RAPCal
 	        Isochron prev = hist.getLast();
 	        hist.add(new Isochron(prev, tcal, gpsOffset));
 	    }
-	    else if (lastTcal != null && lastGpsOffset != null) 
+	    else if (lastTcal != null)
 	    {
-	        hist.add(new Isochron(lastTcal, lastGpsOffset, tcal, gpsOffset));
+	        hist.add(new Isochron(lastTcal, tcal, gpsOffset));
 	    }
         lastTcal = tcal;
-        lastGpsOffset = gpsOffset;
 	}   
 	
 	public double cableLength() { return clenAvg; }
