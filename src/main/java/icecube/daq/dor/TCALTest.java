@@ -68,7 +68,7 @@ public class TCALTest
         int iarg = 0;
         while (iarg < args.length && args[iarg].charAt(0) == '-')
         {
-            String opt = args[iarg].substring(1);
+            String opt = args[iarg++].substring(1);
             if (opt.equals("debug")) Logger.getRootLogger().setLevel(Level.DEBUG);
         }
 

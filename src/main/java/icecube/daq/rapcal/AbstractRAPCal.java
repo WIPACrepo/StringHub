@@ -61,9 +61,9 @@ public abstract class AbstractRAPCal implements RAPCal
             double dom_dt = UTC.subtract(t1[1], t0[1]);
             ratio = dor_dt / dom_dt;
             clen  = 0.5 * (UTC.subtract(t1[3], t1[0]) - ratio * UTC.subtract(t1[2], t1[1]));
-            if (clenAvg == Double.NaN)
+            if (Double.isNaN(clenAvg))
                 clenAvg = clen;
-            else if (Math.abs(clenAvg - clen) < 100)
+            else if (Math.abs(clenAvg - clen) < 100.0E-09)
             {
                 clenAvg = (clenAvg + expWt * clen) / (1.0 + expWt);
             }
@@ -74,10 +74,11 @@ public abstract class AbstractRAPCal implements RAPCal
             }
             if (logger.isDebugEnabled())
             {
-                logger.debug(
+                logger.debug("\n" + 
                         " t0: " + t0[0] + ", " + t0[1] + ", " + t0[2] + ", " + t0[3] + "\n" +
                         " t1: " + t1[0] + ", " + t1[1] + ", " + t1[2] + ", " + t1[3] + "\n" +
-                        String.format(" Ratio-1: %.4f ppm cable dT: %.1f ns", ratio - 1.0, clen)
+                        String.format(" Ratio-1: %.4f ppm cable dT: %.1f ns", 
+				      1.0E+06*(ratio - 1.0), 1.0E+09*clen)
                         );
             }
         }
