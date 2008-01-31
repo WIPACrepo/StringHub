@@ -57,8 +57,15 @@ public abstract class AbstractRAPCal implements RAPCal
             clen  = 0.5 * (UTC.subtract(t1[3], t1[0]) - ratio * UTC.subtract(t1[2], t1[1]));
             if (clenAvg == Double.NaN)
                 clenAvg = clen;
-            else
+            else if (Math.abs(clenAvg - clen) < 100)
+            {
                 clenAvg = (clenAvg + expWt * clen) / (1.0 + expWt);
+            }
+            else
+            {
+                // wild TCAL!
+                logger.warn("Wild TCAL - clen: " + clen + " clenAvg: " + clenAvg);
+            }
             if (logger.isDebugEnabled())
             {
                 logger.debug(String.format("Ratio-1: %.4f ppm cable dT: %.1f ns", ratio - 1.0, clen));
