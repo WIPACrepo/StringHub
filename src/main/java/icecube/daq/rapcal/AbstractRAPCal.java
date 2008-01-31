@@ -153,12 +153,18 @@ public abstract class AbstractRAPCal implements RAPCal
 	 */
 	public UTC domToUTC(long domclk) 
 	{
+	    /*
+	     * Iterate thru list until you find (A) bracketing Isochron, or (B) end of list.
+	     * Since hits are coming in time-ordered you know it is safe to delete old
+	     * elements in the list - hence the it.remove() line.
+	     */
 	    ListIterator<Isochron> it = hist.listIterator();
 	    while (it.hasNext())
 	    {
 	        Isochron iso = it.next();
 	        if (iso.containsDomClock(domclk) || it.hasNext() == false) 
 	            return iso.domToUTC(domclk);
+	        it.remove();
 	    }
 	    return null;
 	}

@@ -7,10 +7,10 @@ public class LeadingEdgeRAPCal extends AbstractRAPCal
     private final double threshold;
     private static final Logger logger = Logger.getLogger(LeadingEdgeRAPCal.class);
     
-    public LeadingEdgeRAPCal(double threshold)
+    public LeadingEdgeRAPCal()
     {
         super();
-        this.threshold = threshold;
+        threshold = Double.parseDouble(System.getProperty("icecube.daq.rapcal.LeadingEdgeRAPCal.threshold", "100.0"));
     }
     
     /**

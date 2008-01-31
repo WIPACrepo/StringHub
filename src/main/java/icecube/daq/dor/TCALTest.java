@@ -3,16 +3,15 @@
  */
 package icecube.daq.dor;
 
-import java.io.IOException;
+import icecube.daq.rapcal.LeadingEdgeRAPCal;
+import icecube.daq.rapcal.RAPCal;
+import icecube.daq.util.UTC;
+
 import java.util.ArrayList;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-
-import icecube.daq.rapcal.LeadingEdgeRAPCal;
-import icecube.daq.rapcal.RAPCal;
-import icecube.daq.util.UTC;
 
 public class TCALTest
 {
@@ -22,12 +21,12 @@ public class TCALTest
     private Driver driver = Driver.getInstance();
     private RAPCal rapcal;
     
-    private TCALTest(int card, int pair, char dom, double thresh)
+    private TCALTest(int card, int pair, char dom)
     {
         this.card = card;
         this.pair = pair;
         this.dom  = dom;
-        rapcal  = new LeadingEdgeRAPCal(thresh);
+        rapcal  = new LeadingEdgeRAPCal();
     }
 
     private void run(int n) throws Exception
@@ -59,30 +58,21 @@ public class TCALTest
     
     public static void main(String[] args) throws Exception
     {
-        double threshold = 50.0;
         BasicConfigurator.configure();
         Logger.getRootLogger().setLevel(Level.INFO);
         if (args.length < 2)
         {
-            System.err.println("usage - java icecube.daq.dor.TCALTest [opts] [cwd] [# iter]");
+            System.err.println("usage - java icecube.daq.dor.TCALTest <cwd> <# iter>");
             System.exit(1);
         }
         int iarg = 0;
-        while (args[iarg].charAt(0) == '-')
-        {
-            String opt = args[iarg++].substring(1);
-            if (opt.equals("thresh"))
-            {
-                threshold = Double.parseDouble(args[iarg++]);
-            }
-        }
-        
+
         int card = Integer.parseInt(args[iarg].substring(0, 1));
         int pair = Integer.parseInt(args[iarg].substring(1, 2));
         char dom = args[iarg++].substring(2).toUpperCase().charAt(0);
         int nIter = Integer.parseInt(args[iarg++]);
         
-        TCALTest test = new TCALTest(card, pair, dom, threshold);
+        TCALTest test = new TCALTest(card, pair, dom);
         
         test.run(nIter);
     }
