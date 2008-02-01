@@ -129,10 +129,15 @@ public abstract class AbstractRAPCal implements RAPCal
 	
 	public void update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException 
 	{		
+	    if (logger.isDebugEnabled())
+	    {
+	        logger.debug("RAPCal update - history size is " + hist.size());
+	    }
+	    
 	    if (hist.size() > 0)
 	    {
 	        Isochron prev = hist.getLast();
-	        if (hist.size() > MAX_HISTORY)
+	        if (hist.size() > MAX_HISTORY) hist.removeFirst();
 	        hist.add(new Isochron(prev, tcal, gpsOffset));
 	    }
 	    else if (lastTcal != null)
