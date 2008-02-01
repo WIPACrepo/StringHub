@@ -241,9 +241,18 @@ public class CollectorShell
 		    int val = Integer.parseInt(option.substring(6));
 		    config.setDAC(dac, val);
 		}
-		else if (option.equals("debug"))
+		else if (option.startsWith("debug"))
 		{
-			Logger.getRootLogger().setLevel(Level.DEBUG);
+		    int c = option.indexOf(':');
+		    if (c >= 0) 
+		    {
+		        String classname = option.substring(c+1);
+		        Logger.getLogger(classname).setLevel(Level.DEBUG);
+		    }
+		    else
+		    {
+		        Logger.getRootLogger().setLevel(Level.DEBUG);
+		    }
 		}
 		else if (option.equals("info"))
 		{
@@ -348,4 +357,3 @@ public class CollectorShell
 		logger.info("Exit.");
 	}
 }
-
