@@ -78,7 +78,7 @@ public abstract class AbstractRAPCal implements RAPCal
                         " t0: " + t0[0] + ", " + t0[1] + ", " + t0[2] + ", " + t0[3] + "\n" +
                         " t1: " + t1[0] + ", " + t1[1] + ", " + t1[2] + ", " + t1[3] + "\n" +
                         String.format(" Ratio-1: %.4f ppm cable dT: %.1f ns", 
-				      1.0E+06*(ratio - 1.0), 1.0E+09*clen)
+                                1.0E+06*(ratio - 1.0), 1.0E+09*clen)
                         );
             }
         }
@@ -86,7 +86,14 @@ public abstract class AbstractRAPCal implements RAPCal
         UTC domToUTC(long domclk)
         {
             UTC domClockUtc = new UTC(250L*domclk);
-            return UTC.add(gpsOffset, UTC.add(t1[0], ratio*UTC.subtract(domClockUtc, t1[1]) + clenAvg));
+            double dt = UTC.subtract(domClockUtc, t1[1]);
+            if (logger.isDebugEnabled())
+            {
+                long ns = (long) (1.0E+09*dt);
+                logger.debug("Translating DOM time " + domclk + " at distance " + 
+                        ns + " ns from isomark.");
+            }
+            return UTC.add(gpsOffset, UTC.add(t1[0], ratio*dt + clenAvg));
         }
     }
     
