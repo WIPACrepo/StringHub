@@ -260,6 +260,8 @@ public class CollectorShell
 		}
 	}
 	
+	private Logger getLogger() { return logger; }
+	
 	public FlasherboardConfiguration getFlasherConfig()
 	{
 	    return flasherConfig;

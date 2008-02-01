@@ -103,13 +103,14 @@ public abstract class AbstractRAPCal implements RAPCal
     /** Weighted average (exponential) of cable length measurements */
     private double               clenAvg;
     private final double         expWt;
+    private final int            MAX_HISTORY;
 
     private static final Logger  logger = Logger.getLogger(AbstractRAPCal.class);
 	
 
     public AbstractRAPCal()
     {
-        this(0.1);
+        this(Double.parseDouble(System.getProperty("icecube.daq.rapcal.AbstractRAPCal.expWeight", "0.1")));
     }
     
 	/**
@@ -123,6 +124,7 @@ public abstract class AbstractRAPCal implements RAPCal
 		lastTcal = null;
 		clenAvg = Double.NaN;
 		hist = new LinkedList<Isochron>();
+		MAX_HISTORY = Integer.getInteger("icecube.daq.rapcal.AbstractRAPCal.history", 10);
 	}
 	
 	public void update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException 
@@ -130,6 +132,7 @@ public abstract class AbstractRAPCal implements RAPCal
 	    if (hist.size() > 0)
 	    {
 	        Isochron prev = hist.getLast();
+	        if (hist.size() > MAX_HISTORY)
 	        hist.add(new Isochron(prev, tcal, gpsOffset));
 	    }
 	    else if (lastTcal != null)
@@ -181,7 +184,9 @@ public abstract class AbstractRAPCal implements RAPCal
 	        Isochron iso = it.next();
 	        if (iso.containsDomClock(domclk) || it.hasNext() == false) 
 	            return iso.domToUTC(domclk);
-	        it.remove();
+	        // don't remove - i forgot that moni/hit/tcal/sn aren't synch'd so
+	        // not a safe bet to rely on auto-truncate mechanism
+	        // it.remove();
 	    }
 	    return null;
 	}
