@@ -103,7 +103,7 @@ public abstract class AbstractRAPCal implements RAPCal
     private double               clenAvg;
     private final double         expWt;
     private final int            MAX_HISTORY;
-
+    private final int            BASELINE_SAMPLES;
     private static final Logger  logger = Logger.getLogger(AbstractRAPCal.class);
 	
 
@@ -123,6 +123,7 @@ public abstract class AbstractRAPCal implements RAPCal
 		lastTcal = null;
 		clenAvg = Double.NaN;
 		hist = new LinkedList<Isochron>();
+		BASELINE_SAMPLES = 20;
 		MAX_HISTORY = Integer.getInteger("icecube.daq.rapcal.AbstractRAPCal.history", 10);
 	}
 	
@@ -196,5 +197,17 @@ public abstract class AbstractRAPCal implements RAPCal
 	}
 	
 	abstract double getFineTimeCorrection(short[] w) throws RAPCalException;
+	
+	/**
+	 * Provide basic baseline estimator service for derived classes.
+	 * @param w RAPCal waveform
+	 * @return mean baseline computed from head of RAPCal waveform
+	 */
+	protected double getBaseline(short[] w)
+	{
+	    double baseline = 0.0;
+	    for (int i = 0; i < BASELINE_SAMPLES; i++) baseline += w[i];
+	    return baseline / BASELINE_SAMPLES;
+	}
 	
 }
