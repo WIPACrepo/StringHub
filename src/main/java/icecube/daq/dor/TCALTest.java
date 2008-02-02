@@ -42,6 +42,7 @@ public class TCALTest
                     rapcal.cableLength() + " " +
                     rapcal.clockRatio());
             cableLengthList.add(rapcal.cableLength());
+            Thread.sleep(500L);
         }
         double mean = 0.0;
         for (double x : cableLengthList) mean += x;
