@@ -21,12 +21,12 @@ public class TCALTest
     private Driver driver = Driver.getInstance();
     private RAPCal rapcal;
     
-    private TCALTest(int card, int pair, char dom)
+    private TCALTest(int card, int pair, char dom, String classname) throws Exception
     {
         this.card = card;
         this.pair = pair;
         this.dom  = dom;
-        rapcal  = new LeadingEdgeRAPCal();
+        rapcal = (RAPCal) Class.forName(classname).newInstance();
     }
 
     private void run(int n) throws Exception
@@ -60,16 +60,20 @@ public class TCALTest
     {
         BasicConfigurator.configure();
         Logger.getRootLogger().setLevel(Level.INFO);
+        
         if (args.length < 2)
         {
             System.err.println("usage - java icecube.daq.dor.TCALTest <cwd> <# iter>");
             System.exit(1);
         }
+        
         int iarg = 0;
+        String classname = "icecube.daq.rapcal.LeadingEdgeRAPCal";
         while (iarg < args.length && args[iarg].charAt(0) == '-')
         {
             String opt = args[iarg++].substring(1);
             if (opt.equals("debug")) Logger.getRootLogger().setLevel(Level.DEBUG);
+            if (opt.equals("classname")) classname = args[iarg++];
         }
 
         int card = Integer.parseInt(args[iarg].substring(0, 1));
@@ -77,7 +81,7 @@ public class TCALTest
         char dom = args[iarg++].substring(2).toUpperCase().charAt(0);
         int nIter = Integer.parseInt(args[iarg++]);
         
-        TCALTest test = new TCALTest(card, pair, dom);
+        TCALTest test = new TCALTest(card, pair, dom, classname);
         
         test.run(nIter);
     }
