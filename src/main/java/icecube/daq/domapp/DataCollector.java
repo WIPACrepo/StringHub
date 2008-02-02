@@ -13,6 +13,7 @@ import icecube.daq.rapcal.AbstractRAPCal;
 import icecube.daq.rapcal.LeadingEdgeRAPCal;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
+import icecube.daq.rapcal.ZeroCrossingRAPCal;
 import icecube.daq.util.UTC;
 
 import java.io.FileNotFoundException;
@@ -264,7 +265,7 @@ public class DataCollector extends AbstractDataCollector
     {
         this(card, pair, dom, config, 
                 outHits, outMoni, outSupernova, outTcal, Driver.getInstance(),
-                new LeadingEdgeRAPCal(), null);
+                new ZeroCrossingRAPCal(), null);
     }
 
     public DataCollector(int card, int pair, char dom, 
@@ -289,8 +290,6 @@ public class DataCollector extends AbstractDataCollector
         this.driver = driver;
         this.rapcal = rapcal;
         this.app = app;
-        assert this.driver != null;
-        assert this.rapcal != null;
         this.config = config;
         
         logger.debug("DC " + canonicalName() + " hitsSink = " + hitsSink);
