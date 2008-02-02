@@ -25,8 +25,8 @@ public class LeadingEdgeRAPCal extends AbstractRAPCal
     {
         // compute mean of leading samples
         double mean = 0.0;
-        for (int i = 0; i < 10; i++) mean += w[i];
-        mean /= 10.0;
+        for (int i = 0; i < 20; i++) mean += w[i];
+        mean /= 20.0;
         
         // look for edge crossing
         for (int i = 10; i < 47; i++) {

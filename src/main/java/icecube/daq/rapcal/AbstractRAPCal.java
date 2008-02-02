@@ -15,7 +15,6 @@ public abstract class AbstractRAPCal implements RAPCal
         private UTC[] t0, t1;
         private UTC gpsOffset;
         private double ratio;
-        private double clen;
         
         Isochron(TimeCalib tcal0, TimeCalib tcal1, UTC gpsOffset) throws RAPCalException
         {
@@ -60,10 +59,10 @@ public abstract class AbstractRAPCal implements RAPCal
             double dor_dt = UTC.subtract(t1[0], t0[0]);
             double dom_dt = UTC.subtract(t1[1], t0[1]);
             ratio = dor_dt / dom_dt;
-            clen  = 0.5 * (UTC.subtract(t1[3], t1[0]) - ratio * UTC.subtract(t1[2], t1[1]));
+            double clen  = 0.5 * (UTC.subtract(t1[3], t1[0]) - ratio * UTC.subtract(t1[2], t1[1]));
             if (Double.isNaN(clenAvg))
                 clenAvg = clen;
-            else if (Math.abs(clenAvg - clen) < 100.0E-09)
+            else if (Math.abs(clenAvg - clen) < 25.0E-09)
             {
                 clenAvg = (clenAvg + expWt * clen) / (1.0 + expWt);
             }
