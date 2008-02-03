@@ -6,6 +6,9 @@ package icecube.daq;
 import static org.junit.Assert.*;
 import icecube.daq.util.FlasherboardConfiguration;
 
+import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -17,6 +20,11 @@ public class CollectorShellTest
 {
 
     CollectorShell shell;
+    
+    public CollectorShellTest()
+    {
+        BasicConfigurator.configure();
+    }
     
     /**
      * @throws java.lang.Exception
@@ -51,6 +59,14 @@ public class CollectorShellTest
         shell.parseOption("dac14=395");
         assertEquals((short) 1588, shell.getConfig().getDAC(3));
         assertEquals((short) 395,  shell.getConfig().getDAC(14));
+    }
+    
+    @Test
+    public void testParseOptionDebug() throws Exception
+    {
+        Logger logger = Logger.getLogger("icecube.daq.rapcal.AbstractRAPCal");
+        shell.parseOption("debug:icecube.daq.rapcal.AbstractRAPCal");
+        assertTrue(logger.getLevel().equals(Level.DEBUG));
     }
 
 }
