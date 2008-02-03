@@ -15,6 +15,7 @@ public abstract class AbstractRAPCal implements RAPCal
         private UTC[] t0, t1;
         private UTC gpsOffset;
         private double ratio;
+        private double epsilon;
         
         Isochron(TimeCalib tcal0, TimeCalib tcal1, UTC gpsOffset) throws RAPCalException
         {
@@ -56,10 +57,11 @@ public abstract class AbstractRAPCal implements RAPCal
         
         private void proc()
         {
-            double dor_dt = UTC.subtract(t1[0], t0[0]);
-            double dom_dt = UTC.subtract(t1[1], t0[1]);
-            ratio = dor_dt / dom_dt;
-            double clen  = 0.5 * (UTC.subtract(t1[3], t1[0]) - ratio * UTC.subtract(t1[2], t1[1]));
+            long dor_dt = UTC.add(t1[0], t1[3]).subtractAsUTC(UTC.add(t0[0], t0[3])).in_0_1ns() / 2L;
+            long dom_dt = UTC.add(t1[1], t1[2]).subtractAsUTC(UTC.add(t0[1], t0[2])).in_0_1ns() / 2L;
+            epsilon = (double) (dor_dt - dom_dt) / dom_dt;
+            // Note that using double precision here but DOM internal delay is small number so OK
+            double clen  = 0.5 * (UTC.subtract(t1[3], t1[0]) - (1.0+epsilon) * UTC.subtract(t1[2], t1[1]));
             if (Double.isNaN(clenAvg))
                 clenAvg = clen;
             else if (Math.abs(clenAvg - clen) < 25.0E-09)
@@ -76,23 +78,25 @@ public abstract class AbstractRAPCal implements RAPCal
                 logger.debug("\n" + 
                         " t0: " + t0[0] + ", " + t0[1] + ", " + t0[2] + ", " + t0[3] + "\n" +
                         " t1: " + t1[0] + ", " + t1[1] + ", " + t1[2] + ", " + t1[3] + "\n" +
-                        String.format(" Ratio-1: %.4f ppm cable dT: %.1f ns", 
-                                1.0E+06*(ratio - 1.0), 1.0E+09*clen)
+                        String.format(" Epsilon: %.3f ppb cable dT: %.1f ns", 
+                                1.0E+09*epsilon, 1.0E+09*clen)
                         );
             }
         }
         
         UTC domToUTC(long domclk)
         {
-            UTC domClockUtc = new UTC(250L*domclk);
-            double dt = UTC.subtract(domClockUtc, t1[1]);
+            long domMid = UTC.add(t1[1], t1[2]).in_0_1ns() / 2L;
+            long dorMid = UTC.add(t1[0], t1[3]).in_0_1ns() / 2L;
+            // Correct for DOM frequency variation
+            domMid += (long) (epsilon*domMid);
+            long dt = 250L*domclk - domMid; 
             if (logger.isDebugEnabled())
             {
-                long ns = (long) (1.0E+09*dt);
                 logger.debug("Translating DOM time " + domclk + " at distance " + 
-                        ns + " ns from isomark.");
+                        dt / 10L + " ns from isomark.");
             }
-            return UTC.add(gpsOffset, UTC.add(t1[0], ratio*dt + clenAvg));
+            return UTC.add(gpsOffset, new UTC(dorMid + dt));
         }
     }
     

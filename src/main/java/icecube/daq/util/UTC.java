@@ -16,6 +16,11 @@ public class UTC implements Comparable<UTC> {
 		tick10 = 0L;
 	}
 	
+	public UTC(UTC utc)
+	{
+	    tick10 = utc.tick10;
+	}
+	
 	/**
 	 * If you have the time in 0.1 ns units - you can
 	 * construct the UTC object.
@@ -37,6 +42,24 @@ public class UTC implements Comparable<UTC> {
 		return tick10;
 	}
 	
+	public UTC subtractAsUTC(UTC utc)
+	{
+	    tick10 -= utc.tick10;
+	    return this;
+	}
+	
+	public UTC add(UTC utc)
+	{
+	    tick10 += utc.tick10;
+	    return this;
+	}
+	
+	public UTC add(long utc)
+	{
+	    tick10 += utc;
+	    return this;
+	}
+	
 	/**
 	 * Return the difference time in seconds between two UTCs (this - other)
 	 * @param utc - the other UTC
@@ -44,6 +67,10 @@ public class UTC implements Comparable<UTC> {
 	 */
 	public static double subtract(UTC utc1, UTC utc0) {
 		return 1.0e-10 * (utc1.tick10 - utc0.tick10);
+	}
+	
+	public static UTC subtractAsUTC(UTC utc1, UTC utc0) {
+	    return new UTC(utc1.tick10 - utc0.tick10);
 	}
 	
 	public static UTC add(UTC utc, double t) {
