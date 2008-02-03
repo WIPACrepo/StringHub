@@ -225,7 +225,7 @@ public class DataCollector extends AbstractDataCollector
             Element b = blist.getFirst();
             if (a.compareTo(b) < 0)
             {
-                if (!(waitForRAPCal && rapcal.ready(a.domClock)))
+                if (!waitForRAPCal || rapcal.ready(a.domClock))
                 {
                     return popA();
                 }
@@ -235,7 +235,7 @@ public class DataCollector extends AbstractDataCollector
                     return null;
                 }
             }
-            else if (!(waitForRAPCal && rapcal.ready(b.domClock)))
+            else if (!waitForRAPCal && rapcal.ready(b.domClock))
             {
                 return popB();
             }
