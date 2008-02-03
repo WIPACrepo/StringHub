@@ -32,4 +32,9 @@ class MockRAPCal
     {
         // do nothing
     }
+    
+    public boolean ready(long clk)
+    {
+        return true;
+    }
 }

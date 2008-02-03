@@ -151,6 +151,15 @@ public abstract class AbstractRAPCal implements RAPCal
         lastTcal = tcal;
 	}   
 	
+	public boolean ready(long domclk)
+	{
+	    final UTC domclkUtc = new UTC(250L * domclk);
+	    if (hist.isEmpty()) return false;
+        Isochron iso = hist.getLast();
+        if (iso.t1[2].compareTo(domclkUtc) >= 0) return true;
+	    return false;
+	}
+	
 	public double cableLength() { return clenAvg; }
 
 	/**

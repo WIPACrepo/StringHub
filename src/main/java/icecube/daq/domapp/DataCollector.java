@@ -140,11 +140,16 @@ public class DataCollector extends AbstractDataCollector
     private long                nextSupernovaDomClock;
     private HitBufferAB         abBuffer;
     private int                 numSupernovaGaps;
+    private final boolean       waitForRAPCal = Boolean.getBoolean(
+            "icecube.daq.domapp.datacollector.waitForRAPCal");
     
     /**
      * A helper class to deal with the now-less-than-trivial
      * hit buffering which circumvents the hit out-of-order
      * issues.
+     * 
+     * Also Feb-2008 added ability to buffer hits waiting for RAPCal
+     * 
      * @author kael
      *
      */
@@ -177,19 +182,11 @@ public class DataCollector extends AbstractDataCollector
         }
         
         private LinkedList<Element> alist, blist; 
-        /** 
-         * 'Head' elements for A/B to improve performance by
-         * relegating the costly LinkedList accesses to those
-         * rare cases when you need them.
-         */
-        private Element ahead, bhead;
         
         HitBufferAB()
         {
             alist = new LinkedList<Element>();
             blist = new LinkedList<Element>();
-            ahead = null;
-            bhead = null;
         }
         
         void pushA(int recl, int fmtid, long domClock, ByteBuffer buf)
@@ -198,11 +195,7 @@ public class DataCollector extends AbstractDataCollector
             if (logger.isDebugEnabled())
                 logger.debug("Pushed element into A buffer: domClock = " + domClock + " # A = " 
                         + alist.size() + " # B = " + blist.size());
-            // If head element occupied then push to end of list - else put onto head
-            if (ahead != null) 
-                alist.addLast(e);
-            else
-                ahead = e;
+            alist.addLast(e);
         }
         
         void pushB(int recl, int fmtid, long domClock, ByteBuffer buf)
@@ -212,35 +205,42 @@ public class DataCollector extends AbstractDataCollector
                 logger.debug("Pushed element into B buffer: domClock = " + domClock + " # A = " 
                         + alist.size() + " # B = " + blist.size());
             // If head element occupied then push to end of list - else put onto head
-            if (bhead != null) 
-                blist.addLast(e);
-            else
-                bhead = e;
+            blist.addLast(e);
         }
         
         private Element popA()
         {
-           Element x = ahead;
-           ahead = null;
-           if (!alist.isEmpty()) ahead = alist.removeFirst();
-           return x;
+            return alist.removeFirst();
         }
         
         private Element popB()
         {
-            Element x = bhead;
-            bhead = null;
-            if (!blist.isEmpty()) bhead = blist.removeFirst();
-            return x;
+            return blist.removeFirst();
         }
         
         Element pop()
         {
-            if (ahead == null || bhead == null) return null;
-            if (ahead.compareTo(bhead) < 0)
-                return popA();
-            else
+            if (alist.isEmpty() || blist.isEmpty()) return null;
+            Element a = alist.getFirst();
+            Element b = blist.getFirst();
+            if (a.compareTo(b) < 0)
+            {
+                if (!(waitForRAPCal && rapcal.ready(a.domClock)))
+                {
+                    return popA();
+                }
+                else
+                {
+                    if (logger.isDebugEnabled()) logger.debug("Holding back A hit at " + a.domClock);
+                    return null;
+                }
+            }
+            else if (!(waitForRAPCal && rapcal.ready(b.domClock)))
+            {
                 return popB();
+            }
+            if (logger.isDebugEnabled()) logger.debug("Holding back B hit at " + b.domClock);
+            return null;
         }
     }
     
