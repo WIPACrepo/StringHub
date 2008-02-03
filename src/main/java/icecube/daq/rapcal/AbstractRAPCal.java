@@ -88,9 +88,9 @@ public abstract class AbstractRAPCal implements RAPCal
         {
             long domMid = UTC.add(t1[1], t1[2]).in_0_1ns() / 2L;
             long dorMid = UTC.add(t1[0], t1[3]).in_0_1ns() / 2L;
+            long dt = 250L*domclk - domMid;
             // Correct for DOM frequency variation
-            domMid += (long) (epsilon*domMid);
-            long dt = 250L*domclk - domMid; 
+            dt += (long) (epsilon * dt);
             if (logger.isDebugEnabled())
             {
                 logger.debug("Translating DOM time " + domclk + " at distance " + 
