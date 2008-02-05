@@ -339,7 +339,7 @@ public class CollectorShell
         else
         {
     		csh.collector = new DataCollector(card, pair, dom, csh.config, 
-    		        hitsChannel, moniChannel, tcalChannel, snChannel);
+    		        hitsChannel, moniChannel, snChannel, tcalChannel);
         }
         
 		csh.collector.signalConfigure();
