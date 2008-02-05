@@ -225,7 +225,7 @@ public class DataCollector extends AbstractDataCollector
             Element b = blist.getFirst();
             if (a.compareTo(b) < 0)
             {
-                if (!waitForRAPCal || rapcal.ready(a.domClock))
+                if (!waitForRAPCal || rapcal.laterThan(a.domClock))
                 {
                     return popA();
                 }
@@ -235,7 +235,7 @@ public class DataCollector extends AbstractDataCollector
                     return null;
                 }
             }
-            else if (!waitForRAPCal && rapcal.ready(b.domClock))
+            else if (!waitForRAPCal || rapcal.laterThan(b.domClock))
             {
                 return popB();
             }
@@ -265,7 +265,7 @@ public class DataCollector extends AbstractDataCollector
     {
         this(card, pair, dom, config, 
                 outHits, outMoni, outSupernova, outTcal, Driver.getInstance(),
-                new ZeroCrossingRAPCal(), null);
+                null, null);
     }
 
     public DataCollector(int card, int pair, char dom, 
@@ -288,7 +288,27 @@ public class DataCollector extends AbstractDataCollector
         this.tcalSink = outTcal;
         this.supernovaSink = outSupernova;
         this.driver = driver;
-        this.rapcal = rapcal;
+        if (rapcal != null)
+        {
+            this.rapcal = rapcal;
+        }
+        else
+        {
+            String rapcalClass = System.getProperty(
+                    "icecube.daq.domapp.datacollector.rapcal",
+                    "icecube.daq.rapcal.ZeroCrossingRAPCal"
+                    );
+            try
+            {
+                this.rapcal = (RAPCal) Class.forName(rapcalClass).newInstance();
+            }
+            catch (Exception ex)
+            {
+                logger.warn("Unable to load / instantiate RAPCal class " +
+                        rapcalClass + ".  Loading ZeroCrossingRAPCal instead.");
+                this.rapcal = new ZeroCrossingRAPCal();
+            }
+        }
         this.app = app;
         this.config = config;
         

@@ -151,7 +151,14 @@ public abstract class AbstractRAPCal implements RAPCal
         lastTcal = tcal;
 	}   
 	
-	public boolean ready(long domclk)
+	/**
+	 * Ask if RAPCal data is available later in time than the DOM clock 
+	 * value provided.  This information may be used to make an informed 
+	 * decision about whether or not to perform a RAPCal in the present 
+	 * or perhaps to hold the data until the RAPCal state is updated so
+	 * that extrapolation into the future is not required.  
+	 */
+	public boolean laterThan(long domclk)
 	{
 	    final UTC domclkUtc = new UTC(250L * domclk);
 	    if (hist.isEmpty()) return false;
@@ -189,7 +196,20 @@ public abstract class AbstractRAPCal implements RAPCal
 	 * @return UTC global time or null if the transformation could not be applied.
 	 * 
 	 */
-	public UTC domToUTC(long domclk) 
+	public UTC domToUTC(long domclk)
+	{
+	    return domToUTC(domclk, domclk);
+	}
+	
+	/**
+	 * Same as @see domToUTC but use another clock for lookup purposes 
+	 * (mainly for debugging, I guess).
+	 * 
+	 * @param domclk - the clock you want to transform
+	 * @param atclk - the clock which should be used to search out the RAPCal
+	 * @return globally-translated time in UTC units.
+	 */
+	public UTC domToUTC(long domclk, long atclk) 
 	{
 	    /*
 	     * Iterate thru list until you find (A) bracketing Isochron, or (B) end of list.
@@ -200,7 +220,7 @@ public abstract class AbstractRAPCal implements RAPCal
 	    while (it.hasNext())
 	    {
 	        Isochron iso = it.next();
-	        if (iso.containsDomClock(domclk) || it.hasNext() == false) 
+	        if (iso.containsDomClock(atclk) || it.hasNext() == false) 
 	            return iso.domToUTC(domclk);
 	        // don't remove - i forgot that moni/hit/tcal/sn aren't synch'd so
 	        // not a safe bet to rely on auto-truncate mechanism

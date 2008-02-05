@@ -60,6 +60,14 @@ public class QuadFitLE extends AbstractRAPCal
         final double C = a;
         final double A = 0.5*(c + a - 2.0*b);
         final double B = b - a - A;
+        if (A == 0.0)
+        {
+            if (logger.isDebugEnabled())
+            {
+                logger.debug("Linear - B: " + B + ", C: " + C);
+            }
+            return (threshold - C) / B;
+        }
         final double discriminant = B*B - 4.0*A*(C-threshold);
         final double rd = Math.sqrt(discriminant);
         final double r1 = -(B + rd) / (2.0*A);

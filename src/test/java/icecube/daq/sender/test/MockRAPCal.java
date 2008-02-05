@@ -33,7 +33,7 @@ class MockRAPCal
         // do nothing
     }
     
-    public boolean ready(long clk)
+    public boolean laterThan(long clk)
     {
         return true;
     }

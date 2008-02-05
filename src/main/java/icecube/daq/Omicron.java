@@ -34,18 +34,28 @@ public class Omicron {
 		
 		while (index < args.length)
 		{
-			String arg = args[index];
-			if (arg.charAt(0) != '-') break;
-			switch (arg.charAt(1))
+			String opt = args[index];
+			String arg = null;
+			if (opt.charAt(0) != '-') break;
+			index += 1;
+			switch (opt.charAt(1))
 			{
+			
 			case 't': // run time setting
-				runLength = Float.parseFloat(arg.substring(2));
+			    if (opt.length() == 2)
+			        arg = args[index++];
+			    else
+			        arg = opt.substring(2);
+				runLength = Float.parseFloat(arg);
 				break;
 			case 'P': // properties file specifier
-				pathToProps = arg.substring(2);
+			    if (opt.length() == 2)
+			        arg = args[index++];
+			    else
+			        arg = opt.substring(2);
+				pathToProps = arg;
 				break;
 			}
-			index++;
 		}
 
 		if (args.length - index < 2)

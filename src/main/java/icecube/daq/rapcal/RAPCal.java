@@ -15,7 +15,7 @@ public interface RAPCal {
 	 * @param domclk
 	 * @return
 	 */
-	public boolean ready(long domclk);
+	public boolean laterThan(long domclk);
 	
 	public UTC domToUTC(long domclk);
 	
