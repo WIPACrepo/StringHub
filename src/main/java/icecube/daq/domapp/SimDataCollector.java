@@ -45,6 +45,7 @@ public class SimDataCollector extends AbstractDataCollector
     private long   numHits;
     private long   loopCounter;
     private double pulserRate = 1.0;
+    private volatile long runStartUT = 0L;
 
     private Thread thread;
 
@@ -176,6 +177,7 @@ public class SimDataCollector extends AbstractDataCollector
                 case STARTING:
                     // go to start run
                     Thread.sleep(20);
+                    storeRunStartTime();
                     setRunLevel(RunLevel.RUNNING);
                     long t = System.currentTimeMillis();
                     lastGenHit = t;
@@ -187,6 +189,7 @@ public class SimDataCollector extends AbstractDataCollector
                 case STARTING_SUBRUN:
                     // go to start run
                     Thread.sleep(20);
+                    storeRunStartTime();
                     setRunLevel(RunLevel.RUNNING);
                 case RUNNING:
                     long currTime = System.currentTimeMillis();
@@ -219,6 +222,16 @@ public class SimDataCollector extends AbstractDataCollector
             logger.error(iox.getMessage());
             return;
         }
+    }
+
+    public long getRunStartTime()
+    {
+        return runStartUT;
+    }
+
+    private void storeRunStartTime()
+    {
+        runStartUT =  (System.currentTimeMillis() - t0) * 10000000L;
     }
 
     private int generateTCal(long currTime) throws IOException
