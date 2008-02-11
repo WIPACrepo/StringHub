@@ -31,7 +31,6 @@ public class StreamBinder extends Thread
     private volatile long       inputCounter;
     private volatile long       outputCounter;
     private volatile UTC        lastUT;
-    private final static long   prescale = Long.getLong("icecube.daq.bindery.StreamBinder.prescale", 1L);
 
     static
     {
@@ -145,7 +144,7 @@ public class StreamBinder extends Thread
                         if (logger.isDebugEnabled())
                             logger.debug(getName() + "sending buffer to sender RECL = " + buf.getInt(0)
                                     + " - TYPE = " + buf.getInt(4) + " - UTC = " + currentUT.toString());
-                        if (buf.getInt(0) == 32 && buf.getLong(8) == 0L && 
+                        if (buf.getInt(0) == 32 && buf.getLong(8) == 0L &&
                                 buf.getLong(24) == Long.MAX_VALUE)
                         {
                             // Saw the EOS token
@@ -165,7 +164,7 @@ public class StreamBinder extends Thread
                 break;
             }
         }
-        
+
         logger.info("Binder processing thread exiting.");
 
         try
@@ -183,7 +182,7 @@ public class StreamBinder extends Thread
     /**
      * This static method will return the end-of-stream token (a special 32-byte
      * ByteBuffer).
-     * 
+     *
      * @return
      */
     public static ByteBuffer endOfStream()
@@ -220,9 +219,9 @@ public class StreamBinder extends Thread
     /**
      * Class for handling DAQ records. Reads a record from a supplied byte
      * channel and stuffs the complete record into the Node.
-     * 
+     *
      * @author krokodil
-     * 
+     *
      */
     class StreamInputNode
     {
@@ -245,7 +244,7 @@ public class StreamBinder extends Thread
          * This method reads bytes from the input channel. It will push into the
          * associated node the byte buffer holding a complete record if such is
          * available.
-         * 
+         *
          * @param ch -
          *            input channel
          * @throws IOException
@@ -282,7 +281,7 @@ public class StreamBinder extends Thread
 class DAQRecordComparator implements Comparator<DAQRecord>
 {
     static final DAQRecordComparator instance = new DAQRecordComparator();
-    
+
     public int compare(DAQRecord o1, DAQRecord o2)
     {
         UTC t1 = o1.time();

@@ -10,7 +10,6 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
-import java.util.Date;
 import java.util.GregorianCalendar;
 
 import org.apache.log4j.Logger;
@@ -49,7 +48,7 @@ public class SimDataCollector extends AbstractDataCollector
 
     private Thread thread;
 
-    private final static Logger logger = Logger.getLogger(SimDataCollector.class);
+    private static final Logger logger = Logger.getLogger(SimDataCollector.class);
 
     public SimDataCollector(DOMChannelInfo chanInfo, WritableByteChannel hitsOut)
     {
@@ -236,7 +235,7 @@ public class SimDataCollector extends AbstractDataCollector
 
     private int generateTCal(long currTime) throws IOException
     {
-        final short tcalWf[] = new short[] {
+        final short[] tcalWf = new short[] {
             501, 500, 503, 505, 499, 499, 505, 500,
             501, 500, 500, 502, 500, 500, 503, 499,
             500, 499, 497, 499, 500, 500, 501, 500,

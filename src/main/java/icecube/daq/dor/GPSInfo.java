@@ -13,8 +13,8 @@ public class GPSInfo {
 	private long dorclk;
 	private UTC offset;
 	private ByteBuffer record;
-	private final static Logger logger = Logger.getLogger(GPSInfo.class);
-	
+	private static final Logger logger = Logger.getLogger(GPSInfo.class);
+
 	public GPSInfo(ByteBuffer buf) {
 		buf.mark();
 		byte[] timestringbytes = new byte[12];
@@ -44,20 +44,20 @@ public class GPSInfo {
 		record.flip();
 		buf.limit(limit);
 	}
-	
+
 	public int getQuality() { return quality; }
-	
+
 	public UTC getOffset() { return offset; }
-	
+
 	/**
-	 * This method returns a read-only view of the 
+	 * This method returns a read-only view of the
 	 * underlying 22-byte GPS record.
 	 * @return readonly ByteBuffer
 	 */
 	public ByteBuffer getBuffer() { return record.asReadOnlyBuffer(); }
-	
+
 	public String toString() {
 		return timestring + " : Quality = " + quality + "  : " + offset;
 	}
-	
+
 }

@@ -2,10 +2,10 @@ package icecube.daq.domapp;
 
 import java.nio.ByteBuffer;
 
-public class AsciiMonitorRecord extends MonitorRecord 
+public class AsciiMonitorRecord extends MonitorRecord
 {
 	private String text;
-	
+
 	public AsciiMonitorRecord(ByteBuffer buf)
 	{
 		// call the superclass constructor to handle clock &c.
@@ -18,6 +18,6 @@ public class AsciiMonitorRecord extends MonitorRecord
 		text = new String(str);
 		record.rewind();
 	}
-	
+
 	public String toString() { return text; }
 }

@@ -11,7 +11,7 @@ import org.apache.log4j.Logger;
  * @author krokodil
  *
  */
-public class TestShell 
+public class TestShell
 {
 
 	public static void main(String[] args) throws Exception
@@ -31,14 +31,14 @@ public class TestShell
 
 		StringHubComponent comp = new StringHubComponent(hubId);
 		int iarg = 0;
-		
+
 		comp.setGlobalConfigurationDir(args[iarg++]);
         comp.configuring(args[iarg++]);
         comp.starting();
         Thread.sleep(5000);
         comp.stopping();
-        
+
 	}
 
-	
+
 }

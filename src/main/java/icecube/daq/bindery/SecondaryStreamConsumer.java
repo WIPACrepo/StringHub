@@ -4,15 +4,12 @@ package icecube.daq.bindery;
 import icecube.daq.io.PayloadDestinationOutputEngine;
 import icecube.daq.io.PayloadTransmitChannel;
 import icecube.daq.payload.IByteBufferCache;
-import icecube.daq.payload.MasterPayloadFactory;
-import icecube.daq.payload.PayloadDestination;
 import icecube.daq.payload.impl.SourceID4B;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.HashMap;
-import java.util.Iterator;
 
 import org.apache.log4j.Logger;
 
@@ -21,7 +18,7 @@ import org.apache.log4j.Logger;
  * @author krokodil
  *
  */
-public class SecondaryStreamConsumer implements BufferConsumer 
+public class SecondaryStreamConsumer implements BufferConsumer
 {
     private HashMap<Integer, Integer> idMap     = new HashMap<Integer, Integer>();
     private PayloadTransmitChannel outputChannel= null;
@@ -29,7 +26,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
     private IByteBufferCache cacheMgr           = null;
     private static final Logger logger          = Logger.getLogger(SecondaryStreamConsumer.class);
     private WritableByteChannel dbgChan = null;
-    
+
 	public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, PayloadDestinationOutputEngine outputEngine)
     {
         this.outputEngine = outputEngine;
@@ -41,20 +38,20 @@ public class SecondaryStreamConsumer implements BufferConsumer
 	}
 
 	public void setDebugChannel(WritableByteChannel ch) { dbgChan = ch; }
-    
+
 	/**
 	 * We are assuming that this consumes buffers which adhaere to
 	 * the TestDAQ standard 32-byte 'iiq8xq' header.
 	 */
-	public void consume(ByteBuffer buf) throws IOException 
+	public void consume(ByteBuffer buf) throws IOException
 	{
 		int recl  = buf.getInt();
 		int	fmtid = buf.getInt();
-		long mbid = buf.getLong(); 
+		long mbid = buf.getLong();
 		buf.position(buf.position() + 8);
 		long utc  = buf.getLong();
 
-        if (recl == 32 && mbid == 0L) 
+        if (recl == 32 && mbid == 0L)
         {
             logger.info("Stopping payload destinations");
 /*            ByteBuffer stopSignal = cacheMgr.acquireBuffer(4);
@@ -81,7 +78,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
             payloadBuffer.putLong(mbid);
             payloadBuffer.put(buf);
             payloadBuffer.flip();
-            if (dbgChan != null) 
+            if (dbgChan != null)
             {
                 dbgChan.write(payloadBuffer);
                 payloadBuffer.rewind();

@@ -5,7 +5,6 @@ package icecube.daq.stringhub;
 import org.apache.log4j.Logger;
 import icecube.daq.domapp.AbstractDataCollector;
 import icecube.daq.domapp.RunLevel;
-import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQConnector;
 
 import java.util.ArrayList;
@@ -83,7 +82,7 @@ public class DOMConnector
 
 		for (AbstractDataCollector dc : collectors) {
 			while (!dc.getRunLevel().equals(RunLevel.CONFIGURED) &&
-				   !dc.getRunLevel().equals(RunLevel.ZOMBIE)) 
+				   !dc.getRunLevel().equals(RunLevel.ZOMBIE))
 			{
 				Thread.sleep(50);
 			}
@@ -118,10 +117,10 @@ public class DOMConnector
 	 */
 	public boolean isRunning()
 	{
-		for (AbstractDataCollector dc : collectors) 
+		for (AbstractDataCollector dc : collectors)
 		{
 			if (!dc.getRunLevel().equals(RunLevel.RUNNING) &&
-				!dc.getRunLevel().equals(RunLevel.ZOMBIE)) 
+				!dc.getRunLevel().equals(RunLevel.ZOMBIE))
 			{
 				return false;
 			}
@@ -137,10 +136,10 @@ public class DOMConnector
 	 */
 	public boolean isStopped()
 	{
-		for (AbstractDataCollector dc : collectors) 
+		for (AbstractDataCollector dc : collectors)
 		{
 			if (!dc.getRunLevel().equals(RunLevel.CONFIGURED) &&
-				!dc.getRunLevel().equals(RunLevel.ZOMBIE)) 
+				!dc.getRunLevel().equals(RunLevel.ZOMBIE))
 			{
 				return false;
 			}
@@ -167,7 +166,7 @@ public class DOMConnector
 	public void startProcessing()
 		throws Exception
 	{
-		for (AbstractDataCollector dc : collectors) 
+		for (AbstractDataCollector dc : collectors)
 		{
 			if (!dc.getRunLevel().equals(RunLevel.ZOMBIE))
 				dc.signalStartRun();

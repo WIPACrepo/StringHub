@@ -1,7 +1,7 @@
 package icecube.daq.domapp;
 
 public enum MessageType {
-	
+
 	GET_DOM_ID(1, 10),
 	GET_DOMAPP_RELEASE(1, 24),
 	WRITE_DAC(2, 13),
@@ -52,20 +52,20 @@ public enum MessageType {
 	COLLECT_PEDESTALS(4, 16),
 	BEGIN_FB_RUN(4, 27),
 	END_FB_RUN(4, 28);
-	
+
 	private byte facility;
 	private byte subtype;
-	
+
 	MessageType(int facility, int subtype) {
 		this.facility = (byte) facility;
 		this.subtype  = (byte) subtype;
 	}
-	
+
 	public byte getFacility() { return facility; }
 	public byte getSubtype() { return subtype; }
 	public boolean equals(byte type, byte subtype)
 	{
 	    return this.facility == type && this.subtype == subtype;
 	}
-	
+
 }

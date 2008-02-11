@@ -12,10 +12,10 @@ import org.dom4j.DocumentException;
 import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
 
-public class SimConfig 
+public class SimConfig
 {
 	private Document doc;
-	
+
 	public static SimConfig parseXML(InputStream inputStream) throws DocumentException
 	{
 		SimConfig simConfig = new SimConfig();
@@ -23,7 +23,7 @@ public class SimConfig
 		simConfig.doc = saxRead.read(inputStream);
 		return simConfig;
 	}
-	
+
 	public List<DOMChannelInfo> getActiveDOMs()
 	{
 		ArrayList<DOMChannelInfo> doms = new ArrayList<DOMChannelInfo>(60);
@@ -36,12 +36,12 @@ public class SimConfig
 			int card = Integer.parseInt(domSim.element("card").getTextTrim());
 			int pair = Integer.parseInt(domSim.element("pair").getTextTrim());
 			char dom = domSim.element("dom").getTextTrim().charAt(0);
-			
+
 			doms.add( new DOMChannelInfo(mbid, card, pair, dom) );
 		}
 		return doms;
 	}
-	
+
 	public double getNoiseRate(String mbid)
 	{
 		Element noise = (Element) doc.selectSingleNode("simulation/activeDOMs/simDOM[@mbid='" + mbid + "']/noiseRate");

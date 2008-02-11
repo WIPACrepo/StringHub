@@ -7,7 +7,6 @@ public class MonitorRecordFactory {
 	public static MonitorRecord createFromBuffer(ByteBuffer buf)
 	{
 		int pos  = buf.position();
-		int recl = buf.getShort(pos);
 		int mrid = buf.getShort(pos+2);
 		switch (mrid)
 		{

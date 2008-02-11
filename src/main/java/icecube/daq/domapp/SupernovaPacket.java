@@ -2,16 +2,16 @@ package icecube.daq.domapp;
 
 import java.nio.ByteBuffer;
 
-public class SupernovaPacket 
+public final class SupernovaPacket
 {
 	private int recl;
 	private int fmtid;
 	private long domClock;
 	private byte[] counters;
 	private ByteBuffer buffer;
-	
+
 	private SupernovaPacket() { }
-	
+
 	public static SupernovaPacket createFromBuffer(ByteBuffer buf)
 	{
 		int limit = buf.limit();
@@ -32,20 +32,20 @@ public class SupernovaPacket
 		buf.limit(limit);
 		return sn;
 	}
-	
+
 	/**
 	 * Get the DOM clock.
 	 * @return the DOM clock at the left edge of the first bin
 	 * in the array of scalers.
 	 */
 	public long getClock() { return domClock; }
-	
+
 	/**
 	 * Get the record length.
 	 * @return the record length in bytes.
 	 */
 	public int getLength() { return recl; }
-	
+
 	/**
 	 * Get direct access to the array of SN scalers for this record.
 	 * @return byte array of SN scalers - each in range [0:15] where

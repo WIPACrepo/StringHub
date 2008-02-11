@@ -7,12 +7,12 @@ import icecube.daq.juggler.component.DAQCompServer;
  * @author krokodil
  *
  */
-public class Shell 
+public class Shell
 {
 
 	public static void main(String[] args) throws Exception
 	{
-		
+
 		int hubId = 0;
 		try
 		{
@@ -25,7 +25,7 @@ public class Shell
 		}
 
 		new DAQCompServer( new StringHubComponent(hubId), args );
-        
+
 	}
-	
+
 }

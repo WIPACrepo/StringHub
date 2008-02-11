@@ -30,7 +30,7 @@ public interface DataCollectorMonitorMBean
 	 * Get the run state
 	 */
 	String[] getRunLevel();
-	
+
 	/**
 	 * Get the current acquisition loop count
 	 */

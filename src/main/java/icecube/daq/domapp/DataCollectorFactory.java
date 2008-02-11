@@ -33,7 +33,7 @@ public class DataCollectorFactory
      * @throws IOException if there was a problem initializing I/O
      * @throws MessageException if DataCollector could not be created
      */
-    public AbstractDataCollector create(DOMChannelInfo chInfo, 
+    public AbstractDataCollector create(DOMChannelInfo chInfo,
                                 WritableByteChannel chan)
         throws IOException, MessageException
     {
@@ -57,13 +57,13 @@ public class DataCollectorFactory
 
     public AbstractDataCollector create(DOMChannelInfo chInfo, WritableByteChannel hitChannel,
     		WritableByteChannel moniChannel, WritableByteChannel snChannel,
-    		WritableByteChannel tcalChannel) 
+    		WritableByteChannel tcalChannel)
     throws IOException, MessageException
 	{
     	// TODO not currently supported.
     	return null;
 	}
-    
+
     /**
      * Reset the factory.
      */

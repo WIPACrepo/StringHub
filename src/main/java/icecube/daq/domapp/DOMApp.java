@@ -17,7 +17,7 @@ public class DOMApp implements IDOMApp
 
     /**
      * Create a new DOMApp connection object for DOR channel provided
-     * 
+     *
      * @param ch -
      *            DOR channel serial # - for 'standard' DOR = 8*card + 2*pair +
      *            dom
@@ -44,7 +44,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#beginRun()
      */
     public void beginRun() throws MessageException
@@ -61,7 +61,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#disableHV()
      */
     public void disableHV() throws MessageException
@@ -71,7 +71,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#disableSupernova()
      */
     public void disableSupernova() throws MessageException
@@ -81,7 +81,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#enableHV()
      */
     public void enableHV() throws MessageException
@@ -91,7 +91,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#enableSupernova(int, boolean)
      */
     public void enableSupernova(int deadtime, boolean speDisc) throws MessageException
@@ -105,7 +105,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#endRun()
      */
     public void endRun() throws MessageException
@@ -115,7 +115,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#getData()
      */
     public ByteBuffer getData() throws MessageException
@@ -179,7 +179,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#getMainboardID()
      */
     public String getMainboardID() throws MessageException
@@ -193,7 +193,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#getMoni()
      */
     public ByteBuffer getMoni() throws MessageException
@@ -216,13 +216,13 @@ public class DOMApp implements IDOMApp
         case 5: return MuxState.LOWER_LC;
         case 6: return MuxState.COMM_ADC_INPUT;
         case 7: return MuxState.FE_PULSER;
-        default: throw new MessageException(MessageType.GET_MUX_CH, 
+        default: throw new MessageException(MessageType.GET_MUX_CH,
                 new IllegalArgumentException(muxCh + " is not a valid MUXer channel"));
         }
     }
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#getPulserRate()
      */
     public short getPulserRate() throws MessageException
@@ -233,7 +233,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#getRelease()
      */
     public String getRelease() throws MessageException
@@ -247,7 +247,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#getScalerDeadtime()
      */
     public int getScalerDeadtime() throws MessageException
@@ -258,7 +258,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#getSupernova()
      */
     public ByteBuffer getSupernova() throws MessageException
@@ -268,7 +268,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#pulserOff()
      */
     public void pulserOff() throws MessageException
@@ -278,7 +278,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#pulserOn()
      */
     public void pulserOn() throws MessageException
@@ -288,7 +288,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#queryHV()
      */
     public short[] queryHV() throws MessageException
@@ -302,7 +302,7 @@ public class DOMApp implements IDOMApp
 
     /**
      * Sends a message with no data payload.
-     * 
+     *
      * @param type
      *            the message type and subtype
      * @return the return data payload.
@@ -314,7 +314,7 @@ public class DOMApp implements IDOMApp
 
     /**
      * Send DOMApp message and receive response
-     * 
+     *
      * @param type -
      *            the message type / subtype
      * @param in -
@@ -339,13 +339,13 @@ public class DOMApp implements IDOMApp
         buf.flip();
         if (logger.isDebugEnabled())
             logger.debug("sendMessage [" + type.name() + "]");
-        
+
         msgBufferOut.clear();
-        
+
         try
         {
             devIO.send(buf);
-            
+
             // Loop on receive - allow partial receives
             while (msgBufferOut.position() < 8 || msgBufferOut.position() < msgBufferOut.getShort(2) + 8)
             {
@@ -354,10 +354,9 @@ public class DOMApp implements IDOMApp
                 msgBufferOut.put(out);
             }
             msgBufferOut.flip();
-            short dataLength = msgBufferOut.getShort(2);
             int status = msgBufferOut.get(7);
             msgBufferOut.position(8);
-            if (!(type.equals(msgBufferOut.get(0), msgBufferOut.get(1)) && status == 1)) 
+            if (!(type.equals(msgBufferOut.get(0), msgBufferOut.get(1)) && status == 1))
                 throw new MessageException(type, msgBufferOut.get(0), msgBufferOut.get(1), status);
             return msgBufferOut.slice();
         }
@@ -369,7 +368,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#setCableLengths(short[], short[])
      */
     public void setCableLengths(short[] up, short[] dn) throws MessageException
@@ -385,7 +384,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#setDeltaCompressionFormat()
      */
     public void setDeltaCompressionFormat() throws MessageException
@@ -399,7 +398,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#setEngineeringFormat(ic3.daq.domapp.EngineeringRecordFormat)
      */
     public void setEngineeringFormat(EngineeringRecordFormat fmt) throws MessageException
@@ -418,7 +417,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#setHV(short)
      */
     public void setHV(short dac) throws MessageException
@@ -430,7 +429,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#setLCMode(ic3.daq.domapp.LocalCoincidenceConfiguration.RxMode)
      */
     public void setLCMode(LocalCoincidenceConfiguration.RxMode mode) throws MessageException
@@ -449,7 +448,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#setLCSpan(byte)
      */
     public void setLCSpan(byte span) throws MessageException
@@ -462,7 +461,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#setLCTx(ic3.daq.domapp.LocalCoincidenceConfiguration.TxMode)
      */
     public void setLCTx(LocalCoincidenceConfiguration.TxMode mode) throws MessageException
@@ -474,7 +473,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#setLCType(ic3.daq.domapp.LocalCoincidenceConfiguration.Type)
      */
     public void setLCType(LocalCoincidenceConfiguration.Type type) throws MessageException
@@ -486,7 +485,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#setLCWindow(int, int)
      */
     public void setLCWindow(int pre, int post) throws MessageException
@@ -498,7 +497,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#setMoniIntervals(int, int)
      */
     public void setMoniIntervals(int hw, int config) throws MessageException
@@ -514,10 +513,10 @@ public class DOMApp implements IDOMApp
         buf.putInt(hw).putInt(config).putInt(fast).flip();
         sendMessage(MessageType.SET_MONI_IVAL, buf);
     }
-    
+
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#setMux(ic3.daq.domapp.MuxState)
      */
     public void setMux(MuxState mode) throws MessageException
@@ -529,7 +528,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#setPulserRate(short)
      */
     public void setPulserRate(short rate) throws MessageException
@@ -541,7 +540,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#setScalerDeadtime(int)
      */
     public void setScalerDeadtime(int deadtime) throws MessageException
@@ -553,7 +552,7 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#setTriggerMode(ic3.daq.domapp.TriggerMode)
      */
     public void setTriggerMode(TriggerMode mode) throws MessageException
@@ -565,19 +564,18 @@ public class DOMApp implements IDOMApp
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#transitionToDOMApp()
      */
     public boolean transitionToDOMApp() throws IOException, InterruptedException
     {
-        ByteBuffer cmd = ByteBuffer.allocate(20);
         // Issue a clear - something gets out-of-sorts in the iceboot
         // command decoder
         String status = talkToIceboot("s\" domapp.sbi.gz\" find if gunzip fpga endif . set-comm-params");
         logger.info("FPGA reload returns: " + status);
         // Exec DOMApp & wait for "DOMAPP READY" message from DOMApp
         String expect = "DOMAPP READY";
-        boolean reticence = Boolean.getBoolean("icecube.daq.domapp.reticence"); 
+        boolean reticence = Boolean.getBoolean("icecube.daq.domapp.reticence");
         if (reticence) expect = null;
         talkToIceboot("s\" domapp.gz\" find if gunzip exec endif", expect);
         if (reticence) Thread.sleep(8500);
@@ -588,13 +586,12 @@ public class DOMApp implements IDOMApp
     {
         return talkToIceboot(cmd, "> \n");
     }
-    
+
     private String talkToIceboot(String cmd, String expect) throws IOException
     {
         ByteBuffer buf = ByteBuffer.allocate(256);
         buf.put(cmd.getBytes());
         buf.put("\r\n".getBytes()).flip();
-        int n = buf.remaining();
         devIO.send(buf);
         logger.debug("Sending: " + cmd);
         while (true)
@@ -605,7 +602,7 @@ public class DOMApp implements IDOMApp
             String fragment = new String(bytearray);
             logger.debug("Received: " + fragment);
             if (fragment.contains(cmd)) break;
-        } 
+        }
         if (expect == null) return "";
         logger.debug("Echoback from iceboot received - expecting ... " + expect);
         StringBuffer txt = new StringBuffer();
@@ -620,10 +617,10 @@ public class DOMApp implements IDOMApp
         }
         return txt.toString();
     }
-    
+
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see ic3.daq.domapp.IDOMApp#writeDAC(byte, short)
      */
     public void writeDAC(byte dac, short val) throws MessageException

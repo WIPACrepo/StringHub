@@ -1,8 +1,6 @@
 package icecube.daq;
 
-import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
@@ -30,30 +28,30 @@ import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.util.FlasherboardConfiguration;
 
 /**
- * A collector shell wraps a single DataCollector so that it may be 
- * driven from the command-line.  
+ * A collector shell wraps a single DataCollector so that it may be
+ * driven from the command-line.
  * @author krokodil
  *
  */
-public class CollectorShell 
+public class CollectorShell
 {
 	private AbstractDataCollector collector;
 	private DOMConfiguration config;
 	private FlasherboardConfiguration flasherConfig;
 	private static final Logger logger = Logger.getLogger(CollectorShell.class);
-	
+
 	public CollectorShell()
 	{
 	    this(null);
 	}
-	
+
 	public CollectorShell(Properties props)
 	{
 		config = new DOMConfiguration();
 		flasherConfig = null;
-		
+
 		if (props == null) return;
-		
+
 		if (props.containsKey("icecube.daq.collectorshell.lc.type"))
 		{
 		    String lcType = props.getProperty("icecube.daq.collectorshell.lc.type");
@@ -62,7 +60,7 @@ public class CollectorShell
 		    else if (lcType.equalsIgnoreCase("soft"))
 		        config.getLC().setType(Type.SOFT);
 		}
-		
+
 		if (props.containsKey("icecube.daq.collectorshell.lc.rxmode"))
 		{
 		    String rxMode = props.getProperty("icecube.daq.collectorshell.lc.rxmode");
@@ -75,14 +73,14 @@ public class CollectorShell
 		    else if (rxMode.equalsIgnoreCase("both"))
 		        config.getLC().setRxMode(RxMode.RXBOTH);
 		}
-		
+
 		if (props.containsKey("icecube.daq.collectorshell.lc.span"))
 		{
 		    config.getLC().setSpan((byte) Integer.parseInt(
 		            props.getProperty("icecube.daq.collectorshell.lc.span")
 		            ));
 		}
-		
+
         if (props.containsKey("icecube.daq.collectorshell.lc.pretrig"))
         {
             config.getLC().setPreTrigger(Integer.parseInt(
@@ -98,7 +96,7 @@ public class CollectorShell
         }
 
 	}
-	
+
 	/**
 	 * Parse the options sent to the collector shell.  Options are
 	 * <dl>
@@ -137,7 +135,7 @@ public class CollectorShell
 			{
 				String x = mat.group(i+2);
 				int sep = x.indexOf(':');
-				if (sep < 0) 
+				if (sep < 0)
 					sep = x.length();
 				else
 					atwdSize[i] = Short.parseShort(x.substring(sep+1, x.length()));
@@ -226,7 +224,7 @@ public class CollectorShell
 		                else if (arg.equalsIgnoreCase("rate"))
 		                {
 		                    flasherConfig.setRate(Integer.parseInt(val));
-		                } 
+		                }
 		                else if (arg.equalsIgnoreCase("mask"))
 		                {
 		                    flasherConfig.setMask(Integer.parseInt(val, 16));
@@ -244,7 +242,7 @@ public class CollectorShell
 		else if (option.startsWith("debug"))
 		{
 		    int c = option.indexOf(':');
-		    if (c >= 0) 
+		    if (c >= 0)
 		    {
 		        String classname = option.substring(c+1);
 		        Logger.getLogger(classname).setLevel(Level.DEBUG);
@@ -259,19 +257,17 @@ public class CollectorShell
 		    Logger.getRootLogger().setLevel(Level.INFO);
 		}
 	}
-	
-	private Logger getLogger() { return logger; }
-	
+
 	public FlasherboardConfiguration getFlasherConfig()
 	{
 	    return flasherConfig;
 	}
-	
+
 	public DOMConfiguration getConfig()
 	{
 	    return config;
 	}
-		
+
 	public static void main(String[] args) throws Exception
 	{
 	    Properties props = new Properties();
@@ -286,50 +282,50 @@ public class CollectorShell
         }
 
 		CollectorShell csh = new CollectorShell(props);
-		
+
 		int iarg = 0;
 		boolean simMode = false;
-		
+
 		while (iarg < args.length)
 		{
 			String arg = args[iarg];
 			if (arg.charAt(0) != '-') break;
-			if (arg.substring(1).equalsIgnoreCase("sim")) 
+			if (arg.substring(1).equalsIgnoreCase("sim"))
 			    simMode = true;
 			else
 			    csh.parseOption(arg.substring(1));
 			iarg++;
 		}
-			
+
 		if (args.length - iarg < 3)
 		{
 			System.out.println("usage : java [vmopt] class [opt] <runlength> <cwd> <output-file>");
 			System.exit(1);
 		}
-		
+
 		long rlm = Long.parseLong(args[iarg++]) * 1000L;
-		
+
 		// this argument should be the 'cwd' DOM specification (e.g. '20b')
 		String cwd = args[iarg++];
 		int card = Integer.parseInt(cwd.substring(0,1));
 		int pair = Integer.parseInt(cwd.substring(1,2));
 		char dom = cwd.charAt(2);
-		
+
 		// next argument is output filename
 		String outBase = args[iarg++];
-		
+
 		FileOutputStream hitsOut = new FileOutputStream(outBase + ".hits");
 		FileChannel hitsChannel = hitsOut.getChannel();
 
 		FileOutputStream moniOut = new FileOutputStream(outBase + ".moni");
         FileChannel moniChannel = moniOut.getChannel();
-        
+
         FileOutputStream tcalOut = new FileOutputStream(outBase + ".tcal");
         FileChannel tcalChannel = tcalOut.getChannel();
-        
+
         FileOutputStream snOut = new FileOutputStream(outBase + ".sn");
         FileChannel snChannel = snOut.getChannel();
-		
+
         if (simMode)
         {
             String mbid = "0123456789ab";
@@ -338,10 +334,10 @@ public class CollectorShell
         }
         else
         {
-    		csh.collector = new DataCollector(card, pair, dom, csh.config, 
+    		csh.collector = new DataCollector(card, pair, dom, csh.config,
     		        hitsChannel, moniChannel, snChannel, tcalChannel);
         }
-        
+
 		csh.collector.signalConfigure();
 		while (!csh.collector.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(100);
 		csh.collector.signalStartRun();

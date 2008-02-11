@@ -8,61 +8,53 @@ import icecube.daq.domapp.MuxState;
 import icecube.daq.domapp.PulserMode;
 import icecube.daq.domapp.TriggerMode;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.Set;
 
-import javax.xml.XMLConstants;
-import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
-import javax.xml.transform.stream.StreamSource;
-import javax.xml.validation.Schema;
-import javax.xml.validation.SchemaFactory;
 
 import org.apache.log4j.Logger;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
-public class XMLConfig extends DefaultHandler 
+public class XMLConfig extends DefaultHandler
 {
 	private ParserState internalState;
-	
+
 	private StringBuffer xmlChars;
 	private short fadcSamples;
-	private final short[] defaultAtwdSamples = { 128, 128, 128, 0 }; 
-	private short[] atwdSamples; 
+	private final short[] defaultAtwdSamples = { 128, 128, 128, 0 };
+	private short[] atwdSamples;
 	private final short[] defaultAtwdWidth = { 2, 2, 2, 2 };
 	private short[] atwdWidth;
-	private int atwdChannel;  
-	
+	private int atwdChannel;
+
 	private enum Direction { UP, DOWN };
 	private Direction direction;
 	private int delayDistance;
 	private HashMap<String, DOMConfiguration> definedDOMConfigs;
 	private DOMConfiguration currentConfig;
-	private final static Logger logger = Logger.getLogger(XMLConfig.class);
-	private final static String[] dacNames = { 
+	private static final Logger logger = Logger.getLogger(XMLConfig.class);
+	private static final String[] dacNames = {
 		"atwd0TriggerBias", "atwd0RampTop", "atwd0RampRate", "atwdAnalogRef",
 		"atwd1TriggerBias", "atwd1RampTop", "atwd1RampRate", "frontEndPedestal",
 		"mpeTriggerDiscriminator", "speTriggerDiscriminator", "fastAdcRef", "internalPulser",
 		"ledBrightness", "frontEndAmpLowerClamp", "flasherDelay", "muxBias", "flasherRef"
 	};
-	private final static int[] dacChannels = {
+	private static final int[] dacChannels = {
 	    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 14
 	};
-	
+
 	public XMLConfig()
 	{
 		definedDOMConfigs = new HashMap<String, DOMConfiguration>();
 		xmlChars = new StringBuffer();
-		
+
 	}
-	
+
 	/**
 	 * @return a set of DOM mainboard Ids that contains the full set of
 	 * DOMs covered by this configuration collection
@@ -71,17 +63,17 @@ public class XMLConfig extends DefaultHandler
 	{
 		return definedDOMConfigs.keySet();
 	}
-	
-	public void characters(char[] ch, int start, int length) throws SAXException 
+
+	public void characters(char[] ch, int start, int length) throws SAXException
 	{
 		xmlChars.append(ch, start, length);
 	}
 
 	@Override
-	public void endElement(String uri, String localName, String qName) throws SAXException 
+	public void endElement(String uri, String localName, String qName) throws SAXException
 	{
 		String text = xmlChars.toString().trim();
-		
+
 		if (localName.equals("triggerMode"))
 		{
 			if (text.equals("forced"))
@@ -147,7 +139,7 @@ public class XMLConfig extends DefaultHandler
 				currentConfig.setPedestalSubtraction(true);
 			else
 				currentConfig.setPedestalSubtraction(false);
-		}				
+		}
 		else if (localName.equals("pulserMode"))
 		{
 			if (text.equals("beacon"))
@@ -229,7 +221,7 @@ public class XMLConfig extends DefaultHandler
 		}
         else if (localName.equals("hardwareMonitorInterval"))
         {
-            currentConfig.setHardwareMonitorInterval((int) (40000000 * Double.parseDouble(text))); 
+            currentConfig.setHardwareMonitorInterval((int) (40000000 * Double.parseDouble(text)));
         }
         else if (localName.equals("fastMonitorInterval"))
         {
@@ -253,11 +245,11 @@ public class XMLConfig extends DefaultHandler
 				}
 			}
 		}
-		
+
 	}
 
 	@Override
-	public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException 
+	public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException
 	{
 		xmlChars.setLength(0);
 		if (localName.equals("atwd"))
@@ -275,7 +267,7 @@ public class XMLConfig extends DefaultHandler
 				currentConfig.enableSupernova();
 			else
 				currentConfig.disableSupernova();
-				
+
 		}
 		else if (localName.equals("engineeringFormat"))
 		{
@@ -308,9 +300,9 @@ public class XMLConfig extends DefaultHandler
 
 	public void parseXMLConfig(InputStream xmlIn) throws Exception
 	{
-		final String schemaPath = "domconfig.xsd";
+		// final String schemaPath = "domconfig.xsd";
 		SAXParserFactory saxFactory = SAXParserFactory.newInstance();
-		SchemaFactory schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+		// SchemaFactory schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
 		// ClassLoader cl = Thread.currentThread().getContextClassLoader();
 		// InputStream schemaStream = XMLConfig.class.getResourceAsStream(schemaPath);
 		// if (schemaStream == null) throw new FileNotFoundException(schemaPath);
@@ -322,7 +314,7 @@ public class XMLConfig extends DefaultHandler
 		{
 		    long t0 = System.currentTimeMillis();
 			parser.parse(xmlIn, this);
-			logger.info("XML parsing completed - took " + 
+			logger.info("XML parsing completed - took " +
 						(System.currentTimeMillis() - t0) +
 						" milliseconds.");
 		}
@@ -332,7 +324,7 @@ public class XMLConfig extends DefaultHandler
 			throw except;
 		}
 	}
-	
+
 	public DOMConfiguration getDOMConfig(String mbid)
 	{
 		return definedDOMConfigs.get(mbid);

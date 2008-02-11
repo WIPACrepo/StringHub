@@ -14,7 +14,7 @@ public class QuadFitLE extends AbstractRAPCal
 {
     private final double threshold;
     private static final Logger logger = Logger.getLogger(QuadFitLE.class);
-    
+
     public QuadFitLE()
     {
         super();
@@ -22,17 +22,17 @@ public class QuadFitLE extends AbstractRAPCal
         (
                 System.getProperty
                 (
-                        "icecube.daq.rapcal.LeadingEdgeRAPCal.threshold", 
+                        "icecube.daq.rapcal.LeadingEdgeRAPCal.threshold",
                         "100.0"
                 )
         );
     }
-    
+
     @Override
     double getFineTimeCorrection(short[] w) throws RAPCalException
     {
         double mean = getBaseline(w);
-        
+
         // look for edge crossing
         for (int i = 20; i < 47; i++) {
             double a = w[i] - mean;
@@ -48,7 +48,7 @@ public class QuadFitLE extends AbstractRAPCal
 
     /**
      * Fit to quadratic - return abscissa of root in [0,1] whose
-     * existence is guaranteed by construction 
+     * existence is guaranteed by construction
      * @param a
      * @param b
      * @param c
@@ -74,7 +74,7 @@ public class QuadFitLE extends AbstractRAPCal
         final double r2 = -(B - rd) / (2.0*A);
         if (logger.isDebugEnabled())
         {
-            logger.debug("r1: " + r1 + " - r2: " + r2 + " A, B, C = (" + 
+            logger.debug("r1: " + r1 + " - r2: " + r2 + " A, B, C = (" +
                     A + ", " + B + ", " + C + ")");
         }
         if (r1 >= 0.0 && r1 <= 1.0) return r1;

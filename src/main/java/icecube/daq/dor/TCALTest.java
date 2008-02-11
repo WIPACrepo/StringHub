@@ -3,7 +3,6 @@
  */
 package icecube.daq.dor;
 
-import icecube.daq.rapcal.LeadingEdgeRAPCal;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.util.UTC;
 
@@ -13,14 +12,14 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
-public class TCALTest
+public final class TCALTest
 {
     private int card;
     private int pair;
     private char dom;
     private Driver driver = Driver.getInstance();
     private RAPCal rapcal;
-    
+
     private TCALTest(int card, int pair, char dom, String classname) throws Exception
     {
         this.card = card;
@@ -48,7 +47,7 @@ public class TCALTest
         for (double x : cableLengthList) mean += x;
         mean /= cableLengthList.size();
         double var  = 0.0;
-        for (double x : cableLengthList) 
+        for (double x : cableLengthList)
         {
             double svar = x - mean;
             var += svar * svar;
@@ -56,18 +55,18 @@ public class TCALTest
         var /= cableLengthList.size();
         System.out.format("CLEN: %.1f +/- %.1f\n", mean * 1.0E+09, Math.sqrt(var) * 1.0E+09);
     }
-    
+
     public static void main(String[] args) throws Exception
     {
         BasicConfigurator.configure();
         Logger.getRootLogger().setLevel(Level.INFO);
-        
+
         if (args.length < 2)
         {
             System.err.println("usage - java icecube.daq.dor.TCALTest <cwd> <# iter>");
             System.exit(1);
         }
-        
+
         int iarg = 0;
         String classname = "icecube.daq.rapcal.LeadingEdgeRAPCal";
         while (iarg < args.length && args[iarg].charAt(0) == '-')
@@ -81,9 +80,9 @@ public class TCALTest
         int pair = Integer.parseInt(args[iarg].substring(1, 2));
         char dom = args[iarg++].substring(2).toUpperCase().charAt(0);
         int nIter = Integer.parseInt(args[iarg++]);
-        
+
         TCALTest test = new TCALTest(card, pair, dom, classname);
-        
+
         test.run(nIter);
     }
 }

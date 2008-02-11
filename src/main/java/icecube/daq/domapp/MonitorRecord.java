@@ -12,7 +12,7 @@ public class MonitorRecord {
 	protected short fmtId;
 	protected long domclk;
 	protected ByteBuffer record;
-	
+
 	public MonitorRecord(ByteBuffer buf)
 	{
 		buf.mark();
@@ -27,10 +27,10 @@ public class MonitorRecord {
 		record.put(buf).flip();
 		buf.limit(limit);
 	}
-	
+
 	public int getLength() { return recl; }
 	public int getType() { return fmtId; }
 	public long getClock() { return domclk; }
 	public ByteBuffer getBuffer() { return (ByteBuffer) record; }
-	
+
 }

@@ -2,9 +2,9 @@ package icecube.daq.rapcal;
 
 public class ZeroCrossingRAPCal extends AbstractRAPCal
 {
-    
+
     private final double threshold;
-    
+
     public ZeroCrossingRAPCal()
     {
         super();

@@ -2,9 +2,7 @@ package icecube.daq.sender;
 
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.common.DAQCmdInterface;
-
 import icecube.daq.eventbuilder.impl.ReadoutDataPayloadFactory;
-
 import icecube.daq.monitoring.SenderMonitor;
 import icecube.daq.payload.IDOMID;
 import icecube.daq.payload.IDomHit;
@@ -12,37 +10,25 @@ import icecube.daq.payload.ILoadablePayload;
 import icecube.daq.payload.IPayload;
 import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.ISourceID;
-import icecube.daq.payload.IWriteablePayload;
 import icecube.daq.payload.IUTCTime;
+import icecube.daq.payload.IWriteablePayload;
 import icecube.daq.payload.MasterPayloadFactory;
 import icecube.daq.payload.PayloadDestination;
 import icecube.daq.payload.PayloadRegistry;
 import icecube.daq.payload.SourceIdRegistry;
-
 import icecube.daq.payload.impl.DomHitDeltaCompressedFormatPayload;
 import icecube.daq.payload.impl.DomHitEngineeringFormatPayload;
-
 import icecube.daq.payload.splicer.Payload;
-
 import icecube.daq.reqFiller.RequestFiller;
-
-import icecube.daq.splicer.Spliceable;
-
 import icecube.daq.trigger.IHitPayload;
 import icecube.daq.trigger.IReadoutRequest;
 import icecube.daq.trigger.IReadoutRequestElement;
-
-import icecube.daq.trigger.impl.DeltaCompressedFormatHitDataPayload;
 import icecube.daq.trigger.impl.DeltaCompressedFormatHitDataPayloadFactory;
-import icecube.daq.trigger.impl.EngineeringFormatHitDataPayload;
 import icecube.daq.trigger.impl.EngineeringFormatHitDataPayloadFactory;
 import icecube.daq.trigger.impl.HitPayloadFactory;
-import icecube.daq.trigger.impl.ReadoutRequestPayloadFactory;
 
 import java.io.IOException;
-
 import java.nio.ByteBuffer;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -50,7 +36,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Vector;
-
 import java.util.zip.DataFormatException;
 
 import org.apache.commons.logging.Log;
@@ -59,8 +44,6 @@ import org.apache.commons.logging.LogFactory;
 class TinyHitPayload
     implements IDomHit, ILoadablePayload
 {
-    private static Log LOG = LogFactory.getLog(Sender.class);
-
     private ByteBuffer byteBuf;
     private long time;
     private long domId;
@@ -379,7 +362,6 @@ public class Sender
     private DeltaCompressedFormatHitDataPayloadFactory deltaHitFactory;
     private HitPayloadFactory hitFactory;
     private DomHitFactory domHitFactory;
-    private ReadoutRequestPayloadFactory readoutReqFactory;
     private ReadoutDataPayloadFactory readoutDataFactory;
 
     private IPayloadDestinationCollection hitDest;
@@ -426,14 +408,10 @@ public class Sender
         hitFactory = new HitPayloadFactory();
         domHitFactory = new DomHitFactory();
 
-        final int readoutReqType = PayloadRegistry.PAYLOAD_ID_READOUT_REQUEST;
-        readoutReqFactory = (ReadoutRequestPayloadFactory)
-            masterFactory.getPayloadFactory(readoutReqType);
-
         final int readoutDataType = PayloadRegistry.PAYLOAD_ID_READOUT_DATA;
         readoutDataFactory = (ReadoutDataPayloadFactory)
             masterFactory.getPayloadFactory(readoutDataType);
-        
+
         forwardLC0Hits = false;
     }
 
@@ -450,7 +428,6 @@ public class Sender
      */
     public int compareRequestAndData(IPayload reqPayload, IPayload dataPayload)
     {
-        IReadoutRequest req = (IReadoutRequest) reqPayload;
         IDomHit data = (IDomHit) dataPayload;
 
         // get time from current hit
@@ -554,7 +531,7 @@ public class Sender
         buf.flip();
     }
 
-    private List convertDataToHits(IReadoutRequest req, List dataList)
+    private List convertDataToHits(List dataList)
         throws DataFormatException, IOException
     {
         ArrayList hitDataList = new ArrayList();
@@ -1128,7 +1105,7 @@ public class Sender
 
         List hitDataList;
         try {
-            hitDataList = convertDataToHits(req, dataList);
+            hitDataList = convertDataToHits(dataList);
         } catch (DataFormatException dfe) {
             log.error("Couldn't convert engineering data to hits", dfe);
             return null;
@@ -1280,10 +1257,9 @@ public class Sender
     {
         forwardIsolatedHitsToTrigger(true);
     }
-    
+
     public void forwardIsolatedHitsToTrigger(boolean forward)
     {
         forwardLC0Hits = forward;
     }
 }
-

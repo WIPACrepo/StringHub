@@ -5,20 +5,20 @@ import icecube.daq.util.UTC;
 
 public interface RAPCal {
 
-	public double clockRatio();
-	
-	public double cableLength();
-	
+	double clockRatio();
+
+	double cableLength();
+
 	/**
-	 * Test whether rapcal service is ready to 
+	 * Test whether rapcal service is ready to
 	 * translate the provided time.
 	 * @param domclk
 	 * @return
 	 */
-	public boolean laterThan(long domclk);
-	
-	public UTC domToUTC(long domclk);
-	
-	public void update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException;
-	
+	boolean laterThan(long domclk);
+
+	UTC domToUTC(long domclk);
+
+	void update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException;
+
 }
