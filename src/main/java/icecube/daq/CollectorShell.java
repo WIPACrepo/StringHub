@@ -1,5 +1,19 @@
 package icecube.daq;
 
+import icecube.daq.domapp.AbstractDataCollector;
+import icecube.daq.domapp.BadEngineeringFormat;
+import icecube.daq.domapp.DOMConfiguration;
+import icecube.daq.domapp.DataCollector;
+import icecube.daq.domapp.EngineeringRecordFormat;
+import icecube.daq.domapp.LocalCoincidenceConfiguration.RxMode;
+import icecube.daq.domapp.LocalCoincidenceConfiguration.Type;
+import icecube.daq.domapp.MuxState;
+import icecube.daq.domapp.RunLevel;
+import icecube.daq.domapp.SimDataCollector;
+import icecube.daq.domapp.TriggerMode;
+import icecube.daq.dor.DOMChannelInfo;
+import icecube.daq.util.FlasherboardConfiguration;
+
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -12,20 +26,6 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
-
-import icecube.daq.domapp.AbstractDataCollector;
-import icecube.daq.domapp.BadEngineeringFormat;
-import icecube.daq.domapp.DOMConfiguration;
-import icecube.daq.domapp.DataCollector;
-import icecube.daq.domapp.MuxState;
-import icecube.daq.domapp.RunLevel;
-import icecube.daq.domapp.SimDataCollector;
-import icecube.daq.domapp.EngineeringRecordFormat;
-import icecube.daq.domapp.TriggerMode;
-import icecube.daq.domapp.LocalCoincidenceConfiguration.RxMode;
-import icecube.daq.domapp.LocalCoincidenceConfiguration.Type;
-import icecube.daq.dor.DOMChannelInfo;
-import icecube.daq.util.FlasherboardConfiguration;
 
 /**
  * A collector shell wraps a single DataCollector so that it may be

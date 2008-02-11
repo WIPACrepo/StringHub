@@ -3,6 +3,10 @@ package icecube.daq.bindery;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import cern.jet.random.Exponential;
+import cern.jet.random.engine.MersenneTwister;
+import cern.jet.random.engine.RandomEngine;
+
 import icecube.daq.stringhub.test.MockAppender;
 
 import java.io.IOException;
@@ -12,12 +16,8 @@ import java.nio.channels.Pipe;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.junit.Test;
 import org.junit.After;
-
-import cern.jet.random.Exponential;
-import cern.jet.random.engine.MersenneTwister;
-import cern.jet.random.engine.RandomEngine;
+import org.junit.Test;
 
 public class StreamBinderGeneratorTest {
 

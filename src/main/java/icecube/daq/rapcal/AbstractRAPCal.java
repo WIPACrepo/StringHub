@@ -1,12 +1,12 @@
 package icecube.daq.rapcal;
 
+import icecube.daq.dor.TimeCalib;
+import icecube.daq.util.UTC;
+
 import java.util.LinkedList;
 import java.util.ListIterator;
 
 import org.apache.log4j.Logger;
-
-import icecube.daq.dor.TimeCalib;
-import icecube.daq.util.UTC;
 
 public abstract class AbstractRAPCal implements RAPCal
 {

@@ -2,12 +2,13 @@
 
 package icecube.daq.stringhub;
 
-import org.apache.log4j.Logger;
 import icecube.daq.domapp.AbstractDataCollector;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.juggler.component.DAQConnector;
 
 import java.util.ArrayList;
+
+import org.apache.log4j.Logger;
 
 /***
  * StringHub connector for data collectors.

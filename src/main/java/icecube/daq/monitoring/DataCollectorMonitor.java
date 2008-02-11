@@ -1,9 +1,9 @@
-
 package icecube.daq.monitoring;
 
-import icecube.daq.stringhub.DOMConnector;
-import icecube.daq.domapp.AbstractDataCollector;
 import icecube.daq.bindery.StreamBinder;
+import icecube.daq.domapp.AbstractDataCollector;
+import icecube.daq.stringhub.DOMConnector;
+
 import java.util.List;
 
 public class DataCollectorMonitor implements DataCollectorMonitorMBean

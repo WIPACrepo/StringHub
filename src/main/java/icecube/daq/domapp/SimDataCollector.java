@@ -1,5 +1,9 @@
 package icecube.daq.domapp;
 
+import cern.jet.random.Poisson;
+import cern.jet.random.engine.MersenneTwister;
+import cern.jet.random.engine.RandomEngine;
+
 import icecube.daq.bindery.StreamBinder;
 import icecube.daq.dor.DOMChannelInfo;
 
@@ -13,10 +17,6 @@ import java.util.Collections;
 import java.util.GregorianCalendar;
 
 import org.apache.log4j.Logger;
-
-import cern.jet.random.Poisson;
-import cern.jet.random.engine.MersenneTwister;
-import cern.jet.random.engine.RandomEngine;
 
 /**
  *
