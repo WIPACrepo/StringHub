@@ -260,7 +260,7 @@ class HitSorter
         } else if (t2 == null) {
             return -1;
         } else {
-            return (int) (t1.getUTCTimeAsLong() - t2.getUTCTimeAsLong());
+            return (int) (t1.longValue() - t2.longValue());
         }
     }
 
@@ -510,7 +510,7 @@ public class Sender
 
                 // remember most recent time for monitoring
                 latestHitTime =
-                    engData.getPayloadTimeUTC().getUTCTimeAsLong();
+                    engData.getPayloadTimeUTC().longValue();
 
                 if (!USE_TINY_HITS) {
                     addData(engData);
@@ -970,10 +970,8 @@ public class Sender
             IReadoutRequestElement elem =
                 (IReadoutRequestElement) iter.next();
 
-            final long elemFirstUTC =
-                elem.getFirstTimeUTC().getUTCTimeAsLong();
-            final long elemLastUTC =
-                elem.getLastTimeUTC().getUTCTimeAsLong();
+            final long elemFirstUTC = elem.getFirstTimeUTC().longValue();
+            final long elemLastUTC = elem.getLastTimeUTC().longValue();
 
             if (timestamp < elemFirstUTC || timestamp > elemLastUTC) {
                 continue;
@@ -1069,8 +1067,8 @@ public class Sender
             if (startTime == null) {
                 startTime = elem.getFirstTimeUTC();
             } else {
-                long tmpTime = elem.getFirstTimeUTC().getUTCTimeAsLong();
-                if (tmpTime < startTime.getUTCTimeAsLong()) {
+                long tmpTime = elem.getFirstTimeUTC().longValue();
+                if (tmpTime < startTime.longValue()) {
                     startTime = elem.getFirstTimeUTC();
                 }
             }
@@ -1078,8 +1076,8 @@ public class Sender
             if (endTime == null) {
                 endTime = elem.getLastTimeUTC();
             } else {
-                long tmpTime = elem.getLastTimeUTC().getUTCTimeAsLong();
-                if (tmpTime > endTime.getUTCTimeAsLong()) {
+                long tmpTime = elem.getLastTimeUTC().longValue();
+                if (tmpTime > endTime.longValue()) {
                     endTime = elem.getLastTimeUTC();
                 }
             }
@@ -1090,17 +1088,15 @@ public class Sender
             return null;
         }
 
-        latestReadoutStartTime = startTime.getUTCTimeAsLong();
-        latestReadoutEndTime = endTime.getUTCTimeAsLong();
+        latestReadoutStartTime = startTime.longValue();
+        latestReadoutEndTime = endTime.longValue();
 
         if (log.isDebugEnabled()) {
-            log.debug("Closing ReadoutData " + startTime.getUTCTimeAsLong() +
-                      " - " + endTime.getUTCTimeAsLong());
+            log.debug("Closing ReadoutData " + startTime + " - " + endTime);
         }
         if (log.isWarnEnabled() && dataList.size() == 0) {
             log.warn("Sending empty readout data payload for window [" +
-                     startTime.getUTCTimeAsLong() + " - " +
-                     endTime.getUTCTimeAsLong() + "]");
+                     startTime + " - " + endTime + "]");
         }
 
         List hitDataList;
@@ -1233,14 +1229,12 @@ public class Sender
             IReadoutRequestElement elem =
                 (IReadoutRequestElement) iter.next();
 
-            long startTime =
-                elem.getFirstTimeUTC().getUTCTimeAsLong();
+            long startTime = elem.getFirstTimeUTC().longValue();
             if (startTime < reqStartTime) {
                 reqStartTime = startTime;
             }
 
-            long endTime =
-                elem.getLastTimeUTC().getUTCTimeAsLong();
+            long endTime = elem.getLastTimeUTC().longValue();
             if (endTime > reqEndTime) {
                 reqEndTime = endTime;
             }
