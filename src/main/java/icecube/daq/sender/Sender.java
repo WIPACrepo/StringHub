@@ -214,7 +214,7 @@ class HitSorter
         } else if (s2 == null) {
             return -1;
         } else {
-            return (int) (s1.getDomIDAsLong() - s2.getDomIDAsLong());
+            return (int) (s1.longValue() - s2.longValue());
         }
     }
 
@@ -1011,14 +1011,14 @@ public class Sender
                 break;
             case IReadoutRequestElement.READOUT_TYPE_II_MODULE:
                 if (daqName.equals(DAQCmdInterface.DAQ_STRINGPROCESSOR) &&
-                    curData.getDomId() == elem.getDomID().getDomIDAsLong())
+                    curData.getDomId() == elem.getDomID().longValue())
                 {
                     return true;
                 }
                 break;
             case IReadoutRequestElement.READOUT_TYPE_IT_MODULE:
                 if (daqName.equals(DAQCmdInterface.DAQ_ICETOP_DATA_HANDLER) &&
-                    curData.getDomId() == elem.getDomID().getDomIDAsLong())
+                    curData.getDomId() == elem.getDomID().longValue())
                 {
                     return true;
                 }
