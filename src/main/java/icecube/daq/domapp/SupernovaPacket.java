@@ -15,17 +15,15 @@ public final class SupernovaPacket
 	public static SupernovaPacket createFromBuffer(ByteBuffer buf)
 	{
 		int limit = buf.limit();
-		buf.mark();
+		int pos = buf.position();
 		SupernovaPacket sn = new SupernovaPacket();
-		sn.recl = buf.getShort();
-		sn.fmtid = buf.getShort();
-		assert sn.fmtid == 300;
-		sn.domClock = DOMAppUtil.decodeSixByteClock(buf);
+		sn.recl = buf.getShort(pos);
+		sn.fmtid = buf.getShort(pos+2);
+		sn.domClock = DOMAppUtil.decodeClock6B(buf, pos+4);
 		int n = sn.recl - 10;
 		sn.counters = new byte[n];
-		for (int i = 0; i < n; i++) sn.counters[i] = buf.get();
-		buf.reset();
-		buf.limit(buf.position() + sn.recl);
+		for (int i = 0; i < n; i++) sn.counters[i] = buf.get(pos+10+i);
+		buf.limit(pos + sn.recl);
 		sn.buffer = ByteBuffer.allocate(sn.recl);
 		sn.buffer.put(buf);
 		sn.buffer.flip();

@@ -1,5 +1,6 @@
 package icecube.daq;
 
+import icecube.daq.bindery.BufferConsumerChannel;
 import icecube.daq.domapp.AbstractDataCollector;
 import icecube.daq.domapp.BadEngineeringFormat;
 import icecube.daq.domapp.DOMConfiguration;
@@ -315,27 +316,28 @@ public class CollectorShell
 		String outBase = args[iarg++];
 
 		FileOutputStream hitsOut = new FileOutputStream(outBase + ".hits");
-		FileChannel hitsChannel = hitsOut.getChannel();
+		BufferConsumerChannel hitsConsumer = new BufferConsumerChannel(hitsOut.getChannel());
 
 		FileOutputStream moniOut = new FileOutputStream(outBase + ".moni");
-        FileChannel moniChannel = moniOut.getChannel();
+        BufferConsumerChannel moniConsumer = new BufferConsumerChannel(moniOut.getChannel());
 
         FileOutputStream tcalOut = new FileOutputStream(outBase + ".tcal");
-        FileChannel tcalChannel = tcalOut.getChannel();
+        BufferConsumerChannel tcalConsumer = new BufferConsumerChannel(tcalOut.getChannel());
 
         FileOutputStream snOut = new FileOutputStream(outBase + ".sn");
-        FileChannel snChannel = snOut.getChannel();
+        BufferConsumerChannel scalConsumer = new BufferConsumerChannel(snOut.getChannel());
 
         if (simMode)
         {
-            String mbid = "0123456789ab";
+            String mbid = "00000000ABCD";
             csh.collector = new SimDataCollector(new DOMChannelInfo(mbid, card, pair, dom), csh.config,
-                    hitsChannel, moniChannel, tcalChannel, snChannel);
+                    hitsConsumer, moniConsumer, scalConsumer, tcalConsumer);
         }
         else
         {
     		csh.collector = new DataCollector(card, pair, dom, csh.config,
-    		        hitsChannel, moniChannel, snChannel, tcalChannel);
+    		        hitsConsumer, moniConsumer, scalConsumer, tcalConsumer,
+    		        null, null, null);
         }
 
 		csh.collector.signalConfigure();

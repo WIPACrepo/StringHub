@@ -4,6 +4,7 @@ import cern.jet.random.Poisson;
 import cern.jet.random.engine.MersenneTwister;
 import cern.jet.random.engine.RandomEngine;
 
+import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.bindery.StreamBinder;
 import icecube.daq.dor.DOMChannelInfo;
 
@@ -25,53 +26,53 @@ import org.apache.log4j.Logger;
  */
 public class SimDataCollector extends AbstractDataCollector
 {
-    private WritableByteChannel hitsOut;
-    private WritableByteChannel moniOut;
-    private WritableByteChannel tcalOut;
-    private WritableByteChannel supernovaOut;
-    private long   clock;
-    private long   t0;
-    private long   lastGenHit;           // right edge of previous hit generation time window
-    private long   lastMoni;             // last moni record
-    private long   lastTcal;             // last time a Tcal was generated
-    private long   lastSupernova;        // last time a SN record was generated
-    private long   lastBeacon;           // keep track of the beacon hits ...
-    private long   numericMBID;
-    private RandomEngine   rand = new MersenneTwister(new java.util.Date());
-    private Poisson poissonRandom = new Poisson(1.0, rand);
-    private double rate;
-    private boolean        stopRunLoop;
-    private long   numHits;
-    private long   loopCounter;
-    private double pulserRate = 1.0;
-    private volatile long runStartUT = 0L;
+    private BufferConsumer  hitsConsumer;
+    private BufferConsumer  moniConsumer;
+    private BufferConsumer  tcalConsumer;
+    private BufferConsumer  scalConsumer;
+    private long            clock;
+    private long            t0;
+    private long            lastGenHit;           // right edge of previous hit generation time window
+    private long            lastMoni;             // last moni record
+    private long            lastTcal;             // last time a Tcal was generated
+    private long            lastSupernova;        // last time a SN record was generated
+    private long            lastBeacon;           // keep track of the beacon hits ...
+    private long            numericMBID;
+    private RandomEngine    rand = new MersenneTwister(new java.util.Date());
+    private Poisson         poissonRandom = new Poisson(1.0, rand);
+    private double          rate;
+    private boolean         stopRunLoop;
+    private long            numHits;
+    private long            loopCounter;
+    private double          pulserRate = 1.0;
+    private volatile long   runStartUT = 0L;
 
     private Thread thread;
 
     private static final Logger logger = Logger.getLogger(SimDataCollector.class);
 
-    public SimDataCollector(DOMChannelInfo chanInfo, WritableByteChannel hitsOut)
+    public SimDataCollector(DOMChannelInfo chanInfo, BufferConsumer hitsConsumer)
     {
-        this(chanInfo, null, hitsOut, null, null, null);
+        this(chanInfo, null, hitsConsumer, null, null, null);
     }
 
     public SimDataCollector(DOMChannelInfo chanInfo,
                             DOMConfiguration config,
-                            WritableByteChannel hitsOut,
-                            WritableByteChannel moniOut,
-                            WritableByteChannel supernovaOut,
-                            WritableByteChannel tcalOut)
+                            BufferConsumer hitsConsumer,
+                            BufferConsumer moniConsumer,
+                            BufferConsumer scalConsumer,
+                            BufferConsumer tcalConsumer)
     {
         super(chanInfo.card, chanInfo.pair, chanInfo.dom);
         this.mbid = chanInfo.mbid;
-        this.numericMBID = Long.parseLong(this.mbid, 16);
-        this.hitsOut = hitsOut;
-        this.moniOut = moniOut;
-        this.tcalOut = tcalOut;
-        this.supernovaOut = supernovaOut;
-        runLevel  = RunLevel.IDLE;
-        numHits = 0;
-        loopCounter = 0;
+        this.numericMBID  = Long.parseLong(this.mbid, 16);
+        this.hitsConsumer = hitsConsumer;
+        this.moniConsumer = moniConsumer;
+        this.scalConsumer = scalConsumer;
+        this.tcalConsumer = tcalConsumer;
+        runLevel          = RunLevel.IDLE;
+        numHits           = 0;
+        loopCounter       = 0;
         if (config != null) {
             rate = config.getSimNoiseRate();
             pulserRate = config.getPulserRate();
@@ -82,28 +83,7 @@ public class SimDataCollector extends AbstractDataCollector
 
     public void close()
     {
-        try {
-            if (hitsOut != null) {
-                hitsOut.close();
-                hitsOut = null;
-            }
-            if (moniOut != null) {
-                moniOut.close();
-                moniOut = null;
-            }
-            if (tcalOut != null) {
-                tcalOut.close();
-                tcalOut = null;
-            }
-            if (supernovaOut != null) {
-                supernovaOut.close();
-                supernovaOut = null;
-            }
-        }
-        catch (IOException iox) {
-            iox.printStackTrace();
-            logger.error("Error closing pipe sinks: " + iox.getMessage());
-        }
+        // do nothing
     }
 
     public void signalShutdown()
@@ -134,10 +114,10 @@ public class SimDataCollector extends AbstractDataCollector
         logger.info("Exited runCore() loop.");
 
         try {
-            if (hitsOut != null) hitsOut.write(StreamBinder.endOfStream());
-            if (moniOut != null) moniOut.write(StreamBinder.endOfStream());
-            if (tcalOut != null) tcalOut.write(StreamBinder.endOfStream());
-            if (supernovaOut != null) supernovaOut.write(StreamBinder.endOfStream());
+            if (hitsConsumer != null) hitsConsumer.consume(StreamBinder.endOfStream());
+            if (moniConsumer != null) moniConsumer.consume(StreamBinder.endOfMoniStream());
+            if (tcalConsumer != null) tcalConsumer.consume(StreamBinder.endOfTcalStream());
+            if (scalConsumer != null) scalConsumer.consume(StreamBinder.endOfSupernovaStream());
         } catch (IOException iox) {
             iox.printStackTrace();
             logger.error(iox.getMessage());
@@ -202,10 +182,10 @@ public class SimDataCollector extends AbstractDataCollector
                 case STOPPING:
                     Thread.sleep(100);
                     logger.info("Stopping data collection");
-                    if (hitsOut != null) hitsOut.write(StreamBinder.endOfStream());
-                    if (moniOut != null) moniOut.write(StreamBinder.endOfStream());
-                    if (tcalOut != null) tcalOut.write(StreamBinder.endOfStream());
-                    if (supernovaOut != null) supernovaOut.write(StreamBinder.endOfStream());
+                    if (hitsConsumer != null) hitsConsumer.consume(StreamBinder.endOfStream());
+                    if (moniConsumer != null) moniConsumer.consume(StreamBinder.endOfMoniStream());
+                    if (tcalConsumer != null) tcalConsumer.consume(StreamBinder.endOfTcalStream());
+                    if (scalConsumer != null) scalConsumer.consume(StreamBinder.endOfSupernovaStream());
                     logger.debug("Flushed binders.");
                     setRunLevel(RunLevel.CONFIGURED);
                 }
@@ -264,7 +244,7 @@ public class SimDataCollector extends AbstractDataCollector
         buf.putLong(domRx).putLong(domTx);
         for (int i = 0; i < 64; i++) buf.putShort(tcalWf[i]);
         buf.flip();
-        if (tcalOut != null) tcalOut.write(buf);
+        if (tcalConsumer != null) tcalConsumer.consume(buf);
         return 1;
     }
 
@@ -298,7 +278,7 @@ public class SimDataCollector extends AbstractDataCollector
             buf.put((byte) scaler);
         }
         buf.flip();
-        if (supernovaOut != null) supernovaOut.write(buf);
+        if (scalConsumer != null) scalConsumer.consume(buf);
         return 1;
     }
 
@@ -355,7 +335,7 @@ public class SimDataCollector extends AbstractDataCollector
             for (int k = 0; k < 32; k++) buf.putShort((short) 138);
             buf.flip();
             logger.debug("Writing " + buf.remaining() + " byte hit at UTC = " + utc);
-            hitsOut.write(buf);
+            hitsConsumer.consume(buf);
         }
         return n;
     }
@@ -384,7 +364,7 @@ public class SimDataCollector extends AbstractDataCollector
         moniBuf.put((byte) (clock & 0xff));
         moniBuf.put(txt.getBytes());
         moniBuf.flip();
-        if (moniOut != null) moniOut.write(moniBuf);
+        if (moniConsumer != null) moniConsumer.consume(moniBuf);
         lastMoni = currTime;
         return 1;
     }

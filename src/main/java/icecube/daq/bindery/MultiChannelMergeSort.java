@@ -11,9 +11,42 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.log4j.Logger;
 
 /**
- * This class is a thread safe object which will merge-n-sort buffers passed to its
- * BufferConsumer interface.  The class does the sorting in its own thread.
- * The sorted buffers are passed to the caller-supplied output BufferConsumer.
+ * A processor which merges DOM buffer inputs from multiple sources and 
+ * outputs a chronologically ordered sequence of these buffers.  The buffers
+ * may be hits, time calibration records, monitor records, or supernova records.
+ * The contract on the input is that the ByteBuffer contains a 32-byte header
+ * with a long integer channel identifier (e.g., mainboard ID) beginnig at 
+ * the 8th byte position and a long integer timestamp beginning at the 24th
+ * byte.
+ * <p>
+ * The class exposes a {@link BufferConsumer} interface to the producers of
+ * the input data.  The interface is thread safe so that multiple threads may
+ * concurrently request consumption of data buffers.  The output is also
+ * via a BufferConsumer interface supplied at construction time.  
+ * <p>
+ * Callers must know <i>a priori</i> the number of input channels and, prior
+ * to startup of the HNK1 sorting thread, the channel IDs must have been
+ * registered by calling the <code>register</code> method before
+ * <code>Thread.start()</code>.
+ * <p>
+ * The sorted buffers on output are passed to the caller-supplied output 
+ * BufferConsumer.  The typical use pattern for this class is
+ * <pre>
+ * Sender sender = new Sender(...);
+ * MultiChannelMergeSort hitsSorter = MultiChannelMergeSort(NDOM, sender, "hitsSort");
+ * MultiChannelMergeSort moniSorter = ...
+ * collectors.add(new DataCollector(0, 0, 'A', hitsSorter, moniSorter, ...))
+ * collectors.add(new DataCollector(0, 0, 'B', hitsSorter, moniSorter, ...))
+ * ...
+ * collectors.add(new DataCollector(7, 3, 'B', hitsSorter, moniSorter, ...))
+ * </pre>
+ * 
+ * @see #register
+ * @see BufferConsumer
+ * @see Thread
+ * @see DataCollector
+ *   
+ * 
  * @author kael
  *
  */
@@ -28,6 +61,11 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     private static final Logger logger = Logger.getLogger(MultiChannelMergeSort.class);
     private long lastUT;
     
+    public MultiChannelMergeSort(int nch, BufferConsumer out)
+    {
+        this(nch, out, "");
+    }
+    
     public MultiChannelMergeSort(int nch, BufferConsumer out, String channelType)
     {
         super("MultiChannelMergeSort-" + channelType);
@@ -35,6 +73,8 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
         terminalNode = null;
         running = false;
         lastUT = 0L;
+        inputMap = new HashMap<Long, Node<DAQBuffer>>();
+        q = new LinkedBlockingQueue<ByteBuffer>();
     }
 
     /**
@@ -75,7 +115,8 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
             {
                 ByteBuffer buf = q.take();
                 DAQBuffer daqBuffer = new DAQBuffer(buf);
-                inputMap.get(daqBuffer.timestamp).push(daqBuffer);
+                logger.debug("took buffer from MBID " + daqBuffer.mbid + " UT " + daqBuffer.timestamp);
+                inputMap.get(daqBuffer.mbid).push(daqBuffer);
                 while (!terminalNode.isEmpty())
                 {
                     DAQBuffer sorted = terminalNode.pop();
@@ -83,7 +124,8 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
                         logger.warn(
                             "Out-of-order sorted value: " + lastUT + 
                             ", " + sorted.timestamp);
-                    if (sorted.mbid == 0L && sorted.timestamp == Long.MAX_VALUE) running = false;
+                    lastUT = sorted.timestamp;
+                    if (sorted.timestamp == Long.MAX_VALUE) running = false;
                     out.consume(sorted.buf);
                 }
             }

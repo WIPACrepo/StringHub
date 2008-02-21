@@ -15,14 +15,12 @@ public class MonitorRecord {
 
 	public MonitorRecord(ByteBuffer buf)
 	{
-		buf.mark();
 		int pos = buf.position();
 		int limit = buf.limit();
-		recl = buf.getShort();
-		fmtId = buf.getShort();
-		domclk = DOMAppUtil.decodeSixByteClock(buf);
+		recl = buf.getShort(pos);
+		fmtId = buf.getShort(pos+2);
+		domclk = DOMAppUtil.decodeClock6B(buf, pos+4);
 		record = ByteBuffer.allocate(recl);
-		buf.reset();
 		buf.limit(pos + recl);
 		record.put(buf).flip();
 		buf.limit(limit);

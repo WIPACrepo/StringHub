@@ -1,6 +1,7 @@
 /* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
 package icecube.daq.stringhub;
 
+import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.SecondaryStreamConsumer;
 import icecube.daq.bindery.StreamBinder;
 import icecube.daq.common.DAQCmdInterface;
@@ -60,67 +61,6 @@ import org.dom4j.Node;
 import org.dom4j.io.SAXReader;
 import org.xml.sax.SAXException;
 
-class BindSource
-{
-	private static final Logger logger = Logger.getLogger(BindSource.class);
-
-	private String name;
-	private SelectableChannel hitSource;
-	private SelectableChannel moniSource;
-	private SelectableChannel tcalSource;
-	private SelectableChannel snSource;
-
-	BindSource(String name, SelectableChannel hitSource,
-			   SelectableChannel moniSource, SelectableChannel tcalSource,
-			   SelectableChannel snSource)
-	{
-		this.name = name;
-		this.hitSource = hitSource;
-		this.moniSource = moniSource;
-		this.tcalSource = tcalSource;
-		this.snSource = snSource;
-	}
-
-	String getName()
-	{
-		return name;
-	}
-
-	void closeChannels()
-	{
-		try {
-			if (hitSource != null) hitSource.close();
-			if (moniSource != null) moniSource.close();
-			if (tcalSource != null) tcalSource.close();
-			if (snSource != null) snSource.close();
-		} catch (IOException iox) {
-			iox.printStackTrace();
-			logger.error("Error closing pipe sources: " + iox.getMessage());
-		}
-	}
-
-	SelectableChannel getHitsSource()
-	{
-		return hitSource;
-	}
-
-	SelectableChannel getMoniSource()
-	{
-		return moniSource;
-	}
-
-	SelectableChannel getTcalSource()
-	{
-		return tcalSource;
-	}
-
-	SelectableChannel getSupernovaSource()
-	{
-		return snSource;
-	}
-
-}
-
 public class StringHubComponent extends DAQComponent
 {
 
@@ -139,8 +79,10 @@ public class StringHubComponent extends DAQComponent
 	private PayloadDestinationOutputEngine hitOut;
 	private DOMConnector conn = null;
 	private List<DOMChannelInfo> activeDOMs;
-	private List<BindSource> bindSources = null;
-	private StreamBinder hitsBind, moniBind, tcalBind, snBind;
+	private MultiChannelMergeSort hitsSort;
+    private MultiChannelMergeSort moniSort;
+    private MultiChannelMergeSort tcalSort;
+    private MultiChannelMergeSort scalSort;
 	private String configurationPath;
 	private String configured = "NO";
 	private int nch;
@@ -325,12 +267,6 @@ public class StringHubComponent extends DAQComponent
 
 		configured = "YES";
 
-		if (bindSources != null)
-			for (BindSource b : bindSources)
-				b.closeChannels();
-
-		bindSources = new ArrayList<BindSource>();
-
 		try
 		{
 			// Lookup the connected DOMs
@@ -389,6 +325,16 @@ public class StringHubComponent extends DAQComponent
 			if (conn != null) conn.destroy();
 
 			conn = new DOMConnector(nch);
+	
+			SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniBufMgr, moniPayloadDest);
+	        SecondaryStreamConsumer supernovaConsumer = new SecondaryStreamConsumer(hubId, snBufMgr, supernovaPayloadDest);
+	        SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId, tcalBufMgr, tcalPayloadDest);
+
+			// Start the merger-sorter objects
+			hitsSort = new MultiChannelMergeSort(nch, sender);
+			moniSort = new MultiChannelMergeSort(nch, monitorConsumer);
+			scalSort = new MultiChannelMergeSort(nch, supernovaConsumer);
+			tcalSort = new MultiChannelMergeSort(nch, tcalConsumer);
 
 			for (DOMChannelInfo chanInfo : activeDOMs)
 			{
@@ -397,30 +343,27 @@ public class StringHubComponent extends DAQComponent
 
 				String cwd = chanInfo.card + "" + chanInfo.pair + chanInfo.dom;
 
-				Pipe hitPipe = Pipe.open();
-				Pipe moniPipe = Pipe.open();
-				Pipe tcalPipe = Pipe.open();
-				Pipe snPipe = Pipe.open();
-
-				BindSource bs =
-					new BindSource(cwd, hitPipe.source(),
-								   moniPipe.source(), tcalPipe.source(),
-								   snPipe.source());
-				bindSources.add(bs);
-
 				AbstractDataCollector dc;
+
 				if (isSim)
 				{
-					dc = new SimDataCollector(chanInfo, config, hitPipe.sink(),
-											  moniPipe.sink(), snPipe.sink(),
-											  tcalPipe.sink());
+					dc = new SimDataCollector(chanInfo, config,
+					        hitsSort, 
+					        moniSort,
+					        scalSort,
+					        tcalSort);
 				}
 				else
 				{
 					dc = new DataCollector(
 							chanInfo.card, chanInfo.pair, chanInfo.dom, config,
-							hitPipe.sink(), moniPipe.sink(), snPipe.sink(), tcalPipe.sink()
-						);
+							hitsSort,
+							moniSort,
+							scalSort,
+							tcalSort,
+							null,
+							null,
+							null);
 				}
 
 				conn.add(dc);
@@ -466,67 +409,13 @@ public class StringHubComponent extends DAQComponent
 	 */
 	public void starting() throws DAQCompException
 	{
-		logger.info("Have I been configured? " + configured);
-
-		SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniBufMgr, moniPayloadDest);
-		SecondaryStreamConsumer supernovaConsumer =	new SecondaryStreamConsumer(hubId, snBufMgr, supernovaPayloadDest);
-		SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId, tcalBufMgr, tcalPayloadDest);
-
-        if (Boolean.getBoolean("icecube.daq.stringhub.secondaryStream.debug"))
-        {
-            try
-            {
-                FileOutputStream moniDebug = new FileOutputStream("/tmp/moni-" + hubId + ".dat");
-                FileOutputStream tcalDebug = new FileOutputStream("/tmp/tcal-" + hubId + ".dat");
-                FileOutputStream snDebug   = new FileOutputStream("/tmp/sn-" + hubId + ".dat");
-                monitorConsumer.setDebugChannel(moniDebug.getChannel());
-                tcalConsumer.setDebugChannel(tcalDebug.getChannel());
-                supernovaConsumer.setDebugChannel(snDebug.getChannel());
-            }
-            catch (FileNotFoundException fnex)
-            {
-                throw new DAQCompException(fnex.getLocalizedMessage());
-            }
-        }
-
-        logger.info("Created secondary stream consumers.");
-
-		try {
-			hitsBind = new StreamBinder(nch, sender, "hits");
-			moniBind = new StreamBinder(nch, monitorConsumer, "moni");
-			snBind   = new StreamBinder(nch, supernovaConsumer, "supernova");
-			tcalBind = new StreamBinder(nch, tcalConsumer, "tcal");
-			collectorMonitor.setBinders(hitsBind, moniBind, tcalBind, snBind);
-		} catch (IOException iox) {
-			logger.error("Error creating StreamBinder: " + iox.getMessage());
-			iox.printStackTrace();
-		} catch (Exception e) {
-			throw new DAQCompException("Error in starting S/H - binder allocation fails", e);
-		}
-
-		for (BindSource bs : bindSources)
-		{
-			try {
-				hitsBind.register(bs.getHitsSource(), "hits-" + bs.getName());
-				moniBind.register(bs.getMoniSource(), "moni-" + bs.getName());
-				tcalBind.register(bs.getTcalSource(), "tcal-" + bs.getName());
-				snBind.register(bs.getSupernovaSource(), "supernova-" + bs.getName());
-			} catch (IOException ioe) {
-				logger.error("Couldn't start threads for binder " +
-							bs.getName());
-				throw new DAQCompException("Could not start DOMs", ioe);
-			} catch (Exception e) {
-				throw new DAQCompException("Error starting S/H - binder channel register fails", e);
-			}
-		}
-
-		// start the binders
-		logger.info("Starting stream binders.");
-		hitsBind.start();
-		moniBind.start();
-		tcalBind.start();
-		snBind.start();
-
+	    logger.info("StringHub is starting the run.");
+	    
+	    hitsSort.start();
+	    moniSort.start();
+	    scalSort.start();
+	    tcalSort.start();
+	    
 		try
 		{
 			conn.startProcessing();
@@ -645,7 +534,7 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 2629 2008-02-11 05:48:36Z dglo $";
+		return "$Id: StringHubComponent.java 2663 2008-02-21 23:01:20Z kael $";
     }
 
 }
