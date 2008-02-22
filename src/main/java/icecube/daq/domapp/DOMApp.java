@@ -266,6 +266,23 @@ public class DOMApp implements IDOMApp
         return sendMessage(MessageType.GET_SN_DATA);
     }
 
+    /**
+     * Enable charge stamp histogramming.
+     * These histograms will be emitted in the monitoring records.  The histogram
+     * length is 127 bytes so the prescale argument is used to set the range.
+     * @param interval interval in clock ticks (> 40M) or seconds (< 40M)
+     * @param prescale divisor for the chargestamp.
+     * @throws MessageException
+     */
+    public void histoChargeStamp(int interval, short prescale) throws MessageException
+    {
+        ByteBuffer buf = ByteBuffer.allocate(6);
+        buf.putInt(interval);
+        buf.putShort(prescale);
+        buf.flip();
+        sendMessage(MessageType.HISTO_CHARGE_STAMPS, buf);
+    }
+    
     /*
      * (non-Javadoc)
      *
@@ -382,6 +399,15 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.SET_LC_CABLELEN, buf);
     }
 
+    public void setChargeStampType(boolean fADC, boolean autoRange, byte chan) throws MessageException
+    {
+        ByteBuffer buf = ByteBuffer.allocate(3);
+        buf.put((byte) (fADC ? 1 : 0));
+        buf.put((byte) (autoRange ? 0 : 1));
+        buf.put(chan);
+        buf.flip();
+        sendMessage(MessageType.SET_CHARGE_STAMP_TYPE, buf);
+    }
     /*
      * (non-Javadoc)
      *

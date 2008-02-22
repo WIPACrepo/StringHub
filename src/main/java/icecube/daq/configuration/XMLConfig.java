@@ -151,6 +151,24 @@ public class XMLConfig extends DefaultHandler
 		{
 			currentConfig.setPulserRate(Integer.parseInt(text));
 		}
+		else if (internalState == ParserState.CHARGE_HISTOGRAM)
+		{
+		    if (localName.equals("source"))
+		    {
+		        if (text.equals("atwd"))
+		            currentConfig.useAtwdChargeStamp();
+		        else if (text.equals("fadc"))
+		            currentConfig.useFadcChargeStamp();
+		    }
+		    else if (localName.equals("prescale"))
+		    {
+		        currentConfig.setHistoPrescale(Short.parseShort(text));
+		    }
+		    else if (localName.equals("interval"))
+		    {
+		        currentConfig.setHistoInterval(Integer.parseInt(text));
+		    }
+		}
 		else if (internalState == ParserState.LOCAL_COINCIDENCE)
 		{
 			if (localName.equals("type"))
@@ -186,6 +204,15 @@ public class XMLConfig extends DefaultHandler
 				else if (text.equals("down"))
 					currentConfig.getLC().setTxMode(LocalCoincidenceConfiguration.TxMode.TXDOWN);
 			}
+			else if (localName.equals("source"))
+			{
+			    if (text.equals("spe")) 
+			        currentConfig.getLC().setSource(LocalCoincidenceConfiguration.Source.SPE);
+			    else if (text.equals("mpe"))
+			        currentConfig.getLC().setSource(LocalCoincidenceConfiguration.Source.MPE);
+			    else
+			        throw new IllegalArgumentException("LC source specifier " + text + " invalid.");
+			}
 			else if (localName.equals("span"))
 			{
 				currentConfig.getLC().setSpan(Byte.parseByte(text));
@@ -204,6 +231,10 @@ public class XMLConfig extends DefaultHandler
 					currentConfig.getLC().setCableLengthDn(delayDistance - 1, Short.parseShort(text));
 				else
 					currentConfig.getLC().setCableLengthUp(delayDistance - 1, Short.parseShort(text));
+			}
+			else if (localName.equals("localCoincidence"))
+			{
+			    internalState = ParserState.DOM_CONFIG;
 			}
         }
 		else if (localName.equals("deadtime"))
@@ -281,6 +312,10 @@ public class XMLConfig extends DefaultHandler
 		{
 			internalState = ParserState.LOCAL_COINCIDENCE;
 		}
+		else if (localName.equals("chargeHistogram"))
+		{
+		    internalState = ParserState.CHARGE_HISTOGRAM;
+		}
 		else if (localName.equals("cableLength"))
 		{
 			if (attributes.getValue("dir").equals("up"))
@@ -334,5 +369,5 @@ public class XMLConfig extends DefaultHandler
 
 enum ParserState
 {
-	INIT, DOM_CONFIG, LOCAL_COINCIDENCE
+	INIT, DOM_CONFIG, LOCAL_COINCIDENCE, CHARGE_HISTOGRAM
 };

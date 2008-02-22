@@ -352,7 +352,10 @@ public class DataCollector extends AbstractDataCollector
             // screen in DOMApp for spurious pulses
             app.collectPedestals(200, 200, 200);
         }
-
+        
+        // enable charge stamp histogramming
+        app.histoChargeStamp(config.getHistoInterval(), config.getHistoPrescale());
+        
         long configT1 = System.currentTimeMillis();
         logger.info("Finished DOM configuration - " + canonicalName() + "; configuration took "
                 + (configT1 - configT0) + " milliseconds.");

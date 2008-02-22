@@ -38,6 +38,9 @@ public interface IDOMApp {
 	 * @param nFadc number of pedestal waveforms to collect for the fADC.
 	 */
 	void collectPedestals(int nAtwd0, int nAtwd1, int nFadc) throws MessageException;
+	
+	void setChargeStampType(boolean fADC, boolean autoRange, byte chan) throws MessageException;
+	
 	/**
 	 * Disable the PMT HV.  This action should not change the power
 	 * state of the HV digital interface PCB.  It should remember
@@ -129,6 +132,8 @@ public interface IDOMApp {
 	 */
 	ByteBuffer getSupernova() throws MessageException;
 
+	void histoChargeStamp(int interval, short prescale) throws MessageException;
+	
 	/**
 	 * Turn off the electronic pulser.  This causes
 	 * the DOM to emit beacon hits instead.

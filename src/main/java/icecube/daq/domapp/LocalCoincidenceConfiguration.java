@@ -120,8 +120,14 @@ public class LocalCoincidenceConfiguration
 
 	public void setRxMode(RxMode mode) { rxMode = mode; }
 
-	public void setSpan(byte span) {
+	public void setSpan(byte span) 
+	{
 		this.span = span;
+	}
+	
+	public void setSource(Source source)
+	{
+	    this.source = source;
 	}
 
 	/**

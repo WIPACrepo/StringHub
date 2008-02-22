@@ -28,7 +28,10 @@ public class DOMConfiguration implements Serializable
 	private boolean pedestalSubtract = false;
 	private boolean simulation = false;
 	private double simNoiseRate = 25.0;
-
+	private int histoInterval = 10;
+	private short histoPrescale = (short) 8;
+	private boolean chargeStampATWD = false;
+	
 	public DOMConfiguration()
 	{
 
@@ -302,6 +305,34 @@ public class DOMConfiguration implements Serializable
 	{
 		return simulation;
 	}
+
+    public short getHistoPrescale()
+    {
+        return histoPrescale;
+    }
+    
+    public int getHistoInterval()
+    {
+        return histoInterval;
+    }
+    
+    public boolean isAtwdChargeStamp()
+    {
+        return chargeStampATWD;
+    }
+    
+    public void useAtwdChargeStamp() 
+    {
+        chargeStampATWD = true;
+    }
+    
+    public void useFadcChargeStamp()
+    {
+        chargeStampATWD = false;
+    }
+    
+    public void setHistoInterval(int interval) { histoInterval = interval; }
+    public void setHistoPrescale(short prescale) { histoPrescale = prescale; }
 }
 
 
