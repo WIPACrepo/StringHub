@@ -31,6 +31,7 @@ public class DOMConfiguration implements Serializable
 	private int histoInterval = 10;
 	private short histoPrescale = (short) 8;
 	private boolean chargeStampATWD = false;
+	private byte chargeStampAtwdChannel = -1;
 	
 	public DOMConfiguration()
 	{
@@ -321,6 +322,11 @@ public class DOMConfiguration implements Serializable
         return chargeStampATWD;
     }
     
+    public boolean isAutoRangeChargeStamp()
+    {
+        return chargeStampAtwdChannel == -1;
+    }
+
     public void useAtwdChargeStamp() 
     {
         chargeStampATWD = true;
@@ -330,6 +336,18 @@ public class DOMConfiguration implements Serializable
     {
         chargeStampATWD = false;
     }
+    
+    public void setChargeStampAutoRange()
+    {
+        chargeStampAtwdChannel = -1;
+    }
+    
+    public void setChargeStampAtwdFixedChannel(byte chan)
+    {
+        chargeStampAtwdChannel = chan;
+    }
+   
+    public byte getChargeStampFixedChannel() { return (byte) (chargeStampAtwdChannel == (byte) 1 ? 1 : 0); }
     
     public void setHistoInterval(int interval) { histoInterval = interval; }
     public void setHistoPrescale(short prescale) { histoPrescale = prescale; }

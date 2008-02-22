@@ -353,6 +353,11 @@ public class DataCollector extends AbstractDataCollector
             app.collectPedestals(200, 200, 200);
         }
         
+        // set chargestamp soource
+        app.setChargeStampType(config.isAtwdChargeStamp(), 
+                config.isAutoRangeChargeStamp(), 
+                config.getChargeStampFixedChannel());
+        
         // enable charge stamp histogramming
         app.histoChargeStamp(config.getHistoInterval(), config.getHistoPrescale());
         

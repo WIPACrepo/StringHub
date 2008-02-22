@@ -168,6 +168,17 @@ public class XMLConfig extends DefaultHandler
 		    {
 		        currentConfig.setHistoInterval(Integer.parseInt(text));
 		    }
+		    else if (localName.equals("channel"))
+		    {
+		        if (text.equals("auto"))
+		            currentConfig.setChargeStampAutoRange();
+		        else
+		            currentConfig.setChargeStampAtwdFixedChannel(Byte.parseByte(text));
+		    }
+		    else if (localName.equals("chargeHistogram"))
+		    {
+		        internalState = ParserState.DOM_CONFIG;
+		    }
 		}
 		else if (internalState == ParserState.LOCAL_COINCIDENCE)
 		{
