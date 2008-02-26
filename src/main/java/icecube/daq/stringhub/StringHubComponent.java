@@ -366,6 +366,10 @@ public class StringHubComponent extends DAQComponent
 							null);
 				}
 
+				hitsSort.register(chanInfo.mbid_numerique);
+				moniSort.register(chanInfo.mbid_numerique);
+				scalSort.register(chanInfo.mbid_numerique);
+				tcalSort.register(chanInfo.mbid_numerique);
 				conn.add(dc);
 				logger.debug("Starting new DataCollector thread on (" + cwd + ").");
 				logger.debug("DataCollector thread on (" + cwd + ") started.");
@@ -534,7 +538,7 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 2663 2008-02-21 23:01:20Z kael $";
+		return "$Id: StringHubComponent.java 2681 2008-02-26 23:33:34Z kael $";
     }
 
 }
