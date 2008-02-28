@@ -454,9 +454,7 @@ public class Sender
      */
     public void consume(ByteBuffer buf)
     {
-        if (buf.position() == 0 && buf.limit() == 32 &&
-            buf.getInt(0) == 32 && buf.getInt(8) == 0 &&
-            buf.getLong(24) == Long.MAX_VALUE)
+        if (buf.getInt(0) == 32 && buf.getLong(24) == Long.MAX_VALUE)
         {
             if (hitDest != null) {
                 try {
