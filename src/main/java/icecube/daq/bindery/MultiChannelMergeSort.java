@@ -115,29 +115,45 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     {
         terminalNode = Node.makeTree(inputMap.values(), bufferCmp);
         running = true;
+        int inputCounter  = 0;
+        int outputCounter = 0;
+        
         while (running)
         {
             try
             {
                 ByteBuffer buf = q.take();
                 DAQBuffer daqBuffer = new DAQBuffer(buf);
-                logger.debug(
-                        String.format("took buffer from MBID %012x at UT %d", 
-                        daqBuffer.mbid, daqBuffer.timestamp
-                        )
-                    );
+                if (logger.isDebugEnabled())
+                {
+                    logger.debug(
+                            String.format("took buffer from MBID %012x at UT %d", 
+                            daqBuffer.mbid, daqBuffer.timestamp
+                            )
+                        );
+                }
                 if (inputMap.containsKey(daqBuffer.mbid))
                 {
+                    inputCounter++;
+                    if (logger.isDebugEnabled() && inputCounter % 1000 == 0)
+                    {
+                        logger.debug("Inputs: " + inputCounter + " Outputs: " + outputCounter);
+                    }
                     inputMap.get(daqBuffer.mbid).push(daqBuffer);
                     while (!terminalNode.isEmpty())
                     {
+                        outputCounter++;
                         DAQBuffer sorted = terminalNode.pop();
                         if (lastUT > sorted.timestamp) 
                             logger.warn(
                                 "Out-of-order sorted value: " + lastUT + 
                                 ", " + sorted.timestamp);
                         lastUT = sorted.timestamp;
-                        if (sorted.timestamp == Long.MAX_VALUE) running = false;
+                        if (sorted.timestamp == Long.MAX_VALUE)
+                        {
+                            running = false;
+                            logger.info("Found STOP symbol in stream - shutting down.");
+                        }
                         out.consume(sorted.buf);
                     }
                 }
