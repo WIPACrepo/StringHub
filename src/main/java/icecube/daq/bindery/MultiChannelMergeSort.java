@@ -60,6 +60,12 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     private boolean running;
     private static final Logger logger = Logger.getLogger(MultiChannelMergeSort.class);
     private long lastUT;
+    private static final ByteBuffer eos = ByteBuffer.allocate(32);
+    
+    static
+    {
+        eos.putInt(0, 32).putInt(4, 0).putLong(24, Long.MAX_VALUE);
+    }
     
     public MultiChannelMergeSort(int nch, BufferConsumer out)
     {
@@ -115,18 +121,25 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
             {
                 ByteBuffer buf = q.take();
                 DAQBuffer daqBuffer = new DAQBuffer(buf);
-                logger.debug("took buffer from MBID " + daqBuffer.mbid + " UT " + daqBuffer.timestamp);
-                inputMap.get(daqBuffer.mbid).push(daqBuffer);
-                while (!terminalNode.isEmpty())
+                logger.debug(
+                        String.format("took buffer from MBID %012x at UT %d", 
+                        daqBuffer.mbid, daqBuffer.timestamp
+                        )
+                    );
+                if (inputMap.containsKey(daqBuffer.mbid))
                 {
-                    DAQBuffer sorted = terminalNode.pop();
-                    if (lastUT > sorted.timestamp) 
-                        logger.warn(
-                            "Out-of-order sorted value: " + lastUT + 
-                            ", " + sorted.timestamp);
-                    lastUT = sorted.timestamp;
-                    if (sorted.timestamp == Long.MAX_VALUE) running = false;
-                    out.consume(sorted.buf);
+                    inputMap.get(daqBuffer.mbid).push(daqBuffer);
+                    while (!terminalNode.isEmpty())
+                    {
+                        DAQBuffer sorted = terminalNode.pop();
+                        if (lastUT > sorted.timestamp) 
+                            logger.warn(
+                                "Out-of-order sorted value: " + lastUT + 
+                                ", " + sorted.timestamp);
+                        lastUT = sorted.timestamp;
+                        if (sorted.timestamp == Long.MAX_VALUE) running = false;
+                        out.consume(sorted.buf);
+                    }
                 }
             }
             catch (Exception ex)
@@ -135,6 +148,13 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
                 running = false;
             }
         }
+    }
+    
+    public static ByteBuffer eos(long mbid)
+    {
+        eos.putLong(8, mbid);
+        eos.clear();
+        return eos.asReadOnlyBuffer();
     }
     
 }

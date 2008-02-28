@@ -5,6 +5,7 @@ import cern.jet.random.engine.MersenneTwister;
 import cern.jet.random.engine.RandomEngine;
 
 import icecube.daq.bindery.BufferConsumer;
+import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.StreamBinder;
 import icecube.daq.dor.DOMChannelInfo;
 
@@ -21,6 +22,14 @@ import org.apache.log4j.Logger;
 
 /**
  *
+ * Simulator for StringHub DataCollector.  This simulation is fairly basic at the moment but 
+ * is nevertheless useful as a generator to provide bona-fide inputs to the downstream DAQ
+ * which is quite oblivious of the sham going on under its nose.
+ * 
+ * The SimDataCollector produces Poissonian generated hits at a rate specified in the supplied
+ * configuration by the simNoiseRate parameter - typically this will come from an XML config
+ * with tag of same name.
+ * 
  * @author krokodil
  *
  */
@@ -114,10 +123,11 @@ public class SimDataCollector extends AbstractDataCollector
         logger.info("Exited runCore() loop.");
 
         try {
-            if (hitsConsumer != null) hitsConsumer.consume(StreamBinder.endOfStream());
-            if (moniConsumer != null) moniConsumer.consume(StreamBinder.endOfMoniStream());
-            if (tcalConsumer != null) tcalConsumer.consume(StreamBinder.endOfTcalStream());
-            if (scalConsumer != null) scalConsumer.consume(StreamBinder.endOfSupernovaStream());
+            ByteBuffer gift = MultiChannelMergeSort.eos(numericMBID);
+            if (hitsConsumer != null) hitsConsumer.consume((ByteBuffer) gift.rewind());
+            if (moniConsumer != null) moniConsumer.consume((ByteBuffer) gift.rewind());
+            if (tcalConsumer != null) tcalConsumer.consume((ByteBuffer) gift.rewind());
+            if (scalConsumer != null) scalConsumer.consume((ByteBuffer) gift.rewind());
         } catch (IOException iox) {
             iox.printStackTrace();
             logger.error(iox.getMessage());
@@ -182,12 +192,8 @@ public class SimDataCollector extends AbstractDataCollector
                 case STOPPING:
                     Thread.sleep(100);
                     logger.info("Stopping data collection");
-                    if (hitsConsumer != null) hitsConsumer.consume(StreamBinder.endOfStream());
-                    if (moniConsumer != null) moniConsumer.consume(StreamBinder.endOfMoniStream());
-                    if (tcalConsumer != null) tcalConsumer.consume(StreamBinder.endOfTcalStream());
-                    if (scalConsumer != null) scalConsumer.consume(StreamBinder.endOfSupernovaStream());
-                    logger.debug("Flushed binders.");
                     setRunLevel(RunLevel.CONFIGURED);
+                    return;
                 }
 
                 // CPU reduction action

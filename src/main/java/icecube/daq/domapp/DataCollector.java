@@ -3,6 +3,7 @@
 package icecube.daq.domapp;
 
 import icecube.daq.bindery.BufferConsumer;
+import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.StreamBinder;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.GPSException;
@@ -353,7 +354,7 @@ public class DataCollector extends AbstractDataCollector
             app.collectPedestals(200, 200, 200);
         }
         
-        // set chargestamp soource
+        // set chargestamp source
         app.setChargeStampType(config.isAtwdChargeStamp(), 
                 config.isAutoRangeChargeStamp(), 
                 config.getChargeStampFixedChannel());
@@ -668,10 +669,11 @@ public class DataCollector extends AbstractDataCollector
         // Make sure eos is written
         try
         {
-            if (hitsConsumer != null) hitsConsumer.consume(StreamBinder.endOfStream());
-            if (moniConsumer != null) moniConsumer.consume(StreamBinder.endOfMoniStream());
-            if (tcalConsumer != null) tcalConsumer.consume(StreamBinder.endOfTcalStream());
-            if (supernovaConsumer != null) supernovaConsumer.consume(StreamBinder.endOfSupernovaStream());
+            ByteBuffer poison = MultiChannelMergeSort.eos(numericMBID);
+            if (hitsConsumer != null) hitsConsumer.consume(poison);
+            if (moniConsumer != null) moniConsumer.consume((ByteBuffer) poison.rewind());
+            if (tcalConsumer != null) tcalConsumer.consume((ByteBuffer) poison.rewind());
+            if (supernovaConsumer != null) supernovaConsumer.consume((ByteBuffer) poison.rewind());
             logger.info("Wrote EOS to streams.");
         }
         catch (IOException iox)
@@ -930,10 +932,11 @@ public class DataCollector extends AbstractDataCollector
                 logger.info("Got STOP RUN signal " + canonicalName());
                 app.endRun();
                 // Write the end-of-stream token
-                if (hitsConsumer != null) hitsConsumer.consume(StreamBinder.endOfStream());
-                if (moniConsumer != null) moniConsumer.consume(StreamBinder.endOfMoniStream());
-                if (tcalConsumer != null) tcalConsumer.consume(StreamBinder.endOfTcalStream());
-                if (supernovaConsumer != null) supernovaConsumer.consume(StreamBinder.endOfSupernovaStream());
+                ByteBuffer otrava = MultiChannelMergeSort.eos(numericMBID);
+                if (hitsConsumer != null) hitsConsumer.consume(otrava);
+                if (moniConsumer != null) moniConsumer.consume((ByteBuffer) otrava.rewind());
+                if (tcalConsumer != null) tcalConsumer.consume((ByteBuffer) otrava.rewind());
+                if (supernovaConsumer != null) supernovaConsumer.consume((ByteBuffer) otrava.rewind());
                 logger.info("Wrote EOS to streams.");
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
