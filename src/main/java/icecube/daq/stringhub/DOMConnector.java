@@ -45,27 +45,20 @@ public class DOMConnector
 	/**
 	 * Configure data collectors.
 	 */
-	public void configure()
+	public void configure() throws InterruptedException
 	{
+	    // Wait for data collectors to finish initializing
 		for (AbstractDataCollector dc : collectors)
+		{
+		    while (dc.isInitializing()) Thread.sleep(100);
 			dc.signalConfigure();
-
-		int configured_counter = 0;
-		// wait for things to configure
-		for (AbstractDataCollector dc : collectors) {
-			while (!dc.getRunLevel().equals(RunLevel.CONFIGURED) &&
-				   !dc.getRunLevel().equals(RunLevel.ZOMBIE))
-			{
-				try {
-					Thread.sleep(100);
-				} catch (InterruptedException ie) {
-					// ignore interrupts
-				}
-			}
-			configured_counter++;
-			logger.info("Configured DOM count = " + configured_counter);
 		}
-		logger.info("All DOMs configured.");
+
+		// wait for things to configure
+		for (AbstractDataCollector dc : collectors) 
+		    while(dc.isConfiguring()) Thread.sleep(100);
+		
+		logger.info("Data collector ensemble has been configured.");
 	}
 
 	/**
@@ -76,17 +69,14 @@ public class DOMConnector
 	public void destroy()
 		throws Exception
 	{
-		for (AbstractDataCollector dc : collectors) {
-			dc.signalShutdown();
-			dc.close();
-		}
+	    stopProcessing();
+	    
+		for (AbstractDataCollector dc : collectors) dc.signalShutdown();
 
-		for (AbstractDataCollector dc : collectors) {
-			while (!dc.getRunLevel().equals(RunLevel.CONFIGURED) &&
-				   !dc.getRunLevel().equals(RunLevel.ZOMBIE))
-			{
-				Thread.sleep(50);
-			}
+		for (AbstractDataCollector dc : collectors) 
+		{
+		    while (dc.isAlive()) Thread.sleep(100);
+	        dc.close();
 		}
 	}
 
@@ -112,40 +102,23 @@ public class DOMConnector
 	}
 
 	/**
-	 * Is this connector running?
-	 *
-	 * @return <tt>true</tt> if this connector is running
-	 */
-	public boolean isRunning()
-	{
-		for (AbstractDataCollector dc : collectors)
-		{
-			if (!dc.getRunLevel().equals(RunLevel.RUNNING) &&
-				!dc.getRunLevel().equals(RunLevel.ZOMBIE))
-			{
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	/**
-	 * Is this connector stopped?
+	 * Are <i>all</i> data collectors not running?
 	 *
 	 * @return <tt>true</tt> if this connector is stopped
 	 */
 	public boolean isStopped()
 	{
 		for (AbstractDataCollector dc : collectors)
-		{
-			if (!dc.getRunLevel().equals(RunLevel.CONFIGURED) &&
-				!dc.getRunLevel().equals(RunLevel.ZOMBIE))
-			{
-				return false;
-			}
-		}
+			if (dc.isRunning()) return false;
 		return true;
+	}
+	
+	/**
+	 * Are all data collectors running?
+	 */
+	public boolean isRunning()
+	{
+	    return !isStopped();
 	}
 
 	/**
@@ -169,8 +142,8 @@ public class DOMConnector
 	{
 		for (AbstractDataCollector dc : collectors)
 		{
-			if (!dc.getRunLevel().equals(RunLevel.ZOMBIE))
-				dc.signalStartRun();
+		    while (!dc.isConfigured()) Thread.sleep(100);
+			dc.signalStartRun();
 		}
 	}
 
@@ -182,20 +155,12 @@ public class DOMConnector
 	public void stopProcessing()
 		throws Exception
 	{
-		for (AbstractDataCollector dc : collectors) {
+		for (AbstractDataCollector dc : collectors) 
 			dc.signalStopRun();
-		}
 
-		for (AbstractDataCollector dc : collectors) {
-			while (!dc.getRunLevel().equals(RunLevel.CONFIGURED) &&
-				   !dc.getRunLevel().equals(RunLevel.ZOMBIE))
-			{
-				try {
-					Thread.sleep(25);
-				} catch (InterruptedException ie) {
-					// ignore interrupts
-				}
-			}
+		for (AbstractDataCollector dc : collectors) 
+		{
+			while (dc.isStopping()) Thread.sleep(100);
 		}
 	}
 

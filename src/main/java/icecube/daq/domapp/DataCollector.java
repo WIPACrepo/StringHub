@@ -6,6 +6,7 @@ import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.StreamBinder;
 import icecube.daq.dor.DOMChannelInfo;
+import icecube.daq.dor.Driver;
 import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.IDriver;
@@ -241,7 +242,12 @@ public class DataCollector extends AbstractDataCollector
         moniConsumer = moniTo;
         tcalConsumer = tcalTo;
         supernovaConsumer = supernovaTo;
-        this.driver = driver;
+        
+        if (driver != null)
+            this.driver = driver;
+        else
+            this.driver = Driver.getInstance();
+        
         if (rapcal != null)
         {
             this.rapcal = rapcal;

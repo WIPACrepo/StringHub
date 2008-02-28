@@ -372,7 +372,6 @@ public class StringHubComponent extends DAQComponent
 				tcalSort.register(chanInfo.mbid_numerique);
 				conn.add(dc);
 				logger.debug("Starting new DataCollector thread on (" + cwd + ").");
-				logger.debug("DataCollector thread on (" + cwd + ") started.");
 			}
 
 			logger.info("Starting up HKN1 sorting trees...");
@@ -538,7 +537,7 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 2681 2008-02-26 23:33:34Z kael $";
+		return "$Id: StringHubComponent.java 2699 2008-02-28 20:12:05Z kael $";
     }
 
 }

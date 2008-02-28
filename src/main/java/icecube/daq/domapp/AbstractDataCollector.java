@@ -148,6 +148,31 @@ public abstract class AbstractDataCollector extends Thread
 	{
 	    return runLevel;
 	}
+	
+	public synchronized boolean isInitializing()
+	{
+	    return runLevel == RunLevel.INITIALIZING;
+	}
+	
+	public synchronized boolean isConfiguring()
+	{
+	    return runLevel == RunLevel.CONFIGURING;
+	}
+	
+	public synchronized boolean isConfigured()
+	{
+	    return runLevel == RunLevel.CONFIGURED;
+	}
+	
+	public synchronized boolean isRunning()
+	{
+	    return runLevel == RunLevel.RUNNING;
+	}
+	
+	public synchronized boolean isStopping()
+	{
+	    return runLevel == RunLevel.STOPPING;
+	}
 
 	/**
 	 * Subclasses should override to provide last run start time in 0.1 ns ticks.
