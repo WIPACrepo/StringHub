@@ -448,13 +448,14 @@ public class DataCollector extends AbstractDataCollector
                 int clkMSB = in.getShort(pos+4);
                 ByteOrder lastOrder = in.order();
                 in.order(ByteOrder.LITTLE_ENDIAN);
-                pos += 8;
+                in.position(pos + 8);
                 while (in.remaining() > 0)
                 {
                     numHits++;
-                    int word1 = in.getInt(pos);
-                    int word2 = in.getInt(pos+4);
-                    int word3 = in.getInt(pos+8);
+                    pos = in.position();
+                    int word1 = in.getInt();
+                    int word2 = in.getInt();
+                    int word3 = in.getInt();
                     int hitSize = word1 & 0x7ff;
                     atwdChip = (word1 >> 11) & 1;
                     domClock = (((long) clkMSB) << 32) | (((long) word2) & 0xffffffffL);
