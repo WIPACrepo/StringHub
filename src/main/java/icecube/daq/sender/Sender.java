@@ -133,7 +133,7 @@ class TinyHitPayload
 
     public String toString()
     {
-        return "DomHit[" + domId + "@" + time + "]";
+        return "DomHit[" + Long.toHexString(domId) + "@" + time + "]";
     }
 }
 
@@ -302,7 +302,7 @@ class DomHitFactory
 
         if (buf.limit() < offset + 4) {
             throw new Error("Expected buffer with at least " + (offset + 4) +
-                            "bytes, not " + buf.limit() + " (offset=" +
+                            " bytes, not " + buf.limit() + " (offset=" +
                             offset + ")");
         }
 
@@ -399,7 +399,7 @@ public class Sender
      */
     public Sender(int stringHubId, MasterPayloadFactory masterFactory)
     {
-        super("Sender", false);
+        super("Sender#" + stringHubId, false);
 
         sourceId = getSourceId(stringHubId);
 
@@ -1255,5 +1255,10 @@ public class Sender
     public void forwardIsolatedHitsToTrigger(boolean forward)
     {
         forwardLC0Hits = forward;
+    }
+
+    public String toString()
+    {
+        return "" + sourceId;
     }
 }
