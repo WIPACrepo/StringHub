@@ -51,23 +51,10 @@ public class SecondaryStreamConsumer implements BufferConsumer
 		buf.position(buf.position() + 8);
 		long utc  = buf.getLong();
 
-        if (recl == 32 && mbid == 0L)
+        if (recl == 32 && utc == Long.MAX_VALUE)
         {
             logger.info("Stopping payload destinations");
-/*            ByteBuffer stopSignal = cacheMgr.acquireBuffer(4);
-            stopSignal.putInt(0, 4);
-            stopSignal.position(0);
-            stopSignal.limit(4);
-            outputChannel.receiveByteBuffer(stopSignal);
-            try
-            {
-                Thread.sleep(100);
-            }
-            catch (InterruptedException intx)
-            {
-                // pass
-            }
-*/            outputEngine.getPayloadDestinationCollection().stopAllPayloadDestinations();
+            outputEngine.getPayloadDestinationCollection().stopAllPayloadDestinations();
         }
         else
         {
