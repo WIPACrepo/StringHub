@@ -676,11 +676,11 @@ public class DataCollector extends AbstractDataCollector
         // Make sure eos is written
         try
         {
-            ByteBuffer poison = MultiChannelMergeSort.eos(numericMBID);
-            if (hitsConsumer != null) hitsConsumer.consume(poison);
-            if (moniConsumer != null) moniConsumer.consume((ByteBuffer) poison.rewind());
-            if (tcalConsumer != null) tcalConsumer.consume((ByteBuffer) poison.rewind());
-            if (supernovaConsumer != null) supernovaConsumer.consume((ByteBuffer) poison.rewind());
+            ByteBuffer otrava = MultiChannelMergeSort.eos(numericMBID);
+            if (hitsConsumer != null) hitsConsumer.consume(otrava.asReadOnlyBuffer());
+            if (moniConsumer != null) moniConsumer.consume(otrava.asReadOnlyBuffer());
+            if (tcalConsumer != null) tcalConsumer.consume(otrava.asReadOnlyBuffer());
+            if (supernovaConsumer != null) supernovaConsumer.consume(otrava.asReadOnlyBuffer());
             logger.info("Wrote EOS to streams.");
         }
         catch (IOException iox)
@@ -938,12 +938,11 @@ public class DataCollector extends AbstractDataCollector
             case STOPPING:
                 logger.info("Got STOP RUN signal " + canonicalName());
                 app.endRun();
-                // Write the end-of-stream token
                 ByteBuffer otrava = MultiChannelMergeSort.eos(numericMBID);
-                if (hitsConsumer != null) hitsConsumer.consume(otrava);
-                if (moniConsumer != null) moniConsumer.consume((ByteBuffer) otrava.rewind());
-                if (tcalConsumer != null) tcalConsumer.consume((ByteBuffer) otrava.rewind());
-                if (supernovaConsumer != null) supernovaConsumer.consume((ByteBuffer) otrava.rewind());
+                if (hitsConsumer != null) hitsConsumer.consume(otrava.asReadOnlyBuffer());
+                if (moniConsumer != null) moniConsumer.consume(otrava.asReadOnlyBuffer());
+                if (tcalConsumer != null) tcalConsumer.consume(otrava.asReadOnlyBuffer());
+                if (supernovaConsumer != null) supernovaConsumer.consume(otrava.asReadOnlyBuffer());
                 logger.info("Wrote EOS to streams.");
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
