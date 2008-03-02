@@ -61,6 +61,8 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     private static final Logger logger = Logger.getLogger(MultiChannelMergeSort.class);
     private long lastUT;
     private static final ByteBuffer eos = ByteBuffer.allocate(32);
+    private int inputCounter;
+    private int outputCounter;
     
     static
     {
@@ -72,7 +74,7 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
         this(nch, out, "g");
     }
     
-    public MultiChannelMergeSort(int nch, BufferConsumer out, String channelType)
+    public MultiChannelMergeSort(int nch, BufferConsumer out, String channelType, int maxQueue)
     {
         super("MultiChannelMergeSort-" + channelType);
         this.out = out;
@@ -80,7 +82,14 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
         running = false;
         lastUT = 0L;
         inputMap = new HashMap<Long, Node<DAQBuffer>>();
-        q = new LinkedBlockingQueue<ByteBuffer>();
+        q = new LinkedBlockingQueue<ByteBuffer>(maxQueue);
+        inputCounter = 0;
+        outputCounter = 0;
+    }
+    
+    public MultiChannelMergeSort(int nch, BufferConsumer out, String channelType)
+    {
+        this(nch, out, "g", 100000);
     }
 
     /**
@@ -102,6 +111,10 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
         }
     }
 
+    public synchronized int getNumberOfInputs() { return inputCounter; }
+    public synchronized int getNumberOfOutputs() { return outputCounter; }
+    public synchronized int getQueueSize() { return q.size(); }
+    
     /**
      * Register a channel with the sort.
      * @param mbid
@@ -115,8 +128,6 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     {
         terminalNode = Node.makeTree(inputMap.values(), bufferCmp);
         running = true;
-        int inputCounter  = 0;
-        int outputCounter = 0;
         
         while (running)
         {
