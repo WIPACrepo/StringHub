@@ -3,6 +3,8 @@ package icecube.daq.bindery;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Random;
 
 import org.apache.log4j.BasicConfigurator;
@@ -20,26 +22,23 @@ public class MultiChannelMergeSortTest implements BufferConsumer
     private MultiChannelMergeSort mms; 
     private boolean timeOrdered;
     private int numBuffersSeen;
-    private long[] channelIds;
     private long lastUT;
-    private final int ngen;
-    private final int nch;
+    private final double rate;
+    private final int    nch;
     private final static Logger logger = Logger.getLogger(MultiChannelMergeSortTest.class);
     
     public MultiChannelMergeSortTest()
     {
         this(
                 Integer.getInteger("icecube.daq.bindery.MultiChannelMergeSortTest.channels", 16),
-                Integer.getInteger("icecube.daq.bindery.MultiChannelMergeSortTest.gen", 1000000)
+                500.0
             );
     }
     
-    public MultiChannelMergeSortTest(int nch, int ngen)
+    public MultiChannelMergeSortTest(int nch, double rate)
     {
-        this.nch = nch;
-        this.ngen = ngen;
-        channelIds = new long[nch];
-        for (int ch = 0; ch < nch; ch++) channelIds[ch] = 1000 * ch;
+        this.nch  = nch;
+        this.rate = rate;
     }
     
     @BeforeClass
@@ -53,31 +52,38 @@ public class MultiChannelMergeSortTest implements BufferConsumer
     public void setUp() throws Exception
     {
         mms = new MultiChannelMergeSort(nch, this);
-        for (int ch = 0; ch < channelIds.length; ch++) mms.register(channelIds[ch]);
+        for (int ch = 0; ch < nch; ch++) mms.register(ch);
         mms.start();
-        timeOrdered = true;
         numBuffersSeen = 0;
         lastUT = 0;
+        timeOrdered = true;
     }
 
     @Test
     public void testTimeOrdering() throws Exception
     {
         BufferGenerator[] genArr = new BufferGenerator[nch];
-        Random die = new Random();
-        int nch = channelIds.length;
-        
+
         for (int ch = 0; ch < nch; ch++)
         {
-            genArr[ch] = new BufferGenerator(channelIds[ch], die.nextInt(50), ngen, mms);
+            genArr[ch] = new BufferGenerator(ch, rate, mms);
             genArr[ch].start();
         }
 
+        for (int iMoni = 0; iMoni < 100; iMoni++)
+        {
+            Thread.sleep(3000L);
+            logger.info(
+                    "MMS in: " + mms.getNumberOfInputs() + 
+                    " out: " + mms.getNumberOfOutputs() +
+                    " queue size " + mms.getQueueSize()
+                    );
+        }
+        
+        for (int ch = 0; ch < nch; ch++) genArr[ch].signalStop();
         mms.join();
         
         assertTrue(timeOrdered);
-        assertEquals(nch * ngen + 1, numBuffersSeen);
-        
     }
     
     public void consume(ByteBuffer buf) throws IOException
@@ -85,19 +91,20 @@ public class MultiChannelMergeSortTest implements BufferConsumer
         long utc = buf.getLong(24);
         if (lastUT > utc) timeOrdered = false;
         numBuffersSeen++;
-        if (numBuffersSeen % 10000 == 0) logger.info("# buffers: " + numBuffersSeen);
+        if (numBuffersSeen % 100000 == 0) logger.info("# buffers: " + numBuffersSeen);
     }
     
     public static void main(String[] args) throws Exception
     {
         loggingSetUp();
         int nch = 16;
-        int ngen = 100000;
+        double rate = 500.0;
         if (args.length > 0) nch = Integer.parseInt(args[0]);
-        if (args.length > 1) ngen = Integer.parseInt(args[1]);
-        MultiChannelMergeSortTest mcmt = new MultiChannelMergeSortTest(nch, ngen);
+        if (args.length > 1) rate = Double.parseDouble(args[1]);
+        MultiChannelMergeSortTest mcmt = new MultiChannelMergeSortTest(nch, rate);
         mcmt.setUp();
         mcmt.testTimeOrdering();
+        System.gc();
         System.out.println("Number of buffers out: " + mcmt.numBuffersSeen);
                 
     }
@@ -111,44 +118,67 @@ public class MultiChannelMergeSortTest implements BufferConsumer
  */
 class BufferGenerator extends Thread
 {
-    private long t;
     private long mbid;
+    private long lastTime;
+    private double rate;
     private Random rand;
-    private int ngen;
     private BufferConsumer consumer;
     private static final Logger logger = Logger.getLogger(BufferGenerator.class);
+    private volatile boolean run;
     
-    BufferGenerator(long mbid, long t0, int n, BufferConsumer consumer)
+    BufferGenerator(long mbid, double rate, BufferConsumer consumer)
     {
-        t = t0;
         this.mbid = mbid;
+        this.rate = rate;
         rand = new Random();
         this.consumer = consumer;
-        ngen = n;
+        this.lastTime = System.nanoTime();
+        run = false;
     }
     
-    ByteBuffer next()
+    public synchronized void signalStop()
     {
-        t += (rand.nextInt(20)+1);
-        ByteBuffer buf = ByteBuffer.allocate(40);
-        buf.putInt(40);
-        buf.putInt(15071);
-        buf.putLong(mbid);
-        buf.putLong(0L);
-        buf.putLong(t);
-        buf.putLong(0x123456789aL);
-        return (ByteBuffer) buf.flip();
+        run = false;
+    }
+    
+    public synchronized boolean isRunning()
+    {
+        return run;
     }
     
     public void run()
     {
-        logger.debug(String.format("Starting run thread of buffer generator %012x", mbid));
+        synchronized (this) { run = true; }
+        logger.info("Starting run thread of buffer generator " + mbid);
         try
         {
-            for (int loop = 0; loop < ngen; loop++)
+            while (isRunning() && !interrupted())
             {
-                consumer.consume(next());
-                if (rand.nextDouble() < 0.0025) Thread.sleep(40);
+                long curTime  = System.nanoTime();
+                double deltaT = 1.0E-09 * (curTime - lastTime);
+                int ngen = (int) (rate * deltaT);
+                ArrayList<Long> times = new ArrayList<Long>(ngen);
+                for (int i = 0; i < ngen; i++)
+                {
+                    double t = rand.nextDouble() * deltaT;
+                    long  it = lastTime + (long) (t * 1.0E+09);
+                    times.add(it);
+                }
+                lastTime = curTime;
+                Collections.sort(times);
+                for (int loop = 0; loop < ngen; loop++)
+                {
+                    ByteBuffer buf = ByteBuffer.allocate(40);
+                    buf.putInt(40);
+                    buf.putInt(0x1734);
+                    buf.putLong(mbid);
+                    buf.putLong(0L);
+                    buf.putLong(times.get(loop));
+                    buf.putInt(1);
+                    buf.putInt(2);
+                    consumer.consume((ByteBuffer) buf.flip());
+                }
+                Thread.sleep(50);
             }
             consumer.consume(eos());
             logger.debug(String.format("Wrote eos for %012x", mbid));
@@ -157,6 +187,7 @@ class BufferGenerator extends Thread
         {
             ex.printStackTrace();
         }
+        logger.info("Buffer generator thread " + mbid + " exiting.");
     }
     
     ByteBuffer eos()
