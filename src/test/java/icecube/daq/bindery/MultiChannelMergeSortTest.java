@@ -5,15 +5,14 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Random;
 
+import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class MultiChannelMergeSortTest implements BufferConsumer
 {
@@ -21,20 +20,39 @@ public class MultiChannelMergeSortTest implements BufferConsumer
     private MultiChannelMergeSort mms; 
     private boolean timeOrdered;
     private int numBuffersSeen;
-    private static long[] channelIds = new long[] { 0x1234, 0x4321, 0x3412, 0x2143 };
+    private long[] channelIds;
     private long lastUT;
-    private final int NGEN = 10000;
+    private final int ngen;
+    private final int nch;
+    private final static Logger logger = Logger.getLogger(MultiChannelMergeSortTest.class);
+    
+    public MultiChannelMergeSortTest()
+    {
+        this(
+                Integer.getInteger("icecube.daq.bindery.MultiChannelMergeSortTest.channels", 16),
+                Integer.getInteger("icecube.daq.bindery.MultiChannelMergeSortTest.gen", 1000000)
+            );
+    }
+    
+    public MultiChannelMergeSortTest(int nch, int ngen)
+    {
+        this.nch = nch;
+        this.ngen = ngen;
+        channelIds = new long[nch];
+        for (int ch = 0; ch < nch; ch++) channelIds[ch] = 1000 * ch;
+    }
     
     @BeforeClass
     public static void loggingSetUp()
     {
+        BasicConfigurator.configure();
         Logger.getRootLogger().setLevel(Level.INFO);
     }
 
     @Before
     public void setUp() throws Exception
     {
-        mms = new MultiChannelMergeSort(4, this);
+        mms = new MultiChannelMergeSort(nch, this);
         for (int ch = 0; ch < channelIds.length; ch++) mms.register(channelIds[ch]);
         mms.start();
         timeOrdered = true;
@@ -45,22 +63,20 @@ public class MultiChannelMergeSortTest implements BufferConsumer
     @Test
     public void testTimeOrdering() throws Exception
     {
-        BufferGenerator[] genArr = new BufferGenerator[4];
+        BufferGenerator[] genArr = new BufferGenerator[nch];
         Random die = new Random();
         int nch = channelIds.length;
         
         for (int ch = 0; ch < nch; ch++)
         {
-            genArr[ch] = new BufferGenerator(channelIds[ch], die.nextInt(50), NGEN, mms);
+            genArr[ch] = new BufferGenerator(channelIds[ch], die.nextInt(50), ngen, mms);
             genArr[ch].start();
         }
 
-        // Wait on spawned threads
-        // for (int ch = 0; ch < nch; ch++) genArr[ch].join();
         mms.join();
         
         assertTrue(timeOrdered);
-        assertEquals(nch * NGEN + 1, numBuffersSeen);
+        assertEquals(nch * ngen + 1, numBuffersSeen);
         
     }
     
@@ -69,6 +85,21 @@ public class MultiChannelMergeSortTest implements BufferConsumer
         long utc = buf.getLong(24);
         if (lastUT > utc) timeOrdered = false;
         numBuffersSeen++;
+        if (numBuffersSeen % 10000 == 0) logger.info("# buffers: " + numBuffersSeen);
+    }
+    
+    public static void main(String[] args) throws Exception
+    {
+        loggingSetUp();
+        int nch = 16;
+        int ngen = 100000;
+        if (args.length > 0) nch = Integer.parseInt(args[0]);
+        if (args.length > 1) ngen = Integer.parseInt(args[1]);
+        MultiChannelMergeSortTest mcmt = new MultiChannelMergeSortTest(nch, ngen);
+        mcmt.setUp();
+        mcmt.testTimeOrdering();
+        System.out.println("Number of buffers out: " + mcmt.numBuffersSeen);
+                
     }
     
 }
@@ -98,7 +129,7 @@ class BufferGenerator extends Thread
     
     ByteBuffer next()
     {
-        t += rand.nextInt(10);
+        t += (rand.nextInt(20)+1);
         ByteBuffer buf = ByteBuffer.allocate(40);
         buf.putInt(40);
         buf.putInt(15071);
@@ -117,6 +148,7 @@ class BufferGenerator extends Thread
             for (int loop = 0; loop < ngen; loop++)
             {
                 consumer.consume(next());
+                if (rand.nextDouble() < 0.0025) Thread.sleep(40);
             }
             consumer.consume(eos());
             logger.debug(String.format("Wrote eos for %012x", mbid));

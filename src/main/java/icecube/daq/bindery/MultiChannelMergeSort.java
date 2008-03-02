@@ -69,7 +69,7 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     
     public MultiChannelMergeSort(int nch, BufferConsumer out)
     {
-        this(nch, out, "");
+        this(nch, out, "g");
     }
     
     public MultiChannelMergeSort(int nch, BufferConsumer out, String channelType)
