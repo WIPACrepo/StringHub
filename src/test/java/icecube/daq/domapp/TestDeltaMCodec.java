@@ -1,4 +1,4 @@
-package icecube.daq.domapp.test;
+package icecube.daq.domapp;
 
 import static org.junit.Assert.*;
 

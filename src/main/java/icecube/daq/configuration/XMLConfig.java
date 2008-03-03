@@ -273,6 +273,10 @@ public class XMLConfig extends DefaultHandler
 		{
 			currentConfig.setSimNoiseRate(Double.parseDouble(text));
 		}
+		else if (localName.equals("hlcFraction"))
+		{
+		    currentConfig.setSimHLCFrac(Double.parseDouble(text));
+		}
 		else if (internalState == ParserState.DOM_CONFIG)
 		{
 			// Name not found - try the DACs

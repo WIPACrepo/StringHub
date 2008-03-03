@@ -28,6 +28,9 @@ public class DOMConfiguration implements Serializable
 	private boolean pedestalSubtract = false;
 	private boolean simulation = false;
 	private double simNoiseRate = 25.0;
+	
+	/** The fraction of hits that have HLC bit set (simulation only) */ 
+	private double simHLCFrac = 1.0;   
 	private int histoInterval = 10;
 	private short histoPrescale = (short) 8;
 	private boolean chargeStampATWD = false;
@@ -351,6 +354,16 @@ public class DOMConfiguration implements Serializable
     
     public void setHistoInterval(int interval) { histoInterval = interval; }
     public void setHistoPrescale(short prescale) { histoPrescale = prescale; }
+
+    public double getSimHLCFrac()
+    {
+        return simHLCFrac;
+    }
+
+    public void setSimHLCFrac(double simHLCFrac)
+    {
+        this.simHLCFrac = simHLCFrac;
+    }
 }
 
 

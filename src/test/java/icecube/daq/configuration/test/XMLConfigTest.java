@@ -6,8 +6,8 @@ import static org.junit.Assert.assertNotNull;
 
 import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.DOMConfiguration;
+import icecube.daq.domapp.TestDeltaMCodec;
 import icecube.daq.domapp.TriggerMode;
-import icecube.daq.domapp.test.TestDeltaMCodec;
 import icecube.daq.stringhub.test.MockAppender;
 
 import java.io.InputStream;

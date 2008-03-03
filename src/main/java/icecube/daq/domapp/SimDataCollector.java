@@ -50,6 +50,7 @@ public class SimDataCollector extends AbstractDataCollector
     private RandomEngine    rand = new MersenneTwister(new java.util.Date());
     private Poisson         poissonRandom = new Poisson(1.0, rand);
     private double          rate;
+    private double          hlcFrac = 1.0;
     private boolean         stopRunLoop;
     private long            numHits;
     private long            loopCounter;
@@ -85,6 +86,7 @@ public class SimDataCollector extends AbstractDataCollector
         if (config != null) {
             rate = config.getSimNoiseRate();
             pulserRate = config.getPulserRate();
+            hlcFrac = config.getSimHLCFrac();
         }
         thread = new Thread(this, "SimDataCollector-" + card + "" + pair + dom);
         thread.start();
@@ -316,29 +318,24 @@ public class SimDataCollector extends AbstractDataCollector
         Collections.sort(eventTimes);
         lastGenHit = currTime;
         for (int i = 0; i < n; i++) {
-            final int recl = 112;
+            final int recl = 54;
             ByteBuffer buf = ByteBuffer.allocate(recl);
             buf.putInt(recl);
-            buf.putInt(2);
+            buf.putInt(3);
             buf.putLong(numericMBID);
             buf.putLong(0L);
             long utc = eventTimes.get(i);
             buf.putLong(utc);
             clock = utc / 500L;
-            // Engineering header
-            buf.putShort((short) 80).putShort((short) 2).put((byte) 0);
-            // nFADC + ATWD readout config
-            buf.put((byte) 0).put((byte) 3).put((byte) 0);
-            // Trigger and spare field
-            buf.put((byte) 2).put((byte) 0);
-            // The clock word in 6 bytes
-            buf.put((byte) ((clock >> 40) & 0xff));
-            buf.put((byte) ((clock >> 32) & 0xff));
-            buf.put((byte) ((clock >> 24) & 0xff));
-            buf.put((byte) ((clock >> 16) & 0xff));
-            buf.put((byte) ((clock >> 8) & 0xff));
-            buf.put((byte) (clock & 0xff));
-            for (int k = 0; k < 32; k++) buf.putShort((short) 138);
+            buf.putShort((short) 0x01).putShort((short) 0x01).putShort((short) 0x00);
+            // the actual un-translated domclock goes here
+            buf.putLong(clock);
+            // simulation of the lcBits happens here
+            int lcBits = 0;
+            if (rand.nextDouble() < hlcFrac) lcBits = 0x30000;
+            int word1 = 0x9004c00c | lcBits;
+            int word3 = 0x00000000;
+            buf.putInt(word1).putInt(word3);
             buf.flip();
             logger.debug("Writing " + buf.remaining() + " byte hit at UTC = " + utc);
             hitsConsumer.consume(buf);
