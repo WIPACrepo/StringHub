@@ -1,6 +1,7 @@
 package icecube.daq;
 
 import icecube.daq.bindery.BufferConsumerChannel;
+import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.StreamBinder;
 import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.DOMConfiguration;
@@ -13,6 +14,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.nio.channels.Pipe;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 
@@ -25,27 +27,37 @@ public class Omicron {
 	private static ArrayList<DataCollector> collectors;
 	//private static ByteBuffer drain;
 	private static final Logger logger = Logger.getLogger(Omicron.class);
-	
-	public static void main(String[] args) throws Exception 
+
+	public static void main(String[] args) throws Exception
 	{
 		int index = 0;
 		float runLength = 30.0f;
 		String pathToProps = ".omicron.properties";
-		
+
 		while (index < args.length)
 		{
-			String arg = args[index];
-			if (arg.charAt(0) != '-') break;
-			switch (arg.charAt(1))
+			String opt = args[index];
+			String arg = null;
+			if (opt.charAt(0) != '-') break;
+			index += 1;
+			switch (opt.charAt(1))
 			{
+
 			case 't': // run time setting
-				runLength = Float.parseFloat(arg.substring(2));
+			    if (opt.length() == 2)
+			        arg = args[index++];
+			    else
+			        arg = opt.substring(2);
+				runLength = Float.parseFloat(arg);
 				break;
 			case 'P': // properties file specifier
-				pathToProps = arg.substring(2);
+			    if (opt.length() == 2)
+			        arg = args[index++];
+			    else
+			        arg = opt.substring(2);
+				pathToProps = arg;
 				break;
 			}
-			index++;
 		}
 
 		if (args.length - index < 2)
@@ -53,7 +65,7 @@ public class Omicron {
 			System.err.println("usage : java ic3.daq.Omicron [ opts ] <output-file> <xml-config>");
 			System.exit(1);
 		}
-		
+
 		Properties props = new Properties();
 		props.load(new FileInputStream(pathToProps));
 		PropertyConfigurator.configure(props);
@@ -61,57 +73,80 @@ public class Omicron {
 		long  runLengthMsec = (long) (1000.0 * runLength);
 
 		String outputBaseName = args[index++];
-		FileOutputStream fOutHits = new FileOutputStream(outputBaseName + ".hits");
 		XMLConfig xmlConfig = new XMLConfig();
 		xmlConfig.parseXMLConfig(new FileInputStream(args[index++]));
-		
+
 		logger.info("Begin logging at " + new java.util.Date());
 		collectors = new ArrayList<DataCollector>();
-		
+
 		// Must first count intersection of configured and discovered DOMs
 		int nDOM = 0;
 		List<DOMChannelInfo> activeDOMs = driver.discoverActiveDOMs();
 		for (DOMChannelInfo chInfo : activeDOMs)
 			if (xmlConfig.getDOMConfig(chInfo.mbid) != null) nDOM++;
 
-        BufferConsumerChannel chan = new BufferConsumerChannel(fOutHits.getChannel());
-		StreamBinder bind = new StreamBinder(nDOM, chan);	
+        FileOutputStream fOutHits = new FileOutputStream(outputBaseName + ".hits");
+        FileOutputStream fOutMoni = new FileOutputStream(outputBaseName + ".moni");
+        FileOutputStream fOutTcal = new FileOutputStream(outputBaseName + ".tcal");
+        FileOutputStream fOutScal = new FileOutputStream(outputBaseName + ".scal");
 
-		for (DOMChannelInfo chInfo : activeDOMs) 
+        BufferConsumerChannel hitsChan = new BufferConsumerChannel(fOutHits.getChannel());
+        BufferConsumerChannel moniChan = new BufferConsumerChannel(fOutMoni.getChannel());
+        BufferConsumerChannel tcalChan = new BufferConsumerChannel(fOutTcal.getChannel());
+        BufferConsumerChannel scalChan = new BufferConsumerChannel(fOutScal.getChannel());
+        
+        MultiChannelMergeSort hitsSort = new MultiChannelMergeSort(nDOM, hitsChan, "hits");
+        MultiChannelMergeSort moniSort = new MultiChannelMergeSort(nDOM, moniChan, "moni");
+        MultiChannelMergeSort tcalSort = new MultiChannelMergeSort(nDOM, tcalChan, "tcal");
+        MultiChannelMergeSort scalSort = new MultiChannelMergeSort(nDOM, scalChan, "supernova");
+
+		for (DOMChannelInfo chInfo : activeDOMs)
 		{
 			DOMConfiguration config = xmlConfig.getDOMConfig(chInfo.mbid);
 			if (config == null) continue;
 			String cwd = chInfo.card + "" + chInfo.pair + chInfo.dom;
-			Pipe pipe = Pipe.open();
-			FileOutputStream fOutMoni = new FileOutputStream(outputBaseName + "-" + chInfo.mbid + ".moni");
+			hitsSort.register(chInfo.getMainboardIdAsLong());
+			moniSort.register(chInfo.getMainboardIdAsLong());
+			tcalSort.register(chInfo.getMainboardIdAsLong());
+			scalSort.register(chInfo.getMainboardIdAsLong());
 			DataCollector dc = new DataCollector(
-					chInfo.card, chInfo.pair, chInfo.dom, config, 
-					pipe.sink(), fOutMoni.getChannel(), null, null
+					chInfo.card, chInfo.pair, chInfo.dom, config,
+					hitsSort, moniSort, scalSort, tcalSort,
+					null, null, null
 					);
-			bind.register(pipe.source(), cwd);
 			collectors.add(dc);
 			logger.debug("Starting new DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ").");
 			logger.debug("DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ") started.");
 		}
-		
-		bind.start();
+
+		hitsSort.start();
+		moniSort.start();
+		scalSort.start();
+		tcalSort.start();
 		
 		// All collectors are now started at latest by t0
 		long t0 = System.currentTimeMillis();
-		
-		// wait about 1.5 sec for DOMs to open up
-		logger.info("Sleeping for DOM devfile open");
-		Thread.sleep(10000);
-		
-		// List of objects that need removal
-		ArrayList<DataCollector> reaper = new ArrayList<DataCollector>();
-		
-		// Do not need to wait on init - you can signal immediately that the
-		// DataCollector should be configured
 
-		logger.info("Sending CONFIGURE signal to DataCollectors");
+		// List of objects that need removal
+		HashSet<DataCollector> reaper = new HashSet<DataCollector>();
+
+		logger.info("Waiting for collectors to initialize");
+		for (DataCollector dc : collectors)
+		{
+            while (dc.isAlive() && 
+                    !dc.getRunLevel().equals(RunLevel.IDLE) && 
+                    System.currentTimeMillis() - t0 < 15000L)
+                Thread.sleep(100);
+		    if (!dc.isAlive())
+		    {
+		        logger.warn("Collector " + dc.getName() + " died in init.");
+		        reaper.add(dc);
+		    }
+		}
 		
-		for (DataCollector dc : collectors) 
+		logger.info("Sending CONFIGURE signal to DataCollectors");
+
+		for (DataCollector dc : collectors)
 		{
 			if (!dc.isAlive())
 			{
@@ -123,12 +158,12 @@ public class Omicron {
 				dc.signalConfigure();
 			}
 		}
-		
+
 		collectors.removeAll(reaper);
 		reaper.clear();
-		
+
 		logger.info("Waiting on DOMs to configure...");
-		
+
 		// Wait until configured
 		for (DataCollector dc : collectors)
 		{
@@ -152,34 +187,37 @@ public class Omicron {
 				}
 			}
 		}
-		
+
 		collectors.removeAll(reaper);
 		reaper.clear();
-		
+
 		logger.info("Starting run...");
-		
+
 		// Quickly fire off a run start now that all are ready
-		for (DataCollector dc : collectors) 
+		for (DataCollector dc : collectors)
 			if (dc.isAlive()) dc.signalStartRun();
-		
+
 		t0 = System.currentTimeMillis();
-		
-		while (true) 
+
+		while (true)
 		{
-			long time = System.currentTimeMillis(); 
-			if (time - t0 > runLengthMsec) 
+			long time = System.currentTimeMillis();
+			if (time - t0 > runLengthMsec)
 			{
 				for (DataCollector dc : collectors) if (dc.isAlive()) dc.signalStopRun();
 				break;
 			}
 			Thread.sleep(1000);
 		}
-		
+
 		for (DataCollector dc : collectors) {
 			while (dc.isAlive() && !dc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(100);
 			dc.signalShutdown();
 		}
 
-		bind.join();
+		hitsSort.join();
+		moniSort.join();
+		scalSort.join();
+		tcalSort.join();
 	}
 }

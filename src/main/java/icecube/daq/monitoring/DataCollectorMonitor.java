@@ -1,11 +1,10 @@
-
 package icecube.daq.monitoring;
 
-import icecube.daq.stringhub.DOMConnector;
-import icecube.daq.domapp.AbstractDataCollector;
 import icecube.daq.bindery.StreamBinder;
+import icecube.daq.domapp.AbstractDataCollector;
+import icecube.daq.stringhub.DOMConnector;
+
 import java.util.List;
-import java.util.Collection;
 
 public class DataCollectorMonitor implements DataCollectorMonitorMBean
 {
@@ -66,7 +65,7 @@ public class DataCollectorMonitor implements DataCollectorMonitorMBean
 			tcal[i++] = adc.getNumTcal();
 		return tcal;
 	}
-	
+
 	public long[] getNumSupernova() {
 		if (conn == null) return new long[0];
 		List<AbstractDataCollector> collectors = conn.getCollectors();
@@ -88,7 +87,7 @@ public class DataCollectorMonitor implements DataCollectorMonitorMBean
 			lev[i++] = adc.getRunLevel().toString();
 		return lev;
 	}
-	
+
 	public long[] getAcqusitionLoopCount() {
 		if (conn == null) return new long[0];
 		List<AbstractDataCollector> collectors = conn.getCollectors();
@@ -172,9 +171,5 @@ public class DataCollectorMonitor implements DataCollectorMonitorMBean
 		if (supernovaBinder == null) return 0L;
 		return supernovaBinder.getLastUT();
 	}
-	
+
 }
-
-
-
-			

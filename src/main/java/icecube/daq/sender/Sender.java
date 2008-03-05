@@ -2,9 +2,7 @@ package icecube.daq.sender;
 
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.common.DAQCmdInterface;
-
 import icecube.daq.eventbuilder.impl.ReadoutDataPayloadFactory;
-
 import icecube.daq.monitoring.SenderMonitor;
 import icecube.daq.payload.IDOMID;
 import icecube.daq.payload.IDomHit;
@@ -12,37 +10,25 @@ import icecube.daq.payload.ILoadablePayload;
 import icecube.daq.payload.IPayload;
 import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.ISourceID;
-import icecube.daq.payload.IWriteablePayload;
 import icecube.daq.payload.IUTCTime;
+import icecube.daq.payload.IWriteablePayload;
 import icecube.daq.payload.MasterPayloadFactory;
 import icecube.daq.payload.PayloadDestination;
 import icecube.daq.payload.PayloadRegistry;
 import icecube.daq.payload.SourceIdRegistry;
-
 import icecube.daq.payload.impl.DomHitDeltaCompressedFormatPayload;
 import icecube.daq.payload.impl.DomHitEngineeringFormatPayload;
-
 import icecube.daq.payload.splicer.Payload;
-
 import icecube.daq.reqFiller.RequestFiller;
-
-import icecube.daq.splicer.Spliceable;
-
 import icecube.daq.trigger.IHitPayload;
 import icecube.daq.trigger.IReadoutRequest;
 import icecube.daq.trigger.IReadoutRequestElement;
-
-import icecube.daq.trigger.impl.DeltaCompressedFormatHitDataPayload;
 import icecube.daq.trigger.impl.DeltaCompressedFormatHitDataPayloadFactory;
-import icecube.daq.trigger.impl.EngineeringFormatHitDataPayload;
 import icecube.daq.trigger.impl.EngineeringFormatHitDataPayloadFactory;
 import icecube.daq.trigger.impl.HitPayloadFactory;
-import icecube.daq.trigger.impl.ReadoutRequestPayloadFactory;
 
 import java.io.IOException;
-
 import java.nio.ByteBuffer;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -50,7 +36,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Vector;
-
 import java.util.zip.DataFormatException;
 
 import org.apache.commons.logging.Log;
@@ -59,8 +44,6 @@ import org.apache.commons.logging.LogFactory;
 class TinyHitPayload
     implements IDomHit, ILoadablePayload
 {
-    private static Log LOG = LogFactory.getLog(Sender.class);
-
     private ByteBuffer byteBuf;
     private long time;
     private long domId;
@@ -150,7 +133,7 @@ class TinyHitPayload
 
     public String toString()
     {
-        return "DomHit[" + domId + "@" + time + "]";
+        return "DomHit[" + Long.toHexString(domId) + "@" + time + "]";
     }
 }
 
@@ -231,7 +214,7 @@ class HitSorter
         } else if (s2 == null) {
             return -1;
         } else {
-            return (int) (s1.getDomIDAsLong() - s2.getDomIDAsLong());
+            return (int) (s1.longValue() - s2.longValue());
         }
     }
 
@@ -277,7 +260,7 @@ class HitSorter
         } else if (t2 == null) {
             return -1;
         } else {
-            return (int) (t1.getUTCTimeAsLong() - t2.getUTCTimeAsLong());
+            return (int) (t1.longValue() - t2.longValue());
         }
     }
 
@@ -319,7 +302,7 @@ class DomHitFactory
 
         if (buf.limit() < offset + 4) {
             throw new Error("Expected buffer with at least " + (offset + 4) +
-                            "bytes, not " + buf.limit() + " (offset=" +
+                            " bytes, not " + buf.limit() + " (offset=" +
                             offset + ")");
         }
 
@@ -379,7 +362,6 @@ public class Sender
     private DeltaCompressedFormatHitDataPayloadFactory deltaHitFactory;
     private HitPayloadFactory hitFactory;
     private DomHitFactory domHitFactory;
-    private ReadoutRequestPayloadFactory readoutReqFactory;
     private ReadoutDataPayloadFactory readoutDataFactory;
 
     private IPayloadDestinationCollection hitDest;
@@ -417,7 +399,7 @@ public class Sender
      */
     public Sender(int stringHubId, MasterPayloadFactory masterFactory)
     {
-        super("Sender", false);
+        super("Sender#" + stringHubId, false);
 
         sourceId = getSourceId(stringHubId);
 
@@ -426,13 +408,11 @@ public class Sender
         hitFactory = new HitPayloadFactory();
         domHitFactory = new DomHitFactory();
 
-        final int readoutReqType = PayloadRegistry.PAYLOAD_ID_READOUT_REQUEST;
-        readoutReqFactory = (ReadoutRequestPayloadFactory)
-            masterFactory.getPayloadFactory(readoutReqType);
-
         final int readoutDataType = PayloadRegistry.PAYLOAD_ID_READOUT_DATA;
         readoutDataFactory = (ReadoutDataPayloadFactory)
             masterFactory.getPayloadFactory(readoutDataType);
+
+        forwardLC0Hits = false;
     }
 
     /**
@@ -448,7 +428,6 @@ public class Sender
      */
     public int compareRequestAndData(IPayload reqPayload, IPayload dataPayload)
     {
-        IReadoutRequest req = (IReadoutRequest) reqPayload;
         IDomHit data = (IDomHit) dataPayload;
 
         // get time from current hit
@@ -475,9 +454,7 @@ public class Sender
      */
     public void consume(ByteBuffer buf)
     {
-        if (buf.position() == 0 && buf.limit() == 32 &&
-            buf.getInt(0) == 32 && buf.getInt(8) == 0 &&
-            buf.getLong(24) == Long.MAX_VALUE)
+        if (buf.getInt(0) == 32 && buf.getLong(24) == Long.MAX_VALUE)
         {
             if (hitDest != null) {
                 try {
@@ -531,7 +508,7 @@ public class Sender
 
                 // remember most recent time for monitoring
                 latestHitTime =
-                    engData.getPayloadTimeUTC().getUTCTimeAsLong();
+                    engData.getPayloadTimeUTC().longValue();
 
                 if (!USE_TINY_HITS) {
                     addData(engData);
@@ -552,7 +529,7 @@ public class Sender
         buf.flip();
     }
 
-    private List convertDataToHits(IReadoutRequest req, List dataList)
+    private List convertDataToHits(List dataList)
         throws DataFormatException, IOException
     {
         ArrayList hitDataList = new ArrayList();
@@ -991,10 +968,8 @@ public class Sender
             IReadoutRequestElement elem =
                 (IReadoutRequestElement) iter.next();
 
-            final long elemFirstUTC =
-                elem.getFirstTimeUTC().getUTCTimeAsLong();
-            final long elemLastUTC =
-                elem.getLastTimeUTC().getUTCTimeAsLong();
+            final long elemFirstUTC = elem.getFirstTimeUTC().longValue();
+            final long elemLastUTC = elem.getLastTimeUTC().longValue();
 
             if (timestamp < elemFirstUTC || timestamp > elemLastUTC) {
                 continue;
@@ -1032,14 +1007,14 @@ public class Sender
                 break;
             case IReadoutRequestElement.READOUT_TYPE_II_MODULE:
                 if (daqName.equals(DAQCmdInterface.DAQ_STRINGPROCESSOR) &&
-                    curData.getDomId() == elem.getDomID().getDomIDAsLong())
+                    curData.getDomId() == elem.getDomID().longValue())
                 {
                     return true;
                 }
                 break;
             case IReadoutRequestElement.READOUT_TYPE_IT_MODULE:
                 if (daqName.equals(DAQCmdInterface.DAQ_ICETOP_DATA_HANDLER) &&
-                    curData.getDomId() == elem.getDomID().getDomIDAsLong())
+                    curData.getDomId() == elem.getDomID().longValue())
                 {
                     return true;
                 }
@@ -1090,8 +1065,8 @@ public class Sender
             if (startTime == null) {
                 startTime = elem.getFirstTimeUTC();
             } else {
-                long tmpTime = elem.getFirstTimeUTC().getUTCTimeAsLong();
-                if (tmpTime < startTime.getUTCTimeAsLong()) {
+                long tmpTime = elem.getFirstTimeUTC().longValue();
+                if (tmpTime < startTime.longValue()) {
                     startTime = elem.getFirstTimeUTC();
                 }
             }
@@ -1099,8 +1074,8 @@ public class Sender
             if (endTime == null) {
                 endTime = elem.getLastTimeUTC();
             } else {
-                long tmpTime = elem.getLastTimeUTC().getUTCTimeAsLong();
-                if (tmpTime > endTime.getUTCTimeAsLong()) {
+                long tmpTime = elem.getLastTimeUTC().longValue();
+                if (tmpTime > endTime.longValue()) {
                     endTime = elem.getLastTimeUTC();
                 }
             }
@@ -1111,22 +1086,20 @@ public class Sender
             return null;
         }
 
-        latestReadoutStartTime = startTime.getUTCTimeAsLong();
-        latestReadoutEndTime = endTime.getUTCTimeAsLong();
+        latestReadoutStartTime = startTime.longValue();
+        latestReadoutEndTime = endTime.longValue();
 
         if (log.isDebugEnabled()) {
-            log.debug("Closing ReadoutData " + startTime.getUTCTimeAsLong() +
-                      " - " + endTime.getUTCTimeAsLong());
+            log.debug("Closing ReadoutData " + startTime + " - " + endTime);
         }
         if (log.isWarnEnabled() && dataList.size() == 0) {
             log.warn("Sending empty readout data payload for window [" +
-                     startTime.getUTCTimeAsLong() + " - " +
-                     endTime.getUTCTimeAsLong() + "]");
+                     startTime + " - " + endTime + "]");
         }
 
         List hitDataList;
         try {
-            hitDataList = convertDataToHits(req, dataList);
+            hitDataList = convertDataToHits(dataList);
         } catch (DataFormatException dfe) {
             log.error("Couldn't convert engineering data to hits", dfe);
             return null;
@@ -1254,14 +1227,12 @@ public class Sender
             IReadoutRequestElement elem =
                 (IReadoutRequestElement) iter.next();
 
-            long startTime =
-                elem.getFirstTimeUTC().getUTCTimeAsLong();
+            long startTime = elem.getFirstTimeUTC().longValue();
             if (startTime < reqStartTime) {
                 reqStartTime = startTime;
             }
 
-            long endTime =
-                elem.getLastTimeUTC().getUTCTimeAsLong();
+            long endTime = elem.getLastTimeUTC().longValue();
             if (endTime > reqEndTime) {
                 reqEndTime = endTime;
             }
@@ -1273,5 +1244,19 @@ public class Sender
                       reqEndTime + "]");
         }
     }
-}
 
+    public void forwardIsolatedHitsToTrigger()
+    {
+        forwardIsolatedHitsToTrigger(true);
+    }
+
+    public void forwardIsolatedHitsToTrigger(boolean forward)
+    {
+        forwardLC0Hits = forward;
+    }
+
+    public String toString()
+    {
+        return "" + sourceId;
+    }
+}

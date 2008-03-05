@@ -2,7 +2,7 @@ package icecube.daq.domapp;
 
 import java.io.Serializable;
 
-public class DOMConfiguration implements Serializable 
+public class DOMConfiguration implements Serializable
 {
 	private static final long serialVersionUID = 2L;
 
@@ -12,7 +12,7 @@ public class DOMConfiguration implements Serializable
 	private TriggerMode triggerMode = TriggerMode.SPE;
 	private boolean compressionEnabled = false;
 	private EngineeringRecordFormat engFormat = new EngineeringRecordFormat();
-	private short[] dacs = new short[] { 
+	private short[] dacs = new short[] {
 			850, 2300,  350, 2250,  850, 2300,  350, 2130,
 			600,  560,  800,    0, 1023,  800,  450, 1023,
 			};
@@ -29,11 +29,18 @@ public class DOMConfiguration implements Serializable
 	private boolean simulation = false;
 	private double simNoiseRate = 25.0;
 	
+	/** The fraction of hits that have HLC bit set (simulation only) */ 
+	private double simHLCFrac = 1.0;   
+	private int histoInterval = 10;
+	private short histoPrescale = (short) 8;
+	private boolean chargeStampATWD = false;
+	private byte chargeStampAtwdChannel = -1;
+	
 	public DOMConfiguration()
 	{
-	    
+
 	}
-	
+
 	/**
 	 * Copy constructor
 	 */
@@ -58,7 +65,7 @@ public class DOMConfiguration implements Serializable
 	    this.supernovaSpe = c.supernovaSpe;
 	    this.triggerMode  = c.triggerMode;
 	}
-	
+
 	/**
 	 * Turn on delta compression in the DOM.  Calling this function
 	 * also turns off engineering format.
@@ -66,51 +73,51 @@ public class DOMConfiguration implements Serializable
 	public void enableDeltaCompression() { compressionEnabled = true; }
 
 	public boolean isDeltaCompressionEnabled() { return compressionEnabled; }
-	
+
 	/**
 	 * Turn on engineering data format and set the readout data.
 	 * @param fmt the engineering data format specification.
 	 */
-	public void setEngineeringFormat(EngineeringRecordFormat fmt) 
-	{ 
+	public void setEngineeringFormat(EngineeringRecordFormat fmt)
+	{
 		compressionEnabled = false;
-		engFormat = fmt; 
+		engFormat = fmt;
 	}
-	
+
 	public EngineeringRecordFormat getEngineeringFormat() { return engFormat; }
-	
+
 	/**
 	 * Set the photomultiplier tube high voltage.
 	 * @param hv the PMT HV setting in DAC counts (0.5 V units).
 	 */
 	public void setHV(int hv) { pmt_hv = (short) hv; }
-	
+
 	public short getHV() { return pmt_hv; }
-	
+
 	public MuxState getMux() { return mux; }
-	
+
 	public void setLC(LocalCoincidenceConfiguration lcConfig)
 	{
 		lc = lcConfig;
 	}
-	
+
 	public LocalCoincidenceConfiguration getLC() { return lc; }
-	
+
 	/**
 	 * Set DAC
 	 * @param dac the DAC channel.  Must be in range [0:15]
-	 * @param val the value. 
+	 * @param val the value.
 	 */
 	public void setDAC(int dac, int val)
 	{
 		dacs[dac] = (short) val;
 	}
-	
+
 	public short getDAC(int dac)
 	{
 		return dacs[dac];
 	}
-	
+
 	/**
 	 * Set the DOM triggering mode
 	 * @param mode the trigger mode
@@ -119,7 +126,7 @@ public class DOMConfiguration implements Serializable
 	{
 		triggerMode = mode;
 	}
-	
+
 	public TriggerMode getTriggerMode()
 	{
 		return triggerMode;
@@ -129,22 +136,22 @@ public class DOMConfiguration implements Serializable
 	{
 		pulserRate = (short) rate;
 	}
-	
+
 	public short getPulserRate()
 	{
 		return pulserRate;
 	}
-	
+
 	public void setPulserMode(PulserMode mode)
 	{
 		pulserMode = mode;
 	}
-	
+
 	public PulserMode getPulserMode()
 	{
-		return pulserMode; 
+		return pulserMode;
 	}
-	
+
 	/**
 	 * Enable readout of the supernova scalers.
 	 *
@@ -153,10 +160,10 @@ public class DOMConfiguration implements Serializable
 	{
 		supernovaEnabled = true;
 	}
-	
+
 	/**
 	 * Disable readout of the supernova scalers.  Normally, this is not necessary
-	 * since these scalers are disabled by default. 
+	 * since these scalers are disabled by default.
 	 *
 	 */
 	public void disableSupernova()
@@ -165,7 +172,7 @@ public class DOMConfiguration implements Serializable
 	}
 
 	public boolean isSupernovaEnabled() { return supernovaEnabled; }
-	
+
 	/**
 	 * Returns the value of the configuration monitoring interval.
 	 * @return the configMonitorInterval
@@ -194,17 +201,17 @@ public class DOMConfiguration implements Serializable
 	public void setHardwareMonitorInterval(int hardwareMonitorInterval) {
 		this.hardwareMonitorInterval = hardwareMonitorInterval;
 	}
-	
-	public int getFastMonitorInterval() 
+
+	public int getFastMonitorInterval()
 	{
 	    return fastMonitorInterval;
 	}
-	
+
 	public void setFastMonitorInterval(int fastIval)
 	{
 	    fastMonitorInterval = fastIval;
 	}
-	
+
 	/**
 	 * Set the multiplexer state
 	 * @param mux
@@ -255,7 +262,7 @@ public class DOMConfiguration implements Serializable
 	public void setSupernovaSpe(boolean supernovaSpe) {
 		this.supernovaSpe = supernovaSpe;
 	}
-	
+
 	/**
 	 * Enable / disable pedestal subtraction.  If this flag
 	 * is set (true) the DataCollector will execute a
@@ -267,7 +274,7 @@ public class DOMConfiguration implements Serializable
 	{
 		pedestalSubtract = enabled;
 	}
-	
+
 	/**
 	 * Returns the current value of the pedestal subtraction flag
 	 * @return true if the DOM
@@ -280,7 +287,7 @@ public class DOMConfiguration implements Serializable
 	/**
 	 * @return the simNoiseRate
 	 */
-	public double getSimNoiseRate() 
+	public double getSimNoiseRate()
 	{
 		return simNoiseRate;
 	}
@@ -288,12 +295,12 @@ public class DOMConfiguration implements Serializable
 	/**
 	 * @param simNoiseRate the simNoiseRate to set
 	 */
-	public void setSimNoiseRate(double simNoiseRate) 
+	public void setSimNoiseRate(double simNoiseRate)
 	{
 		this.simulation   = true;
 		this.simNoiseRate = simNoiseRate;
 	}
-	
+
 	/**
 	 * Returns true if this is a simulated DOM or false if it is real.
 	 * @return true if simDOM, false if not
@@ -302,6 +309,61 @@ public class DOMConfiguration implements Serializable
 	{
 		return simulation;
 	}
+
+    public short getHistoPrescale()
+    {
+        return histoPrescale;
+    }
+    
+    public int getHistoInterval()
+    {
+        return histoInterval;
+    }
+    
+    public boolean isAtwdChargeStamp()
+    {
+        return chargeStampATWD;
+    }
+    
+    public boolean isAutoRangeChargeStamp()
+    {
+        return chargeStampAtwdChannel == -1;
+    }
+
+    public void useAtwdChargeStamp() 
+    {
+        chargeStampATWD = true;
+    }
+    
+    public void useFadcChargeStamp()
+    {
+        chargeStampATWD = false;
+    }
+    
+    public void setChargeStampAutoRange()
+    {
+        chargeStampAtwdChannel = -1;
+    }
+    
+    public void setChargeStampAtwdFixedChannel(byte chan)
+    {
+        chargeStampAtwdChannel = chan;
+    }
+   
+    public byte getChargeStampFixedChannel() { return (byte) (chargeStampAtwdChannel == (byte) 1 ? 1 : 0); }
+    
+    public void setHistoInterval(int interval) { histoInterval = interval; }
+    public void setHistoPrescale(short prescale) { histoPrescale = prescale; }
+
+    public double getSimHLCFrac()
+    {
+        return simHLCFrac;
+    }
+
+    public void setSimHLCFrac(double simHLCFrac)
+    {
+        this.simHLCFrac = simHLCFrac;
+    }
 }
 
 

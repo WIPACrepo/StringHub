@@ -22,7 +22,7 @@ public interface SenderMonitor
      * @return hits/second
      */
     double getHitsPerSecond();
- 
+
     /**
      * Get the time of the most recently queued hit.
      *

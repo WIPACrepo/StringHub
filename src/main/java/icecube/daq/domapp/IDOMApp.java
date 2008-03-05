@@ -16,20 +16,20 @@ public interface IDOMApp {
 	 * @param rate set the LED flashing rate.  Note that the actual rate may be rounded
 	 * by the HAL.
 	 */
-	public abstract void beginFlasherRun(short brightness, short width, short delay, 
+	void beginFlasherRun(short brightness, short width, short delay,
 			short mask, short rate)
 	throws MessageException;
 
 	/**
 	 * Some data collectors need to free things like file handles.
 	 */
-	public abstract void close();
+	void close();
 
 	/**
 	 * Begin data collection on DOM.
 	 * @throws MessageException
 	 */
-	public abstract void beginRun() throws MessageException;
+	void beginRun() throws MessageException;
 
 	/**
 	 * Collect and compute pedestal information on the DOM.
@@ -37,33 +37,36 @@ public interface IDOMApp {
 	 * @param nAtwd1 number of pedestal waveforms to collect for atwd chip 0.
 	 * @param nFadc number of pedestal waveforms to collect for the fADC.
 	 */
-	public abstract void collectPedestals(int nAtwd0, int nAtwd1, int nFadc) throws MessageException;
+	void collectPedestals(int nAtwd0, int nAtwd1, int nFadc) throws MessageException;
+	
+	void setChargeStampType(boolean fADC, boolean autoRange, byte chan) throws MessageException;
+	
 	/**
 	 * Disable the PMT HV.  This action should not change the power
 	 * state of the HV digital interface PCB.  It should remember
 	 * its state across this function call.
 	 * @throws MessageException
 	 */
-	public abstract void disableHV() throws MessageException;
+	void disableHV() throws MessageException;
 
 	/**
 	 * Disable the supernova scaler readout.
 	 * @throws MessageException
 	 */
-	public abstract void disableSupernova() throws MessageException;
+	void disableSupernova() throws MessageException;
 
 	/**
-	 * Enable the PMT HV.  This should not change the power state of the 
+	 * Enable the PMT HV.  This should not change the power state of the
 	 * HV digital interface PCB.
 	 * @throws MessageException
 	 */
-	public abstract void enableHV() throws MessageException;
+	void enableHV() throws MessageException;
 
 	/**
 	 * Enable data collection from the supernova system.
 	 * @throws MessageException
 	 */
-	public abstract void enableSupernova(int deadtime, boolean speDisc)
+	void enableSupernova(int deadtime, boolean speDisc)
 			throws MessageException;
 
 	/**
@@ -72,25 +75,25 @@ public interface IDOMApp {
 	 * whether the run was begun as a normal run or a flasher run.
 	 * @throws MessageException
 	 */
-	public abstract void endRun() throws MessageException;
+	void endRun() throws MessageException;
 
 	/**
 	 * Non-performance-optimized method to obtain data from
 	 * the DOMApp.  It simply sends off a GET_DATA message
 	 * and returns a ByteBuffer with the DOM data newly created
-	 * from the heap. 
+	 * from the heap.
 	 * @return ByteBuffer containing DOM waveform data (if any)
 	 * @throws MessageException
 	 */
-	public abstract ByteBuffer getData() throws MessageException;
-	public abstract ArrayList<ByteBuffer> getData(int n) throws MessageException;
+	ByteBuffer getData() throws MessageException;
+	ArrayList<ByteBuffer> getData(int n) throws MessageException;
 
 	/**
 	 * Query the DOMApp for the DOM mainboard ID (12-char hex string)
 	 * @return
 	 * @throws MessageException
 	 */
-	public abstract String getMainboardID() throws MessageException;
+	String getMainboardID() throws MessageException;
 
 	/**
 	 * Get whatever monitoring messages are present in the
@@ -98,14 +101,14 @@ public interface IDOMApp {
 	 * @return ByteBuffer of monitor messages.
 	 * @throws MessageException
 	 */
-	public abstract ByteBuffer getMoni() throws MessageException;
+	ByteBuffer getMoni() throws MessageException;
 
 	/**
 	 * Returns the calibration pulser rate setting.
 	 * @return the rate in Hz
 	 * @throws MessageException
 	 */
-	public abstract short getPulserRate() throws MessageException;
+	short getPulserRate() throws MessageException;
 
 	/**
 	 * Get the DOMApp release tag identifier.
@@ -113,42 +116,44 @@ public interface IDOMApp {
 	 * for 'official' releases.
 	 * @throws MessageException
 	 */
-	public abstract String getRelease() throws MessageException;
+	String getRelease() throws MessageException;
 
 	/**
 	 * Returns the (rate meter) scaler deadtime.
 	 * @return the artificial deadtime in nanoseconds.
 	 * @throws MessageException
 	 */
-	public abstract int getScalerDeadtime() throws MessageException;
+	int getScalerDeadtime() throws MessageException;
 
 	/**
 	 * Retrieve the contents of the DOM supernova scaler buffer.
 	 * @return the supernova scaler buffer.
 	 * @throws MessageException
 	 */
-	public abstract ByteBuffer getSupernova() throws MessageException;
+	ByteBuffer getSupernova() throws MessageException;
 
-	/** 
+	void histoChargeStamp(int interval, short prescale) throws MessageException;
+	
+	/**
 	 * Turn off the electronic pulser.  This causes
 	 * the DOM to emit beacon hits instead.
 	 * @throws MessageException
 	 */
-	public abstract void pulserOff() throws MessageException;
+	void pulserOff() throws MessageException;
 
 	/**
 	 * Turn on the DOM on-board electronic pulser.
 	 * This ceases beacon hit production.
 	 * @throws MessageException
 	 */
-	public abstract void pulserOn() throws MessageException;
+	void pulserOn() throws MessageException;
 
 	/**
 	 * Get the HV readback / programmed values
 	 * @return 2-element array [0] = ADC value (readback) [1] = DAC value (set)
 	 * @throws MessageException
 	 */
-	public abstract short[] queryHV() throws MessageException;
+	short[] queryHV() throws MessageException;
 
 	/**
 	 * Set the LC cable lengths.
@@ -156,21 +161,21 @@ public interface IDOMApp {
 	 * @param dn 4-element array of shorts holding the down link delays.
 	 * @throws MessageException
 	 */
-	public abstract void setCableLengths(short[] up, short[] dn)
+	void setCableLengths(short[] up, short[] dn)
 			throws MessageException;
 
 	/**
 	 * Prepare the DOM to emit delta compression data.
 	 * @throws MessageException
 	 */
-	public abstract void setDeltaCompressionFormat() throws MessageException;
+	void setDeltaCompressionFormat() throws MessageException;
 
 	/**
 	 * Sets the engineering hit data format.
 	 * @param fmt the engineering record format
 	 * @throws MessageException
 	 */
-	public abstract void setEngineeringFormat(EngineeringRecordFormat fmt)
+	void setEngineeringFormat(EngineeringRecordFormat fmt)
 			throws MessageException;
 
 	/**
@@ -178,7 +183,7 @@ public interface IDOMApp {
 	 * @param dac HV volts * 2, must be in range [0..4095]
 	 * @throws MessageException
 	 */
-	public abstract void setHV(short dac) throws MessageException;
+	void setHV(short dac) throws MessageException;
 
 	/**
 	 * Sets the LC (Rx) mode.  This determines whether the DOM
@@ -186,7 +191,7 @@ public interface IDOMApp {
 	 * @param mode the LC mode
 	 * @throws MessageException
 	 */
-	public abstract void setLCMode(LocalCoincidenceConfiguration.RxMode mode)
+	void setLCMode(LocalCoincidenceConfiguration.RxMode mode)
 			throws MessageException;
 
 	/**
@@ -194,23 +199,23 @@ public interface IDOMApp {
 	 * @param src LC source specifier
 	 * @throws MessageException
 	 */
-	public abstract void setLCSource(LocalCoincidenceConfiguration.Source src)
+	void setLCSource(LocalCoincidenceConfiguration.Source src)
 			throws MessageException;
-	
+
 	/**
 	 * Set the LC span.
 	 * @param span spanning argument in range [1..4]
 	 * @throws MessageException
 	 */
-	public abstract void setLCSpan(byte span) throws MessageException;
-	
+	void setLCSpan(byte span) throws MessageException;
+
 	/**
 	 * Set the LC Tx mode.  This determines whether the DOM
 	 * will emit the LC signals on trigger.
 	 * @param mode the LC Tx mode
 	 * @throws MessageException
 	 */
-	public abstract void setLCTx(LocalCoincidenceConfiguration.TxMode mode)
+	void setLCTx(LocalCoincidenceConfiguration.TxMode mode)
 			throws MessageException;
 
 	/**
@@ -218,7 +223,7 @@ public interface IDOMApp {
 	 * @param type the type setting
 	 * @throws MessageException
 	 */
-	public abstract void setLCType(LocalCoincidenceConfiguration.Type type)
+	void setLCType(LocalCoincidenceConfiguration.Type type)
 			throws MessageException;
 
 	/**
@@ -227,15 +232,15 @@ public interface IDOMApp {
 	 * @param post post-trigger window in nanoseconds
 	 * @throws MessageException
 	 */
-	public abstract void setLCWindow(int pre, int post) throws MessageException;
+	void setLCWindow(int pre, int post) throws MessageException;
 
 	/**
 	 * Specify the rate at which the DOM will produce monitoring records
 	 * @param hw the Hardware monitoring record interval
 	 * @param config the Config monitoring record interval
-	 * @throws MessageException 
+	 * @throws MessageException
 	 */
-	public void setMoniIntervals(int hw, int config)
+	void setMoniIntervals(int hw, int config)
 			throws MessageException;
 
 	/**
@@ -247,29 +252,29 @@ public interface IDOMApp {
 	 * @param fast the fast monitoring record interval
 	 * @throws MessageException
 	 */
-	public void setMoniIntervals(int hw, int config, int fast)
+	void setMoniIntervals(int hw, int config, int fast)
 	        throws MessageException;
-	
+
 	/**
 	 * Select the input for the analog multiplexer.
 	 * @param mode muxer setting
 	 * @throws MessageException
 	 */
-	public abstract void setMux(MuxState mode) throws MessageException;
+	void setMux(MuxState mode) throws MessageException;
 
 	/**
 	 * Set the calibration pulser rate.
 	 * @param rate the rate in Hz
 	 * @throws MessageException
 	 */
-	public abstract void setPulserRate(short rate) throws MessageException;
+	void setPulserRate(short rate) throws MessageException;
 
 	/**
 	 * Set the rate monitor scaler deadtime.
 	 * @param deadtime the deadtime in nanoseconds
 	 * @throws MessageException
 	 */
-	public abstract void setScalerDeadtime(int deadtime)
+	void setScalerDeadtime(int deadtime)
 			throws MessageException;
 
 	/**
@@ -277,7 +282,7 @@ public interface IDOMApp {
 	 * @param mode trigger mode enumeration
 	 * @throws MessageException
 	 */
-	public abstract void setTriggerMode(TriggerMode mode)
+	void setTriggerMode(TriggerMode mode)
 			throws MessageException;
 
 	/**
@@ -292,24 +297,24 @@ public interface IDOMApp {
 	 * into domapp.  Note that this process can take a long time.  At
 	 * present the code just waits 5.0 sec after sending the commands
 	 * which under normal circumstances should be plenty of time to
-	 * get the DOM into domapp. At the end of this call the DOM should 
+	 * get the DOM into domapp. At the end of this call the DOM should
 	 * have properly loaded the domapp.sbi and exec'd the dom cpu app.
 	 * @throws IOException
 	 * @throws InterruptedException
 	 * @return true if the dom was in iceboot and needed a phase
 	 * transition, false if the dom was already in domapp.
 	 */
-	public abstract boolean transitionToDOMApp() throws IOException,
+	boolean transitionToDOMApp() throws IOException,
 			InterruptedException;
 
 	/**
 	 * Write a single DAC.
 	 * Note that DACs 0 through 7 are 12-bit and 8
-	 * through 15 are 10-bit.  
+	 * through 15 are 10-bit.
 	 * @param dac the DAC channel to write to [0..15]
 	 * @param val value to program to DAC
 	 * @throws MessageException
 	 */
-	public abstract void writeDAC(byte dac, short val) throws MessageException;
+	void writeDAC(byte dac, short val) throws MessageException;
 
 }

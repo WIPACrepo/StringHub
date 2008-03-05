@@ -2,6 +2,8 @@
 
 package icecube.daq.domapp;
 
+import icecube.daq.bindery.BufferConsumer;
+import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.StreamBinder;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
@@ -9,21 +11,18 @@ import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
-import icecube.daq.rapcal.LeadingEdgeRAPCal;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
+import icecube.daq.rapcal.ZeroCrossingRAPCal;
 import icecube.daq.util.UTC;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.channels.GatheringByteChannel;
-import java.nio.channels.WritableByteChannel;
 import java.nio.channels.ClosedByInterruptException;
 import java.text.DecimalFormat;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -32,15 +31,15 @@ import org.apache.log4j.Logger;
 /**
  * A data collection engine which drives the readout of the hits,
  * monitor, tcal, and supernova streams from a single DOM channel.
- * The object is a multi-threaded state machine.  The caller 
+ * The object is a multi-threaded state machine.  The caller
  * commands certain state changes which trigger a response and
  * a state switch by the object's execution thread.  This allows
  * for non-blocking state switching on the caller's side.
- *   
+ *
  * The output streams are passed into the object at construction
  * time and can be anything that supports the WritableByteChannel
- * interface.  The streaming data is output in 'TestDAQ' format 
- * for all outputs with the structure: 
+ * interface.  The streaming data is output in 'TestDAQ' format
+ * for all outputs with the structure:
  * <table>
  * <tr>
  * <th>Offset</th>
@@ -85,9 +84,9 @@ import org.apache.log4j.Logger;
  * <dt>302</dt>
  * <dd>Supernova scaler records</dd>
  * </dl>
- * 
+ *
  * @author krokodil
- * 
+ *
  */
 public class DataCollector extends AbstractDataCollector
 {
@@ -101,14 +100,14 @@ public class DataCollector extends AbstractDataCollector
     private RAPCal              rapcal;
     private IDriver             driver;
     private boolean             stop_thread;
-    private WritableByteChannel hitsSink;
-    private WritableByteChannel moniSink;
-    private WritableByteChannel tcalSink;
-    private WritableByteChannel supernovaSink;
-    
+    private BufferConsumer      hitsConsumer;
+    private BufferConsumer      moniConsumer;
+    private BufferConsumer      tcalConsumer;
+    private BufferConsumer      supernovaConsumer;
+
     private static final Logger         logger  = Logger.getLogger(DataCollector.class);
     private static final DecimalFormat  fmt     = new DecimalFormat("#0.000000000");
-    
+
     // TODO - replace these with properties-supplied constants
     // for now they are totally reasonable
     private long                threadSleepInterval   = 50;
@@ -120,7 +119,7 @@ public class DataCollector extends AbstractDataCollector
     private long                tcalReadInterval      = 1000;
     private long                lastSupernovaRead     = 0;
     private long                supernovaReadInterval = 1000;
-    
+
     private int                 rapcalExceptionCount  = 0;
     private int                 validRAPCalCount;
 
@@ -128,174 +127,155 @@ public class DataCollector extends AbstractDataCollector
     private int                 numMoni               = 0;
     private int                 numSupernova          = 0;
     private int                 loopCounter           = 0;
-    private long                lastDataUT;
-    private long                lastMoniUT;
     private long                lastTcalUT;
-    private long                lastSupernovaUT;
     private volatile long       runStartUT = 0L;
 
-    private ByteBuffer          daqHeader;
     private long                nextSupernovaDomClock;
     private HitBufferAB         abBuffer;
     private int                 numSupernovaGaps;
+    private final boolean       waitForRAPCal = Boolean.getBoolean(
+            "icecube.daq.domapp.datacollector.waitForRAPCal");
+
+    private final int           MAGIC_ENGINEERING_HIT_FMTID = 2;
+    private final int           MAGIC_COMPRESSED_HIT_FMTID  = 3;
+    private final int           MAGIC_MONITOR_FMTID         = 102;
+    private final int           MAGIC_TCAL_FMTID            = 202;
+    private final int           MAGIC_SUPERNOVA_FMTID       = 302;
+    
     
     /**
      * A helper class to deal with the now-less-than-trivial
      * hit buffering which circumvents the hit out-of-order
      * issues.
+     *
+     * Also Feb-2008 added ability to buffer hits waiting for RAPCal
+     *
      * @author kael
      *
      */
     private class HitBufferAB
     {
-        class Element implements Comparable<Element>
-        {
-            int recl;
-            int fmtid;
-            long domClock;
-            ByteBuffer buf;
-            
-            Element(int recl, int fmtid, long domClock, ByteBuffer buf)
-            {
-                this.recl = recl;
-                this.fmtid = fmtid;
-                this.domClock = domClock;
-                this.buf = buf;
-            }
-
-            public int compareTo(Element o)
-            {
-                if (this.domClock > o.domClock)
-                    return 1;
-                else if (this.domClock < o.domClock)
-                    return -1;
-                else
-                    return 0;
-            }
-        }
-        
-        private LinkedList<Element> alist, blist; 
-        /** 
-         * 'Head' elements for A/B to improve performance by
-         * relegating the costly LinkedList accesses to those
-         * rare cases when you need them.
-         */
-        private Element ahead, bhead;
-        
+        private LinkedList<ByteBuffer> alist, blist; 
         HitBufferAB()
         {
-            alist = new LinkedList<Element>();
-            blist = new LinkedList<Element>();
-            ahead = null;
-            bhead = null;
+            alist = new LinkedList<ByteBuffer>();
+            blist = new LinkedList<ByteBuffer>();
         }
-        
-        void pushA(int recl, int fmtid, long domClock, ByteBuffer buf)
-        {
-            Element e = new Element(recl, fmtid, domClock, buf);
-            if (logger.isDebugEnabled())
-                logger.debug("Pushed element into A buffer: domClock = " + domClock + " # A = " 
-                        + alist.size() + " # B = " + blist.size());
-            if (ahead != null) alist.addLast(ahead);
-            ahead = e;
-        }
-        
-        void pushB(int recl, int fmtid, long domClock, ByteBuffer buf)
-        {
-            Element e = new Element(recl, fmtid, domClock, buf);
-            if (logger.isDebugEnabled())
-                logger.debug("Pushed element into B buffer: domClock = " + domClock + " # A = " 
-                        + alist.size() + " # B = " + blist.size());
-            if (bhead != null) blist.addLast(bhead);
-            bhead = e;
-        }
-        
-        private Element popA()
-        {
-           Element x = ahead;
-           ahead = null;
-           if (!alist.isEmpty()) ahead = alist.removeFirst();
-           return x;
-        }
-        
-        private Element popB()
-        {
-            Element x = bhead;
-            bhead = null;
-            if (!blist.isEmpty()) bhead = blist.removeFirst();
-            return x;
-        }
-        
-        Element pop()
-        {
-            if (ahead == null || bhead == null) return null;
-            if (ahead.compareTo(bhead) < 0)
-                return popA();
-            else
-                return popB();
-        }
-    }
-    
-    
-    public DataCollector(DOMChannelInfo chInfo, WritableByteChannel out) throws IOException, MessageException
-    {
-        this(chInfo.card, chInfo.pair, chInfo.dom, null, out, null, null, null);
-    }
 
-    public DataCollector(int card, int pair, char dom, WritableByteChannel out) throws IOException,
-            MessageException
+        void pushA(ByteBuffer buf)
+        {
+            alist.addLast(buf);
+        }
+
+        void pushB(ByteBuffer buf)
+        {
+            blist.addLast(buf);
+        }
+
+        private ByteBuffer popA()
+        {
+            return alist.removeFirst();
+        }
+
+        private ByteBuffer popB()
+        {
+            return blist.removeFirst();
+        }
+
+        ByteBuffer pop()
+        {
+            if (alist.isEmpty() || blist.isEmpty()) return null;
+            long aclk = alist.getFirst().getLong(24);
+            long bclk = blist.getFirst().getLong(24);
+            if (aclk < bclk)
+            {
+                if (!waitForRAPCal || rapcal.laterThan(aclk))
+                {
+                    return popA();
+                }
+                else
+                {
+                    if (logger.isDebugEnabled()) logger.debug("Holding back A hit at " + aclk);
+                    return null;
+                }
+            }
+            else if (!waitForRAPCal || rapcal.laterThan(bclk))
+            {
+                return popB();
+            }
+            if (logger.isDebugEnabled()) logger.debug("Holding back B hit at " + bclk);
+            return null;
+        }
+    }
+    
+    /**
+     * Simple hits-only constructor (other channels suppressed)
+     * @param chInfo structure containing DOM channel information
+     * @param hitsTo BufferConsumer target for hits
+     * @throws IOException
+     * @throws MessageException
+     */
+    public DataCollector(DOMChannelInfo chInfo, BufferConsumer hitsTo) 
+    throws IOException, MessageException
     {
-        this(card, pair, dom, null, out, null, null, null);
+        this(chInfo.card, chInfo.pair, chInfo.dom, null, hitsTo, null, null, null, null, null, null);
     }
 
     public DataCollector(
-            int card, int pair, char dom, 
+            int card, 
+            int pair, 
+            char dom, 
             DOMConfiguration config,
-            WritableByteChannel outHits,
-            WritableByteChannel outMoni, WritableByteChannel outSupernova, WritableByteChannel outTcal)
-            throws IOException, MessageException
-    {
-        this(card, pair, dom, config, 
-                outHits, outMoni, outSupernova, outTcal, Driver.getInstance(),
-                new LeadingEdgeRAPCal(50.0), null);
-    }
-
-    public DataCollector(int card, int pair, char dom, 
-            DOMConfiguration config,
-            WritableByteChannel outHits,
-            WritableByteChannel outMoni, 
-            WritableByteChannel outSupernova, 
-            WritableByteChannel outTcal,
-            IDriver driver, RAPCal rapcal, IDOMApp app) throws IOException, MessageException
+            BufferConsumer hitsTo,
+            BufferConsumer moniTo,
+            BufferConsumer supernovaTo,
+            BufferConsumer tcalTo,
+            IDriver driver, 
+            RAPCal rapcal, 
+            IDOMApp app) throws IOException, MessageException
     {
         super(card, pair, dom);
         this.card = card;
         this.pair = pair;
         this.dom = dom;
-        this.hitsSink = outHits;
-        // this.moniSink = null;
-        // this.tcalSink = null;
-        // this.supernovaSink = null;
-        this.moniSink = outMoni;
-        this.tcalSink = outTcal;
-        this.supernovaSink = outSupernova;
-        this.driver = driver;
-        this.rapcal = rapcal;
-        this.app = app;
-        assert this.driver != null;
-        assert this.rapcal != null;
-        this.config = config;
+        hitsConsumer = hitsTo;
+        moniConsumer = moniTo;
+        tcalConsumer = tcalTo;
+        supernovaConsumer = supernovaTo;
         
-        logger.debug("DC " + canonicalName() + " hitsSink = " + hitsSink);
-        logger.debug("DC " + canonicalName() + " moniSink = " + moniSink);
-        logger.debug("DC " + canonicalName() + " tcalSink = " + tcalSink);
-        logger.debug("DC " + canonicalName() + " supernovaSink = " + supernovaSink);
+        if (driver != null)
+            this.driver = driver;
+        else
+            this.driver = Driver.getInstance();
+        
+        if (rapcal != null)
+        {
+            this.rapcal = rapcal;
+        }
+        else
+        {
+            String rapcalClass = System.getProperty(
+                    "icecube.daq.domapp.datacollector.rapcal",
+                    "icecube.daq.rapcal.ZeroCrossingRAPCal"
+                    );
+            try
+            {
+                this.rapcal = (RAPCal) Class.forName(rapcalClass).newInstance();
+            }
+            catch (Exception ex)
+            {
+                logger.warn("Unable to load / instantiate RAPCal class " +
+                        rapcalClass + ".  Loading ZeroCrossingRAPCal instead.");
+                this.rapcal = new ZeroCrossingRAPCal();
+            }
+        }
+        this.app = app;
+        this.config = config;
 
         gps = null;
 
-        runLevel = RunLevel.IDLE;
+        runLevel = RunLevel.INITIALIZING;
         gpsOffset = new UTC(0L);
-        daqHeader = ByteBuffer.allocate(32);
         abBuffer  = new HitBufferAB();
         start();
     }
@@ -303,36 +283,12 @@ public class DataCollector extends AbstractDataCollector
     public void close()
     {
         if (app != null) app.close();
-        try
-        {
-            if (hitsSink != null)
-            {
-                hitsSink.close();
-                hitsSink = null;
-            }
-            if (moniSink != null)
-            {
-                moniSink.close();
-                moniSink = null;
-            }
-            if (tcalSink != null)
-            {
-                tcalSink.close();
-                tcalSink = null;
-            }
-            if (supernovaSink != null)
-            {
-                supernovaSink.close();
-                supernovaSink = null;
-            }
-        }
-        catch (IOException iox)
-        {
-            iox.printStackTrace();
-            logger.error("Error closing pipe sinks: " + iox.getMessage());
-        }
     }
 
+    /**
+     * It is polite to call datacollectors by name like [00A]
+     * @return canonical name string
+     */
     private String canonicalName()
     {
         return "[" + card + "" + pair + dom + "]";
@@ -340,7 +296,7 @@ public class DataCollector extends AbstractDataCollector
 
     /**
      * Applies the configuration in this.config to the DOM
-     * 
+     *
      * @throws MessageException
      */
     private void configure(DOMConfiguration config) throws MessageException
@@ -349,7 +305,7 @@ public class DataCollector extends AbstractDataCollector
         long configT0 = System.currentTimeMillis();
 
         app.setMoniIntervals(
-                config.getHardwareMonitorInterval(), 
+                config.getHardwareMonitorInterval(),
                 config.getConfigMonitorInterval(),
                 config.getFastMonitorInterval()
                 );
@@ -374,7 +330,7 @@ public class DataCollector extends AbstractDataCollector
             app.writeDAC(dac_ch, config.getDAC(dac_ch));
         app.setMux(config.getMux());
         app.setTriggerMode(config.getTriggerMode());
-        
+
         // If trigger mode is Flasher then don't touch the pulser mode
         if (config.getTriggerMode() != TriggerMode.FB)
         {
@@ -383,7 +339,7 @@ public class DataCollector extends AbstractDataCollector
             else
                 app.pulserOn();
         }
-        
+
         app.setPulserRate(config.getPulserRate());
         LocalCoincidenceConfiguration lc = config.getLC();
         app.setLCType(lc.getType());
@@ -403,33 +359,43 @@ public class DataCollector extends AbstractDataCollector
             // screen in DOMApp for spurious pulses
             app.collectPedestals(200, 200, 200);
         }
-
+        
+        // set chargestamp source
+        app.setChargeStampType(config.isAtwdChargeStamp(), 
+                config.isAutoRangeChargeStamp(), 
+                config.getChargeStampFixedChannel());
+        
+        // enable charge stamp histogramming
+        app.histoChargeStamp(config.getHistoInterval(), config.getHistoPrescale());
+        
         long configT1 = System.currentTimeMillis();
         logger.info("Finished DOM configuration - " + canonicalName() + "; configuration took "
                 + (configT1 - configT0) + " milliseconds.");
     }
 
-    private long genericDataDispatch(int recl, int fmtid, long domClock, ByteBuffer in, WritableByteChannel out)
-            throws IOException
+    private long dispatchBuffer(ByteBuffer buf, BufferConsumer target) throws IOException
     {
-        daqHeader.clear();
-        daqHeader.putInt(recl + 32).putInt(fmtid).putLong(numericMBID).putInt(0).putInt(0);
-        long utc = rapcal.domToUTC(domClock).in_0_1ns();
-        daqHeader.putLong(utc);
-        daqHeader.flip();
-        GatheringByteChannel g = (GatheringByteChannel) out;
-        ByteBuffer[] bufferArray = new ByteBuffer[] { daqHeader, in };
-        while (in.remaining() > 0)
-        {
-            long nw = g.write(bufferArray);
-            if (logger.isDebugEnabled())
-                logger.debug(
-                        "In DC " + canonicalName() + " - type = " + 
-                        fmtid + " wrote " + nw + " bytes to " + out
-                        );
-        }
+        long domclk = buf.getLong(24);
+        long utc    = rapcal.domToUTC(domclk).in_0_1ns();
+        buf.putLong(24, utc);
+        target.consume(buf);
         return utc;
     }
+    
+    private void dispatchHitBuffer(int atwdChip, ByteBuffer hitBuf) throws IOException
+    {
+        if (atwdChip == 0)
+            abBuffer.pushA(hitBuf);
+        else
+            abBuffer.pushB(hitBuf);
+        while (true) 
+        {
+            ByteBuffer buffer = abBuffer.pop();
+            if (buffer == null) return;
+            dispatchBuffer(buffer, hitsConsumer);
+        }
+    }
+    
 
     private void dataProcess(ByteBuffer in) throws IOException
     {
@@ -437,162 +403,140 @@ public class DataCollector extends AbstractDataCollector
         // keep performance at acceptable level such as minimal
         // decoding of hit records. This should be cleaned up.
 
+        if (hitsConsumer == null) return;
+        
         int buffer_limit = in.limit();
 
-        // create records from aggregrate message data returned from DOMApp
+        // create records from aggregate message data returned from DOMApp
         while (in.remaining() > 0)
         {
             int pos = in.position();
-            short len = in.getShort();
-            short fmt = in.getShort();
-            if (hitsSink != null)
+            short len = in.getShort(pos);
+            short fmt = in.getShort(pos+2);
+
+            int atwdChip;
+            long domClock;
+            ByteBuffer outputBuffer;
+            
+            switch (fmt)
             {
+            case 0x01: /* Early engineering hit data format (pre-pDAQ, in fact) */
+            case 0x02: /* Later engineering hit data format */
+                numHits++;
+                atwdChip = in.get(pos+4) & 1;
+                domClock = DOMAppUtil.decodeClock6B(in, pos+10);
+                in.limit(pos + len);
+                outputBuffer = ByteBuffer.allocate(len + 32);
+                outputBuffer.putInt(len + 32);
+                outputBuffer.putInt(MAGIC_ENGINEERING_HIT_FMTID);
+                outputBuffer.putLong(numericMBID);
+                outputBuffer.putLong(0L);
+                outputBuffer.putLong(domClock);
+                outputBuffer.put(in).flip();
+                in.limit(buffer_limit);
                 
-                int atwdChip;
-                long domClock;
-                ByteBuffer dbuf;
-                switch (fmt)
+                ////////
+                //
+                // DO the A/B stuff
+                //
+                ////////
+                dispatchHitBuffer(atwdChip, outputBuffer);
+                
+                break;
+                
+            case 0x90: /* SLC or other compressed hit format */
+                int clkMSB = in.getShort(pos+4);
+                ByteOrder lastOrder = in.order();
+                in.order(ByteOrder.LITTLE_ENDIAN);
+                in.position(pos + 8);
+                while (in.remaining() > 0)
                 {
-                case 1:
-                case 2: // Engineering format data
-                    // strip out the clock word - advance pointer
-                    in.position(pos + 4);
-                    atwdChip = in.get() & 1;
-                    in.position(pos + 10);
-                    domClock = DOMAppUtil.decodeSixByteClock(in);
-                    in.position(pos);
-                    in.limit(in.position() + len);
                     numHits++;
-                    dbuf = ByteBuffer.allocate(in.remaining());
-                    dbuf.put(in);
-                    dbuf.flip();
-                    if (atwdChip == 0)
-                        abBuffer.pushA(len, 2, domClock, dbuf);
-                    else
-                        abBuffer.pushB(len, 2, domClock, dbuf);
-                    while (true) 
-                    {
-                        HitBufferAB.Element e = abBuffer.pop();
-                        if (e == null) break;
-                        lastDataUT = genericDataDispatch(e.recl, e.fmtid, e.domClock, e.buf, hitsSink);
-                    }
+                    pos = in.position();
+                    int word1 = in.getInt();
+                    int word2 = in.getInt();
+                    int word3 = in.getInt();
+                    int hitSize = word1 & 0x7ff;
+                    atwdChip = (word1 >> 11) & 1;
+                    domClock = (((long) clkMSB) << 32) | (((long) word2) & 0xffffffffL);
+                    short version = 0x01;
+                    short pedestal = config.getPedestalSubtraction() ? (short) 0x01 : (short) 0x00;
+                    in.limit(pos + hitSize);
+                    outputBuffer = ByteBuffer.allocate(hitSize + 42);
+                    // Standard Header
+                    outputBuffer.putInt(hitSize + 42); 
+                    outputBuffer.putInt(MAGIC_COMPRESSED_HIT_FMTID);
+                    outputBuffer.putLong(numericMBID); // +8
+                    outputBuffer.putLong(0L);          // +16
+                    outputBuffer.putLong(domClock);    // +24
+                    // Compressed hit extra info
+                    // This is the 'byte order' word
+                    outputBuffer.putShort((short) 1);  // +32
+                    outputBuffer.putShort(version);    // +34
+                    outputBuffer.putShort(pedestal);   // +36
+                    outputBuffer.putLong(domClock);    // +38
+                    outputBuffer.putInt(word1);        // +46
+                    outputBuffer.putInt(word3);        // +50
+                    outputBuffer.put(in).flip();
                     in.limit(buffer_limit);
-                    break;
-                case 144: // Delta compressed data
-                    int clkMSB = in.getShort();
-                    in.getShort();
-                    // Note byte order change for delta message buffers
-                    in.order(ByteOrder.LITTLE_ENDIAN);
-                    while (in.remaining() > 0)
-                    {
-                        // create an additional byte buffer to handle re-format of
-                        // the delta payload - I want to insert the re-assembled
-                        // DOMClock in front of the compression header
-                        // Advance past compression hit header
-                        int word1 = in.getInt();
-                        int word2 = in.getInt();
-                        int word3 = in.getInt();
-                        int hitSize = word1 & 0x7ff;
-                        atwdChip = (word1 >> 11) & 1;
-                        domClock = (((long) clkMSB) << 32) | (((long) word2) & 0xffffffffL);
-                        short version = 1;
-                        short pedestal = 0;
-                        if (config.getPedestalSubtraction()) pedestal = 1;
-                        try
-                        {
-                            in.limit(in.position() + hitSize - 12);
-                            dbuf = ByteBuffer.allocate(hitSize + 10);
-                            dbuf.order(ByteOrder.LITTLE_ENDIAN);
-                            dbuf.putShort((short) 1);
-                            dbuf.putShort(version);
-                            dbuf.putShort(pedestal);
-                            dbuf.putLong(domClock);
-                            dbuf.putInt(word1);
-                            dbuf.putInt(word3);
-                            dbuf.put(in);
-                            numHits++;
-                            dbuf.flip();
-                            if (atwdChip == 0)
-                                abBuffer.pushA(dbuf.remaining(), 3, domClock, dbuf);
-                            else
-                                abBuffer.pushB(dbuf.remaining(), 3, domClock, dbuf);
-                            while (true) 
-                            {
-                                HitBufferAB.Element e = abBuffer.pop();
-                                if (e == null) break;
-                                lastDataUT = genericDataDispatch(e.recl, e.fmtid, e.domClock, e.buf, hitsSink);
-                            }
-                            in.limit(buffer_limit);
-                        }
-                        catch (IllegalArgumentException illargx)
-                        {
-                            logger.error("Caught IllegalArgument Exception in dataProcess: dumping compressed header words: " 
-                                    + Integer.toHexString(word1) 
-                                    + ", " + Integer.toHexString(word2)
-                                    + ", " + Integer.toHexString(word3)
-                                    + " - in.position() = " + in.position()
-                                    + " - in.remaining() = " + in.remaining()
-                                    + " - in.capacity() = " + in.capacity());
-                            throw illargx;
-                        }
-                    }
-                    in.order(ByteOrder.BIG_ENDIAN);
-                    break;
+                    
+                    ////////
+                    //
+                    // DO the A/B stuff
+                    //
+                    ////////
+                    dispatchHitBuffer(atwdChip, outputBuffer);
                 }
-            }
-            else
-            {
-                // skip over this unknown record
-                logger.warn("skipping over unknown record type " + fmt + " of " + len + " bytes.");
-                in.position(in.position() + len - 4);
+                // Restore previous byte order
+                in.order(lastOrder);
+                break;
+                
+            default:
+                logger.error("Unknown DOMApp format ID: " + fmt);
+                in.position(pos + len);
             }
         }
     }
 
     private void moniProcess(ByteBuffer in) throws IOException
     {
+        if (moniConsumer == null) return;
+        
         while (in.remaining() > 0)
         {
-            // logger.debug("processing monitoring record - " + in.remaining() +
-            // " bytes remaining.");
             MonitorRecord monitor = MonitorRecordFactory.createFromBuffer(in);
             if (monitor instanceof AsciiMonitorRecord &&
                     logger.isDebugEnabled()) logger.debug(monitor.toString());
-            if (moniSink != null)
-            {
-                numMoni++;
-                lastMoniUT = genericDataDispatch(
-                        monitor.getLength(),
-                        102, 
-                        monitor.getClock(), 
-                        monitor.getBuffer(),
-                        moniSink
-                        );
-            }
+            numMoni++;
+            ByteBuffer moniBuffer = ByteBuffer.allocate(monitor.getLength()+32);
+            moniBuffer.putInt(monitor.getLength()+32);
+            moniBuffer.putInt(MAGIC_MONITOR_FMTID);
+            moniBuffer.putLong(numericMBID);
+            moniBuffer.putLong(0L);
+            moniBuffer.putLong(monitor.getClock());
+            moniBuffer.put(monitor.getBuffer());
+            dispatchBuffer((ByteBuffer) moniBuffer.flip(), moniConsumer);
         }
     }
 
     /**
-     * Process the TCAL data. Please be aware of and excuse the awful coding
-     * here. The TCAL reference time passed to the dispatcher is the DOM
-     * waveform receive time. TODO The time transforms are hideous and need to
-     * be scrubbed.
-     * 
-     * @param tcal
-     * @param gps
+     * Send the TCAL data out.  UTC time for TCAL is defined herein as the DOR Tx time.
+     * Note that the {@link #dispatchBuffer} method is not called since the domClock to
+     * UTC mapping does not take place for these types of record.
+     * @param tcal the input {@link TimeCalib} object
+     * @param gps the {@link GPSInfo} record is tacked onto the tail of the buffer 
      * @throws IOException
      */
     private void tcalProcess(TimeCalib tcal, GPSInfo gps) throws IOException
     {
-        if (tcalSink != null)
-        {
-            ByteBuffer buffer = ByteBuffer.allocate(500);
-            tcal.writeUncompressedRecord(buffer);
-            buffer.put(gps.getBuffer());
-            buffer.flip();
-            lastTcalUT = tcal.getDorTx().in_0_1ns();
-            genericDataDispatch(buffer.remaining(), 202, tcal.getDomRx().in_0_1ns() / 250L, buffer, tcalSink);
-        }
+        if (tcalConsumer == null) return;
+        ByteBuffer tcalBuffer = ByteBuffer.allocate(500);
+        lastTcalUT = tcal.getDorTx().in_0_1ns();
+        tcalBuffer.putInt(0).putInt(MAGIC_TCAL_FMTID).putLong(numericMBID).putLong(0L).putLong(lastTcalUT);
+        tcal.writeUncompressedRecord(tcalBuffer);
+        tcalBuffer.put(gps.getBuffer()).flip();
+        tcalBuffer.putInt(0, tcalBuffer.remaining());
+        tcalConsumer.consume(tcalBuffer);
     }
 
     private void supernovaProcess(ByteBuffer in) throws IOException
@@ -602,16 +546,18 @@ public class DataCollector extends AbstractDataCollector
             SupernovaPacket spkt = SupernovaPacket.createFromBuffer(in);
             // Check for gaps in SN data
             if ((nextSupernovaDomClock != 0L) && (spkt.getClock() != nextSupernovaDomClock) && numSupernovaGaps++ < 100)
-                logger.warn("Gap or overlap in SN rec: next = " + nextSupernovaDomClock 
+                logger.warn("Gap or overlap in SN rec: next = " + nextSupernovaDomClock
                         + " - current = " + spkt.getClock());
-            
+
             nextSupernovaDomClock = spkt.getClock() + (spkt.getScalers().length << 16);
-            
-            if (supernovaSink != null)
+            numSupernova++;
+            if (supernovaConsumer != null)
             {
-                numSupernova++;
-                lastSupernovaUT = genericDataDispatch(spkt.getLength(), 302, spkt.getClock(), spkt.getBuffer(),
-                        supernovaSink);
+                int len = spkt.getLength() + 32;
+                ByteBuffer snBuf = ByteBuffer.allocate(len);
+                snBuf.putInt(len).putInt(MAGIC_SUPERNOVA_FMTID).putLong(numericMBID).putLong(0L);
+                snBuf.putLong(spkt.getClock()).put(spkt.getBuffer());
+                dispatchBuffer((ByteBuffer) snBuf.flip(), supernovaConsumer);
             }
         }
     }
@@ -633,7 +579,7 @@ public class DataCollector extends AbstractDataCollector
             logger.warn("I/O error on TCAL read to determine run start time.");
         }
     }
-    
+
     public String toString()
     {
         return getName();
@@ -700,15 +646,12 @@ public class DataCollector extends AbstractDataCollector
     public void run()
     {
 
-        lastDataUT = 0L;
-        lastMoniUT = 0L;
         lastTcalUT = 0L;
-        lastSupernovaUT = 0L;
         nextSupernovaDomClock = 0L;
         numSupernovaGaps = 0;
-        
+
         logger.info("Begin data collection thread");
-        
+
         // Create a watcher timer
         Timer watcher = new Timer(getName() + "-timer");
 
@@ -726,24 +669,25 @@ public class DataCollector extends AbstractDataCollector
         }
 
         watcher.cancel();
-        
+
         // clear interrupted flag if it is set
         interrupted();
 
         // Make sure eos is written
         try
         {
-            if (hitsSink != null) hitsSink.write(StreamBinder.endOfStream());
-            if (moniSink != null) moniSink.write(StreamBinder.endOfMoniStream());
-            if (tcalSink != null) tcalSink.write(StreamBinder.endOfTcalStream());
-            if (supernovaSink != null) supernovaSink.write(StreamBinder.endOfSupernovaStream());
+            ByteBuffer otrava = MultiChannelMergeSort.eos(numericMBID);
+            if (hitsConsumer != null) hitsConsumer.consume(otrava.asReadOnlyBuffer());
+            if (moniConsumer != null) moniConsumer.consume(otrava.asReadOnlyBuffer());
+            if (tcalConsumer != null) tcalConsumer.consume(otrava.asReadOnlyBuffer());
+            if (supernovaConsumer != null) supernovaConsumer.consume(otrava.asReadOnlyBuffer());
             logger.info("Wrote EOS to streams.");
         }
         catch (IOException iox)
         {
             logger.error(iox);
         }
-        
+
         logger.info("End data collection thread.");
 
     } /* END OF run() METHOD */
@@ -758,17 +702,17 @@ public class DataCollector extends AbstractDataCollector
 
         for (int i = 0; i < 2; i++) {
             driver.commReset(card, pair, dom);
-        
+
             if (app == null)
             {
                 // If app is null it implies the collector has deferred
                 // opening of the DOR devfile to the thread.
-                try 
+                try
                 {
                     app = new DOMApp(this.card, this.pair, this.dom);
                     break;
-                } 
-                catch (FileNotFoundException ex) 
+                }
+                catch (FileNotFoundException ex)
                 {
 					logger.error("Trial "+i+": Open of "+card+""+pair+dom+" failed!");
 					logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
@@ -778,13 +722,13 @@ public class DataCollector extends AbstractDataCollector
                 }
             }
         }
-                
-        if (app == null) 
+
+        if (app == null)
         {
             if (savedEx != null) throw savedEx;
             throw new FileNotFoundException("Couldn't open DOMApp");
-        } 
-        else if (savedEx != null) 
+        }
+        else if (savedEx != null)
         {
             logger.error("Successful DOMApp retry after initial failure", savedEx);
         }
@@ -811,17 +755,17 @@ public class DataCollector extends AbstractDataCollector
         // this is a workaround for "Type 3" dropped DOMs
         numericMBID = 0;
         int NT      = 2;
-        for(int i = 0; i < NT; i++) 
+        for(int i = 0; i < NT; i++)
         {
             intTask.ping();
-            try 
+            try
             {
                 app = softbootToDomapp();
-                try 
+                try
                 {
                     mbid = app.getMainboardID();
-                } 
-                catch (MessageException ex) 
+                }
+                catch (MessageException ex)
                 {
                     // if exception is wrapping a ClosedByInterruptException,
                     //   then throw the original exception
@@ -836,8 +780,8 @@ public class DataCollector extends AbstractDataCollector
                 }
                 numericMBID = Long.valueOf(mbid, 16).longValue();
                 break;
-            } 
-            catch (ClosedByInterruptException ex) 
+            }
+            catch (ClosedByInterruptException ex)
             {
                 // clear the interrupt so it doesn't cause future problems
                 Thread.interrupted();
@@ -849,10 +793,12 @@ public class DataCollector extends AbstractDataCollector
 				app = null; /* We have to do this to guarantee that we reopen when we retry */
             }
         }
+
+        setRunLevel(RunLevel.IDLE);
         
         if (numericMBID == 0)
             throw new Exception("Couldn't get DOM MB ID after "+NT+" trials.");
-        
+
 		intTask.ping();
         logger.info("Found DOM " + mbid + " running " + app.getRelease());
 
@@ -890,21 +836,22 @@ public class DataCollector extends AbstractDataCollector
                 if (t - lastDataRead >= dataReadInterval)
                 {
                     lastDataRead = t;
-                    final int MSGS_IN_FLIGHT = 1;
-                    List<ByteBuffer> dataList = app.getData(MSGS_IN_FLIGHT);
-                    for (ByteBuffer data : dataList) {
-                        try { // Get debug information during Alpaca failures
-                            dataProcess(data);
-                        } catch (IllegalArgumentException ex) {
-                            logger.error("Caught & re-raising IllegalArgumentException");
-                            logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
-                            logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
-                            throw ex;
-                        }
+                    try
+                    {
+                        // Get debug information during Alpaca failures
+                        ByteBuffer data = app.getData();
+                        if (data.remaining() > 0) tired = false;
+                        dataProcess(data);
                     }
-                    if (dataList.size() == MSGS_IN_FLIGHT) tired = false;
+                    catch (IllegalArgumentException ex)
+                    {
+                        logger.error("Caught & re-raising IllegalArgumentException");
+                        logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
+                        logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
+                        throw ex;
+                    }
                 }
-                
+
                 // What about monitoring?
                 if (t - lastMoniRead >= moniReadInterval)
                 {
@@ -931,7 +878,7 @@ public class DataCollector extends AbstractDataCollector
                     }
                 }
                 break;
-                
+
             case CONFIGURING:
                 /* Need to handle a configure */
                 logger.info("Got CONFIGURE signal.");
@@ -939,7 +886,7 @@ public class DataCollector extends AbstractDataCollector
                 logger.info("DOM is configured.");
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
-                
+
             case STARTING:
                 logger.info("Got START RUN signal " + canonicalName());
                 app.beginRun();
@@ -947,7 +894,7 @@ public class DataCollector extends AbstractDataCollector
                 logger.info("DOM is running.");
                 setRunLevel(RunLevel.RUNNING);
                 break;
-                
+
             case STARTING_SUBRUN:
                 setRunLevel(RunLevel.STOPPING_SUBRUN);
                 app.endRun();
@@ -965,10 +912,10 @@ public class DataCollector extends AbstractDataCollector
                     tempConfig.setMux(MuxState.FB_CURRENT);
                     configure(tempConfig);
                     app.beginFlasherRun(
-                            (short) flasherConfig.getBrightness(), 
+                            (short) flasherConfig.getBrightness(),
                             (short) flasherConfig.getWidth(),
-                            (short) flasherConfig.getDelay(), 
-                            (short) flasherConfig.getMask(), 
+                            (short) flasherConfig.getDelay(),
+                            (short) flasherConfig.getMask(),
                             (short) flasherConfig.getRate()
                             );
                 }
@@ -981,24 +928,24 @@ public class DataCollector extends AbstractDataCollector
                 storeRunStartTime();
                 setRunLevel(RunLevel.RUNNING);
                 break;
-                
+
             case PAUSING:
                 logger.info("Got PAUSE RUN signal " + canonicalName());
                 app.endRun();
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
-                
+
             case STOPPING:
                 logger.info("Got STOP RUN signal " + canonicalName());
                 app.endRun();
-                // Write the end-of-stream token
-                if (hitsSink != null) hitsSink.write(StreamBinder.endOfStream());
-                if (moniSink != null) moniSink.write(StreamBinder.endOfMoniStream());
-                if (tcalSink != null) tcalSink.write(StreamBinder.endOfTcalStream());
-                if (supernovaSink != null) supernovaSink.write(StreamBinder.endOfSupernovaStream());
+                ByteBuffer otrava = MultiChannelMergeSort.eos(numericMBID);
+                if (hitsConsumer != null) hitsConsumer.consume(otrava.asReadOnlyBuffer());
+                if (moniConsumer != null) moniConsumer.consume(otrava.asReadOnlyBuffer());
+                if (tcalConsumer != null) tcalConsumer.consume(otrava.asReadOnlyBuffer());
+                if (supernovaConsumer != null) supernovaConsumer.consume(otrava.asReadOnlyBuffer());
+                logger.info("Wrote EOS to streams.");
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
-                
             }
 
             if (tired)
@@ -1020,7 +967,7 @@ public class DataCollector extends AbstractDataCollector
     {
         return runStartUT;
     }
-    
+
     public long getNumHits()
     {
         return numHits;
@@ -1051,9 +998,9 @@ public class DataCollector extends AbstractDataCollector
      */
     class InterruptorTask extends TimerTask
     {
-        Thread  thread;
-        boolean pinged;
-        
+        private Thread  thread;
+        private boolean pinged;
+
         InterruptorTask(Thread thread)
         {
             this.thread = thread;
@@ -1082,5 +1029,5 @@ public class DataCollector extends AbstractDataCollector
         // TODO Auto-generated method stub
         return lastTcalUT;
     }
-    
+
 }

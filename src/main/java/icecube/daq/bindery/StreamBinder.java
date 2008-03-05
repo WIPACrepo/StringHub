@@ -1,6 +1,5 @@
 package icecube.daq.bindery;
 
-import icecube.daq.hkn1.Counter;
 import icecube.daq.hkn1.Node;
 import icecube.daq.util.UTC;
 
@@ -16,7 +15,7 @@ import java.util.Iterator;
 
 import org.apache.log4j.Logger;
 
-public class StreamBinder extends Thread implements Counter
+public class StreamBinder extends Thread
 {
 
     private ArrayList<Node<DAQRecord>> inputs;
@@ -24,16 +23,14 @@ public class StreamBinder extends Thread implements Counter
     private int                        nreg;
     private BufferConsumer             out;
     private Node<DAQRecord>            terminal;
-    private ArrayList<Node<?>>         allNodes;
     private static final Logger        logger   = Logger.getLogger(StreamBinder.class);
     private boolean                    running;
     private static final ByteBuffer    eos;
-    private long                       counter;
-    private long                       counterMax;
-    private long                       inputCounter;
-    private long                       outputCounter;
-    private UTC                        lastUT;
-    private final static long          prescale = Long.getLong("icecube.daq.bindery.StreamBinder.prescale", 1L);
+    private volatile long       counter;
+    private volatile long       counterMax;
+    private volatile long       inputCounter;
+    private volatile long       outputCounter;
+    private volatile UTC        lastUT;
 
     static
     {
@@ -52,13 +49,11 @@ public class StreamBinder extends Thread implements Counter
         super("StreamBinder" + "-" + bindType);
 
         inputs = new ArrayList<Node<DAQRecord>>();
-        allNodes = new ArrayList<Node<?>>();
 
-        Comparator<DAQRecord> cmp = new DAQRecordComparator();
-        for (int i = 0; i < n; i++)
-            inputs.add(new Node<DAQRecord>(cmp, this));
+        Comparator<DAQRecord> cmp = DAQRecordComparator.instance;
+        for (int i = 0; i < n; i++) inputs.add(new Node<DAQRecord>(cmp));
         nreg = 0;
-        terminal = Node.makeTree(inputs, cmp, this);
+        terminal = Node.makeTree(inputs, cmp);
         this.out = out;
         selector = Selector.open();
         running = false;
@@ -141,6 +136,7 @@ public class StreamBinder extends Thread implements Counter
                         DAQRecord rec = terminal.pop();
                         ByteBuffer buf = rec.getBuffer();
                         UTC currentUT = rec.time();
+                        outputCounter++;
                         if (lastUT != null && currentUT.compareTo(lastUT) < 0)
                             logger.warn(getName() + " out-of-order record detected");
                         // A single end-of-stream is sufficient to shut down
@@ -148,7 +144,7 @@ public class StreamBinder extends Thread implements Counter
                         if (logger.isDebugEnabled())
                             logger.debug(getName() + "sending buffer to sender RECL = " + buf.getInt(0)
                                     + " - TYPE = " + buf.getInt(4) + " - UTC = " + currentUT.toString());
-                        if (buf.getInt(0) == 32 && buf.getLong(8) == 0L && 
+                        if (buf.getInt(0) == 32 && buf.getLong(8) == 0L &&
                                 buf.getLong(24) == Long.MAX_VALUE)
                         {
                             // Saw the EOS token
@@ -168,7 +164,7 @@ public class StreamBinder extends Thread implements Counter
                 break;
             }
         }
-        
+
         logger.info("Binder processing thread exiting.");
 
         try
@@ -186,7 +182,7 @@ public class StreamBinder extends Thread implements Counter
     /**
      * This static method will return the end-of-stream token (a special 32-byte
      * ByteBuffer).
-     * 
+     *
      * @return
      */
     public static ByteBuffer endOfStream()
@@ -213,44 +209,19 @@ public class StreamBinder extends Thread implements Counter
         return eos.asReadOnlyBuffer();
     }
 
-    public void dec()
-    {
-        counter--;
-    }
-
-    public long getCount()
-    {
-        return counter;
-    }
-
-    public void inc()
-    {
-        counter++;
-    }
-
-    public boolean overflow()
-    {
-        return counter > counterMax;
-    }
-
-    public void announce(Node<?> node)
-    {
-        allNodes.add(node);
-    }
-
     public void reset()
     {
-        for (Node<?> node : allNodes)
-            node.clear();
         counter = 0;
+        for (Node<DAQRecord> node : inputs) node.clear();
+        terminal = Node.makeTree(inputs, DAQRecordComparator.instance);
     }
 
     /**
      * Class for handling DAQ records. Reads a record from a supplied byte
      * channel and stuffs the complete record into the Node.
-     * 
+     *
      * @author krokodil
-     * 
+     *
      */
     class StreamInputNode
     {
@@ -273,7 +244,7 @@ public class StreamBinder extends Thread implements Counter
          * This method reads bytes from the input channel. It will push into the
          * associated node the byte buffer holding a complete record if such is
          * available.
-         * 
+         *
          * @param ch -
          *            input channel
          * @throws IOException
@@ -309,6 +280,7 @@ public class StreamBinder extends Thread implements Counter
 
 class DAQRecordComparator implements Comparator<DAQRecord>
 {
+    static final DAQRecordComparator instance = new DAQRecordComparator();
 
     public int compare(DAQRecord o1, DAQRecord o2)
     {

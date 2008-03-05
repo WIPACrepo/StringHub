@@ -1,7 +1,7 @@
 package icecube.daq.domapp;
 
 public enum MessageType {
-	
+
 	GET_DOM_ID(1, 10),
 	GET_DOMAPP_RELEASE(1, 24),
 	WRITE_DAC(2, 13),
@@ -34,6 +34,7 @@ public enum MessageType {
 	GET_LC_CABLELEN(2, 58),
 	ENABLE_SN(2, 59),
 	DISABLE_SN(2, 60),
+	SET_CHARGE_STAMP_TYPE(2, 61),
 	GET_DATA(3, 11),
 	GET_MONI(3, 12),
 	SET_MONI_IVAL(3, 13),
@@ -47,25 +48,28 @@ public enum MessageType {
 	RESET_MONI_BUF(3, 29),
 	QUERY_MONI_AVAIL(3, 30),
 	QUERY_OVERFLOWS(3, 31),
+	SET_LBM_DEPTH(3, 32),
+	GET_LBM_DEPTH(3, 33),
+	HISTO_CHARGE_STAMPS(3, 34),
 	BEGIN_RUN(4, 12),
 	END_RUN(4,13),
 	COLLECT_PEDESTALS(4, 16),
 	BEGIN_FB_RUN(4, 27),
 	END_FB_RUN(4, 28);
-	
+
 	private byte facility;
 	private byte subtype;
-	
+
 	MessageType(int facility, int subtype) {
 		this.facility = (byte) facility;
 		this.subtype  = (byte) subtype;
 	}
-	
+
 	public byte getFacility() { return facility; }
 	public byte getSubtype() { return subtype; }
 	public boolean equals(byte type, byte subtype)
 	{
 	    return this.facility == type && this.subtype == subtype;
 	}
-	
+
 }

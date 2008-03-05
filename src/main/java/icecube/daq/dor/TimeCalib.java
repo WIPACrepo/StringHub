@@ -9,16 +9,16 @@ import java.nio.ByteOrder;
 import org.apache.log4j.Logger;
 
 public class TimeCalib {
-	
+
 	private short bytes;
 	private short flags;
 	private long dorTx, dorRx;
 	private short[] dorWaveform;
 	private long domRx, domTx;
 	private short[] domWaveform;
-	
+
 	private static final Logger logger = Logger.getLogger(TimeCalib.class);
-	
+
 	public TimeCalib(ByteBuffer buf) {
 		buf.order(ByteOrder.LITTLE_ENDIAN);
 		bytes = buf.getShort();
@@ -33,16 +33,16 @@ public class TimeCalib {
 		for (int i = 0; i < 64; i++) domWaveform[i] = buf.getShort();
 		logger.debug("Decode TCAL record - len: " + bytes + " - flags: " + flags + " dorTx: " + dorTx);
 	}
-	
+
 	/**
 	 * Get the DOR TCAL transmit time.
-	 * Note the the units are 0.1 ns. 
+	 * Note the the units are 0.1 ns.
 	 * @return UTC object
 	 */
 	public UTC getDorTx() {
 		return new UTC(500L * dorTx);
 	}
-	
+
 	/**
 	 * Get the DOR TCAL receive time.
 	 * @return UTC time (0.1 ns)
@@ -50,29 +50,29 @@ public class TimeCalib {
 	public UTC getDorRx() {
 		return new UTC(500L * dorRx);
 	}
-	
+
 	public UTC getDomTx() {
 		return new UTC(250L * domTx);
 	}
-	
+
 	public UTC getDomRx() {
 		return new UTC(250L * domRx);
 	}
-	
+
 	public short[] getDorWaveform() {
 		return dorWaveform;
 	}
-	
+
 	public short[] getDomWaveform() {
 		return domWaveform;
 	}
-	
+
 	/**
 	 * Write POTC (plain-ol' TCAL) record
 	 * to supplier buffer.  Returns length of record
 	 * which should be 314.  Note that, conforming to
 	 * standard, the TCAL buffer is little-endian.
-	 * @param buf receive buffer for data. 
+	 * @param buf receive buffer for data.
 	 * @return number of bytes added to buffer
 	 */
 	public int writeUncompressedRecord(ByteBuffer buf)
@@ -91,7 +91,7 @@ public class TimeCalib {
 		return buf.position() - pos;
 	}
 	/**
-	 * Return a ByteBuffer object with delta 1-2-3-6-11 
+	 * Return a ByteBuffer object with delta 1-2-3-6-11
 	 * waveform encoding and the following structure
 	 * <pre>
 	 *  0 ..  7 DOR Tx - full 8 bytes
@@ -99,7 +99,7 @@ public class TimeCalib {
 	 * 10 .. 17 DOM Rx - full 8 bytes
 	 * 18 .. 19 DOR Tx - DOM Rx - 2 bytes
 	 * 20 ..  M 48 samples of DOR waveform delta compressed
-	 * M+1 .. N 48 samples of DOM waveform delta compressed 
+	 * M+1 .. N 48 samples of DOM waveform delta compressed
 	 * </pre>
 	 * @return number of bytes in the compressed buffer
 	 */
@@ -113,5 +113,5 @@ public class TimeCalib {
 		codec.encode(domWaveform);
 		return buf.position() - pos;
 	}
-	
+
 }

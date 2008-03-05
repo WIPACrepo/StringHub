@@ -12,23 +12,23 @@ public class EngineeringHit {
 	private long 	domclk;
 	private short[] fadc;
 	private short[][] atwd;
-	
+
 	public enum Trigger { TEST, CPU, SPE, FLASHER }
-	
+
 	private static final Logger logger = Logger.getLogger(EngineeringHit.class);
-	
+
 	/**
 	 * Decode an engineering hit from a byte buffer
 	 * @param buf
 	 */
 	public EngineeringHit(ByteBuffer buf) {
-		short len = buf.getShort();
-		format = buf.getShort();
-		assert format == 1 || format == 2;
-		atwdChip = buf.get();
-		EngineeringRecordFormat engRecFmt = new EngineeringRecordFormat(buf.get(), buf.get(), buf.get());
-		logger.debug("Decode recl = " + len + "(" + engRecFmt.fadcSamples() + ", " 
-				+ engRecFmt.atwdSamples(0) + ", " + engRecFmt.atwdSamples(1) + ", " 
+	    int pos = buf.position();
+		short len = buf.getShort(pos);
+		format = buf.getShort(pos+2);
+		atwdChip = buf.get(pos+4);
+		EngineeringRecordFormat engRecFmt = new EngineeringRecordFormat(buf.get(pos+5), buf.get(pos+6), buf.get(pos+7));
+		logger.debug("Decode recl = " + len + "(" + engRecFmt.fadcSamples() + ", "
+				+ engRecFmt.atwdSamples(0) + ", " + engRecFmt.atwdSamples(1) + ", "
 				+ engRecFmt.atwdSamples(2) + ", " + engRecFmt.atwdSamples(3) + ")");
 		short fadcSamples = engRecFmt.fadcSamples();
 		short[] atwdSamples = new short[4];
@@ -37,13 +37,12 @@ public class EngineeringHit {
 			atwdSamples[ch] = engRecFmt.atwdSamples(ch);
 			atwdWordSize[ch] = engRecFmt.atwdWordsize(ch);
 		}
-		triggerFlags = buf.get();
-		buf.get();
-		domclk = DOMAppUtil.decodeSixByteClock(buf);
-		
+		triggerFlags = buf.get(pos+8);
+		domclk = DOMAppUtil.decodeClock6B(buf, pos+10);
+
 		fadc = new short[fadcSamples];
 		atwd = new short[4][];
-		
+
 		for (int i = 0; i < fadcSamples; i++) fadc[i] = buf.getShort();
 		for (int ch = 0; ch < 4; ch++) {
 			atwd[ch] = new short[atwdSamples[ch]];
@@ -63,13 +62,13 @@ public class EngineeringHit {
 	 * @return 48-bit dom clock - 25 ns ticks.
 	 */
 	public long getClock() { return domclk; }
-	
+
 	public Trigger getTrigger() { return Trigger.values()[triggerFlags & 3]; }
-	
+
 	public short[] getAtwd(int ch) { return atwd[ch]; }
-	
+
 	public short[] getFadc() { return fadc; }
-	
+
 	public int getChip() { return atwdChip; }
-	
+
 }

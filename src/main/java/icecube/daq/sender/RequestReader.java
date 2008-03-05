@@ -1,7 +1,6 @@
 package icecube.daq.sender;
 
 import icecube.daq.io.PushPayloadReader;
-import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.ILoadablePayload;
 import icecube.daq.payload.MasterPayloadFactory;
 import icecube.daq.payload.splicer.Payload;

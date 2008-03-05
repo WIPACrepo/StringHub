@@ -16,24 +16,24 @@ import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 
-public class Driver implements IDriver {
+public final class Driver implements IDriver {
 
 	private File driver_root;
 	private static final Driver instance = new Driver("/proc/driver/domhub");
 	private static final Logger logger = Logger.getLogger(Driver.class);
 
 	private GPSSynch[] gpsList;
-	
+
 	/**
 	 * Drivers should be singletons - enforce through protected constructor.
 	 */
-	private Driver(String root) { 
+	private Driver(String root) {
 		driver_root = new File(root);
 		gpsList = new GPSSynch[8];
-		for (int i = 0; i < gpsList.length; i++) 
+		for (int i = 0; i < gpsList.length; i++)
 			gpsList[i] = new GPSSynch();
 	}
-	
+
 	public static Driver getInstance() {
 		return instance;
 	}
@@ -45,13 +45,13 @@ public class Driver implements IDriver {
 	    if (m.find()) return Float.parseFloat(m.group(1));
 	    return 0.0f;
 	}
-	
+
 	public boolean power(int card, int pair) throws IOException {
 		File file = makeProcfile("" + card + "" + pair, "pwr");
 		String info = getProcfileText(file);
 		return info.indexOf("on.") != -1;
 	}
-	
+
 	public String getProcfileID(int card, int pair, char dom) throws IOException {
 		String info = getProcfileText(makeProcfile("" + card + "" + pair + dom, "id"));
 		return info.substring(info.length() - 12);
@@ -60,7 +60,7 @@ public class Driver implements IDriver {
     /**
      * Reset the communications such as to bring back from a hardware timeout.
      * @param card 0 to 7
-     * @param pair 0 to 3 
+     * @param pair 0 to 3
      * @param dom 'A' or 'B'
      * @throws IOException
      */
@@ -73,7 +73,7 @@ public class Driver implements IDriver {
         iscomm.write("reset\n".getBytes());
         iscomm.close();
     }
-    
+
     /**
      * Set blocking / non-blocking mode of the DOR driver
      * @param block if true the driver will be put into blocking mode
@@ -87,7 +87,7 @@ public class Driver implements IDriver {
         else
             blockingFile.write("0\n".getBytes());
     }
-    
+
     /**
      * Perform soft reset operation on DOM
      * @param card 0 to 7
@@ -95,7 +95,7 @@ public class Driver implements IDriver {
      * @param dom 'A' or 'B'
      * @throws IOException when the procfile write fails for some reason
      */
-	public void softboot(int card, int pair, char dom) throws IOException 
+	public void softboot(int card, int pair, char dom) throws IOException
     {
         logger.debug("Softbooting " + card + "" + pair + dom);
 		File file = makeProcfile(card + "" + pair + dom, "softboot");
@@ -118,7 +118,7 @@ public class Driver implements IDriver {
 	sb.close();
     }
 
-    /** 
+    /**
      * Get communication statistics
      * @param card 0 to 7
      * @param pair 0 to 3
@@ -129,7 +129,7 @@ public class Driver implements IDriver {
 	return getProcfileMultilineText(makeProcfile(card + "" + pair + dom, "comstat"));
     }
 
-    /** 
+    /**
      * Get FPGA register space (except FIFOs)
      * @param card 0 to 7
      * @throws IOException when the procfile write fails for some reason
@@ -145,7 +145,7 @@ public class Driver implements IDriver {
      * @throws IOException
      */
 	public LinkedList<DOMChannelInfo> discoverActiveDOMs() throws IOException {
-		char ab[] = { 'A', 'B' };
+		char[] ab = { 'A', 'B' };
 		LinkedList<DOMChannelInfo> channelList = new LinkedList<DOMChannelInfo>();
 		for (int card = 0; card < 8; card ++) {
 			File cdir = makeProcfileDir("" + card);
@@ -168,19 +168,19 @@ public class Driver implements IDriver {
 		}
 		return channelList;
 	}
-	
+
 	public TimeCalib readTCAL(int card, int pair, char dom) throws IOException, InterruptedException {
 		File file = makeProcfile("" + card + "" + pair + dom, "tcalib");
 		RandomAccessFile tcalib = new RandomAccessFile(file, "rw");
 		FileChannel ch = tcalib.getChannel();
-		
+
 		logger.debug("Initiating TCAL sequence");
 		tcalib.writeBytes("single\n");
 		for (int iTry = 0; iTry < 5; iTry++)
 		{
 			Thread.sleep(20);
 			ByteBuffer buf = ByteBuffer.allocate(292);
-			int nr = ch.read(buf);	
+			int nr = ch.read(buf);
 			logger.debug("Read " + nr + " bytes from " + file.getAbsolutePath());
 			if (nr == 292)
 			{
@@ -194,14 +194,14 @@ public class Driver implements IDriver {
 		tcalib.close();
 		throw new IOException("TCAL read failed.");
 	}
-	
+
 	public GPSInfo readGPS(int card) throws GPSException {
-		
+
 		// Try to enforce not reading the GPS procfile more than once per second
 		GPSSynch gps = gpsList[card];
 		long current = System.currentTimeMillis();
 		if (System.currentTimeMillis() - gps.last_read_time < 1001) return gps.cached;
-		
+
 		ByteBuffer buf = ByteBuffer.allocate(22);
 		File file = makeProcfile("" + card, "syncgps");
 		try {
@@ -218,17 +218,17 @@ public class Driver implements IDriver {
 			gps.last_read_time = current;
 			logger.debug("GPS read on " + file.getAbsolutePath() + " - " + gpsinfo);
 			return gpsinfo;
-		} 
-		catch (IOException iox) 
+		}
+		catch (IOException iox)
 		{
 			throw new GPSException(file.getAbsolutePath(), iox);
-		} 
+		}
 		catch (NumberFormatException nex)
 		{
 			throw new GPSException(file.getAbsolutePath(), nex);
 		}
 	}
-	
+
 	private String getProcfileText(File file) throws IOException {
 		FileInputStream fis = new FileInputStream(file);
 		BufferedReader r = new BufferedReader(new InputStreamReader(fis));
@@ -250,10 +250,10 @@ public class Driver implements IDriver {
 		fis.close();
 		return ret;
 	}
-	
+
     /**
      * Access the DOR card FPGA registers.  They are returned as a dictionary
-     * of Key: Value pairs where Key is the 
+     * of Key: Value pairs where Key is the
      */
     public HashMap<String, Integer> getFPGARegisters(int card) throws IOException
     {
@@ -276,15 +276,15 @@ public class Driver implements IDriver {
         }
         return registerMap;
     }
-    
+
 	/**
-	 * Manipulate the chain of procfile directories of form 
+	 * Manipulate the chain of procfile directories of form
 	 * /driver_root/cardX/pairY/domZ/filename
 	 * @param cwd - string with card, wirepair, dom encoded - like "40A"
 	 * @param filename
 	 * @return
 	 */
-	public File makeProcfile(String cwd, String filename) 
+	public File makeProcfile(String cwd, String filename)
     {
 		File f = driver_root;
 		if (cwd.length() > 0)
@@ -293,11 +293,11 @@ public class Driver implements IDriver {
 			f = new File(f, "pair" + cwd.charAt(1));
 		if (cwd.length() > 2)
 			f = new File(f, "dom" + cwd.charAt(2));
-		if (filename != null) 
+		if (filename != null)
 			f = new File(f, filename);
 		return f;
 	}
-	
+
 	/**
 	 * This makes a 'top-level' procfile File
 	 * @param cwd
@@ -307,13 +307,13 @@ public class Driver implements IDriver {
 	{
 	    return makeProcfile("", filename);
 	}
-	
+
 	/**
 	 * Make only the directory portion of the procfile
 	 * @param cwd card/pair/dom string
 	 * @return
 	 */
-	public File makeProcfileDir(String cwd) 
+	public File makeProcfileDir(String cwd)
 	{
 		return makeProcfile(cwd, null);
 	}
@@ -322,7 +322,7 @@ public class Driver implements IDriver {
 class GPSSynch {
 	long last_read_time;
 	GPSInfo cached;
-	
+
 	GPSSynch() {
 		last_read_time = -1001L;
 		cached = null;

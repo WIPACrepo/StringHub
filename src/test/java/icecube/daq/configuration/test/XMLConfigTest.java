@@ -3,10 +3,11 @@ package icecube.daq.configuration.test;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+
 import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.DOMConfiguration;
+import icecube.daq.domapp.TestDeltaMCodec;
 import icecube.daq.domapp.TriggerMode;
-import icecube.daq.domapp.test.TestDeltaMCodec;
 import icecube.daq.stringhub.test.MockAppender;
 
 import java.io.InputStream;
@@ -15,8 +16,8 @@ import junit.framework.JUnit4TestAdapter;
 
 import org.apache.log4j.BasicConfigurator;
 import org.junit.Before;
-import org.junit.Test;
 import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class XMLConfigTest 
 {

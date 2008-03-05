@@ -1,21 +1,16 @@
 /* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
 package icecube.daq.stringhub;
 
+import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.SecondaryStreamConsumer;
 import icecube.daq.bindery.StreamBinder;
 import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.AbstractDataCollector;
-import icecube.daq.domapp.BadEngineeringFormat;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.DataCollector;
-import icecube.daq.domapp.EngineeringRecordFormat;
-import icecube.daq.domapp.LCType;
-import icecube.daq.domapp.LocalCoincidenceConfiguration;
-import icecube.daq.domapp.MuxState;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
-import icecube.daq.domapp.TriggerMode;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
 import icecube.daq.io.PayloadDestinationOutputEngine;
@@ -24,8 +19,8 @@ import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
-import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.monitoring.DataCollectorMonitor;
+import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.payload.ByteBufferPayloadDestination;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.IPayloadDestination;
@@ -37,13 +32,13 @@ import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
-import icecube.daq.util.DOMRegistry;
-import icecube.daq.util.DeployedDOM;
-import icecube.daq.trigger.control.StringTriggerHandler;
-import icecube.daq.trigger.control.IStringTriggerHandler;
-import icecube.daq.trigger.control.ITriggerControl;
 import icecube.daq.trigger.component.GlobalConfiguration;
 import icecube.daq.trigger.config.TriggerBuilder;
+import icecube.daq.trigger.control.IStringTriggerHandler;
+import icecube.daq.trigger.control.ITriggerControl;
+import icecube.daq.trigger.control.StringTriggerHandler;
+import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
 
 import java.io.File;
@@ -51,94 +46,26 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
 import java.nio.channels.Pipe;
 import java.nio.channels.SelectableChannel;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Iterator;
+import java.util.List;
 
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.log4j.Logger;
-import org.dom4j.Node;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
+import org.dom4j.Node;
 import org.dom4j.io.SAXReader;
 import org.xml.sax.SAXException;
-
-class BindSource
-{
-	private static final Logger logger = Logger.getLogger(BindSource.class);
-
-	private String name;
-	private SelectableChannel hitSource;
-	private SelectableChannel moniSource;
-	private SelectableChannel tcalSource;
-	private SelectableChannel snSource;
-
-	private StreamBinder hitBind;
-	private StreamBinder moniBind;
-	private StreamBinder tcalBind;
-	private StreamBinder snBind;
-
-	BindSource(String name, SelectableChannel hitSource,
-			   SelectableChannel moniSource, SelectableChannel tcalSource,
-			   SelectableChannel snSource)
-	{
-		this.name = name;
-		this.hitSource = hitSource;
-		this.moniSource = moniSource;
-		this.tcalSource = tcalSource;
-		this.snSource = snSource;
-	}
-
-	String getName()
-	{
-		return name;
-	}
-
-	void closeChannels()
-	{
-		try {
-			if (hitSource != null) hitSource.close();
-			if (moniSource != null) moniSource.close();
-			if (tcalSource != null) tcalSource.close();
-			if (snSource != null) snSource.close();
-		} catch (IOException iox) {
-			iox.printStackTrace();
-			logger.error("Error closing pipe sources: " + iox.getMessage());
-		}
-	}
-
-	SelectableChannel getHitsSource()
-	{
-		return hitSource;
-	}
-
-	SelectableChannel getMoniSource()
-	{
-		return moniSource;
-	}
-
-	SelectableChannel getTcalSource()
-	{
-		return tcalSource;
-	}
-
-	SelectableChannel getSupernovaSource()
-	{
-		return snSource;
-	}
-	
-}
 
 public class StringHubComponent extends DAQComponent
 {
 
 	private static final Logger logger = Logger.getLogger(StringHubComponent.class);
-	
+
     private int hubId;
 	private boolean isSim = false;
 	private Driver driver = Driver.getInstance();
@@ -146,33 +73,37 @@ public class StringHubComponent extends DAQComponent
 	private MasterPayloadFactory payloadFactory;
 	private DOMRegistry domRegistry;
 	private IByteBufferCache moniBufMgr, tcalBufMgr, snBufMgr;
-	private PayloadDestinationOutputEngine   moniPayloadDest, tcalPayloadDest, supernovaPayloadDest; 
+	private PayloadDestinationOutputEngine moniPayloadDest;
+	private PayloadDestinationOutputEngine tcalPayloadDest;
+	private PayloadDestinationOutputEngine supernovaPayloadDest;
+	private PayloadDestinationOutputEngine hitOut;
 	private DOMConnector conn = null;
 	private List<DOMChannelInfo> activeDOMs;
-	private List<BindSource> bindSources = null;
-	private StreamBinder hitsBind, moniBind, tcalBind, snBind;
+	private MultiChannelMergeSort hitsSort;
+    private MultiChannelMergeSort moniSort;
+    private MultiChannelMergeSort tcalSort;
+    private MultiChannelMergeSort scalSort;
 	private String configurationPath;
 	private String configured = "NO";
 	private int nch;
 	private DataCollectorMonitor collectorMonitor;
-	private HashMap<String, DOMConfiguration> pristineConfigurations;
 
-	private boolean enableTriggering = true;
+	private boolean enableTriggering = false;
 	private ISourceID sourceId;
 	private IStringTriggerHandler triggerHandler;
+	private static final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
 
 	public StringHubComponent(int hubId) throws Exception
 	{
 		super(DAQCmdInterface.DAQ_STRING_HUB, hubId);
-	
+
         this.hubId = hubId;
-        final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
 
 		final String bufName = "PyrateBufferManager";
 
 		IByteBufferCache hitBufMgr  = new VitreousBufferCache();
 		addCache(hitBufMgr);
-		//addMBean(bufName, hitBufMgr);
+		addMBean(bufName, hitBufMgr);
 
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
@@ -181,26 +112,21 @@ public class StringHubComponent extends DAQComponent
 		sender         = new Sender(hubId, payloadFactory);
 		isSim          = (hubId >= 1000 && hubId < 2000);
 		nch            = 0;
-		
+
 		logger.info("starting up StringHub component " + hubId);
 
-        // Setup the output engine
-        PayloadDestinationOutputEngine hitOut;
-		
         /*
-         * Rules are
+         * Component derives behavioral characteristics from
+         * its 'minor ID' - they are ...
          * (1) component xx81 - xx99 : icetop
          * (2) component xx01 - xx80 : in-ice
-         * (3) component xx00        : amandaHub 
+         * (3) component xx00        : amandaHub
          */
         int minorHubId = hubId % 100;
 
-        if (minorHubId == 0)
-        {
-            hitOut = null;
-            sender.setHitOutputDestination(null);
-        }
-        else
+        hitOut = null;
+
+        if (minorHubId > 0)
         {
             hitOut = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "hitOut");
             if (minorHubId > 80)
@@ -208,36 +134,17 @@ public class StringHubComponent extends DAQComponent
             else
                 addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
             hitOut.registerBufferManager(hitBufMgr);
+            sender.setHitOutputDestination(hitOut.getPayloadDestinationCollection());
         }
 
-        // Check if triggering is enabled
-        IPayloadDestinationCollection hitColl;
-        if (enableTriggering) {
-            sourceId = SourceIdRegistry.getISourceIDFromNameAndId(COMPONENT_NAME, hubId);
-            triggerHandler = new StringTriggerHandler(sourceId);
-            triggerHandler.setMasterPayloadFactory(payloadFactory);
-            triggerHandler.setPayloadOutput(hitOut.getPayloadDestinationCollection());
 
-            // This is the output of the Sender
-            IPayloadDestination payloadDestination = new ByteBufferPayloadDestination(triggerHandler, hitBufMgr);
-            hitColl = new PayloadDestinationCollection(payloadDestination);
-        } else if (hitOut == null) {
-            hitColl = null;
-        } else {
-
-            // This is the output of the Sender
-            hitColl = hitOut.getPayloadDestinationCollection();
-        }
-
-        sender.setHitOutputDestination(hitColl);
-        
-        // Allocate the map for the pristine baseline run configurations
-        pristineConfigurations = new HashMap<String, DOMConfiguration>();
-        
         RequestReader reqIn;
-        try {
+        try
+        {
             reqIn = new RequestReader(COMPONENT_NAME, sender, payloadFactory);
-        } catch (IOException ioe) {
+        }
+        catch (IOException ioe)
+        {
             throw new Error("Couldn't create RequestReader", ioe);
         }
         addMonitoredEngine(DAQConnector.TYPE_READOUT_REQUEST, reqIn);
@@ -253,10 +160,10 @@ public class StringHubComponent extends DAQComponent
         MonitoringData monData = new MonitoringData();
         monData.setSenderMonitor(sender);
         addMBean("sender", monData);
-		
+
 		collectorMonitor = new DataCollectorMonitor();
 		addMBean("datacollectormonitor", collectorMonitor);
-		
+
         // Following are the payload output engines for the secondary streams
 		moniBufMgr  = new VitreousBufferCache();
 		addCache(DAQConnector.TYPE_MONI_DATA, moniBufMgr);
@@ -278,7 +185,7 @@ public class StringHubComponent extends DAQComponent
     }
 
 	@Override
-	public void setGlobalConfigurationDir(String dirName) 
+	public void setGlobalConfigurationDir(String dirName)
 	{
 		super.setGlobalConfigurationDir(dirName);
 		configurationPath = dirName;
@@ -304,7 +211,7 @@ public class StringHubComponent extends DAQComponent
 	 * non-zero DOM mainboard ID.
 	 * @throws IOException
 	 */
-	public void discover() throws IOException, DocumentException
+	private void discover() throws IOException, DocumentException
 	{
 		if (isSim)
 		{
@@ -327,15 +234,32 @@ public class StringHubComponent extends DAQComponent
 			logger.info("Found " + activeDOMs.size() + " active DOMs.");
 		}
 	}
-	
+
+	private void enableTriggering()
+	{
+	    if (hitOut == null) return;
+
+        sourceId = SourceIdRegistry.getISourceIDFromNameAndId(COMPONENT_NAME, hubId);
+        triggerHandler = new StringTriggerHandler(sourceId);
+        triggerHandler.setMasterPayloadFactory(payloadFactory);
+        triggerHandler.setPayloadOutput(hitOut.getPayloadDestinationCollection());
+
+        // This is the output of the Sender
+        IPayloadDestination payloadDestination = new ByteBufferPayloadDestination(
+                triggerHandler, hitOut.getBufferManager());
+        sender.setHitOutputDestination(new PayloadDestinationCollection(payloadDestination));
+        logger.info("triggering enabled");
+	}
+
 	/**
 	 * StringHub responds to a configure request from the controller
 	 */
-	public void configuring(String configName) throws DAQCompException 
+	@SuppressWarnings("unchecked")
+    public void configuring(String configName) throws DAQCompException
 	{
 
 		String realism;
-		
+
 		if (isSim)
 			realism = "SIMULATION";
 		else
@@ -343,39 +267,44 @@ public class StringHubComponent extends DAQComponent
 
 		configured = "YES";
 
-		if (bindSources != null) 
-			for (BindSource b : bindSources)
-				b.closeChannels();
-
-		bindSources = new ArrayList<BindSource>();
-
-		try 
+		try
 		{
 			// Lookup the connected DOMs
 			discover();
-			
+
 			if (activeDOMs.size() == 0)
 			    throw new DAQCompException("No Active DOMs on hub.");
-			
+
 			// Parse out tags from 'master configuration' file
 			File domConfigsDirectory = new File(configurationPath, "domconfigs");
 			File masterConfigFile = new File(configurationPath, configName + ".xml");
 			FileInputStream fis = new FileInputStream(masterConfigFile);
-			
+
 			SAXReader r = new SAXReader();
 			Document doc = r.read(fis);
 
 			XMLConfig xmlConfig = new XMLConfig();
 			List<Node> configNodeList = doc.selectNodes("runConfig/domConfigList");
+			/*
+			 * Lookup <stringHub hubId='x'> node - if any - and process
+			 * configuration directives.
+			 */
+			Node hubNode = doc.selectSingleNode("runConfig/stringHub[@hubId='" + hubId + "']");
+			if (hubNode != null)
+			{
+			    if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) enableTriggering();
+			    if (hubNode.valueOf("sender/forwardIsolatedHitsToTrigger").equalsIgnoreCase("true"))
+			        sender.forwardIsolatedHitsToTrigger();
+			}
 			logger.info("Number of domConfigNodes found: " + configNodeList.size());
 			for (Node configNode : configNodeList) {
 				String tag = configNode.getText();
 				if (!tag.endsWith(".xml"))
 					tag = tag + ".xml";
 				File configFile = new File(domConfigsDirectory, tag);
-				logger.info("Configuring " + realism 
-							+ " - loading config from " 
-							+ configFile.getAbsolutePath());			
+				logger.info("Configuring " + realism
+							+ " - loading config from "
+							+ configFile.getAbsolutePath());
 				xmlConfig.parseXMLConfig(new FileInputStream(configFile));
 			}
 
@@ -385,66 +314,74 @@ public class StringHubComponent extends DAQComponent
 			nch = 0;
 			for (DOMChannelInfo chanInfo : activeDOMs)
 				if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) nch++;
-	
+
 			if (nch == 0)
 			    throw new DAQCompException("No Active DOMs on Hub selected in configuration.");
-			
+
 			logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
-			
+
 			// Must make sure to release file resources associated with the previous
 			// runs since we are throwing away the collectors and starting from scratch
 			if (conn != null) conn.destroy();
 
 			conn = new DOMConnector(nch);
-				
+	
+			SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniBufMgr, moniPayloadDest);
+	        SecondaryStreamConsumer supernovaConsumer = new SecondaryStreamConsumer(hubId, snBufMgr, supernovaPayloadDest);
+	        SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId, tcalBufMgr, tcalPayloadDest);
+
+			// Start the merger-sorter objects
+			hitsSort = new MultiChannelMergeSort(nch, sender);
+			moniSort = new MultiChannelMergeSort(nch, monitorConsumer);
+			scalSort = new MultiChannelMergeSort(nch, supernovaConsumer);
+			tcalSort = new MultiChannelMergeSort(nch, tcalConsumer);
+
 			for (DOMChannelInfo chanInfo : activeDOMs)
 			{
 				DOMConfiguration config = xmlConfig.getDOMConfig(chanInfo.mbid);
 				if (config == null) continue;
-				
-				pristineConfigurations.put(chanInfo.mbid, config);
 
 				String cwd = chanInfo.card + "" + chanInfo.pair + chanInfo.dom;
 
-				Pipe hitPipe = Pipe.open();
-				Pipe moniPipe = Pipe.open();
-				Pipe tcalPipe = Pipe.open();
-				Pipe snPipe = Pipe.open();
-
-				BindSource bs =
-					new BindSource(cwd, hitPipe.source(),
-								   moniPipe.source(), tcalPipe.source(),
-								   snPipe.source());
-				bindSources.add(bs);
-
 				AbstractDataCollector dc;
+
 				if (isSim)
 				{
-					dc = new SimDataCollector(chanInfo, config, hitPipe.sink(), 
-											  moniPipe.sink(), snPipe.sink(), 
-											  tcalPipe.sink());
+					dc = new SimDataCollector(chanInfo, config,
+					        hitsSort, 
+					        moniSort,
+					        scalSort,
+					        tcalSort);
 				}
 				else
 				{
 					dc = new DataCollector(
 							chanInfo.card, chanInfo.pair, chanInfo.dom, config,
-							hitPipe.sink(), moniPipe.sink(), snPipe.sink(), tcalPipe.sink()
-						);
+							hitsSort,
+							moniSort,
+							scalSort,
+							tcalSort,
+							null,
+							null,
+							null);
 				}
 
+				hitsSort.register(chanInfo.mbid_numerique);
+				moniSort.register(chanInfo.mbid_numerique);
+				scalSort.register(chanInfo.mbid_numerique);
+				tcalSort.register(chanInfo.mbid_numerique);
 				conn.add(dc);
 				logger.debug("Starting new DataCollector thread on (" + cwd + ").");
-				logger.debug("DataCollector thread on (" + cwd + ") started.");				
 			}
 
 			logger.info("Starting up HKN1 sorting trees...");
-			
+
 			// Still need to get the data collectors to pick up and do something with the config
 			conn.configure();
 
 			collectorMonitor.setConnector(conn);
 		}
-		
+
 		catch (FileNotFoundException fnx)
 		{
 			logger.error("Could not find the configuration file.");
@@ -455,8 +392,8 @@ public class StringHubComponent extends DAQComponent
 			iox.printStackTrace();
 			logger.error("Caught IOException - " + iox.getMessage());
 			throw new DAQCompException(iox.getMessage());
-		} 
-		catch (Exception e) 
+		}
+		catch (Exception e)
 		{
 			e.printStackTrace();
 			throw new DAQCompException(e.getMessage());
@@ -475,67 +412,13 @@ public class StringHubComponent extends DAQComponent
 	 */
 	public void starting() throws DAQCompException
 	{
-		logger.info("Have I been configured? " + configured);
-
-		SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniBufMgr, moniPayloadDest);
-		SecondaryStreamConsumer supernovaConsumer =	new SecondaryStreamConsumer(hubId, snBufMgr, supernovaPayloadDest);
-		SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId, tcalBufMgr, tcalPayloadDest);
-
-        if (Boolean.getBoolean("icecube.daq.stringhub.secondaryStream.debug"))
-        {
-            try 
-            {
-                FileOutputStream moniDebug = new FileOutputStream("/tmp/moni-" + hubId + ".dat");
-                FileOutputStream tcalDebug = new FileOutputStream("/tmp/tcal-" + hubId + ".dat");
-                FileOutputStream snDebug   = new FileOutputStream("/tmp/sn-" + hubId + ".dat");
-                monitorConsumer.setDebugChannel(moniDebug.getChannel());
-                tcalConsumer.setDebugChannel(tcalDebug.getChannel());
-                supernovaConsumer.setDebugChannel(snDebug.getChannel());
-            }
-            catch (FileNotFoundException fnex)
-            {
-                throw new DAQCompException(fnex.getLocalizedMessage());
-            }
-        }    
-
-        logger.info("Created secondary stream consumers.");
-
-		try {
-			hitsBind = new StreamBinder(nch, sender, "hits");
-			moniBind = new StreamBinder(nch, monitorConsumer, "moni");
-			snBind   = new StreamBinder(nch, supernovaConsumer, "supernova");
-			tcalBind = new StreamBinder(nch, tcalConsumer, "tcal");
-			collectorMonitor.setBinders(hitsBind, moniBind, tcalBind, snBind);
-		} catch (IOException iox) {
-			logger.error("Error creating StreamBinder: " + iox.getMessage());
-			iox.printStackTrace();
-		} catch (Exception e) {
-			throw new DAQCompException("Error in starting S/H - binder allocation fails", e);
-		}
-
-		for (BindSource bs : bindSources)
-		{
-			try {
-				hitsBind.register(bs.getHitsSource(), "hits-" + bs.getName());
-				moniBind.register(bs.getMoniSource(), "moni-" + bs.getName());
-				tcalBind.register(bs.getTcalSource(), "tcal-" + bs.getName());
-				snBind.register(bs.getSupernovaSource(), "supernova-" + bs.getName());
-			} catch (IOException ioe) {
-				logger.error("Couldn't start threads for binder " +
-							bs.getName());
-				throw new DAQCompException("Could not start DOMs", ioe);
-			} catch (Exception e) {
-				throw new DAQCompException("Error starting S/H - binder channel register fails", e);
-			}
-		}
-
-		// start the binders
-		logger.info("Starting stream binders.");
-		hitsBind.start();
-		moniBind.start();
-		tcalBind.start();
-		snBind.start();
-
+	    logger.info("StringHub is starting the run.");
+	    
+	    hitsSort.start();
+	    moniSort.start();
+	    scalSort.start();
+	    tcalSort.start();
+	    
 		try
 		{
 			conn.startProcessing();
@@ -544,25 +427,25 @@ public class StringHubComponent extends DAQComponent
 		{
 			e.printStackTrace();
 			throw new DAQCompException("Couldn't start DOMs", e);
-		}		
+		}
 	}
-	
+
 	public long startSubrun(List<FlasherboardConfiguration> flasherConfigs) throws DAQCompException
 	{
 	    /*
-	     * Useful to keep operators from accidentally powering up two 
+	     * Useful to keep operators from accidentally powering up two
 	     * flasherboards simultaneously.
 	     */
 	    boolean[] wirePairSemaphore = new boolean[32];
 	    long validXTime = 0L;
 
 	    logger.info("Beginning subrun");
-	    
+
         for (AbstractDataCollector adc : conn.getCollectors())
         {
             String mbid = adc.getMainboardId();
             FlasherboardConfiguration flasherConfig = null;
-            
+
             // Hunt for this DOM channel in the flasher config list
             for (FlasherboardConfiguration fbc : flasherConfigs)
             {
@@ -572,7 +455,7 @@ public class StringHubComponent extends DAQComponent
 	                break;
 	            }
             }
-            
+
             if (flasherConfig != null)
             {
                 int pairIndex = 4 * adc.getCard() + adc.getPair();
@@ -580,7 +463,7 @@ public class StringHubComponent extends DAQComponent
                     throw new DAQCompException("Cannot activate > 1 flasher run per DOR wire pair.");
                 wirePairSemaphore[pairIndex] = true;
             }
-            
+
             boolean stateChange = flasherConfig != null || adc.getFlasherConfig() != null;
             if (stateChange)
             {
@@ -606,7 +489,7 @@ public class StringHubComponent extends DAQComponent
 	    logger.info("Subrun time is " + validXTime);
 	    return validXTime;
 	}
-	
+
 	public void stopping()
             throws DAQCompException
 	{
@@ -624,6 +507,7 @@ public class StringHubComponent extends DAQComponent
         logger.info("Returning from stop.");
 	}
 
+    @SuppressWarnings("unchecked")
     private void configureTrigger(String configName) throws DAQCompException {
         // Lookup the trigger configuration
         String triggerConfiguration;
@@ -653,7 +537,7 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 2454 2008-01-09 15:46:00Z toale $";
+		return "$Id: StringHubComponent.java 2699 2008-02-28 20:12:05Z kael $";
     }
 
 }

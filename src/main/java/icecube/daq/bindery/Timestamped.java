@@ -8,6 +8,6 @@ public interface Timestamped {
 	 * The time method returns a UTC object which holds the records timestamp.
 	 * @return UTC object - representing the time of the particular event
 	 */
-	public UTC time();
-	
+	UTC time();
+
 }
