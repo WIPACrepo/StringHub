@@ -69,8 +69,9 @@ public class RequestReader
             throw new IOException("Cannot load readout request");
         }
 
-        //try putting the payload into the list.
-        sender.addRequest((Payload) pay);
+        // try putting the payload into the list.
+        // TODO - really bad programming here - please clean up
+        sender.addRequest((ILoadablePayload) pay);
     }
 
     public void sendStop()
