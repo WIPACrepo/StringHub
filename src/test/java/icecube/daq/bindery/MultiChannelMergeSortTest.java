@@ -70,9 +70,9 @@ public class MultiChannelMergeSortTest implements BufferConsumer
             genArr[ch].start();
         }
 
-        for (int iMoni = 0; iMoni < 100; iMoni++)
+        for (int iMoni = 0; iMoni < 10; iMoni++)
         {
-            Thread.sleep(3000L);
+            Thread.sleep(1000L);
             logger.info(
                     "MMS in: " + mms.getNumberOfInputs() + 
                     " out: " + mms.getNumberOfOutputs() +
