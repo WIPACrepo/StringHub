@@ -600,11 +600,29 @@ public class Sender
     }
 
     /**
+     * Recycle the list of payloads.
+     *
+     * @param dataList list of payloads to recycle
+     */
+    public void disposeDataList(List dataList)
+    {
+        Iterator iter = dataList.iterator();
+        while (iter.hasNext()) {
+            Object obj = iter.next();
+            if (obj instanceof ILoadablePayload) {
+                disposeData(((ILoadablePayload) obj));
+            } else {
+                log.error("Not disposing of non-loadable " + obj + " (" +
+                          obj.getClass().getName() + ")");
+            }
+        }
+    }
+
+    /**
      * Clean up before worker thread stops running.
      */
     public void finishThreadCleanup()
     {
-	log.info("in finishThreadCleanup().");
         if (dataDest != null) {
             try {
                 dataDest.stopAllPayloadDestinations();
