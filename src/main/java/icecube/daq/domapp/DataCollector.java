@@ -531,12 +531,14 @@ public class DataCollector extends AbstractDataCollector
     {
         if (tcalConsumer == null) return;
         ByteBuffer tcalBuffer = ByteBuffer.allocate(500);
-        lastTcalUT = tcal.getDorTx().in_0_1ns();
-        tcalBuffer.putInt(0).putInt(MAGIC_TCAL_FMTID).putLong(numericMBID).putLong(0L).putLong(lastTcalUT);
+        tcalBuffer.putInt(0).putInt(MAGIC_TCAL_FMTID);
+        tcalBuffer.putLong(numericMBID);
+        tcalBuffer.putLong(0L);
+        tcalBuffer.putLong(tcal.getDomTx().in_0_1ns());
         tcal.writeUncompressedRecord(tcalBuffer);
         tcalBuffer.put(gps.getBuffer()).flip();
         tcalBuffer.putInt(0, tcalBuffer.remaining());
-        tcalConsumer.consume(tcalBuffer);
+        dispatchBuffer(tcalBuffer, tcalConsumer);
     }
 
     private void supernovaProcess(ByteBuffer in) throws IOException
