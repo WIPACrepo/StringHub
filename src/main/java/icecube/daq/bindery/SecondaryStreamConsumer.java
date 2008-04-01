@@ -1,8 +1,8 @@
 /* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
 package icecube.daq.bindery;
 
+import icecube.daq.io.OutputChannel;
 import icecube.daq.io.PayloadDestinationOutputEngine;
-import icecube.daq.io.PayloadTransmitChannel;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.impl.SourceID4B;
 
@@ -21,7 +21,7 @@ import org.apache.log4j.Logger;
 public class SecondaryStreamConsumer implements BufferConsumer
 {
     private HashMap<Integer, Integer> idMap     = new HashMap<Integer, Integer>();
-    private PayloadTransmitChannel outputChannel= null;
+    private OutputChannel outputChannel= null;
     private PayloadDestinationOutputEngine outputEngine = null;
     private IByteBufferCache cacheMgr           = null;
     private static final Logger logger          = Logger.getLogger(SecondaryStreamConsumer.class);
