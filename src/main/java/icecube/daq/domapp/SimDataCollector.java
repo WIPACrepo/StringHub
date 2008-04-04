@@ -125,11 +125,11 @@ public class SimDataCollector extends AbstractDataCollector
         logger.info("Exited runCore() loop.");
 
         try {
-            ByteBuffer otrava = MultiChannelMergeSort.eos(numericMBID);
-            if (hitsConsumer != null) hitsConsumer.consume(otrava.asReadOnlyBuffer());
-            if (moniConsumer != null) moniConsumer.consume(otrava.asReadOnlyBuffer());
-            if (tcalConsumer != null) tcalConsumer.consume(otrava.asReadOnlyBuffer());
-            if (scalConsumer != null) scalConsumer.consume(otrava.asReadOnlyBuffer());
+            ByteBuffer otrava = MultiChannelMergeSort.eos(numericMBID).asReadOnlyBuffer();
+            if (hitsConsumer != null) hitsConsumer.consume((ByteBuffer) otrava.rewind());
+            if (moniConsumer != null) moniConsumer.consume((ByteBuffer) otrava.rewind());
+            if (tcalConsumer != null) tcalConsumer.consume((ByteBuffer) otrava.rewind());
+            if (scalConsumer != null) scalConsumer.consume((ByteBuffer) otrava.rewind());
         } catch (IOException iox) {
             iox.printStackTrace();
             logger.error(iox.getMessage());
