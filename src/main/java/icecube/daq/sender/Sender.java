@@ -3,12 +3,13 @@ package icecube.daq.sender;
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.eventbuilder.impl.ReadoutDataPayloadFactory;
+import icecube.daq.io.DAQOutputChannelManager;
+import icecube.daq.io.OutputChannel;
 import icecube.daq.monitoring.SenderMonitor;
 import icecube.daq.payload.IDOMID;
 import icecube.daq.payload.IDomHit;
 import icecube.daq.payload.ILoadablePayload;
 import icecube.daq.payload.IPayload;
-import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.IWriteablePayload;
@@ -364,8 +365,11 @@ public class Sender
     private DomHitFactory domHitFactory;
     private ReadoutDataPayloadFactory readoutDataFactory;
 
-    private IPayloadDestinationCollection hitDest;
-    private IPayloadDestinationCollection dataDest;
+    private DAQOutputChannelManager hitOut;
+    private OutputChannel hitChan;
+
+    private DAQOutputChannelManager dataOut;
+    private OutputChannel dataChan;
 
     /** list of payloads to be deleted after back end has stopped */
     private ArrayList finalData;
@@ -456,13 +460,11 @@ public class Sender
     {
         if (buf.getInt(0) == 32 && buf.getLong(24) == Long.MAX_VALUE)
         {
-            if (hitDest != null) {
-                try {
-                    hitDest.stopAllPayloadDestinations();
-                } catch (IOException ioe) {
-                    if (log.isErrorEnabled()) {
-                        log.error("Couldn't stop hit destinations", ioe);
-                    }
+            try {
+                hitChan.sendLastAndStop();
+            } catch (Exception ex) {
+                if (log.isErrorEnabled()) {
+                    log.error("Couldn't stop hit destinations", ex);
                 }
             }
 
@@ -493,14 +495,18 @@ public class Sender
                 } else if (forwardLC0Hits ||
                            ((IDomHit) engData).getLocalCoincidenceMode() != 0)
                 {
-                    if (hitDest != null) {
-                        try {
-                            hitDest.writePayload((IWriteablePayload) payload);
-                        } catch (IOException ioe) {
-                            if (log.isErrorEnabled()) {
-                                log.error("Could not send HitPayload", ioe);
-                            }
-                        }
+                    ByteBuffer payBuf =
+                        ByteBuffer.allocate(payload.getPayloadLength());
+                    try {
+                        ((IWriteablePayload) payload).writePayload(false, 0,
+                                                                   payBuf);
+                    } catch (IOException ioe) {
+                        log.error("Couldn't create payload", ioe);
+                        payBuf = null;
+                    }
+
+                    if (payBuf != null) {
+                        hitChan.receiveByteBuffer(payBuf);
                     }
 
                     payload.recycle();
@@ -623,16 +629,14 @@ public class Sender
      */
     public void finishThreadCleanup()
     {
-        if (dataDest != null) {
-            try {
-                dataDest.stopAllPayloadDestinations();
-            } catch (IOException ioe) {
-                if (log.isErrorEnabled()) {
-                    log.error("Couldn't stop readout data destinations", ioe);
-                }
+        try {
+            dataChan.sendLastAndStop();
+        } catch (Exception ex) {
+            if (log.isErrorEnabled()) {
+                log.error("Couldn't stop readout data destinations", ex);
             }
-            totStopsSent++;
         }
+        totStopsSent++;
     }
 
     /**
@@ -1162,19 +1166,18 @@ public class Sender
     public boolean sendOutput(ILoadablePayload payload)
     {
         boolean sent = false;
-        if (dataDest == null) {
-            if (log.isErrorEnabled()) {
-                log.error("ReadoutDataPayload destination has not been set");
-            }
-        } else {
-            try {
-                dataDest.writePayload((IWriteablePayload) payload);
-                sent = true;
-            } catch (IOException ioe) {
-                if (log.isErrorEnabled()) {
-                    log.error("Could not send ReadoutDataPayload", ioe);
-                }
-            }
+        ByteBuffer buf =
+            ByteBuffer.allocate(payload.getPayloadLength());
+        try {
+            ((IWriteablePayload) payload).writePayload(false, 0, buf);
+        } catch (Exception ex) {
+            log.error("Couldn't create payload", ex);
+            buf = null;
+        }
+
+        if (buf != null) {
+            dataChan.receiveByteBuffer(buf);
+            sent = true;
         }
 
         payload.recycle();
@@ -1187,9 +1190,10 @@ public class Sender
      *
      * @param dest output destination
      */
-    public void setDataOutputDestination(IPayloadDestinationCollection dest)
+    public void setDataOutput(DAQOutputChannelManager dest)
     {
-        dataDest = dest;
+        dataOut = dest;
+        dataChan = null;
     }
 
     /**
@@ -1197,9 +1201,10 @@ public class Sender
      *
      * @param dest output destination
      */
-    public void setHitOutputDestination(IPayloadDestinationCollection dest)
+    public void setHitOutput(DAQOutputChannelManager dest)
     {
-        hitDest = dest;
+        hitOut = dest;
+        hitChan = null;
     }
 
     /**
@@ -1236,6 +1241,36 @@ public class Sender
                       " [" + reqStartTime + "-" +
                       reqEndTime + "]");
         }
+    }
+
+    /**
+     * Get the output channels before the request thread is started.
+     */
+    public void startThread()
+    {
+        if (hitOut == null) {
+            if (log.isErrorEnabled()) {
+                throw new Error("Hit destination has not been set");
+            }
+        } else {
+            hitChan = hitOut.getChannel();
+            if (hitChan == null) {
+                throw new Error("Hit destination has no output channels");
+            }
+        }
+
+        if (dataOut == null) {
+            if (log.isErrorEnabled()) {
+                throw new Error("Data destination has not been set");
+            }
+        } else {
+            dataChan = dataOut.getChannel();
+            if (dataChan == null) {
+                throw new Error("Data destination has no output channels");
+            }
+        }
+
+        super.startThread();
     }
 
     public void forwardIsolatedHitsToTrigger()

@@ -2,7 +2,6 @@
 package icecube.daq.bindery;
 
 import icecube.daq.io.OutputChannel;
-import icecube.daq.io.PayloadDestinationOutputEngine;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.impl.SourceID4B;
 
@@ -22,15 +21,13 @@ public class SecondaryStreamConsumer implements BufferConsumer
 {
     private HashMap<Integer, Integer> idMap     = new HashMap<Integer, Integer>();
     private OutputChannel outputChannel= null;
-    private PayloadDestinationOutputEngine outputEngine = null;
     private IByteBufferCache cacheMgr           = null;
     private static final Logger logger          = Logger.getLogger(SecondaryStreamConsumer.class);
     private WritableByteChannel dbgChan = null;
 
-	public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, PayloadDestinationOutputEngine outputEngine)
+	public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, OutputChannel outputChannel)
     {
-        this.outputEngine = outputEngine;
-        this.outputChannel = outputEngine.lookUpEngineBySourceID(new SourceID4B(0));
+        this.outputChannel = outputChannel;
         this.cacheMgr = cacheMgr;
         idMap.put(102, 5);
         idMap.put(202, 4);
@@ -54,7 +51,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
         if (recl == 32 && utc == Long.MAX_VALUE)
         {
             logger.info("Stopping payload destinations");
-            outputEngine.getPayloadDestinationCollection().stopAllPayloadDestinations();
+            outputChannel.sendLastAndStop();
         }
         else
         {

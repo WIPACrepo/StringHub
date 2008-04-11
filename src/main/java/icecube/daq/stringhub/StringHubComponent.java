@@ -13,7 +13,9 @@ import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
-import icecube.daq.io.PayloadDestinationOutputEngine;
+import icecube.daq.io.DAQComponentOutputProcess;
+import icecube.daq.io.PayloadOutputEngine;
+import icecube.daq.io.OutputChannel;
 import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
@@ -21,13 +23,9 @@ import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
 import icecube.daq.monitoring.DataCollectorMonitor;
 import icecube.daq.monitoring.MonitoringData;
-import icecube.daq.payload.ByteBufferPayloadDestination;
 import icecube.daq.payload.IByteBufferCache;
-import icecube.daq.payload.IPayloadDestination;
-import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.MasterPayloadFactory;
-import icecube.daq.payload.PayloadDestinationCollection;
 import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
@@ -73,10 +71,10 @@ public class StringHubComponent extends DAQComponent
 	private MasterPayloadFactory payloadFactory;
 	private DOMRegistry domRegistry;
 	private IByteBufferCache moniBufMgr, tcalBufMgr, snBufMgr;
-	private PayloadDestinationOutputEngine moniPayloadDest;
-	private PayloadDestinationOutputEngine tcalPayloadDest;
-	private PayloadDestinationOutputEngine supernovaPayloadDest;
-	private PayloadDestinationOutputEngine hitOut;
+	private PayloadOutputEngine moniOut;
+	private PayloadOutputEngine tcalOut;
+	private PayloadOutputEngine supernovaOut;
+	private PayloadOutputEngine hitOut;
 	private DOMConnector conn = null;
 	private List<DOMChannelInfo> activeDOMs;
 	private MultiChannelMergeSort hitsSort;
@@ -128,13 +126,12 @@ public class StringHubComponent extends DAQComponent
 
         if (minorHubId > 0)
         {
-            hitOut = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "hitOut");
+            hitOut = new PayloadOutputEngine(COMPONENT_NAME, hubId, "hitOut");
             if (minorHubId > 80)
                 addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
             else
                 addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
-            hitOut.registerBufferManager(hitBufMgr);
-            sender.setHitOutputDestination(hitOut.getPayloadDestinationCollection());
+            sender.setHitOutput(hitOut);
         }
 
 
@@ -149,13 +146,11 @@ public class StringHubComponent extends DAQComponent
         }
         addMonitoredEngine(DAQConnector.TYPE_READOUT_REQUEST, reqIn);
 
-        PayloadDestinationOutputEngine dataOut =
-            new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "dataOut");
-        dataOut.registerBufferManager(hitBufMgr);
+        PayloadOutputEngine dataOut =
+            new PayloadOutputEngine(COMPONENT_NAME, hubId, "dataOut");
         addMonitoredEngine(DAQConnector.TYPE_READOUT_DATA, dataOut);
 
-        IPayloadDestinationCollection dataColl = dataOut.getPayloadDestinationCollection();
-        sender.setDataOutputDestination(dataColl);
+        sender.setDataOutput(dataOut);
 
         MonitoringData monData = new MonitoringData();
         monData.setSenderMonitor(sender);
@@ -167,21 +162,18 @@ public class StringHubComponent extends DAQComponent
         // Following are the payload output engines for the secondary streams
 		moniBufMgr  = new VitreousBufferCache();
 		addCache(DAQConnector.TYPE_MONI_DATA, moniBufMgr);
-        moniPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "moniOut");
-        moniPayloadDest.registerBufferManager(moniBufMgr);
-        addMonitoredEngine(DAQConnector.TYPE_MONI_DATA, moniPayloadDest);
+        moniOut = new PayloadOutputEngine(COMPONENT_NAME, hubId, "moniOut");
+        addMonitoredEngine(DAQConnector.TYPE_MONI_DATA, moniOut);
 
 		tcalBufMgr  = new VitreousBufferCache();
 		addCache(DAQConnector.TYPE_TCAL_DATA, tcalBufMgr);
-        tcalPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "tcalOut");
-        tcalPayloadDest.registerBufferManager(tcalBufMgr);
-        addMonitoredEngine(DAQConnector.TYPE_TCAL_DATA, tcalPayloadDest);
+        tcalOut = new PayloadOutputEngine(COMPONENT_NAME, hubId, "tcalOut");
+        addMonitoredEngine(DAQConnector.TYPE_TCAL_DATA, tcalOut);
 
 		snBufMgr  = new VitreousBufferCache();
 		addCache(DAQConnector.TYPE_SN_DATA, snBufMgr);
-        supernovaPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
-        supernovaPayloadDest.registerBufferManager(snBufMgr);
-        addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaPayloadDest);
+        supernovaOut = new PayloadOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
+        addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaOut);
     }
 
 	@Override
@@ -242,12 +234,10 @@ public class StringHubComponent extends DAQComponent
         sourceId = SourceIdRegistry.getISourceIDFromNameAndId(COMPONENT_NAME, hubId);
         triggerHandler = new StringTriggerHandler(sourceId);
         triggerHandler.setMasterPayloadFactory(payloadFactory);
-        triggerHandler.setPayloadOutput(hitOut.getPayloadDestinationCollection());
+        triggerHandler.setPayloadOutput(hitOut);
 
-        // This is the output of the Sender
-        IPayloadDestination payloadDestination = new ByteBufferPayloadDestination(
-                triggerHandler, hitOut.getBufferManager());
-        sender.setHitOutputDestination(new PayloadDestinationCollection(payloadDestination));
+        // feed sender output through string trigger
+        sender.setHitOutput(triggerHandler);
         logger.info("triggering enabled");
 	}
 
@@ -326,9 +316,9 @@ public class StringHubComponent extends DAQComponent
 
 			conn = new DOMConnector(nch);
 	
-			SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniBufMgr, moniPayloadDest);
-	        SecondaryStreamConsumer supernovaConsumer = new SecondaryStreamConsumer(hubId, snBufMgr, supernovaPayloadDest);
-	        SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId, tcalBufMgr, tcalPayloadDest);
+			SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniBufMgr, moniOut.getChannel());
+	        SecondaryStreamConsumer supernovaConsumer = new SecondaryStreamConsumer(hubId, snBufMgr, supernovaOut.getChannel());
+	        SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId, tcalBufMgr, tcalOut.getChannel());
 
 			// Start the merger-sorter objects
 			hitsSort = new MultiChannelMergeSort(nch, sender);
@@ -537,7 +527,7 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 2699 2008-02-28 20:12:05Z kael $";
+		return "$Id: StringHubComponent.java 2904 2008-04-11 17:38:14Z dglo $";
     }
 
 }
