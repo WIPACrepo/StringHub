@@ -645,8 +645,6 @@ public class Sender
         return getAverageOutputDataPayloads();
     }
 
-    //public String getBackEndTiming()
-
     /**
      * Get current rate of hits per second.
      *
@@ -874,8 +872,6 @@ public class Sender
         return getTotalBadDataPayloads();
     }
 
-    //public long getTotalDataStopsReceived()
-
     /**
      * Total number of hits thrown away since last reset.
      *
@@ -935,8 +931,6 @@ public class Sender
     {
         return getTotalOutputsSent();
     }
-
-    //public long getTotalRequestStopsReceived()
 
     public long getTotalStopsSent()
     {
