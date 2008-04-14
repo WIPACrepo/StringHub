@@ -14,7 +14,7 @@ import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
 import icecube.daq.io.DAQComponentOutputProcess;
-import icecube.daq.io.PayloadOutputEngine;
+import icecube.daq.io.SimpleOutputEngine;
 import icecube.daq.io.OutputChannel;
 import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQComponent;
@@ -71,10 +71,10 @@ public class StringHubComponent extends DAQComponent
 	private MasterPayloadFactory payloadFactory;
 	private DOMRegistry domRegistry;
 	private IByteBufferCache moniBufMgr, tcalBufMgr, snBufMgr;
-	private PayloadOutputEngine moniOut;
-	private PayloadOutputEngine tcalOut;
-	private PayloadOutputEngine supernovaOut;
-	private PayloadOutputEngine hitOut;
+	private SimpleOutputEngine moniOut;
+	private SimpleOutputEngine tcalOut;
+	private SimpleOutputEngine supernovaOut;
+	private SimpleOutputEngine hitOut;
 	private DOMConnector conn = null;
 	private List<DOMChannelInfo> activeDOMs;
 	private MultiChannelMergeSort hitsSort;
@@ -126,7 +126,7 @@ public class StringHubComponent extends DAQComponent
 
         if (minorHubId > 0)
         {
-            hitOut = new PayloadOutputEngine(COMPONENT_NAME, hubId, "hitOut");
+            hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "hitOut");
             if (minorHubId > 80)
                 addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
             else
@@ -146,8 +146,8 @@ public class StringHubComponent extends DAQComponent
         }
         addMonitoredEngine(DAQConnector.TYPE_READOUT_REQUEST, reqIn);
 
-        PayloadOutputEngine dataOut =
-            new PayloadOutputEngine(COMPONENT_NAME, hubId, "dataOut");
+        SimpleOutputEngine dataOut =
+            new SimpleOutputEngine(COMPONENT_NAME, hubId, "dataOut");
         addMonitoredEngine(DAQConnector.TYPE_READOUT_DATA, dataOut);
 
         sender.setDataOutput(dataOut);
@@ -162,17 +162,17 @@ public class StringHubComponent extends DAQComponent
         // Following are the payload output engines for the secondary streams
 		moniBufMgr  = new VitreousBufferCache();
 		addCache(DAQConnector.TYPE_MONI_DATA, moniBufMgr);
-        moniOut = new PayloadOutputEngine(COMPONENT_NAME, hubId, "moniOut");
+        moniOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "moniOut");
         addMonitoredEngine(DAQConnector.TYPE_MONI_DATA, moniOut);
 
 		tcalBufMgr  = new VitreousBufferCache();
 		addCache(DAQConnector.TYPE_TCAL_DATA, tcalBufMgr);
-        tcalOut = new PayloadOutputEngine(COMPONENT_NAME, hubId, "tcalOut");
+        tcalOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "tcalOut");
         addMonitoredEngine(DAQConnector.TYPE_TCAL_DATA, tcalOut);
 
 		snBufMgr  = new VitreousBufferCache();
 		addCache(DAQConnector.TYPE_SN_DATA, snBufMgr);
-        supernovaOut = new PayloadOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
+        supernovaOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
         addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaOut);
     }
 
@@ -527,7 +527,7 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 2904 2008-04-11 17:38:14Z dglo $";
+		return "$Id: StringHubComponent.java 2921 2008-04-14 21:23:54Z dglo $";
     }
 
 }
