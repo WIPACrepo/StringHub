@@ -18,6 +18,11 @@ public class MockTriggerBridge extends DAQComponent {
 		addCache(genericCacheManager);
 	}
 
+	public String getVersionInfo()
+	{
+		return "$Id";
+	}
+
 	/**
 	 * @param args
 	 */
