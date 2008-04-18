@@ -14,8 +14,9 @@ import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
 import icecube.daq.io.DAQComponentOutputProcess;
-import icecube.daq.io.SimpleOutputEngine;
 import icecube.daq.io.OutputChannel;
+import icecube.daq.io.PayloadReader;
+import icecube.daq.io.SimpleOutputEngine;
 import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
@@ -67,14 +68,17 @@ public class StringHubComponent extends DAQComponent
     private int hubId;
 	private boolean isSim = false;
 	private Driver driver = Driver.getInstance();
+	private IByteBufferCache cache;
 	private Sender sender;
 	private MasterPayloadFactory payloadFactory;
 	private DOMRegistry domRegistry;
 	private IByteBufferCache moniBufMgr, tcalBufMgr, snBufMgr;
+	private PayloadReader reqIn;
 	private SimpleOutputEngine moniOut;
 	private SimpleOutputEngine tcalOut;
 	private SimpleOutputEngine supernovaOut;
 	private SimpleOutputEngine hitOut;
+	private SimpleOutputEngine dataOut;
 	private DOMConnector conn = null;
 	private List<DOMChannelInfo> activeDOMs;
 	private MultiChannelMergeSort hitsSort;
@@ -91,24 +95,29 @@ public class StringHubComponent extends DAQComponent
 	private IStringTriggerHandler triggerHandler;
 	private static final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
 
-	public StringHubComponent(int hubId) throws Exception
+	public StringHubComponent(int hubId)
+	{
+		this(hubId, (hubId >= 1000 && hubId < 2000));
+	}
+
+	public StringHubComponent(int hubId, boolean isSim)
 	{
 		super(DAQCmdInterface.DAQ_STRING_HUB, hubId);
 
         this.hubId = hubId;
+		this.isSim = isSim;
 
 		final String bufName = "PyrateBufferManager";
 
-		IByteBufferCache hitBufMgr  = new VitreousBufferCache();
-		addCache(hitBufMgr);
-		addMBean(bufName, hitBufMgr);
+		cache  = new VitreousBufferCache();
+		addCache(cache);
+		addMBean(bufName, cache);
 
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
 
-		payloadFactory = new MasterPayloadFactory(hitBufMgr);
+		payloadFactory = new MasterPayloadFactory(cache);
 		sender         = new Sender(hubId, payloadFactory);
-		isSim          = (hubId >= 1000 && hubId < 2000);
 		nch            = 0;
 
 		logger.info("starting up StringHub component " + hubId);
@@ -135,7 +144,6 @@ public class StringHubComponent extends DAQComponent
         }
 
 
-        RequestReader reqIn;
         try
         {
             reqIn = new RequestReader(COMPONENT_NAME, sender, payloadFactory);
@@ -146,7 +154,7 @@ public class StringHubComponent extends DAQComponent
         }
         addMonitoredEngine(DAQConnector.TYPE_READOUT_REQUEST, reqIn);
 
-        SimpleOutputEngine dataOut =
+		dataOut =
             new SimpleOutputEngine(COMPONENT_NAME, hubId, "dataOut");
         addMonitoredEngine(DAQConnector.TYPE_READOUT_DATA, dataOut);
 
@@ -527,7 +535,36 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 2921 2008-04-14 21:23:54Z dglo $";
+		return "$Id: StringHubComponent.java 2951 2008-04-18 23:22:30Z dglo $";
     }
 
+	public IByteBufferCache getCache()
+	{
+		return cache;
+	}
+
+	public DAQComponentOutputProcess getDataWriter()
+	{
+		return dataOut;
+	}
+
+	public DAQComponentOutputProcess getHitWriter()
+	{
+		return hitOut;
+	}
+
+	public int getHubId()
+	{
+		return hubId;
+	}
+
+	public PayloadReader getRequestReader()
+	{
+		return reqIn;
+	}
+
+	public Sender getSender()
+	{
+		return sender;
+	}
 }
