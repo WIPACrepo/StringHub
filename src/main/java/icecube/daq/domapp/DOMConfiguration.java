@@ -36,6 +36,11 @@ public class DOMConfiguration implements Serializable
 	private boolean chargeStampATWD = false;
 	private byte chargeStampAtwdChannel = -1;
 	
+	/** Set for injecting supernova simulation signal */
+	private	boolean 		snSigEnabled = true;					
+	private double 			snDistance = 10.;				
+	private boolean 		effVolumeEnabled = true;		
+
 	public DOMConfiguration()
 	{
 
@@ -64,6 +69,9 @@ public class DOMConfiguration implements Serializable
 	    this.supernovaEnabled = c.supernovaEnabled;
 	    this.supernovaSpe = c.supernovaSpe;
 	    this.triggerMode  = c.triggerMode;
+        this.snSigEnabled = c.isSnSigEnabled();
+        this.snDistance = c.getSnDistance();
+        this.effVolumeEnabled = c.isEffVolumeEnabled();
 	}
 
 	/**
@@ -364,6 +372,31 @@ public class DOMConfiguration implements Serializable
     {
         this.simHLCFrac = simHLCFrac;
     }
+ 
+    public boolean isSnSigEnabled() {
+		return snSigEnabled;
+	}
+
+	public double getSnDistance() {
+		return snDistance;
+	}
+
+	public boolean isEffVolumeEnabled() {
+		return effVolumeEnabled;
+	}
+
+	public void setSnSigEnabled(boolean snSigEnabled) {
+		this.snSigEnabled = snSigEnabled;
+	}
+
+	public void setSnDistance(double snDistance) {
+		this.snDistance = snDistance;
+	}
+
+	public void setEffVolumeEnabled(boolean effVolumeEnabled) {
+		this.effVolumeEnabled = effVolumeEnabled;
+	}
+
 }
 
 

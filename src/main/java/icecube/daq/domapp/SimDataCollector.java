@@ -56,12 +56,24 @@ public class SimDataCollector extends AbstractDataCollector
     private long            loopCounter;
     private double          pulserRate = 1.0;
     private volatile long   runStartUT = 0L;
+	private	boolean 		snSigEnabled;					
+	private double 			snDistance;				
+	private boolean 		effVolumeEnabled;		
 
     private Thread thread;
+	private double[] avgSnSignal;
+	private double[] effVolumeScaling;
 
     private static final Logger logger = Logger.getLogger(SimDataCollector.class);
 
-    public SimDataCollector(DOMChannelInfo chanInfo, BufferConsumer hitsConsumer)
+    public SimDataCollector(int card, int pair, char dom, double[] avgSnSignal,
+			double[] effVolumeScaling) {
+		super(card, pair, dom);
+		this.avgSnSignal = avgSnSignal;
+		this.effVolumeScaling = effVolumeScaling;
+	}
+
+	public SimDataCollector(DOMChannelInfo chanInfo, BufferConsumer hitsConsumer)
     {
         this(chanInfo, null, hitsConsumer, null, null, null);
     }
@@ -71,7 +83,8 @@ public class SimDataCollector extends AbstractDataCollector
                             BufferConsumer hitsConsumer,
                             BufferConsumer moniConsumer,
                             BufferConsumer scalConsumer,
-                            BufferConsumer tcalConsumer)
+                            BufferConsumer tcalConsumer
+                            )
     {
         super(chanInfo.card, chanInfo.pair, chanInfo.dom);
         this.mbid = chanInfo.mbid;
@@ -87,6 +100,9 @@ public class SimDataCollector extends AbstractDataCollector
             rate = config.getSimNoiseRate();
             pulserRate = config.getPulserRate();
             hlcFrac = config.getSimHLCFrac();
+            snSigEnabled = config.isSnSigEnabled();
+            snDistance = config.getSnDistance();
+            effVolumeEnabled = config.isEffVolumeEnabled();
         }
         thread = new Thread(this, "SimDataCollector-" + card + "" + pair + dom);
         thread.start();
@@ -263,21 +279,16 @@ public class SimDataCollector extends AbstractDataCollector
         int dtms = (int) (currTime - lastSupernova);
         int nsn = dtms * 10000 / 16384;        
         // sn Data Challenge
-		boolean snSigOn = true;					// 
-		double snDistance = 10.;				// distance to sn in kpc
-		long hundredSec = 100000000L;
-		long snStartTime = ((getRunStartTime()/hundredSec)+1)*hundredSec;	// start sn within the next 100 sec
+		long runStartMilli = getRunStartTime()/10000000L + t0;
+		long hundredSec = 100000L;
+		long snStartTime = ((runStartMilli/hundredSec)+1)*hundredSec;	// start sn within the next 100 sec (in ms)
 		int dtsnSig = (int) (lastSupernova - snStartTime);
 		int nsnSig = dtsnSig*10000/16384;
 		int maxnsnSig = 15000*10000/16384;
-		double snRate = 0.;
-		boolean effVolumeScalingOn = true;		// use effective volume scaling vs depth for snSignal?
 		double effVol = 1.;
-		if (!effVolumeScalingOn)
-			effVol = 1.;
-		if (effVolumeScalingOn) {
-			int domZNum = 8*card + 2*pair + dom;	// is domZNum = 1 at top or bottom?
-			effVol = getEffVolumeScaling(domZNum);
+		if (effVolumeEnabled) {
+			int domZNum = 8*card + 2*pair + (2-(dom-'A'));	// dom = 'A' -> 2, dom = 'B' -> 1
+			effVol = effVolumeScaling(domZNum);
 		}
 		//	
         lastSupernova = currTime;
@@ -285,7 +296,7 @@ public class SimDataCollector extends AbstractDataCollector
         ByteBuffer buf = ByteBuffer.allocate(recl+32);
         long utc = (currTime - t0) * 10000000L;
         long clk = utc / 250L;
-          
+        
         buf.putInt(recl+32);
         buf.putInt(302);
         buf.putLong(numericMBID);
@@ -300,15 +311,14 @@ public class SimDataCollector extends AbstractDataCollector
         buf.put((byte) ((clk >>  8) & 0xff));
         buf.put((byte) clk);
         for (int i = 0; i < nsn; i++) {
-        	if (!snSigOn) snRate = 0.;
-        	else if (nsnSig + i < 0) snRate = 0.;		
-    		else if (nsnSig + i > maxnsnSig-1) snRate = 0.;
-    		else {
-    			snRate = getSnSignalPerDom(nsnSig + i)*effVol*(10./snDistance)*(10./snDistance);
+        	double snRate = 0.;
+        	if (snSigEnabled && (nsnSig+i+1>0) && (nsnSig+i<maxnsnSig)) {
+//        		if (i==0) logger.debug("sn start time " + snStartTime);
+    			snRate = snSignalPerDom(nsnSig + i)*effVol*(10./snDistance)*(10./snDistance);
     		}
            int scaler = poissonRandom.nextInt(300 * 0.0016384) + poissonRandom.nextInt(snRate);
-            if (scaler > 15) scaler = 15;
-            buf.put((byte) scaler);
+           if (scaler > 15) scaler = 15;
+           buf.put((byte) scaler);
         }
         buf.flip();
         if (scalConsumer != null) scalConsumer.consume(buf);
@@ -363,7 +373,7 @@ public class SimDataCollector extends AbstractDataCollector
             buf.putInt(word1).putInt(word3);
             buf.flip();
             logger.debug("Writing " + buf.remaining() + " byte hit at UTC = " + utc);
-            hitsConsumer.consume(buf);
+            if (hitsConsumer != null) hitsConsumer.consume(buf);
         }
         return n;
     }
@@ -427,8 +437,14 @@ public class SimDataCollector extends AbstractDataCollector
         // TODO Auto-generated method stub
     }
     
-    public double getEffVolumeScaling(int domZNum) {
-		double[] effVolumeScaling = {
+    /**
+     * Contains effective volume scaling factor per DOM for single photon detection
+     * at 60 DOM locations starting at +500m going down by 17m, down to -503m.
+	 * @param domZNum (0 to 59)
+     * @return effective volume scaling factor for each DOM depth
+     */
+    public double effVolumeScaling(int domZNum) {
+		double[] effVolumeScale = {
 				0.86131816, 0.900976794, 0.952426901,
 				0.988066749, 0.972684423, 0.917700341, 0.851039623, 0.802034156,
 				0.824524517, 0.867265899, 0.903136506, 0.950265023, 0.991671685,
@@ -443,12 +459,17 @@ public class SimDataCollector extends AbstractDataCollector
 				1.241235662, 1.279426862, 1.302027186, 1.304013557, 1.293682476,
 				1.27368659, 1.25035282
 				};
-		return effVolumeScaling[domZNum-1];
+		return effVolumeScale[domZNum-1];
 	}
 
-    public double getSnSignalPerDom(int nsnSigBin) {
-    // sn signal in 10*1.6384ms bins (we only have luminosity in 0.1sec resolution)
-    	double[] avgSnSignalPerDom = {
+    /**
+     * Contains supernova signal extracted from Livermore paper in 10*1.6384ms bins 
+     * (we only have luminosity in 0.1sec resolution)
+	 * @param nsnSigBin the 1.6384ms time bin to set
+     * @return expected supernova signal per DOM in the 1.6384ms bin
+     */
+   public double snSignalPerDom(int nsnSigBin) {
+     	double[] avgSnSignalPerDom = {
     			0.555415, 0.555415, 0.555415, 0.555415, 0.555415, 0.555415, 0.555415,
     			1.97197, 1.97197, 1.97197, 1.97197, 1.97197, 1.97197, 2.05904, 2.05904,
     			2.05904, 2.05904, 2.05904, 2.05904, 1.42308, 1.42308, 1.42308, 1.42308,
@@ -599,5 +620,22 @@ public class SimDataCollector extends AbstractDataCollector
     	};
     	return avgSnSignalPerDom[nsnSigBin/10]/10.;
     }
-    
+
+	public double[] getEffVolumeScaling() {
+		return effVolumeScaling;
+	}
+	
+	public void setEffVolumeScaling(double[] effVolumeScaling) {
+		this.effVolumeScaling = effVolumeScaling;
+		
+	}
+
+	public double[] getAvgSnSignal() {
+		return avgSnSignal;
+	}
+
+	public void setAvgSnSignal(double[] avgSnSignal) {
+		this.avgSnSignal = avgSnSignal;
+	}
+
 }
