@@ -44,7 +44,7 @@ public class SimDataCollector extends AbstractDataCollector
     private long            lastGenHit;           // right edge of previous hit generation time window
     private long            lastMoni;             // last moni record
     private long            lastTcal;             // last time a Tcal was generated
-    private long            lastSupernova;        // last time a SN record was generated
+    private long            lastSupernova;        // last time a SN record was generated in 1e-7sec unit (sorry...)
     private long            lastBeacon;           // keep track of the beacon hits ...
     private long            numericMBID;
     private RandomEngine    rand = new MersenneTwister(new java.util.Date());
@@ -191,7 +191,7 @@ public class SimDataCollector extends AbstractDataCollector
                     lastBeacon = t;
                     lastMoni   = t;
                     lastTcal   = t;
-                    lastSupernova = t;
+                    lastSupernova = t*10000L;
                     break;
                 case STARTING_SUBRUN:
                     // go to start run
@@ -273,16 +273,16 @@ public class SimDataCollector extends AbstractDataCollector
     }
 
     private int generateSupernova(long currTime) throws IOException {
-        if (currTime - lastSupernova < 1000L) return 0;
+        if (currTime - lastSupernova/10000L < 1000L) return 0;
         // Simulate SN wrap-around
-        if (currTime - lastSupernova > 10000L) lastSupernova = currTime - 10000L;
-        int dtms = (int) (currTime - lastSupernova);
-        int nsn = dtms * 10000 / 16384;        
+        if (currTime - lastSupernova/10000L > 10000L) lastSupernova = (currTime - 10000L)*10000L;
+        int dtms = (int) (currTime - lastSupernova/10000L);
+        int nsn = dtms * 10000 / 16384;      
         // sn Data Challenge
 		long runStartMilli = getRunStartTime()/10000000L + t0;
 		long hundredSec = 100000L;
 		long snStartTime = ((runStartMilli/hundredSec)+1)*hundredSec;	// start sn within the next 100 sec (in ms)
-		int dtsnSig = (int) (lastSupernova - snStartTime);
+		int dtsnSig = (int) (lastSupernova/10000L - snStartTime);
 		int nsnSig = dtsnSig*10000/16384;
 		int maxnsnSig = 15000*10000/16384;
 		double effVol = 1.;
@@ -291,11 +291,11 @@ public class SimDataCollector extends AbstractDataCollector
 			effVol = effVolumeScaling(domZNum);
 		}
 		//	
-        lastSupernova = currTime;
         short recl = (short) (10 + nsn);
         ByteBuffer buf = ByteBuffer.allocate(recl+32);
-        long utc = (currTime - t0) * 10000000L;
+        long utc = lastSupernova*1000L - t0 * 10000000L;
         long clk = utc / 250L;
+        lastSupernova = lastSupernova + nsn*16384;
         
         buf.putInt(recl+32);
         buf.putInt(302);
@@ -313,7 +313,6 @@ public class SimDataCollector extends AbstractDataCollector
         for (int i = 0; i < nsn; i++) {
         	double snRate = 0.;
         	if (snSigEnabled && (nsnSig+i+1>0) && (nsnSig+i<maxnsnSig)) {
-//        		if (i==0) logger.debug("sn start time " + snStartTime);
     			snRate = snSignalPerDom(nsnSig + i)*effVol*(10./snDistance)*(10./snDistance);
     		}
            int scaler = poissonRandom.nextInt(300 * 0.0016384) + poissonRandom.nextInt(snRate);
