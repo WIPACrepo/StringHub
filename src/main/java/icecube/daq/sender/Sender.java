@@ -460,11 +460,13 @@ public class Sender
     {
         if (buf.getInt(0) == 32 && buf.getLong(24) == Long.MAX_VALUE)
         {
-            try {
-                hitChan.sendLastAndStop();
-            } catch (Exception ex) {
-                if (log.isErrorEnabled()) {
-                    log.error("Couldn't stop hit destinations", ex);
+            if (hitChan != null) {
+                try {
+                    hitChan.sendLastAndStop();
+                } catch (Exception ex) {
+                    if (log.isErrorEnabled()) {
+                        log.error("Couldn't stop hit destinations", ex);
+                    }
                 }
             }
 
@@ -492,8 +494,9 @@ public class Sender
 
                 if (payload == null) {
                     log.error("Couldn't build hit from DOM hit data");
-                } else if (forwardLC0Hits ||
-                           ((IDomHit) engData).getLocalCoincidenceMode() != 0)
+                } else if (hitChan != null &&
+                           (forwardLC0Hits ||
+                            ((IDomHit) engData).getLocalCoincidenceMode() != 0))
                 {
                     ByteBuffer payBuf =
                         ByteBuffer.allocate(payload.getPayloadLength());
@@ -1248,11 +1251,7 @@ public class Sender
      */
     public void startThread()
     {
-        if (hitOut == null) {
-            if (log.isErrorEnabled()) {
-                throw new Error("Hit destination has not been set");
-            }
-        } else {
+        if (hitOut != null) {
             hitChan = hitOut.getChannel();
             if (hitChan == null) {
                 throw new Error("Hit destination has no output channels");
