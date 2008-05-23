@@ -277,7 +277,7 @@ public class SimDataCollector extends AbstractDataCollector
         // Simulate SN wrap-around
         if (currTime - lastSupernova/10000L > 10000L) lastSupernova = (currTime - 10000L)*10000L;
         int dtms = (int) (currTime - lastSupernova/10000L);
-        int nsn = dtms * 10000 / 16384;      
+        int nsn = dtms * 10000 / 16384 /4*4;      
         // sn Data Challenge
 		long runStartMilli = getRunStartTime()/10000000L + t0;
 		long hundredSec = 100000L;
