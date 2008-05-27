@@ -3,7 +3,6 @@ package icecube.daq.stringhub;
 
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.SecondaryStreamConsumer;
-import icecube.daq.bindery.StreamBinder;
 import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.AbstractDataCollector;
@@ -43,10 +42,7 @@ import icecube.daq.util.FlasherboardConfiguration;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.channels.Pipe;
-import java.nio.channels.SelectableChannel;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -102,7 +98,7 @@ public class StringHubComponent extends DAQComponent
 
 	public StringHubComponent(int hubId, boolean isSim)
 	{
-		super(DAQCmdInterface.DAQ_STRING_HUB, hubId);
+		super(COMPONENT_NAME, hubId);
 
         this.hubId = hubId;
 		this.isSim = isSim;
@@ -323,7 +319,7 @@ public class StringHubComponent extends DAQComponent
 			if (conn != null) conn.destroy();
 
 			conn = new DOMConnector(nch);
-	
+
 			SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniBufMgr, moniOut.getChannel());
 	        SecondaryStreamConsumer supernovaConsumer = new SecondaryStreamConsumer(hubId, snBufMgr, supernovaOut.getChannel());
 	        SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId, tcalBufMgr, tcalOut.getChannel());
@@ -346,7 +342,7 @@ public class StringHubComponent extends DAQComponent
 				if (isSim)
 				{
 					dc = new SimDataCollector(chanInfo, config,
-					        hitsSort, 
+					        hitsSort,
 					        moniSort,
 					        scalSort,
 					        tcalSort);
@@ -411,12 +407,12 @@ public class StringHubComponent extends DAQComponent
 	public void starting() throws DAQCompException
 	{
 	    logger.info("StringHub is starting the run.");
-	    
+
 	    hitsSort.start();
 	    moniSort.start();
 	    scalSort.start();
 	    tcalSort.start();
-	    
+
 		try
 		{
 			conn.startProcessing();
@@ -535,7 +531,7 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 2951 2008-04-18 23:22:30Z dglo $";
+		return "$Id: StringHubComponent.java 3073 2008-05-27 20:39:18Z dglo $";
     }
 
 	public IByteBufferCache getCache()
