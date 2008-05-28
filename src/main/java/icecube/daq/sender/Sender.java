@@ -405,7 +405,7 @@ public class Sender
     {
         super("Sender#" + stringHubId, false);
 
-        sourceId = getSourceId(stringHubId);
+        sourceId = getSourceId(stringHubId % 1000);
 
         engHitFactory = new EngineeringFormatHitDataPayloadFactory();
         deltaHitFactory = new DeltaCompressedFormatHitDataPayloadFactory();
