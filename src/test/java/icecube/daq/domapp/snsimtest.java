@@ -29,14 +29,12 @@ public class snsimtest implements BufferConsumer {
 	Vector<Integer> snScalerBinned = new Vector<Integer>();
 	Vector<Long> snTimeBinned = new Vector<Long>();
 		
-//	Vector<DOMChannelInfo> chInfo = new Vector<DOMChannelInfo>();
-
 	Vector<Long> numMBID = new Vector<Long>();
 	Vector<Integer> oneSecScaler = new Vector<Integer>();
 	
 	Vector<Integer> integratedCounts = new Vector<Integer>();
 	Vector<Double> signalTime = new Vector<Double>();
-	Vector<Integer> baseRate = new Vector<Integer>();
+	Vector<Double> baseRate = new Vector<Double>();
 	
 	Vector<Long> t0 = new Vector<Long>();
 	Vector<Long> startTime = new Vector<Long>();	
@@ -71,11 +69,11 @@ public class snsimtest implements BufferConsumer {
 		int position;
 
 		for (int i = 0; i < 60; i++) {
-			position = i;
+			position = i+1;
 			domName = String.format("0000%02d%02d", i3string, position);
-			int card = i/8;
-			int pair = i%8/2;
-			char dom = (char)('A'+i%2);
+			int card = (position-1)/8;
+			int pair = (position-1)%8/2;
+			char dom = (char)('A'+position%2);
 			chInfo.add(new DOMChannelInfo(domName, card, pair, dom));	
 
 			numMBID.add(Long.parseLong(chInfo.get(i).mbid, 16));
@@ -83,7 +81,7 @@ public class snsimtest implements BufferConsumer {
 			oneSecScaler.add(0);
 			integratedCounts.add(0);
 			signalTime.add(0D);
-			baseRate.add(0);
+			baseRate.add(0D);
 			startTime.add(-1L);
 		}
 		
@@ -183,28 +181,21 @@ public class snsimtest implements BufferConsumer {
 //			oneSecScaler.set(mbidIndex, oneSecScaler.get(mbidIndex) + snScaler.get(i));
 //		}
 		
+		System.out.println("dom # \t baseRate \t cnts above bkg \t signalTime from run start ");
+		
 		for (int i = 0; i<numMBID.size(); ++i) {
-			System.out.println(i + "\t" + numMBID.get(i) + "\t" + (integratedCounts.get(i)-300*runLength) + "\t" + baseRate.get(i));
-			
-//		    System.out.println("mbid = " + chInfo.get(i).mbid + " numMBID = " + numMBID.get(i) + " parsed = " + Long.parseLong(chInfo.get(i).mbid, 16));
+			System.out.println((i+1) + "\t" + baseRate.get(i) + "\t" + (integratedCounts.get(i)-300*runLength) + "\t" + signalTime.get(i));
 		}
+		System.out.println("dom 57: " + (integratedCounts.get(57-1)-300*runLength) + " dom 36: " + (integratedCounts.get(36-1)-300*runLength) + " ratio = " + (float) (integratedCounts.get(57-1)-300*runLength)/(integratedCounts.get(36-1)-300*runLength));
 		
 		for (int i = 0; i < numMBID.size(); ++i) {
-			System.out.println("dom #: " + i);
-			System.out.println("Average rate for the first second = "+ baseRate.get(i) + " Hz");
-			System.out.println("Total counts above background = "+ (integratedCounts.get(i)-300*runLength));
-			System.out.println("Time of trigger after simulation start time = " + signalTime.get(i) + " sec");
-		
 			assertEquals("missing DOMs", chInfo.size(), numMBID.size());
-			assertEquals("Base sn rate is out of range in DOM " + numMBID.get(i), 300, baseRate.get(i), 50);
+			assertEquals("Base rate is out of range in DOM " + numMBID.get(i), 300, baseRate.get(i), 30);
 			assertTrue("Sn simulation did not trigger in DOM " + numMBID.get(i), signalTime.get(i) > 0);			
-			assertEquals("Trigger time out of synch", signalTime.get(0), signalTime.get(i), 0.1);
+			assertEquals("Trigger time out of synch", signalTime.get(0), signalTime.get(i), 1.1);
 		}
-		float ratio = (float) (integratedCounts.get(numMBID.indexOf(8534L))-300*runLength)/(integratedCounts.get(numMBID.indexOf(8501L))-300*runLength);
-//		if (ratio < 1) {
-//			ratio = 1/ratio;
-//		}
-		assertEquals("Ratio of counts in signal is out of range", 1.304/0.544, ratio, 0.3);
+		float ratio = (float) (integratedCounts.get(57-1)-300*runLength)/(integratedCounts.get(36-1)-300*runLength);
+		assertEquals("Ratio of counts in signal is out of range", 1.304/0.544, ratio, 0.25);
 	}
 	
 //	public synchronized void  consume(ByteBuffer buf) throws IOException {
@@ -243,27 +234,19 @@ public class snsimtest implements BufferConsumer {
 			for (int i = 0; i< recl-10; i++) {
                 int scaler = buf.get(i+42);
                 long scalerTime = utc + i*timeBin;
- //               numericMBID.add(mbid);
- //               snScaler.add(scaler);
- //               snTime.add(scalerTime);
                 
                 if ((scalerTime - t0.get(mbidIndex)) > oneSecond) {		
-    				// get baseRate if within first second
-    				if ((scalerTime - startTime.get(mbidIndex)) / oneSecond == 1) {
-    					baseRate.set(mbidIndex, oneSecScaler.get(mbidIndex));
-    				}
-    				// signalTime is set (triggered) if larger than 2*baseRate
-    				if ((signalTime.get(mbidIndex)==0) && (oneSecScaler.get(mbidIndex) > 2*baseRate.get(mbidIndex))) {
-    					signalTime.set(mbidIndex, (double) (scalerTime - startTime.get(mbidIndex))/oneSecond);
+    				if (signalTime.get(mbidIndex)==0) {		
+    	   				if (oneSecScaler.get(mbidIndex) > 2*300) {
+    	   					signalTime.set(mbidIndex, (double) (scalerTime - startTime.get(mbidIndex))/oneSecond);
+    	   					baseRate.set(mbidIndex, (double) baseRate.get(mbidIndex)/(signalTime.get(mbidIndex)-1));
+    	   				} else {
+    	   					baseRate.set(mbidIndex,  baseRate.get(mbidIndex)+oneSecScaler.get(mbidIndex));    	   				    	   					
+    	   				}
     				}
     				oneSecScaler.set(mbidIndex, 0);
     				t0.set(mbidIndex, scalerTime);
-    				
- //   				numericMBID.clear();
- //   				snScaler.clear();
- //   				snTime.clear();
     			}
-    			// add scaler to oneSecScaler of the right MBID
     			oneSecScaler.set(mbidIndex, oneSecScaler.get(mbidIndex) + scaler);
 				integratedCounts.set(mbidIndex, integratedCounts.get(mbidIndex) + scaler);
            }
