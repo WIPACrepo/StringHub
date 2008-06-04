@@ -275,7 +275,10 @@ public class SimDataCollector extends AbstractDataCollector
     private int generateSupernova(long currTime) throws IOException {
         if (currTime - lastSupernova/10000L < 1000L) return 0;
         // Simulate SN wrap-around
-        if (currTime - lastSupernova/10000L > 10000L) lastSupernova = (currTime - 10000L)*10000L;
+        if (currTime - lastSupernova/10000L > 10000L) {
+            lastSupernova = (currTime - 10000L)*10000L;
+            logger.warn("Buffer overflow in SN record channel: " + mbid);
+        }
         int dtms = (int) (currTime - lastSupernova/10000L);
         int nsn = dtms * 10000 / 16384 /4*4;      
         // sn Data Challenge
@@ -295,6 +298,10 @@ public class SimDataCollector extends AbstractDataCollector
         ByteBuffer buf = ByteBuffer.allocate(recl+32);
         long utc = lastSupernova*1000L - t0 * 10000000L;
         long clk = utc / 250L;
+        if (logger.isDebugEnabled())
+        {
+            logger.debug("MBID: " + mbid + " lastSupernova: " + lastSupernova + " UTC: " + utc + " # SN: " + nsn);
+        }
         lastSupernova = lastSupernova + nsn*16384;
         
         buf.putInt(recl+32);
@@ -334,7 +341,7 @@ public class SimDataCollector extends AbstractDataCollector
         double mu = dt * rate;
         int n = poissonRandom.nextInt(mu);
         numHits += n;
-        logger.debug("Generated " + n + " events in interval " + lastGenHit + ":" + currTime);
+        // logger.debug("Generated " + n + " events in interval " + lastGenHit + ":" + currTime);
         ArrayList<Long> eventTimes = new ArrayList<Long>(n);
         // generate n random times in the interval
         for (int i = 0; i < n; i++) {
@@ -371,7 +378,7 @@ public class SimDataCollector extends AbstractDataCollector
             int word3 = 0x00000000;
             buf.putInt(word1).putInt(word3);
             buf.flip();
-            logger.debug("Writing " + buf.remaining() + " byte hit at UTC = " + utc);
+            // logger.debug("Writing " + buf.remaining() + " byte hit at UTC = " + utc);
             if (hitsConsumer != null) hitsConsumer.consume(buf);
         }
         return n;
