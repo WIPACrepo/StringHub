@@ -44,6 +44,22 @@
               </archive>
             </configuration>
           </execution>
+          <execution>
+            <id>StringHub-replay</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>replay</classifier>
+              <archive>
+                <manifest>
+                  <mainClass>icecube.daq.stringhub.ReplayHubComponent</mainClass>
+                  <addClasspath>true</addClasspath>
+                  <classpathPrefix>../lib</classpathPrefix>
+                </manifest>
+              </archive>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
     </plugins>
