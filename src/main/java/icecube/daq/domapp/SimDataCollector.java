@@ -191,7 +191,7 @@ public class SimDataCollector extends AbstractDataCollector
                     lastBeacon = t;
                     lastMoni   = t;
                     lastTcal   = t;
-                    lastSupernova = t*10000L;
+                    lastSupernova = t*10000L; 	// strange units to get precision
                     break;
                 case STARTING_SUBRUN:
                     // go to start run
@@ -275,12 +275,12 @@ public class SimDataCollector extends AbstractDataCollector
     private int generateSupernova(long currTime) throws IOException {
         if (currTime - lastSupernova/10000L < 1000L) return 0;
         // Simulate SN wrap-around
-        if (currTime - lastSupernova/10000L > 10000L) {
-            lastSupernova = (currTime - 10000L)*10000L;
-            logger.warn("Buffer overflow in SN record channel: " + mbid);
-        }
+//        if (currTime - lastSupernova/10000L > 10000L) {
+//            lastSupernova = (currTime - 10000L)*10000L;
+//            logger.warn("Buffer overflow in SN record channel: " + mbid);
+//        }
         int dtms = (int) (currTime - lastSupernova/10000L);
-        int nsn = dtms * 10000 / 16384 /4*4;      
+        int nsn = dtms * 10000 / 16384 /4*4;      // restrict utc advancing to 4*1.6384 ms increments only
         // sn Data Challenge
 		long runStartMilli = getRunStartTime()/10000000L + t0;
 		long hundredSec = 100000L;
@@ -300,7 +300,7 @@ public class SimDataCollector extends AbstractDataCollector
         long clk = utc / 250L;
         if (logger.isDebugEnabled())
         {
-            logger.debug("MBID: " + mbid + " lastSupernova: " + lastSupernova + " UTC: " + utc + " # SN: " + nsn);
+//            logger.debug("MBID: " + mbid + " lastSupernova: " + lastSupernova + " UTC: " + utc + " # SN: " + nsn);
         }
         lastSupernova = lastSupernova + nsn*16384;
         
@@ -341,7 +341,7 @@ public class SimDataCollector extends AbstractDataCollector
         double mu = dt * rate;
         int n = poissonRandom.nextInt(mu);
         numHits += n;
-        // logger.debug("Generated " + n + " events in interval " + lastGenHit + ":" + currTime);
+         logger.debug("Generated " + n + " events in interval " + lastGenHit + ":" + currTime);
         ArrayList<Long> eventTimes = new ArrayList<Long>(n);
         // generate n random times in the interval
         for (int i = 0; i < n; i++) {
@@ -378,7 +378,7 @@ public class SimDataCollector extends AbstractDataCollector
             int word3 = 0x00000000;
             buf.putInt(word1).putInt(word3);
             buf.flip();
-            // logger.debug("Writing " + buf.remaining() + " byte hit at UTC = " + utc);
+            logger.debug("Writing " + buf.remaining() + " byte hit at UTC = " + utc);
             if (hitsConsumer != null) hitsConsumer.consume(buf);
         }
         return n;

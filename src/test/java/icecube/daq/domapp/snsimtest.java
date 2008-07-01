@@ -38,6 +38,8 @@ public class snsimtest implements BufferConsumer {
 	
 	Vector<Long> t0 = new Vector<Long>();
 	Vector<Long> startTime = new Vector<Long>();	
+	Vector<Long> previousUtc = new Vector<Long>();
+	Vector<Short> previousRecl = new Vector<Short>();
 	
 	double[] effVolumeScaling = new double[60];
 	double[] avgSnSignal = new double[916];
@@ -65,26 +67,29 @@ public class snsimtest implements BufferConsumer {
 		Vector<DOMChannelInfo> chInfo = new Vector<DOMChannelInfo>();
 		
 		String domName;
-		int i3string = 21;
+//		int i3string = 21;
 		int position;
 
-		for (int i = 0; i < 60; i++) {
-			position = i+1;
-			domName = String.format("0000%02d%02d", i3string, position);
-			int card = (position-1)/8;
-			int pair = (position-1)%8/2;
-			char dom = (char)('A'+position%2);
-			chInfo.add(new DOMChannelInfo(domName, card, pair, dom));	
-
-			numMBID.add(Long.parseLong(chInfo.get(i).mbid, 16));
-			t0.add(-1L);
-			oneSecScaler.add(0);
-			integratedCounts.add(0);
-			signalTime.add(0D);
-			baseRate.add(0D);
-			startTime.add(-1L);
+		for (int i3string = 0; i3string < 1; i3string++) {
+			for (int i = 0; i < 60; i++) {
+				position = i+1;
+				domName = String.format("0000%02d%02d", i3string, position);
+				int card = (position-1)/8;
+				int pair = (position-1)%8/2;
+				char dom = (char)('A'+position%2);
+				chInfo.add(new DOMChannelInfo(domName, card, pair, dom));	
+	
+				numMBID.add(Long.parseLong(chInfo.get(i).mbid, 16));
+				t0.add(-1L);
+				oneSecScaler.add(0);
+				integratedCounts.add(0);
+				signalTime.add(0D);
+				baseRate.add(0D);
+				startTime.add(-1L);
+				previousRecl.add((short) 0);
+				previousUtc.add(0L);
+			}
 		}
-		
 		
 		DOMConfiguration config = new DOMConfiguration();
 		config.setEffVolumeEnabled(true);
@@ -130,9 +135,10 @@ public class snsimtest implements BufferConsumer {
 		
 			s1.get(i).signalShutdown();
 		}
-
+		
+	/* section 1: use this portion only if section 1 in consumer is on */
 //		try {
-//	    	FileWriter outFile = new FileWriter("/Users/rmaruyama/Desktop/test.txt", false);
+//	    	FileWriter outFile = new FileWriter("/Users/rmaruyama/Documents/IceCubeDocs/SN/DataChallenge/test.txt", false);
 //	        BufferedWriter out = new BufferedWriter(outFile);
 //	    	StringBuffer strBuffer = new StringBuffer();
 //
@@ -146,7 +152,6 @@ public class snsimtest implements BufferConsumer {
 //		    } catch (IOException e) {
 //		    	System.err.println ("Error writing to file");
 //	    }		
-//
 //		
 //		long oneSecond = 10000000000L;
 //
@@ -158,7 +163,7 @@ public class snsimtest implements BufferConsumer {
 //				oneSecScaler.add(0);
 //				integratedCounts.add(0);
 //				signalTime.add(0D);
-//				baseRate.add(0);
+//				baseRate.add(0D);
 //			}
 //			
 //			int mbidIndex = numMBID.indexOf(numericMBID.get(i));
@@ -166,7 +171,7 @@ public class snsimtest implements BufferConsumer {
 //			if (snTime.get(i) - t0.get(mbidIndex) > oneSecond) {		
 //				// get baseRate if within first second
 //				if ((snTime.get(i) - snTime.get(0)) / oneSecond == 1) {
-//					baseRate.set(mbidIndex, oneSecScaler.get(mbidIndex));
+//					baseRate.set(mbidIndex, (double) oneSecScaler.get(mbidIndex));
 //				}
 //				//  trigger signalTime if larger than 2*baseRate
 //				if ((signalTime.get(mbidIndex)==0) && (oneSecScaler.get(mbidIndex) > 2*baseRate.get(mbidIndex))) {
@@ -180,11 +185,12 @@ public class snsimtest implements BufferConsumer {
 //			// add scaler to oneSecScaler of the right MBID
 //			oneSecScaler.set(mbidIndex, oneSecScaler.get(mbidIndex) + snScaler.get(i));
 //		}
+	/* end section 1 */
 		
-		System.out.println("dom # \t baseRate \t cnts above bkg \t signalTime from run start ");
+		System.out.println("dom # \t baseRate \t/t cnts above bkg \t signalTime from run start ");
 		
 		for (int i = 0; i<numMBID.size(); ++i) {
-			System.out.println((i+1) + "\t" + baseRate.get(i) + "\t" + (integratedCounts.get(i)-300*runLength) + "\t" + signalTime.get(i));
+			System.out.println((i+1) + "\t" + baseRate.get(i) + "\t" + (integratedCounts.get(i)-300*runLength) + "\t\t" + signalTime.get(i));
 		}
 		System.out.println("dom 57: " + (integratedCounts.get(57-1)-300*runLength) + " dom 36: " + (integratedCounts.get(36-1)-300*runLength) + " ratio = " + (float) (integratedCounts.get(57-1)-300*runLength)/(integratedCounts.get(36-1)-300*runLength));
 		
@@ -198,21 +204,7 @@ public class snsimtest implements BufferConsumer {
 		assertEquals("Ratio of counts in signal is out of range", 1.304/0.544, ratio, 0.25);
 	}
 	
-//	public synchronized void  consume(ByteBuffer buf) throws IOException {
-//		if (buf.getInt(0) != 32) {		// if not the end of run poison symbol
-//			long numMBID = buf.getLong(8);
-//			long utc = buf.getLong(24);
-//			short recl = buf.getShort(32);
-//			long timeBin = 16384000L;
-//
-//  		for (int i = 0; i< recl-10; i++) {
-//				int scaler = buf.get(i+42);
-//				numericMBID.add(numMBID);
-//				snScaler.add(scaler);
-//				snTime.add(utc + i*timeBin);
-//			}
-//		}
-//	}
+	
 
     public synchronized void  consume(ByteBuffer buf) throws IOException {
         if (buf.getInt(0) != 32) {              // if not the end of run poison symbol
@@ -227,9 +219,29 @@ public class snsimtest implements BufferConsumer {
                 for (int i = 0; i < numMBID.size(); ++i) {
     				t0.set(i, utc);
     				startTime.set(i, utc);
+    				previousRecl.set(i, (short) (-1));
+    				previousUtc.set(i, -1L);
     			}			           	
             }
 			int mbidIndex = numMBID.indexOf(mbid);
+//			if (mbidIndex == 13) {
+//				System.out.println(mbid + " " +(utc-(previousUtc.get(mbidIndex)+previousRecl.get(mbidIndex)*(timeBin))) + " " + (recl-10));
+//			}
+			if (previousUtc.get(mbidIndex)!= -1L) {	// if this is not the first time :
+				assertEquals("time stamp out of synch", utc, (previousUtc.get(mbidIndex)+previousRecl.get(mbidIndex)*(timeBin)));				
+				assertEquals("number of scalers not multiple of 4", 0,  (recl - 10)%4);				
+			}
+			previousUtc.set(mbidIndex, utc);
+			previousRecl.set(mbidIndex, (short) (recl-10));
+
+//		/* section 1: use this portion only if section 1 in test is on */
+//			for (int i = 0; i< recl-10; i++) {
+//				int scaler = buf.get(i+42);
+//				numericMBID.add(mbid);
+//				snScaler.add(scaler);
+//				snTime.add(utc + i*timeBin);
+//			}
+//		/* end Section 1 */
 
 			for (int i = 0; i< recl-10; i++) {
                 int scaler = buf.get(i+42);
