@@ -50,6 +50,12 @@ public interface IDOMApp {
 	void disableHV() throws MessageException;
 
 	/**
+	 * Disable readout of every 8192nd waveform even if it doesn't meet HLC requirement.
+	 * @throws MessageException
+	 */
+	void disableMinBias() throws MessageException;
+	
+	/**
 	 * Disable the supernova scaler readout.
 	 * @throws MessageException
 	 */
@@ -62,6 +68,12 @@ public interface IDOMApp {
 	 */
 	void enableHV() throws MessageException;
 
+	/**
+	 * @see #disableMinBias()
+	 * @throws MessageException
+	 */
+	void enableMinBias() throws MessageException;
+	
 	/**
 	 * Enable data collection from the supernova system.
 	 * @throws MessageException
@@ -155,6 +167,12 @@ public interface IDOMApp {
 	 */
 	short[] queryHV() throws MessageException;
 
+	/**
+	 * Allow the ATWD to be set to A or B or both.
+	 * @param sel
+	 */
+	void setAtwdReadout(AtwdChipSelect sel);
+	
 	/**
 	 * Set the LC cable lengths.
 	 * @param up 4-element array of shorts holding the up link delays.

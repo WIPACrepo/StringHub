@@ -382,6 +382,15 @@ public class DOMApp implements IDOMApp
             throw new MessageException(type, e);
         }
     }
+    
+    public void setAtwdReadout(AtwdChipSelect csel) throws MessageException
+    {
+        byte bsel = (byte) csel.ordinal();
+        ByteBuffer buf = ByteBuffer.allocate(1);
+        buf.put(bsel);
+        buf.flip();
+        sendMessage(MessageType.SELECT_ATWD, buf);
+    }
 
     /*
      * (non-Javadoc)
