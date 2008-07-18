@@ -665,4 +665,18 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.WRITE_DAC, buf);
     }
 
+    public void disableMinBias() throws MessageException
+    {
+        ByteBuffer buf = ByteBuffer.allocate(4);
+        buf.put((byte) 0).flip();
+        sendMessage(MessageType.SELECT_MINBIAS, buf);
+    }
+
+    public void enableMinBias() throws MessageException
+    {
+        ByteBuffer buf = ByteBuffer.allocate(4);
+        buf.put((byte) 1).flip();
+        sendMessage(MessageType.SELECT_MINBIAS, buf);        
+    }
+
 }

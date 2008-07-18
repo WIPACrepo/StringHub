@@ -171,7 +171,7 @@ public interface IDOMApp {
 	 * Allow the ATWD to be set to A or B or both.
 	 * @param sel
 	 */
-	void setAtwdReadout(AtwdChipSelect sel);
+	void setAtwdReadout(AtwdChipSelect sel) throws MessageException;
 	
 	/**
 	 * Set the LC cable lengths.
