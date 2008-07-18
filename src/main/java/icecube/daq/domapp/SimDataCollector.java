@@ -318,13 +318,13 @@ public class SimDataCollector extends AbstractDataCollector
         buf.put((byte) ((clk >>  8) & 0xff));
         buf.put((byte) clk);
         for (int i = 0; i < nsn; i++) {
-        	double snRate = 0.;
-        	if (snSigEnabled && (nsnSig+i+1>0) && (nsnSig+i<maxnsnSig)) {
-    			snRate = snSignalPerDom(nsnSig + i)*effVol*(10./snDistance)*(10./snDistance);
-    		}
-           int scaler = poissonRandom.nextInt(300 * 0.0016384) + poissonRandom.nextInt(snRate);
-           if (scaler > 15) scaler = 15;
-           buf.put((byte) scaler);
+	    double snRate = 0.;
+	    if (snSigEnabled && (nsnSig+i+1>0) && (nsnSig+i<maxnsnSig)) {
+		snRate = snSignalPerDom(nsnSig + i)*effVol*(10./snDistance)*(10./snDistance);
+	    }
+	    int scaler = poissonRandom.nextInt(300 * 0.0016384) + poissonRandom.nextInt(snRate);
+	    if (scaler > 15) scaler = 15;
+	    buf.put((byte) scaler);
         }
         buf.flip();
         if (scalConsumer != null) scalConsumer.consume(buf);
@@ -450,23 +450,18 @@ public class SimDataCollector extends AbstractDataCollector
      * @return effective volume scaling factor for each DOM depth
      */
     public double effVolumeScaling(int domZNum) {
-		double[] effVolumeScale = {
-				0.86131816, 0.900976794, 0.952426901,
-				0.988066749, 0.972684423, 0.917700341, 0.851039623, 0.802034156,
-				0.824524517, 0.867265899, 0.903136506, 0.950265023, 0.991671685,
-				1.01791703, 1.005385069, 0.953499986, 0.87933255, 0.838205941,
-				0.855036742, 0.909225084, 0.965494593, 0.992703602, 0.992575763,
-				0.96616737, 0.927323435, 0.923061431, 0.956556192, 1.003018974,
-				1.025468167, 1.0123826, 0.964749229, 0.890575293, 0.790705284,
-				0.678848252, 0.588118151, 0.544476483, 0.616595253, 0.83121491,
-				0.969605466, 1.053574754, 1.077212952, 1.088104681, 1.0831634,
-				1.094257178, 1.123387556, 1.16641495, 1.205811407, 1.232038876,
-				1.238427549, 1.224732583, 1.202344601, 1.187851186, 1.196899549,
-				1.241235662, 1.279426862, 1.302027186, 1.304013557, 1.293682476,
-				1.27368659, 1.25035282
-				};
-		return effVolumeScale[domZNum-1];
-	}
+	final double[] effVolumeScale = {
+	    0.861, 0.901, 0.952, 0.988, 0.973, 0.918, 0.851, 0.802,
+	    0.825, 0.867, 0.903, 0.950, 0.992, 1.018, 1.005, 0.953,
+	    0.879, 0.838, 0.855, 0.909, 0.965, 0.993, 0.993, 0.966,
+	    0.927, 0.923, 0.957, 1.003, 1.025, 1.012, 0.965, 0.891,
+	    0.791, 0.679, 0.588, 0.544, 0.617, 0.831, 0.970, 1.054,
+	    1.077, 1.088, 1.083, 1.094, 1.123, 1.166, 1.206, 1.232,
+	    1.238, 1.225, 1.202, 1.188, 1.197, 1.241, 1.279, 1.302,
+	    1.304, 1.294, 1.274, 1.250, 0.000, 0.000, 0.000, 0.000
+	};
+	return effVolumeScale[domZNum-1];
+    }
 
     /**
      * Contains supernova signal extracted from Livermore paper in 10*1.6384ms bins 
@@ -624,7 +619,9 @@ public class SimDataCollector extends AbstractDataCollector
     			0.0382441, 0.0382441, 0.0382441, 0.0382441, 0.0382441, 0.0382441,
     			0.0382441, 0.0382441 
     	};
-    	return avgSnSignalPerDom[nsnSigBin/10]/10.;
+    	double s = avgSnSignalPerDom[nsnSigBin/10]/10.;
+	logger.debug("SN signal[" + nsnSigBin + "]: " + s);
+	return s;
     }
 
 	public double[] getEffVolumeScaling() {

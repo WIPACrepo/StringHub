@@ -69,9 +69,9 @@ public class DOMConfiguration implements Serializable
 	    this.supernovaEnabled = c.supernovaEnabled;
 	    this.supernovaSpe = c.supernovaSpe;
 	    this.triggerMode  = c.triggerMode;
-        this.snSigEnabled = c.isSnSigEnabled();
-        this.snDistance = c.getSnDistance();
-        this.effVolumeEnabled = c.isEffVolumeEnabled();
+	    this.snSigEnabled = c.isSnSigEnabled();
+	    this.snDistance = c.getSnDistance();
+	    this.effVolumeEnabled = c.isEffVolumeEnabled();
 	}
 
 	/**
@@ -374,28 +374,28 @@ public class DOMConfiguration implements Serializable
     }
  
     public boolean isSnSigEnabled() {
-		return snSigEnabled;
-	}
+	return snSigEnabled;
+    }
 
-	public double getSnDistance() {
-		return snDistance;
-	}
+    public double getSnDistance() {
+	return snDistance;
+    }
 
-	public boolean isEffVolumeEnabled() {
-		return effVolumeEnabled;
-	}
+    public boolean isEffVolumeEnabled() {
+	return effVolumeEnabled;
+    }
 
-	public void setSnSigEnabled(boolean snSigEnabled) {
-		this.snSigEnabled = snSigEnabled;
-	}
+    public void setSnSigEnabled(boolean snSigEnabled) {
+	this.snSigEnabled = snSigEnabled;
+    }
 
-	public void setSnDistance(double snDistance) {
-		this.snDistance = snDistance;
-	}
+    public void setSnDistance(double snDistance) {
+	this.snDistance = snDistance;
+    }
 
-	public void setEffVolumeEnabled(boolean effVolumeEnabled) {
-		this.effVolumeEnabled = effVolumeEnabled;
-	}
+    public void setEffVolumeEnabled(boolean effVolumeEnabled) {
+	this.effVolumeEnabled = effVolumeEnabled;
+    }
 
 }
 
