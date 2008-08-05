@@ -2,9 +2,38 @@ package icecube.daq.domapp;
 
 public class LocalCoincidenceConfiguration
 {
+    /**
+     * Enumeration of constants which control the behavior of 
+     * ATWD and FADC waveform transmission depending on state
+     * of LC signals from upper / lower neighbors
+     * @author kael
+     */
 	public enum RxMode
 	{
-		RXNONE, RXEITHER, RXUP, RXDOWN, RXBOTH, RXHDRS;
+	    /**
+	     * No LC required to send WF
+	     */
+		RXNONE,
+		/**
+		 * Either UP or DOWN LC signal will cause WF x-mit
+		 */
+		RXEITHER, 
+		/**
+		 * Only state of UP LC signal matters
+		 */
+		RXUP, 
+		/**
+		 * Only state of DOWN LC signal matters
+		 */
+		RXDOWN, 
+		/**
+		 * Need both UP.AND.DOWN LC signals simultaneously
+		 */
+		RXBOTH, 
+		/**
+		 * Only send SLC header packets no matter what.
+		 */
+		RXHDRS;
 		public byte asByte() { return (byte) ordinal(); }
 	}
 
