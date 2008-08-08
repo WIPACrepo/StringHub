@@ -24,7 +24,7 @@
                 </atwd>
             </engineeringFormat> 
         </format>
-        <triggerMode>			spe </triggerMode>
+        <triggerMode>			mpe </triggerMode>
         <atwd0TriggerBias>		828 </atwd0TriggerBias>
         <atwd0RampTop>		   2100 </atwd0RampTop>
         <atwd0RampRate>		370 </atwd0RampRate>
@@ -45,11 +45,13 @@
         <pulserRate>            18 </pulserRate>
 		<hardwareMonitorInterval>4.2</hardwareMonitorInterval>
 		<fastMonitorInterval>    1.5</fastMonitorInterval>
+		<enableIceTopMinBias/>
+		<atwdChipSelect>A</atwdChipSelect>
         <localCoincidence>
             <type>soft</type>
             <mode>up-or-down</mode>
             <txMode>down</txMode>
-            <source>spe</source>
+            <source>mpe</source>
             <span>3</span>
             <preTrigger>1250</preTrigger>
             <postTrigger>1450</postTrigger>

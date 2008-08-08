@@ -5,7 +5,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 
 import icecube.daq.configuration.XMLConfig;
+import icecube.daq.domapp.AtwdChipSelect;
 import icecube.daq.domapp.DOMConfiguration;
+import icecube.daq.domapp.LocalCoincidenceConfiguration;
 import icecube.daq.domapp.TestDeltaMCodec;
 import icecube.daq.domapp.TriggerMode;
 import icecube.daq.stringhub.test.MockAppender;
@@ -67,7 +69,7 @@ public class XMLConfigTest
 	
 	@Test public void testTrigger()
 	{
-        assertEquals(TriggerMode.SPE, config.getTriggerMode());
+        assertEquals(TriggerMode.MPE, config.getTriggerMode());
         assertEquals((short) 665, config.getDAC(8));
         assertEquals((short) 569, config.getDAC(9));
 	}
@@ -77,11 +79,22 @@ public class XMLConfigTest
         assertEquals(1250, config.getLC().getPreTrigger());
         assertEquals(1450, config.getLC().getPostTrigger());
         assertEquals((byte) 3, config.getLC().getSpan());
+        assertEquals(LocalCoincidenceConfiguration.Source.MPE, config.getLC().getSource());
 	}
 	
 	@Test public void testMonitorIntervals()
 	{
         assertEquals(168000000, config.getHardwareMonitorInterval());
         assertEquals(60000000, config.getFastMonitorInterval());
+	}
+	
+	@Test public void testIceTopMinBias()
+	{
+	    assertTrue(config.isMinBiasEnabled());
+	}
+	
+	@Test public void testAtwdChipSelect()
+	{
+	    assertEquals(AtwdChipSelect.ATWD_A, config.getAtwdChipSelect());
 	}
 }
