@@ -495,8 +495,9 @@ public class Sender
                 if (payload == null) {
                     log.error("Couldn't build hit from DOM hit data");
                 } else if (hitChan != null &&
-                           (forwardLC0Hits ||
-                            ((IDomHit) engData).getLocalCoincidenceMode() != 0))
+                           (forwardLC0Hits || 
+                                   engData.getLocalCoincidenceMode() != 0 ||
+                                   engData.getTriggerMode() == 4))
                 {
                     ByteBuffer payBuf =
                         ByteBuffer.allocate(payload.getPayloadLength());
