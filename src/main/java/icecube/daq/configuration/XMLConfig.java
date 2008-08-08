@@ -1,5 +1,6 @@
 package icecube.daq.configuration;
 
+import icecube.daq.domapp.AtwdChipSelect;
 import icecube.daq.domapp.BadEngineeringFormat;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.EngineeringRecordFormat;
@@ -89,6 +90,23 @@ public class XMLConfig extends DefaultHandler
 		{
 			short val = Short.parseShort(text);
 			currentConfig.setHV(val);
+		}
+		else if (localName.equals("atwdChipSelect"))
+		{
+		    if (text.equals("A"))
+		        currentConfig.setAtwdChipSelect(AtwdChipSelect.ATWD_A);
+		    else if (text.equals("B"))
+		        currentConfig.setAtwdChipSelect(AtwdChipSelect.ATWD_B);
+		    else
+		        currentConfig.setAtwdChipSelect(AtwdChipSelect.PING_PONG);
+		}
+		else if (localName.equals("enableIceTopMinBias"))
+		{
+		    currentConfig.enableMinBias();
+		}
+		else if (localName.equals("disableIceTopMinBias"))
+		{
+		    currentConfig.disableMinBias();
 		}
 		else if (localName.equals("analogMux"))
 		{
