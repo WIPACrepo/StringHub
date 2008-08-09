@@ -340,6 +340,11 @@ public class DataCollector extends AbstractDataCollector
                 app.pulserOn();
         }
 
+        if (config.isMinBiasEnabled()) 
+            app.enableMinBias();
+        else
+            app.disableMinBias();
+        
         app.setPulserRate(config.getPulserRate());
         LocalCoincidenceConfiguration lc = config.getLC();
         app.setLCType(lc.getType());
