@@ -258,8 +258,6 @@ public class StreamBinder extends Thread
                 int pos = iobuf.position();
                 int recl = iobuf.getInt(pos);
                 assert recl >= 32;
-                if (logger.isDebugEnabled())
-                    logger.debug(getName() + " : parsing " + recl + "-byte record @ pos = " + pos);
                 if (iobuf.remaining() < recl) break;
                 ByteBuffer buf = ByteBuffer.allocate(recl);
                 int limit = iobuf.limit();

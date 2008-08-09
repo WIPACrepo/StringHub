@@ -464,6 +464,11 @@ public class DataCollector extends AbstractDataCollector
                     int hitSize = word1 & 0x7ff;
                     atwdChip = (word1 >> 11) & 1;
                     domClock = (((long) clkMSB) << 32) | (((long) word2) & 0xffffffffL);
+                    if (logger.isDebugEnabled())
+                    {
+                        int trigMask = (word1 >> 18) & 0x1fff;
+                        logger.debug("DELTA HIT - CLK: " + domClock + " TRIG: " + Integer.toHexString(trigMask));
+                    }
                     short version = 0x01;
                     short pedestal = config.getPedestalSubtraction() ? (short) 0x01 : (short) 0x00;
                     in.limit(pos + hitSize);
