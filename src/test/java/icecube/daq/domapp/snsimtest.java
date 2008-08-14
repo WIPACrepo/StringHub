@@ -102,7 +102,8 @@ public class snsimtest implements BufferConsumer {
 			s1.add( new SimDataCollector(
 				chInfo.get(i), 
 				config,
-				null, null, this, null
+				null, null, this, null,
+				false
 				) 
 				);
 			s1.get(i).signalConfigure();

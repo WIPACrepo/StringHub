@@ -341,11 +341,14 @@ public class StringHubComponent extends DAQComponent
 
 				if (isSim)
 				{
+					boolean isAmanda = (getNumber() % 100) == 0;
+
 					dc = new SimDataCollector(chanInfo, config,
 					        hitsSort,
 					        moniSort,
 					        scalSort,
-					        tcalSort);
+					        tcalSort,
+					        isAmanda);
 				}
 				else
 				{
@@ -531,7 +534,7 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 3073 2008-05-27 20:39:18Z dglo $";
+		return "$Id: StringHubComponent.java 3394 2008-08-14 22:20:45Z dglo $";
     }
 
 	public IByteBufferCache getCache()

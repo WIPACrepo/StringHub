@@ -41,7 +41,7 @@ public class SimDataCollectorUnitTest implements BufferConsumer
         config.setSimNoiseRate(1000.0);
         config.setSimHLCFrac(0.25);
         q.clear();
-        dc = new SimDataCollector(chan, config, this, null, null, null);
+        dc = new SimDataCollector(chan, config, this, null, null, null, false);
         dc.signalConfigure();
         while (!dc.isConfigured()) Thread.sleep(50);
         dc.signalStartRun();

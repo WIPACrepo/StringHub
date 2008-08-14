@@ -64,6 +64,8 @@ public class SimDataCollector extends AbstractDataCollector
 	private double[] avgSnSignal;
 	private double[] effVolumeScaling;
 
+    private boolean isAmanda;
+
     private static final Logger logger = Logger.getLogger(SimDataCollector.class);
 
     public SimDataCollector(int card, int pair, char dom, double[] avgSnSignal,
@@ -75,7 +77,7 @@ public class SimDataCollector extends AbstractDataCollector
 
 	public SimDataCollector(DOMChannelInfo chanInfo, BufferConsumer hitsConsumer)
     {
-        this(chanInfo, null, hitsConsumer, null, null, null);
+        this(chanInfo, null, hitsConsumer, null, null, null, false);
     }
 
     public SimDataCollector(DOMChannelInfo chanInfo,
@@ -83,7 +85,8 @@ public class SimDataCollector extends AbstractDataCollector
                             BufferConsumer hitsConsumer,
                             BufferConsumer moniConsumer,
                             BufferConsumer scalConsumer,
-                            BufferConsumer tcalConsumer
+                            BufferConsumer tcalConsumer,
+                            boolean isAmanda
                             )
     {
         super(chanInfo.card, chanInfo.pair, chanInfo.dom);
@@ -93,6 +96,7 @@ public class SimDataCollector extends AbstractDataCollector
         this.moniConsumer = moniConsumer;
         this.scalConsumer = scalConsumer;
         this.tcalConsumer = tcalConsumer;
+        this.isAmanda     = isAmanda;
         runLevel          = RunLevel.IDLE;
         numHits           = 0;
         loopCounter       = 0;
@@ -145,7 +149,7 @@ public class SimDataCollector extends AbstractDataCollector
             if (hitsConsumer != null) hitsConsumer.consume(otrava.asReadOnlyBuffer());
             if (moniConsumer != null) moniConsumer.consume(otrava.asReadOnlyBuffer());
             if (tcalConsumer != null) tcalConsumer.consume(otrava.asReadOnlyBuffer());
-            if (scalConsumer != null) scalConsumer.consume(otrava.asReadOnlyBuffer());
+            if (scalConsumer != null && !isAmanda) scalConsumer.consume(otrava.asReadOnlyBuffer());
         } catch (IOException iox) {
             iox.printStackTrace();
             logger.error(iox.getMessage());
@@ -168,6 +172,8 @@ public class SimDataCollector extends AbstractDataCollector
         try {
             // Simulate the device open latency
             Thread.sleep(1400);
+
+            boolean snStopped = false;
 
             while (keepRunning()) {
                 boolean needSomeSleep = true;
@@ -204,7 +210,22 @@ public class SimDataCollector extends AbstractDataCollector
                     int nHits = generateHits(currTime);
                     generateMoni(currTime);
                     generateTCal(currTime);
-                    generateSupernova(currTime);
+                    if (!isAmanda) {
+                        generateSupernova(currTime);
+                    } else if (!snStopped) {
+                        logger.error("Immediately stopping supernova channel");
+                        try {
+                            ByteBuffer otrava =
+                                MultiChannelMergeSort.eos(numericMBID);
+                            if (scalConsumer != null)
+                                scalConsumer.consume(otrava.asReadOnlyBuffer());
+                        } catch (IOException iox) {
+                            iox.printStackTrace();
+                            logger.error("Couldn't stop supernova channel",
+                                         iox);
+                        }
+                        snStopped = true;
+                    }
                     if (nHits > 0) needSomeSleep = false;
                     break;
                 case STOPPING:
