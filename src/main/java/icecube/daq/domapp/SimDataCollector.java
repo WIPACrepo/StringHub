@@ -305,7 +305,8 @@ public class SimDataCollector extends AbstractDataCollector
         // sn Data Challenge
 		long runStartMilli = getRunStartTime()/10000000L + t0;
 		long hundredSec = 100000L;
-		long snStartTime = ((runStartMilli/hundredSec)+1)*hundredSec;	// start sn within the next 100 sec (in ms)
+		long tenMinutes = 6*hundredSec;
+		long snStartTime = ((runStartMilli/hundredSec)+1)*hundredSec + tenMinutes;	// start sn within the next 100 sec (in ms)
 		int dtsnSig = (int) (lastSupernova/10000L - snStartTime);
 		int nsnSig = dtsnSig*10000/16384;
 		int maxnsnSig = 15000*10000/16384;
@@ -641,7 +642,7 @@ public class SimDataCollector extends AbstractDataCollector
     			0.0382441, 0.0382441 
     	};
     	double s = avgSnSignalPerDom[nsnSigBin/10]/10.;
-	logger.debug("SN signal[" + nsnSigBin + "]: " + s);
+//	logger.debug("SN signal[" + nsnSigBin + "]: " + s);
 	return s;
     }
 
