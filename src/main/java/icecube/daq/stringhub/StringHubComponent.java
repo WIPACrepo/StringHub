@@ -116,7 +116,9 @@ public class StringHubComponent extends DAQComponent
 		sender         = new Sender(hubId, payloadFactory);
 		nch            = 0;
 
-		logger.info("starting up StringHub component " + hubId);
+		if (logger.isInfoEnabled()) {
+			logger.info("starting up StringHub component " + hubId);
+		}
 
         /*
          * Component derives behavioral characteristics from
@@ -185,7 +187,9 @@ public class StringHubComponent extends DAQComponent
 	{
 		super.setGlobalConfigurationDir(dirName);
 		configurationPath = dirName;
-		logger.info("Setting the ueber configuration directory to " + configurationPath);
+		if (logger.isInfoEnabled()) {
+			logger.info("Setting the ueber configuration directory to " + configurationPath);
+		}
         // get a reference to the DOM registry - useful later
         try {
 			domRegistry = DOMRegistry.loadRegistry(configurationPath);
@@ -227,7 +231,9 @@ public class StringHubComponent extends DAQComponent
 		    // put the driver into blocking mode
 		    driver.setBlocking(true);
 			activeDOMs = driver.discoverActiveDOMs();
-			logger.info("Found " + activeDOMs.size() + " active DOMs.");
+			if (logger.isInfoEnabled()) {
+				logger.info("Found " + activeDOMs.size() + " active DOMs.");
+			}
 		}
 	}
 
@@ -290,15 +296,19 @@ public class StringHubComponent extends DAQComponent
 			    if (hubNode.valueOf("sender/forwardIsolatedHitsToTrigger").equalsIgnoreCase("true"))
 			        sender.forwardIsolatedHitsToTrigger();
 			}
-			logger.info("Number of domConfigNodes found: " + configNodeList.size());
+			if (logger.isInfoEnabled()) {
+				logger.info("Number of domConfigNodes found: " + configNodeList.size());
+			}
 			for (Node configNode : configNodeList) {
 				String tag = configNode.getText();
 				if (!tag.endsWith(".xml"))
 					tag = tag + ".xml";
 				File configFile = new File(domConfigsDirectory, tag);
-				logger.info("Configuring " + realism
+				if (logger.isInfoEnabled()) {
+					logger.info("Configuring " + realism
 							+ " - loading config from "
 							+ configFile.getAbsolutePath());
+				}
 				xmlConfig.parseXMLConfig(new FileInputStream(configFile));
 			}
 
@@ -312,7 +322,9 @@ public class StringHubComponent extends DAQComponent
 			if (nch == 0)
 			    throw new DAQCompException("No Active DOMs on Hub selected in configuration.");
 
-			logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
+			if (logger.isInfoEnabled()) {
+				logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
+			}
 
 			// Must make sure to release file resources associated with the previous
 			// runs since we are throwing away the collectors and starting from scratch
@@ -368,7 +380,7 @@ public class StringHubComponent extends DAQComponent
 				scalSort.register(chanInfo.mbid_numerique);
 				tcalSort.register(chanInfo.mbid_numerique);
 				conn.add(dc);
-				logger.debug("Starting new DataCollector thread on (" + cwd + ").");
+				if (logger.isDebugEnabled()) logger.debug("Starting new DataCollector thread on (" + cwd + ").");
 			}
 
 			logger.info("Starting up HKN1 sorting trees...");
@@ -483,7 +495,9 @@ public class StringHubComponent extends DAQComponent
                 logger.warn("Interrupted sleep on ADC subrun start.");
             }
         }
-	    logger.info("Subrun time is " + validXTime);
+	    if (logger.isInfoEnabled()) {
+		logger.info("Subrun time is " + validXTime);
+	    }
 	    return validXTime;
 	}
 
@@ -534,7 +548,7 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 3394 2008-08-14 22:20:45Z dglo $";
+		return "$Id: StringHubComponent.java 3439 2008-09-02 17:08:41Z dglo $";
     }
 
 	public IByteBufferCache getCache()

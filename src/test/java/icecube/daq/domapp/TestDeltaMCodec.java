@@ -67,8 +67,9 @@ public class TestDeltaMCodec
 		ByteBuffer buf = ByteBuffer.allocate(100);
 		DeltaMCodec codec = new DeltaMCodec(buf);
 		codec.encode(vec);
-		logger.info(String.format("Compression ratio is %.1f%%", 
-				(50.0 * buf.position()) / vec.length));
+		if (logger.isInfoEnabled())
+			logger.info(String.format("Compression ratio is %.1f%%", 
+					(50.0 * buf.position()) / vec.length));
 		buf.flip();
 		short[] dec = codec.decode(vec.length);
 		
@@ -97,8 +98,9 @@ public class TestDeltaMCodec
 			DeltaMCodec codec = new DeltaMCodec(buf);
 			codec.encode(vec);
 			if (loop % 1000 == 0) 
-                logger.info(String.format("Compression ratio is %.1f%%", 
-                        (50.0 * buf.position()) / vec.length));
+			if (logger.isInfoEnabled())
+				logger.info(String.format("Compression ratio is %.1f%%", 
+						(50.0 * buf.position()) / vec.length));
 			buf.flip();
 			short[] dec = codec.decode(vec.length);
 			

@@ -382,9 +382,11 @@ public class XMLConfig extends DefaultHandler
 		{
 		    long t0 = System.currentTimeMillis();
 			parser.parse(xmlIn, this);
-			logger.info("XML parsing completed - took " +
+			if (logger.isInfoEnabled()) {
+				logger.info("XML parsing completed - took " +
 						(System.currentTimeMillis() - t0) +
 						" milliseconds.");
+			}
 		}
 		catch (Exception except)
 		{

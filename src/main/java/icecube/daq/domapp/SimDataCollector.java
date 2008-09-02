@@ -119,7 +119,10 @@ public class SimDataCollector extends AbstractDataCollector
 
     public void signalShutdown()
     {
-        logger.info("Shutting down data collector [" + card + "" + pair + "" + dom + "]");
+        if (logger.isInfoEnabled()) {
+            logger.info("Shutting down data collector [" + card + "" + pair +
+                        "" + dom + "]");
+        }
         setRunStopFlag(true);
     }
 
@@ -161,10 +164,13 @@ public class SimDataCollector extends AbstractDataCollector
         Calendar now = new GregorianCalendar();
         Calendar startOfYear = new GregorianCalendar(now.get(Calendar.YEAR), 0, 1);
         t0 = startOfYear.getTimeInMillis();
-        logger.debug("Start of year = " + t0);
+        if (logger.isDebugEnabled()) logger.debug("Start of year = " + t0);
 
         clock = 0L;
-        logger.info("Simulated DOM at " + card + "" + pair + "" + dom + " started at dom clock " + clock);
+        if (logger.isInfoEnabled()) {
+            logger.info("Simulated DOM at " + card + "" + pair + "" + dom +
+                        " started at dom clock " + clock);
+        }
 
         lastGenHit = 0L;
         lastBeacon = 0L;
@@ -320,10 +326,12 @@ public class SimDataCollector extends AbstractDataCollector
         ByteBuffer buf = ByteBuffer.allocate(recl+32);
         long utc = lastSupernova*1000L - t0 * 10000000L;
         long clk = utc / 250L;
+        /*
         if (logger.isDebugEnabled())
         {
-//            logger.debug("MBID: " + mbid + " lastSupernova: " + lastSupernova + " UTC: " + utc + " # SN: " + nsn);
+            logger.debug("MBID: " + mbid + " lastSupernova: " + lastSupernova + " UTC: " + utc + " # SN: " + nsn);
         }
+        */
         lastSupernova = lastSupernova + nsn*16384;
         
         buf.putInt(recl+32);
@@ -363,7 +371,8 @@ public class SimDataCollector extends AbstractDataCollector
         double mu = dt * rate;
         int n = poissonRandom.nextInt(mu);
         numHits += n;
-         logger.debug("Generated " + n + " events in interval " + lastGenHit + ":" + currTime);
+         if (logger.isDebugEnabled())
+             logger.debug("Generated " + n + " events in interval " + lastGenHit + ":" + currTime);
         ArrayList<Long> eventTimes = new ArrayList<Long>(n);
         // generate n random times in the interval
         for (int i = 0; i < n; i++) {
@@ -400,7 +409,8 @@ public class SimDataCollector extends AbstractDataCollector
             int word3 = 0x00000000;
             buf.putInt(word1).putInt(word3);
             buf.flip();
-            logger.debug("Writing " + buf.remaining() + " byte hit at UTC = " + utc);
+            if (logger.isDebugEnabled())
+                logger.debug("Writing " + buf.remaining() + " byte hit at UTC = " + utc);
             if (hitsConsumer != null) hitsConsumer.consume(buf);
         }
         return n;
@@ -642,7 +652,7 @@ public class SimDataCollector extends AbstractDataCollector
     			0.0382441, 0.0382441 
     	};
     	double s = avgSnSignalPerDom[nsnSigBin/10]/10.;
-//	logger.debug("SN signal[" + nsnSigBin + "]: " + s);
+//	if (logger.isDebugEnabled()) logger.debug("SN signal[" + nsnSigBin + "]: " + s);
 	return s;
     }
 

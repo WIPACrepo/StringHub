@@ -67,19 +67,22 @@ public class StreamBinderGeneratorTest {
 		long last_time = 0;
 		while (!stop) {
 			int nr = pipe.source().read(buf);
-			logger.debug("Read " + nr + " bytes from pipe source.");
+			if (logger.isDebugEnabled())
+				logger.debug("Read " + nr + " bytes from pipe source.");
 			while (true) {
 				int pos = buf.position();
 				if (pos < 4) break;
 				int len = buf.getInt(0);
 				if (pos < len) break;
-				logger.debug("At output: pos =  " + pos + " len = " + len +
+				if (logger.isDebugEnabled())
+					logger.debug("At output: pos =  " + pos + " len = " + len +
 						" : buffer id = " + buf.getLong(8) + ", time " + buf.getLong(24)
 						);
 				buf.limit(buf.position());
 				outputCounter++;
 				long time = buf.getLong(24);
-				logger.debug("Time: " + time);
+				if (logger.isDebugEnabled())
+					logger.debug("Time: " + time);
 				if (time < last_time)
 					logger.error("Time ordering error time = " + time + " last = " + last_time);
 				assertTrue(time >= last_time);
@@ -122,7 +125,8 @@ class Generator extends Thread {
 		while (time < max_time) {
 			try {
 				fireEvent();
-				logger.debug("fired event - current time is " + time);
+				if (logger.isDebugEnabled())
+					logger.debug("fired event - current time is " + time);
 			} catch (IOException iox) {
 				iox.printStackTrace();
 			} catch (InterruptedException intx) {
@@ -132,7 +136,8 @@ class Generator extends Thread {
 		
 		try {
 			int nw = sink.write(StreamBinder.endOfStream());
-			logger.info("Wrote end-of-stream - " + nw + " bytes.");
+			if (logger.isInfoEnabled())
+				logger.info("Wrote end-of-stream - " + nw + " bytes.");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -146,14 +151,17 @@ class Generator extends Thread {
 			double dt = rv.nextDouble();
 			time += dt;	
 			delay += dt;
-			logger.debug("New generator hit at delta time = " + dt + " time = " + time);
+			if (logger.isDebugEnabled())
+				logger.debug("New generator hit at delta time = " + dt + " time = " + time);
 			buf.putInt(32).putInt(601).putLong(id);
 			buf.putInt(0).putInt(0).putLong((long) (time*1.0E+10));
 		}
-		logger.debug("Delay = " + delay + " time = " + time);
+		if (logger.isDebugEnabled())
+			logger.debug("Delay = " + delay + " time = " + time);
 		Thread.sleep((long) (1000.0 * delay));
 		buf.flip();
 		int nw = sink.write(buf);
-		logger.debug("Wrote " + nw + " bytes.");
+		if (logger.isDebugEnabled())
+			logger.debug("Wrote " + nw + " bytes.");
 	}
 }

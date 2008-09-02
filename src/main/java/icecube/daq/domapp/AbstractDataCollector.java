@@ -113,7 +113,9 @@ public abstract class AbstractDataCollector extends Thread
             setRunLevel(RunLevel.STOPPING);
             break;
         default:
-            logger.info("Ignoring stop from run level " + runLevel);
+            if (logger.isInfoEnabled()) {
+                logger.info("Ignoring stop from run level " + runLevel);
+            }
         }
 	}
 

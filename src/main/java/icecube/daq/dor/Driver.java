@@ -67,7 +67,7 @@ public final class Driver implements IDriver {
     public void commReset(int card, int pair, char dom) throws IOException
     {
         String cwd = card + "" + pair + dom;
-        logger.debug("Issuing a communications reset on " + cwd);
+        if (logger.isDebugEnabled()) logger.debug("Issuing a communications reset on " + cwd);
         File file = makeProcfile(cwd, "is-communicating");
         FileOutputStream iscomm = new FileOutputStream(file);
         iscomm.write("reset\n".getBytes());
@@ -96,8 +96,8 @@ public final class Driver implements IDriver {
      * @throws IOException when the procfile write fails for some reason
      */
 	public void softboot(int card, int pair, char dom) throws IOException
-    {
-        logger.debug("Softbooting " + card + "" + pair + dom);
+	{
+		if (logger.isDebugEnabled()) logger.debug("Softbooting " + card + "" + pair + dom);
 		File file = makeProcfile(card + "" + pair + dom, "softboot");
 		FileOutputStream sb = new FileOutputStream(file);
 		sb.write("reset\n".getBytes());
@@ -153,13 +153,17 @@ public final class Driver implements IDriver {
 			for (int pair = 0; pair < 4; pair++) {
 				File pdir = makeProcfileDir("" + card + "" + pair);
 				if (!pdir.exists() || !power(card, pair)) continue;
-				logger.info("Found powered pair on (" + card + ", " + pair + ").");
+				if (logger.isInfoEnabled()) {
+					logger.info("Found powered pair on (" + card + ", " + pair + ").");
+				}
 				for (int dom = 0; dom < 2; dom++) {
 					File ddir = makeProcfileDir("" + card + "" + pair + ab[dom]);
 					if (ddir.exists()) {
 						String mbid = getProcfileID(card, pair, ab[dom]);
 						if (mbid.matches("[0-9a-f]{12}") && !mbid.equals("000000000000")) {
-							logger.info("Found active DOM on (" + card + ", " + pair + ", " + ab[dom] + ")");
+							if (logger.isInfoEnabled()) {
+								logger.info("Found active DOM on (" + card + ", " + pair + ", " + ab[dom] + ")");
+							}
 							channelList.add(new DOMChannelInfo(mbid, card, pair, ab[dom]));
 						}
 					}
@@ -174,14 +178,14 @@ public final class Driver implements IDriver {
 		RandomAccessFile tcalib = new RandomAccessFile(file, "rw");
 		FileChannel ch = tcalib.getChannel();
 
-		logger.debug("Initiating TCAL sequence");
+		if (logger.isDebugEnabled()) logger.debug("Initiating TCAL sequence");
 		tcalib.writeBytes("single\n");
 		for (int iTry = 0; iTry < 5; iTry++)
 		{
 			Thread.sleep(20);
 			ByteBuffer buf = ByteBuffer.allocate(292);
 			int nr = ch.read(buf);
-			logger.debug("Read " + nr + " bytes from " + file.getAbsolutePath());
+			if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + file.getAbsolutePath());
 			if (nr == 292)
 			{
 				ch.close();
@@ -208,7 +212,7 @@ public final class Driver implements IDriver {
 			RandomAccessFile syncgps = new RandomAccessFile(file, "r");
 			FileChannel ch = syncgps.getChannel();
 			int nr = ch.read(buf);
-			logger.debug("Read " + nr + " bytes from " + file.getAbsolutePath());
+			if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + file.getAbsolutePath());
 			if (nr != 22) throw new GPSException(file.getAbsolutePath());
 			ch.close();
 			syncgps.close();
@@ -216,7 +220,7 @@ public final class Driver implements IDriver {
 			GPSInfo gpsinfo = new GPSInfo(buf);
 			gps.cached = gpsinfo;
 			gps.last_read_time = current;
-			logger.debug("GPS read on " + file.getAbsolutePath() + " - " + gpsinfo);
+			if (logger.isDebugEnabled()) logger.debug("GPS read on " + file.getAbsolutePath() + " - " + gpsinfo);
 			return gpsinfo;
 		}
 		catch (IOException iox)
@@ -233,7 +237,7 @@ public final class Driver implements IDriver {
 		FileInputStream fis = new FileInputStream(file);
 		BufferedReader r = new BufferedReader(new InputStreamReader(fis));
 		String txt = r.readLine();
-		logger.debug(file.getAbsolutePath() + " >> " + txt);
+		if (logger.isDebugEnabled()) logger.debug(file.getAbsolutePath() + " >> " + txt);
 		fis.close();
 		return txt;
 	}
@@ -244,8 +248,8 @@ public final class Driver implements IDriver {
 		String ret = "";
 		String txt;
 		while((txt = r.readLine()) != null) {
-		    ret += txt+"\n";
-		    logger.debug(file.getAbsolutePath() + " >> " + txt);
+			ret += txt+"\n";
+			if (logger.isDebugEnabled()) logger.debug(file.getAbsolutePath() + " >> " + txt);
 		}
 		fis.close();
 		return ret;

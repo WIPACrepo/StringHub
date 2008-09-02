@@ -156,7 +156,8 @@ public class DOMApp implements IDOMApp
             {
                 Thread.yield();
                 ByteBuffer out = devIO.recv();
-                logger.debug("Received part " + i + " of multimessage.");
+                if (logger.isDebugEnabled())
+                    logger.debug("Received part " + i + " of multimessage.");
                 int status = out.get(7);
                 if (status != 1) throw new MessageException(
                         MessageType.GET_DATA, out.get(0), out.get(1),
@@ -446,7 +447,8 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.SET_DATA_FORMAT, buf);
         buf.clear();
         buf.put(enc[0]).put(enc[1]).put(enc[2]).flip();
-        logger.debug("Setting engineering format bytes to (" + enc[0] + ", " + enc[1] + ", " + enc[2] + ").");
+        if (logger.isDebugEnabled())
+            logger.debug("Setting engineering format bytes to (" + enc[0] + ", " + enc[1] + ", " + enc[2] + ").");
         sendMessage(MessageType.SET_ENG_FORMAT, buf);
     }
 
@@ -607,7 +609,9 @@ public class DOMApp implements IDOMApp
         // Issue a clear - something gets out-of-sorts in the iceboot
         // command decoder
         String status = talkToIceboot("s\" domapp.sbi.gz\" find if gunzip fpga endif . set-comm-params");
-        logger.info("FPGA reload returns: " + status);
+        if (logger.isInfoEnabled()) {
+            logger.info("FPGA reload returns: " + status);
+        }
         // Exec DOMApp & wait for "DOMAPP READY" message from DOMApp
         String expect = "DOMAPP READY";
         boolean reticence = Boolean.getBoolean("icecube.daq.domapp.reticence");
@@ -628,18 +632,18 @@ public class DOMApp implements IDOMApp
         buf.put(cmd.getBytes());
         buf.put("\r\n".getBytes()).flip();
         devIO.send(buf);
-        logger.debug("Sending: " + cmd);
+        if (logger.isDebugEnabled()) logger.debug("Sending: " + cmd);
         while (true)
         {
             ByteBuffer ret = devIO.recv();
             byte[] bytearray = new byte[ret.remaining()];
             ret.get(bytearray);
             String fragment = new String(bytearray);
-            logger.debug("Received: " + fragment);
+            if (logger.isDebugEnabled()) logger.debug("Received: " + fragment);
             if (fragment.contains(cmd)) break;
         }
         if (expect == null) return "";
-        logger.debug("Echoback from iceboot received - expecting ... " + expect);
+        if (logger.isDebugEnabled()) logger.debug("Echoback from iceboot received - expecting ... " + expect);
         StringBuffer txt = new StringBuffer();
         while (true)
         {

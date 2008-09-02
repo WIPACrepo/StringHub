@@ -67,13 +67,15 @@ public class ReplayHubComponent
 
         sender = new Sender(hubId, payloadFactory);
 
-        LOG.info("starting up ReplayHub component " + hubId);
+        if (LOG.isInfoEnabled()) {
+            LOG.info("starting up ReplayHub component " + hubId);
+        }
 
-         // Component derives behavioral characteristics from
-         // its 'minor ID' - they are ...
-         // (1) component xx81 - xx99 : icetop
-         // (2) component xx01 - xx80 : in-ice
-         // (3) component xx00        : amandaHub
+        // Component derives behavioral characteristics from
+        // its 'minor ID' - they are ...
+        // (1) component xx81 - xx99 : icetop
+        // (2) component xx01 - xx80 : in-ice
+        // (3) component xx00        : amandaHub
         int minorHubId = hubId % 100;
 
         SimpleOutputEngine hitOut;
@@ -206,7 +208,9 @@ public class ReplayHubComponent
         hitFile = getFile(baseDir, hubNode, "hitFile");
 
         // done configuring
-        LOG.info("Hub#" + hubId + ": " + hitFile);
+        if (LOG.isInfoEnabled()) {
+            LOG.info("Hub#" + hubId + ": " + hitFile);
+        }
     }
 
     /**
@@ -270,8 +274,10 @@ public class ReplayHubComponent
     {
         super.setGlobalConfigurationDir(dirName);
         configurationPath = dirName;
-        LOG.info("Setting the ueber configuration directory to " +
-                    configurationPath);
+        if (LOG.isInfoEnabled()) {
+            LOG.info("Setting the ueber configuration directory to " +
+                     configurationPath);
+        }
     }
 
     /**

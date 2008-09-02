@@ -43,7 +43,9 @@ public final class DeltaCompressedHit
 		DeltaCompressedHit hit = new DeltaCompressedHit();
 		//int pos = buf.position();
 		int word1 = buf.getInt();
-		logger.debug("DeltaHit word0: " + Integer.toHexString(word1));
+		if (logger.isDebugEnabled()) {
+			logger.debug("DeltaHit word0: " + Integer.toHexString(word1));
+		}
 		assert (word1 & 0x80000000) != 0;
 		for (TriggerBit trigBit : TriggerBit.values())
 		    if ((word1 & (1 << (18 + trigBit.ordinal()))) != 0) hit.triggerMask.add(trigBit);

@@ -27,7 +27,8 @@ public class EngineeringHit {
 		format = buf.getShort(pos+2);
 		atwdChip = buf.get(pos+4);
 		EngineeringRecordFormat engRecFmt = new EngineeringRecordFormat(buf.get(pos+5), buf.get(pos+6), buf.get(pos+7));
-		logger.debug("Decode recl = " + len + "(" + engRecFmt.fadcSamples() + ", "
+		if (logger.isDebugEnabled())
+			logger.debug("Decode recl = " + len + "(" + engRecFmt.fadcSamples() + ", "
 				+ engRecFmt.atwdSamples(0) + ", " + engRecFmt.atwdSamples(1) + ", "
 				+ engRecFmt.atwdSamples(2) + ", " + engRecFmt.atwdSamples(3) + ")");
 		short fadcSamples = engRecFmt.fadcSamples();

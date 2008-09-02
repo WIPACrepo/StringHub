@@ -301,7 +301,9 @@ public class DataCollector extends AbstractDataCollector
      */
     private void configure(DOMConfiguration config) throws MessageException
     {
-        logger.info("Configuring DOM on " + canonicalName());
+        if (logger.isInfoEnabled()) {
+            logger.info("Configuring DOM on " + canonicalName());
+        }
         long configT0 = System.currentTimeMillis();
 
         app.setMoniIntervals(
@@ -374,8 +376,11 @@ public class DataCollector extends AbstractDataCollector
         app.histoChargeStamp(config.getHistoInterval(), config.getHistoPrescale());
         
         long configT1 = System.currentTimeMillis();
-        logger.info("Finished DOM configuration - " + canonicalName() + "; configuration took "
-                + (configT1 - configT0) + " milliseconds.");
+        if (logger.isInfoEnabled()) {
+            logger.info("Finished DOM configuration - " + canonicalName() +
+                        "; configuration took " + (configT1 - configT0) +
+                        " milliseconds.");
+        }
     }
 
     private long dispatchBuffer(ByteBuffer buf, BufferConsumer target) throws IOException
@@ -662,7 +667,9 @@ public class DataCollector extends AbstractDataCollector
         nextSupernovaDomClock = 0L;
         numSupernovaGaps = 0;
 
-        logger.info("Begin data collection thread");
+        if (logger.isInfoEnabled()) {
+            logger.info("Begin data collection thread");
+        }
 
         // Create a watcher timer
         Timer watcher = new Timer(getName() + "-timer");
@@ -693,14 +700,18 @@ public class DataCollector extends AbstractDataCollector
             if (moniConsumer != null) moniConsumer.consume(otrava.asReadOnlyBuffer());
             if (tcalConsumer != null) tcalConsumer.consume(otrava.asReadOnlyBuffer());
             if (supernovaConsumer != null) supernovaConsumer.consume(otrava.asReadOnlyBuffer());
-            logger.info("Wrote EOS to streams.");
+            if (logger.isInfoEnabled()) {
+                logger.info("Wrote EOS to streams.");
+            }
         }
         catch (IOException iox)
         {
             logger.error(iox);
         }
 
-        logger.info("End data collection thread.");
+        if (logger.isInfoEnabled()) {
+            logger.info("End data collection thread.");
+        }
 
     } /* END OF run() METHOD */
 
@@ -811,8 +822,10 @@ public class DataCollector extends AbstractDataCollector
         if (numericMBID == 0)
             throw new Exception("Couldn't get DOM MB ID after "+NT+" trials.");
 
-		intTask.ping();
-        logger.info("Found DOM " + mbid + " running " + app.getRelease());
+        intTask.ping();
+        if (logger.isInfoEnabled()) {
+            logger.info("Found DOM " + mbid + " running " + app.getRelease());
+        }
 
         // Grab 2 RAPCal data points to get started
         for (int nTry = 0; nTry < 10 && validRAPCalCount < 2; nTry++) execRapCal();
@@ -836,7 +849,9 @@ public class DataCollector extends AbstractDataCollector
             /* Do TCAL and GPS -- this always runs regardless of the run state */
             if (t - lastTcalRead >= tcalReadInterval)
             {
-                logger.debug("Doing TCAL - runLevel is " + getRunLevel());
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Doing TCAL - runLevel is " + getRunLevel());
+                }
                 lastTcalRead = t;
                 execRapCal();
             }
@@ -893,17 +908,25 @@ public class DataCollector extends AbstractDataCollector
 
             case CONFIGURING:
                 /* Need to handle a configure */
-                logger.info("Got CONFIGURE signal.");
+                if (logger.isInfoEnabled()) {
+                    logger.info("Got CONFIGURE signal.");
+                }
                 configure(config);
-                logger.info("DOM is configured.");
+                if (logger.isInfoEnabled()) {
+                    logger.info("DOM is configured.");
+                }
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
 
             case STARTING:
-                logger.info("Got START RUN signal " + canonicalName());
+                if (logger.isInfoEnabled()) {
+                    logger.info("Got START RUN signal " + canonicalName());
+                }
                 app.beginRun();
                 storeRunStartTime();
-                logger.info("DOM is running.");
+                if (logger.isInfoEnabled()) {
+                    logger.info("DOM is running.");
+                }
                 setRunLevel(RunLevel.RUNNING);
                 break;
 
@@ -913,7 +936,9 @@ public class DataCollector extends AbstractDataCollector
                 setRunLevel(RunLevel.CONFIGURING);
                 if (flasherConfig != null)
                 {
-                    logger.info("Starting flasher subrun");
+                    if (logger.isInfoEnabled()) {
+                        logger.info("Starting flasher subrun");
+                    }
                     DOMConfiguration tempConfig = new DOMConfiguration(config);
                     tempConfig.setHV(-1);
                     tempConfig.setTriggerMode(TriggerMode.FB);
@@ -933,7 +958,9 @@ public class DataCollector extends AbstractDataCollector
                 }
                 else
                 {
-                    logger.info("Returning to non-flashing state");
+                    if (logger.isInfoEnabled()) {
+                        logger.info("Returning to non-flashing state");
+                    }
                     configure(config);
                     app.beginRun();
                 }
@@ -942,27 +969,36 @@ public class DataCollector extends AbstractDataCollector
                 break;
 
             case PAUSING:
-                logger.info("Got PAUSE RUN signal " + canonicalName());
+                if (logger.isInfoEnabled()) {
+                    logger.info("Got PAUSE RUN signal " + canonicalName());
+                }
                 app.endRun();
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
 
             case STOPPING:
-                logger.info("Got STOP RUN signal " + canonicalName());
+                if (logger.isInfoEnabled()) {
+                    logger.info("Got STOP RUN signal " + canonicalName());
+                }
                 app.endRun();
                 ByteBuffer otrava = MultiChannelMergeSort.eos(numericMBID);
                 if (hitsConsumer != null) hitsConsumer.consume(otrava.asReadOnlyBuffer());
                 if (moniConsumer != null) moniConsumer.consume(otrava.asReadOnlyBuffer());
                 if (tcalConsumer != null) tcalConsumer.consume(otrava.asReadOnlyBuffer());
                 if (supernovaConsumer != null) supernovaConsumer.consume(otrava.asReadOnlyBuffer());
-                logger.info("Wrote EOS to streams.");
+                if (logger.isInfoEnabled()) {
+                    logger.info("Wrote EOS to streams.");
+                }
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
             }
 
             if (tired)
             {
-                logger.debug("Runcore loop is tired - sleeping " + threadSleepInterval + " ms.");
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Runcore loop is tired - sleeping " +
+                                 threadSleepInterval + " ms.");
+                }
                 try
                 {
                     Thread.sleep(threadSleepInterval);
