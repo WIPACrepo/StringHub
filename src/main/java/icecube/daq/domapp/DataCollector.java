@@ -718,8 +718,23 @@ public class DataCollector extends AbstractDataCollector
     /** Wrap up softboot -> domapp behavior */
     private IDOMApp softbootToDomapp() throws IOException, InterruptedException
     {
-        driver.commReset(card, pair, dom);
-        driver.softboot (card, pair, dom);
+        /*
+         * Based on some talk /w/ JEJ @ Utrecht going for multiple retries here
+         */
+        for (int iBootTry = 0; iBootTry < 2; iBootTry++)
+        {
+            try
+            {
+                driver.commReset(card, pair, dom);
+                driver.softboot (card, pair, dom);
+                break;
+            }
+            catch (IOException iox)
+            {
+                logger.warn("Softboot attempt failed - retrying after 5 sec");
+                Thread.sleep(5000L);
+            }
+        }
 
         FileNotFoundException savedEx = null;
 
