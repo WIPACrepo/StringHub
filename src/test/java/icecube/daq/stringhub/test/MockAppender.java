@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import org.apache.log4j.Appender;
 import org.apache.log4j.Layout;
 import org.apache.log4j.Level;
-
 import org.apache.log4j.spi.ErrorHandler;
 import org.apache.log4j.spi.Filter;
 import org.apache.log4j.spi.LocationInfo;
@@ -21,6 +20,8 @@ public class MockAppender
     private Level minLevel;
     /** <tt>true</tt> if messages should be printed as well as cached. */
     private boolean verbose;
+    /** <tt>true</tt> if messages are not kept. */
+    private boolean flushMsgs;
 
     private ArrayList<LoggingEvent> eventList;
 
@@ -86,7 +87,9 @@ public class MockAppender
     public void doAppend(LoggingEvent evt)
     {
         if (evt.getLevel().toInt() >= minLevel.toInt()) {
-            eventList.add(evt);
+            if (!flushMsgs) {
+                eventList.add(evt);
+            }
 
             if (verbose) {
                 LocationInfo loc = evt.getLocationInformation();
@@ -190,6 +193,16 @@ public class MockAppender
     public void setErrorHandler(ErrorHandler x0)
     {
         throw new Error("Unimplemented");
+    }
+
+    /**
+     * Should log messages be flushed?
+     *
+     * @param val <tt>false</tt> if log messages should be saved
+     */
+    public void setFlushMessages(boolean val)
+    {
+        flushMsgs = val;
     }
 
     /**
