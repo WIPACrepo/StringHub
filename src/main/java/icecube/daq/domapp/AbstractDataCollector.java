@@ -175,6 +175,11 @@ public abstract class AbstractDataCollector extends Thread
 	{
 	    return runLevel == RunLevel.STOPPING;
 	}
+	
+	public synchronized boolean isZombie()
+	{
+	    return runLevel == RunLevel.ZOMBIE;
+	}
 
 	/**
 	 * Subclasses should override to provide last run start time in 0.1 ns ticks.
