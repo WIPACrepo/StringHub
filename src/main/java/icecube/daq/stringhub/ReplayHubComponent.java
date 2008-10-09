@@ -566,6 +566,14 @@ public class ReplayHubComponent
             System.exit(1);
         }
 
-        new DAQCompServer( new ReplayHubComponent(hubId), args );
+        DAQCompServer srvr;
+        try {
+            srvr = new DAQCompServer(new ReplayHubComponent(hubId), args);
+        } catch (IllegalArgumentException ex) {
+            System.err.println(ex.getMessage());
+            System.exit(1);
+            return; // without this, compiler whines about uninitialized 'srvr'
+        }
+        srvr.startServing();
     }
 }

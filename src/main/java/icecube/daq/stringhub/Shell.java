@@ -24,8 +24,15 @@ public class Shell
 			System.exit(1);
 		}
 
-		new DAQCompServer( new StringHubComponent(hubId), args );
-
+		DAQCompServer srvr;
+		try {
+			srvr = new DAQCompServer( new StringHubComponent(hubId), args );
+		} catch (IllegalArgumentException ex) {
+			System.err.println(ex.getMessage());
+			System.exit(1);
+			return; // without this, compiler whines about uninitialized 'srvr'
+		}
+		srvr.startServing();
 	}
 
 }

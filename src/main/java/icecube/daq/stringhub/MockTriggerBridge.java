@@ -28,7 +28,15 @@ public class MockTriggerBridge extends DAQComponent {
 	 */
 	public static void main(String[] args) throws Exception
 	{
-		new DAQCompServer(new MockTriggerBridge(), args);
+		DAQCompServer srvr;
+		try {
+			srvr = new DAQCompServer(new MockTriggerBridge(), args);
+		} catch (IllegalArgumentException ex) {
+			System.err.println(ex.getMessage());
+			System.exit(1);
+			return; // without this, compiler whines about uninitialized 'srvr'
+		}
+		srvr.startServing();
 	}
 
 }
