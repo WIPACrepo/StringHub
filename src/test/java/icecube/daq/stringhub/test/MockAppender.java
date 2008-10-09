@@ -1,5 +1,7 @@
 package icecube.daq.stringhub.test;
 
+import icecube.daq.common.IDAQAppender;
+
 import java.util.ArrayList;
 
 import org.apache.log4j.Appender;
@@ -14,7 +16,7 @@ import org.apache.log4j.spi.LoggingEvent;
  * Mock log4j appender.
  */
 public class MockAppender
-    implements Appender
+    implements IDAQAppender
 {
     /** minimum level of log messages which will be print. */
     private Level minLevel;
@@ -92,17 +94,27 @@ public class MockAppender
             }
 
             if (verbose) {
-                LocationInfo loc = evt.getLocationInformation();
-
-                System.out.println(evt.getLoggerName() + " " + evt.getLevel() +
-                                   " [" + loc.fullInfo + "] " +
-                                   evt.getMessage());
-
-                String[] stack = evt.getThrowableStrRep();
-                for (int i = 0; stack != null && i < stack.length; i++) {
-                    System.out.println("> " + stack[i]);
-                }
+                dumpEvent(evt);
             }
+        }
+    }
+
+    /**
+     * Dump a logging event to System.out
+     *
+     * @param evt logging event
+     */
+    private void dumpEvent(LoggingEvent evt)
+    {
+        LocationInfo loc = evt.getLocationInformation();
+
+        System.out.println(evt.getLoggerName() + " " + evt.getLevel() +
+                           " [" + loc.fullInfo + "] " +
+                           evt.getMessage());
+
+        String[] stack = evt.getThrowableStrRep();
+        for (int i = 0; stack != null && i < stack.length; i++) {
+            System.out.println("> " + stack[i]);
         }
     }
 
@@ -173,6 +185,19 @@ public class MockAppender
     public int getNumberOfMessages()
     {
         return eventList.size();
+    }
+
+    /**
+     * Is this appender sending log messages to the specified host and port.
+     *
+     * @param host host name/IP address
+     * @param port port number
+     *
+     * @return <tt>true</tt> if this appender uses the host:port
+     */
+    public boolean isConnected(String host, int port)
+    {
+        return true;
     }
 
     /**
