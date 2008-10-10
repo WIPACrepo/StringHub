@@ -448,8 +448,31 @@ public class StringHubComponent extends DAQComponent
 	    boolean[] wirePairSemaphore = new boolean[32];
 	    long validXTime = 0L;
 
-	    logger.info("Beginning subrun");
+	    logger.info("Beginning subrun - turning off any running flashers");
 
+	    // STEP #1 - signal all currently running flashers to stop
+	    for (AbstractDataCollector adc : conn.getCollectors())
+	    {
+	        if (adc.isRunning() && adc.getFlasherConfig() != null)
+	        {
+	            adc.setFlasherConfig(null);
+	            adc.signalStartSubRun();
+	        }
+	    }
+	    for (AbstractDataCollector adc : conn.getCollectors())
+	    {
+	        if (adc.isZombie()) continue;
+	        try
+	        {
+	            while (!adc.isRunning()) Thread.sleep(100);
+	        }
+	        catch (InterruptedException intx)
+	        {
+	            logger.warn("Interrupted sleep on ADC subrun start.");
+	        }
+	    }
+	    
+	    // STEP #2 - now activate newly requested flashers
         for (AbstractDataCollector adc : conn.getCollectors())
         {
             String mbid = adc.getMainboardId();
@@ -473,7 +496,7 @@ public class StringHubComponent extends DAQComponent
                 wirePairSemaphore[pairIndex] = true;
             }
 
-            boolean stateChange = flasherConfig != null || adc.getFlasherConfig() != null;
+            boolean stateChange = flasherConfig != null;
             if (stateChange)
             {
                 adc.setFlasherConfig(flasherConfig);
@@ -495,9 +518,8 @@ public class StringHubComponent extends DAQComponent
                 logger.warn("Interrupted sleep on ADC subrun start.");
             }
         }
-	    if (logger.isInfoEnabled()) {
-		logger.info("Subrun time is " + validXTime);
-	    }
+
+        logger.info("Subrun time is " + validXTime);
 	    return validXTime;
 	}
 
@@ -548,7 +570,7 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 3439 2008-09-02 17:08:41Z dglo $";
+		return "$Id: StringHubComponent.java 3574 2008-10-10 20:44:11Z kael $";
     }
 
 	public IByteBufferCache getCache()
