@@ -11,9 +11,11 @@ import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
+import icecube.daq.monitoring.DataCollectorMBean;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.ZeroCrossingRAPCal;
+import icecube.daq.util.RealTimeRateMeter;
 import icecube.daq.util.UTC;
 
 import java.io.FileNotFoundException;
@@ -88,7 +90,9 @@ import org.apache.log4j.Logger;
  * @author krokodil
  *
  */
-public class DataCollector extends AbstractDataCollector
+public class DataCollector 
+    extends AbstractDataCollector
+    implements DataCollectorMBean 
 {
     private int                 card;
     private int                 pair;
@@ -129,6 +133,9 @@ public class DataCollector extends AbstractDataCollector
     private int                 loopCounter           = 0;
     private long                lastTcalUT;
     private volatile long       runStartUT = 0L;
+    private int                 numLBMOverflows       = 0;
+    
+    private RealTimeRateMeter   rtHitRate;
 
     private long                nextSupernovaDomClock;
     private HitBufferAB         abBuffer;
@@ -277,6 +284,9 @@ public class DataCollector extends AbstractDataCollector
         runLevel = RunLevel.INITIALIZING;
         gpsOffset = new UTC(0L);
         abBuffer  = new HitBufferAB();
+        
+        // Calculate 10-sec averages of the hit rate
+        rtHitRate = new RealTimeRateMeter(100000000000L);
         start();
     }
 
@@ -389,6 +399,8 @@ public class DataCollector extends AbstractDataCollector
         long utc    = rapcal.domToUTC(domclk).in_0_1ns();
         buf.putLong(24, utc);
         target.consume(buf);
+        int fmtId = buf.getInt(4);
+        if (fmtId == MAGIC_ENGINEERING_HIT_FMTID || fmtId == MAGIC_COMPRESSED_HIT_FMTID) rtHitRate.recordEvent(utc);
         return utc;
     }
     
@@ -520,8 +532,12 @@ public class DataCollector extends AbstractDataCollector
         while (in.remaining() > 0)
         {
             MonitorRecord monitor = MonitorRecordFactory.createFromBuffer(in);
-            if (monitor instanceof AsciiMonitorRecord &&
-                    logger.isDebugEnabled()) logger.debug(monitor.toString());
+            if (monitor instanceof AsciiMonitorRecord)
+            {
+                String moniMsg = monitor.toString();
+                if (logger.isDebugEnabled()) logger.debug(moniMsg);
+                if (moniMsg.contains("LBM Overflow")) numLBMOverflows++;
+            }
             numMoni++;
             ByteBuffer moniBuffer = ByteBuffer.allocate(monitor.getLength()+32);
             moniBuffer.putInt(monitor.getLength()+32);
@@ -923,25 +939,17 @@ public class DataCollector extends AbstractDataCollector
 
             case CONFIGURING:
                 /* Need to handle a configure */
-                if (logger.isInfoEnabled()) {
-                    logger.info("Got CONFIGURE signal.");
-                }
+                logger.info("Got CONFIGURE signal.");
                 configure(config);
-                if (logger.isInfoEnabled()) {
-                    logger.info("DOM is configured.");
-                }
+                logger.info("DOM is configured.");
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
 
             case STARTING:
-                if (logger.isInfoEnabled()) {
-                    logger.info("Got START RUN signal " + canonicalName());
-                }
+                logger.info("Got START RUN signal " + canonicalName());
                 app.beginRun();
                 storeRunStartTime();
-                if (logger.isInfoEnabled()) {
-                    logger.info("DOM is running.");
-                }
+                logger.info("DOM is running.");
                 setRunLevel(RunLevel.RUNNING);
                 break;
 
@@ -1087,10 +1095,31 @@ public class DataCollector extends AbstractDataCollector
     }
 
     @Override
-    public long getLastTcalTime()
+    public synchronized long getLastTcalTime()
+    {
+        return lastTcalUT;
+    }
+
+    public double getHitRate()
+    {
+        return rtHitRate.getRate();
+    }
+
+    public long getLBMOverflowCount()
+    {
+        return numLBMOverflows;
+    }
+
+    public String getMBID()
     {
         // TODO Auto-generated method stub
-        return lastTcalUT;
+        return null;
+    }
+
+    public String getRunState()
+    {
+        // TODO Auto-generated method stub
+        return getRunLevel().toString();
     }
 
 }

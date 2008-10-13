@@ -21,7 +21,7 @@ import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
-import icecube.daq.monitoring.DataCollectorMonitor;
+import icecube.daq.monitoring.DataCollectorMBean;
 import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.ISourceID;
@@ -84,7 +84,7 @@ public class StringHubComponent extends DAQComponent
 	private String configurationPath;
 	private String configured = "NO";
 	private int nch;
-	private DataCollectorMonitor collectorMonitor;
+	private DataCollectorMBean collectorMonitor;
 
 	private boolean enableTriggering = false;
 	private ISourceID sourceId;
@@ -161,9 +161,6 @@ public class StringHubComponent extends DAQComponent
         MonitoringData monData = new MonitoringData();
         monData.setSenderMonitor(sender);
         addMBean("sender", monData);
-
-		collectorMonitor = new DataCollectorMonitor();
-		addMBean("datacollectormonitor", collectorMonitor);
 
         // Following are the payload output engines for the secondary streams
 		moniBufMgr  = new VitreousBufferCache();
@@ -373,6 +370,7 @@ public class StringHubComponent extends DAQComponent
 							null,
 							null,
 							null);
+					addMBean("DataCollectorMonitor-" + chanInfo.mbid, dc);
 				}
 
 				hitsSort.register(chanInfo.mbid_numerique);
@@ -387,8 +385,6 @@ public class StringHubComponent extends DAQComponent
 
 			// Still need to get the data collectors to pick up and do something with the config
 			conn.configure();
-
-			collectorMonitor.setConnector(conn);
 		}
 
 		catch (FileNotFoundException fnx)
@@ -570,7 +566,7 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 3574 2008-10-10 20:44:11Z kael $";
+		return "$Id: StringHubComponent.java 3577 2008-10-13 21:05:53Z kael $";
     }
 
 	public IByteBufferCache getCache()
