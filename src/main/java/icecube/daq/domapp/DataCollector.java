@@ -398,9 +398,9 @@ public class DataCollector
         long domclk = buf.getLong(24);
         long utc    = rapcal.domToUTC(domclk).in_0_1ns();
         buf.putLong(24, utc);
-        target.consume(buf);
         int fmtId = buf.getInt(4);
         if (fmtId == MAGIC_ENGINEERING_HIT_FMTID || fmtId == MAGIC_COMPRESSED_HIT_FMTID) rtHitRate.recordEvent(utc);
+        target.consume(buf);
         return utc;
     }
     
