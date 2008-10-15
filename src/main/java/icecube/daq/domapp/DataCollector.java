@@ -11,7 +11,6 @@ import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
-import icecube.daq.monitoring.DataCollectorMBean;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.ZeroCrossingRAPCal;
