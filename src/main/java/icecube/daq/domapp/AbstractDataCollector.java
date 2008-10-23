@@ -95,6 +95,7 @@ public abstract class AbstractDataCollector extends Thread
 	 */
 	public void signalStartRun()
 	{
+		logger.info("signalStartRun");
 	    switch (getRunLevel())
 	    {
 	    case CONFIGURED:
