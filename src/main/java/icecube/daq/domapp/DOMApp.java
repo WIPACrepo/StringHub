@@ -609,8 +609,8 @@ public class DOMApp implements IDOMApp
         // Issue a clear - something gets out-of-sorts in the iceboot
         // command decoder
         String status = talkToIceboot("s\" domapp.sbi.gz\" find if gunzip fpga endif . set-comm-params");
-        if (logger.isInfoEnabled()) {
-            logger.info("FPGA reload returns: " + status);
+        if (logger.isDebugEnabled()) {
+            logger.debug("FPGA reload returns: " + status);
         }
         // Exec DOMApp & wait for "DOMAPP READY" message from DOMApp
         String expect = "DOMAPP READY";
