@@ -17,7 +17,7 @@ public class AuraDRM extends IcebootInterface
     
     public ByteBuffer forcedTrig(int n) throws IOException
     {
-        return readTRACRData(n + " forceTrig", n*4854);
+        return readTRACRData(n + " forcedtrig", n*4854 + 3);
     }
     
     private ByteBuffer readTRACRData(String cmd, int bufsize) throws IOException
@@ -42,6 +42,10 @@ public class AuraDRM extends IcebootInterface
             ByteBuffer ret = recv();
             data.put(ret);
         }
-        return data;
+        // Ensure that the prompt has been seen in the last 3 bytes of the buffer - then ignore it
+        assert data.get(bufsize - 3) == '>' && 
+            data.get(bufsize - 2) == ' ' && 
+            data.get(bufsize - 1) == '\n';
+        return (ByteBuffer) data.rewind().limit(bufsize - 3);
     }
 }
