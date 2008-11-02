@@ -369,12 +369,17 @@ public class DOMConfiguration implements Serializable
 		this.simNoiseRate = simNoiseRate;
 	}
 
+	/**
+	 * Roll your own Type-II (or Type-Ib/c) stellar collapse.  This
+	 * will set the simulation distance to the event in kPc.
+	 * @param snDistance distance to supernova in kilo-parsec.
+	 */
     public void setSnDistance(double snDistance) {
-	this.snDistance = snDistance;
+        this.snDistance = snDistance;
     }
  
     public void setSnSigEnabled(boolean snSigEnabled) {
-	this.snSigEnabled = snSigEnabled;
+        this.snSigEnabled = snSigEnabled;
     }
 
     /**
