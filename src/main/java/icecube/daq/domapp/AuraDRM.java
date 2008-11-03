@@ -34,13 +34,13 @@ public class AuraDRM extends IcebootInterface
     public int readVirtualAddress(int command) throws IOException
     {
         return Integer.parseInt(
-                sendCommand(String.format("%x %x c! %x c@ . drop", command, VIRT_HI, VIRT_RW))
+                sendCommand(String.format("$%x $%x c! $%x c@ . drop", command, VIRT_HI, VIRT_RW))
                 );
     }
     
     public void writeVirtualAddress(int command, int val) throws IOException
     {
-        sendCommand(String.format("%x %x c! %x %x c!", command, VIRT_HI, val, VIRT_RW));
+        sendCommand(String.format("$%x $%x c! $%x $%x c!", command, VIRT_HI, val, VIRT_RW));
     }
     
     /**
