@@ -35,6 +35,7 @@ public class AuraDataCollector extends AbstractDataCollector
         rapcal = new ZeroCrossingRAPCal();
         new Timer().schedule(new TCALTask(), 1000L, 1000L);
         this.hits = hits;
+        running = new AtomicBoolean(false);
     }
     
     public void run()
@@ -47,6 +48,7 @@ public class AuraDataCollector extends AbstractDataCollector
             long mbid_n = Long.parseLong(mbid, 16);
             setRunLevel(RunLevel.IDLE);
             
+            running.set(true);
             while (running.get() && !interrupted())
             {
                 if (isRunning())
