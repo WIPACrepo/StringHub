@@ -33,8 +33,14 @@ public class AuraDRM extends IcebootInterface
     
     public int readVirtualAddress(int command) throws IOException
     {
+        int c_hi = (command >> 8) & 0xff;
+        int c_lo = command & 0xff;
         return Integer.parseInt(
-                sendCommand(String.format("$%x $%x c! $%x c@ . drop", command, VIRT_HI, VIRT_RW))
+                sendCommand(String.format(
+                        "$%x $%x c! $%x $%x c! $%x c@ . drop", 
+                        c_hi, VIRT_HI,
+                        c_lo, VIRT_LO,
+                        VIRT_RW))
                 );
     }
     

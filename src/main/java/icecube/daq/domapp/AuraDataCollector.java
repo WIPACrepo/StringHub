@@ -41,6 +41,8 @@ public class AuraDataCollector extends AbstractDataCollector
     
     public void run()
     {
+        Timer t3 = new Timer();
+
         try
         {
             driver.softboot(card, pair, dom);
@@ -52,7 +54,7 @@ public class AuraDataCollector extends AbstractDataCollector
             drm.sendCommand("s\" domapp.sbi.gz\" find if gunzip fpga endif");
             setRunLevel(RunLevel.IDLE);
 
-            new Timer().schedule(new TCALTask(), 1000L, 1000L);
+            t3.schedule(new TCALTask(), 1000L, 1000L);
 
             running.set(true);
             while (running.get() && !interrupted())
@@ -63,6 +65,7 @@ public class AuraDataCollector extends AbstractDataCollector
                     drm.powerOnFlasherboard();
                     Thread.sleep(5000);
                     drm.writeVirtualAddress(4, powerControlBits);
+                    while (drm.readVirtualAddress(4) != powerControlBits) Thread.sleep(100);
                     setRunLevel(RunLevel.CONFIGURED);
                     break;
                 case STARTING:
@@ -95,6 +98,8 @@ public class AuraDataCollector extends AbstractDataCollector
         {
             ex.printStackTrace();
         }
+        
+        t3.cancel();
     }
     
     @Override
