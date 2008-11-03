@@ -54,6 +54,7 @@ public class AuraDataCollector extends AbstractDataCollector
                 switch (getRunLevel())
                 {
                 case CONFIGURING:
+                    drm.powerOnFlasherboard();
                     setRunLevel(RunLevel.CONFIGURED);
                     break;
                 case STARTING:
@@ -75,6 +76,7 @@ public class AuraDataCollector extends AbstractDataCollector
                     hits.consume(xtb);
                     break;
                 case STOPPING:
+                    drm.powerOffFlasherboard();
                     setRunLevel(RunLevel.CONFIGURED);
                     break;
                 }
