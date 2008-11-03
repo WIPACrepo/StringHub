@@ -8,9 +8,9 @@ import org.apache.log4j.Logger;
 
 public class AuraDRM extends IcebootInterface
 {
-    private static final int FL_BASE = 0x6000000;
-    private static final int VIRT_LO = FL_BASE + 0x21;
-    private static final int VIRT_HI = FL_BASE + 0x22;
+    private static final int FL_BASE = 0x60000000;
+    private static final int VIRT_HI = FL_BASE + 0x21;
+    private static final int VIRT_LO = FL_BASE + 0x22;
     private static final int VIRT_RW = FL_BASE + 0x23;
     private static final int FIFO_RD = FL_BASE + 0x25;
     private static final int[] dacMap = new int[] { 
@@ -40,7 +40,13 @@ public class AuraDRM extends IcebootInterface
     
     public void writeVirtualAddress(int command, int val) throws IOException
     {
-        sendCommand(String.format("$%x $%x c! $%x $%x c!", command, VIRT_HI, val, VIRT_RW));
+        int c_hi = (command >> 8) & 0xff;
+        int c_lo = command & 0xff;
+        sendCommand(String.format(
+                "$%x $%x c! $%x $%x c! $%x $%x c!", 
+                c_hi, VIRT_HI,
+                c_lo, VIRT_LO,
+                val, VIRT_RW));
     }
     
     /**
