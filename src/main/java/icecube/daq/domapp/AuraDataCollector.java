@@ -26,6 +26,7 @@ public class AuraDataCollector extends AbstractDataCollector
     private RAPCal rapcal;
     private BufferConsumer hits;
     private AtomicBoolean running;
+    private int powerControlBits;
     private static final Logger logger = Logger.getLogger(AuraDataCollector.class);
     
     public AuraDataCollector(int card, int pair, char dom, BufferConsumer hits)
@@ -33,9 +34,9 @@ public class AuraDataCollector extends AbstractDataCollector
         super(card, pair, dom);
         driver = Driver.getInstance();
         rapcal = new ZeroCrossingRAPCal();
-        new Timer().schedule(new TCALTask(), 1000L, 1000L);
         this.hits = hits;
         running = new AtomicBoolean(false);
+        powerControlBits = 0x3f;
     }
     
     public void run()
@@ -50,7 +51,9 @@ public class AuraDataCollector extends AbstractDataCollector
             // Load the DOMAPP FPGA image
             drm.sendCommand("s\" domapp.sbi.gz\" find if gunzip fpga endif");
             setRunLevel(RunLevel.IDLE);
-            
+
+            new Timer().schedule(new TCALTask(), 1000L, 1000L);
+
             running.set(true);
             while (running.get() && !interrupted())
             {
@@ -58,6 +61,8 @@ public class AuraDataCollector extends AbstractDataCollector
                 {
                 case CONFIGURING:
                     drm.powerOnFlasherboard();
+                    Thread.sleep(5000);
+                    drm.writeVirtualAddress(4, powerControlBits);
                     setRunLevel(RunLevel.CONFIGURED);
                     break;
                 case STARTING:
