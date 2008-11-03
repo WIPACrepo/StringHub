@@ -8,6 +8,7 @@ import icecube.daq.dor.TimeCalib;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.ZeroCrossingRAPCal;
+import icecube.daq.util.UTC;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -16,6 +17,8 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.log4j.Logger;
+
 public class AuraDataCollector extends AbstractDataCollector
 {
     private AuraDRM drm;
@@ -23,6 +26,7 @@ public class AuraDataCollector extends AbstractDataCollector
     private RAPCal rapcal;
     private BufferConsumer hits;
     private AtomicBoolean running;
+    private static final Logger logger = Logger.getLogger(AuraDataCollector.class);
     
     public AuraDataCollector(int card, int pair, char dom, BufferConsumer hits)
     {
@@ -121,17 +125,32 @@ public class AuraDataCollector extends AbstractDataCollector
     
     private class TCALTask extends TimerTask
     {
+        private UTC gpsOffset;
+        
+        TCALTask()
+        {
+            gpsOffset = new UTC();
+        }
+        
         @Override
         public void run()
         {
             // TODO Auto-generated method stub
             try
             {
-                GPSInfo gps = driver.readGPS(card);
+                try
+                {
+                    GPSInfo gps = driver.readGPS(card);
+                    gpsOffset = gps.getOffset();
+                }
+                catch (GPSException gpsx)
+                {
+                    logger.warn("GPS exception");
+                }
                 TimeCalib tcal = driver.readTCAL(card, pair, dom);
                 synchronized (rapcal)
                 {
-                    rapcal.update(tcal, gps.getOffset());
+                    rapcal.update(tcal, gpsOffset);
                 }
             }
             catch (IOException e)
@@ -143,10 +162,6 @@ public class AuraDataCollector extends AbstractDataCollector
             {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
-            }
-            catch (GPSException gpsx)
-            {
-                gpsx.printStackTrace();
             }
             catch (RAPCalException rcx)
             {
