@@ -69,6 +69,7 @@ public class AuraDataCollector extends AbstractDataCollector
                     setRunLevel(RunLevel.CONFIGURED);
                     break;
                 case STARTING:
+                    drm.resetTRACRFifo();
                     setRunLevel(RunLevel.RUNNING);
                     break;
                 case RUNNING:

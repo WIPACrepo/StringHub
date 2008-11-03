@@ -8,11 +8,13 @@ import org.apache.log4j.Logger;
 
 public class AuraDRM extends IcebootInterface
 {
-    private static final int FL_BASE = 0x60000000;
-    private static final int VIRT_HI = FL_BASE + 0x21;
-    private static final int VIRT_LO = FL_BASE + 0x22;
-    private static final int VIRT_RW = FL_BASE + 0x23;
-    private static final int FIFO_RD = FL_BASE + 0x25;
+    private static final int FL_BASE        = 0x60000000;
+    private static final int TRACR_STATUS   = FL_BASE + 0x10; 
+    private static final int FIFO_READ      = FL_BASE + 0x25;
+    private static final int FIFO_RESET     = FL_BASE + 0x29;
+    private static final int VIRT_HI        = FL_BASE + 0x21;
+    private static final int VIRT_LO        = FL_BASE + 0x22;
+    private static final int VIRT_RW        = FL_BASE + 0x23;
     private static final int[] dacMap = new int[] { 
         0x9A, 0x9E, 0xA2, 0xA6,         // antenna 0 : bands 0 - 3 
         0x98, 0x9C, 0xA0, 0xA4,         // antenna 1 : bands 0 - 3
@@ -115,5 +117,10 @@ public class AuraDRM extends IcebootInterface
             data.get(bufsize - 2) == ' ' && 
             data.get(bufsize - 1) == '\n';
         return (ByteBuffer) data.rewind().limit(bufsize - 3);
+    }
+    
+    public void resetTRACRFifo() throws IOException
+    {
+        sendCommand(String.format("1 $%x c!", FIFO_RESET));
     }
 }
