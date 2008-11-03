@@ -51,21 +51,32 @@ public class AuraDataCollector extends AbstractDataCollector
             running.set(true);
             while (running.get() && !interrupted())
             {
-                if (isRunning())
+                switch (getRunLevel())
                 {
+                case CONFIGURING:
+                    setRunLevel(RunLevel.CONFIGURED);
+                    break;
+                case STARTING:
+                    setRunLevel(RunLevel.RUNNING);
+                    break;
+                case RUNNING:
                     ByteBuffer buf = drm.forcedTrig(1);
                     buf.order(ByteOrder.LITTLE_ENDIAN);
                     long domclk = buf.getLong(28);
                     long utc = rapcal.domToUTC(domclk).in_0_1ns();
                     ByteBuffer xtb = ByteBuffer.allocate(4886);
                     xtb.putInt(4886);
-                    xtb.putInt(641);
+                    xtb.putInt(602);
                     xtb.putLong(mbid_n);
                     xtb.putLong(domclk);
                     xtb.putLong(utc);
                     xtb.put(buf);
                     xtb.rewind();
                     hits.consume(xtb);
+                    break;
+                case STOPPING:
+                    setRunLevel(RunLevel.CONFIGURED);
+                    break;
                 }
             }
         
