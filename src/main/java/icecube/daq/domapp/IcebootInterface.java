@@ -56,7 +56,7 @@ public class IcebootInterface extends DOMIO
             if (fragment.contains(expect)) break;
             txt.append(fragment);
         }
-        return txt.toString();
+        return txt.toString().trim();
     }
     
     public String getMainboardId() throws IOException
