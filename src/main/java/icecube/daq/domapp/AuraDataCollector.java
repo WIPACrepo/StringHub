@@ -46,6 +46,9 @@ public class AuraDataCollector extends AbstractDataCollector
             drm = new AuraDRM(card, pair, dom);
             String mbid = drm.getMainboardId();
             long mbid_n = Long.parseLong(mbid, 16);
+            
+            // Load the DOMAPP FPGA image
+            drm.sendCommand("s\" domapp.sbi.gz\" find if gunzip fpga endif");
             setRunLevel(RunLevel.IDLE);
             
             running.set(true);
