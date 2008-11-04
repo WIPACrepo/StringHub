@@ -377,7 +377,7 @@ public class DataCollector
         }
         
         // set chargestamp source
-        app.setChargeStampType(config.isAtwdChargeStamp(), 
+        app.setChargeStampType(!config.isAtwdChargeStamp(), 
                 config.isAutoRangeChargeStamp(), 
                 config.getChargeStampFixedChannel());
         
