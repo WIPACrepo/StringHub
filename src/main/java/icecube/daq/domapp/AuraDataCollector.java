@@ -26,10 +26,27 @@ public class AuraDataCollector extends AbstractDataCollector
     private RAPCal rapcal;
     private BufferConsumer hits;
     private AtomicBoolean running;
+    private AtomicBoolean forcedTrigger;
+    private AtomicBoolean radioTrigger;
     private int powerControlBits;
+    private boolean useDOMApp;
+    private String mbid;
+    private long mbid_numerique;
+    private short[][] radioDACs = {
+            { 2000, 3000, 3200, 3250 },
+            { 2000, 3000, 3200, 3250 },
+            { 2000, 3000, 3200, 3250 },
+            { 2000, 3000, 3200, 3250 }
+    };
+    
     private static final Logger logger = Logger.getLogger(AuraDataCollector.class);
     
     public AuraDataCollector(int card, int pair, char dom, BufferConsumer hits)
+    {
+        this(card, pair, dom, hits, true);
+    }
+    
+    public AuraDataCollector(int card, int pair, char dom, BufferConsumer hits, boolean useDOMApp)
     {
         super(card, pair, dom);
         driver = Driver.getInstance();
@@ -37,6 +54,9 @@ public class AuraDataCollector extends AbstractDataCollector
         this.hits = hits;
         running = new AtomicBoolean(false);
         powerControlBits = 0x3f;
+        this.useDOMApp = useDOMApp;
+        this.forcedTrigger = new AtomicBoolean(true);
+        this.radioTrigger  = new AtomicBoolean(false);
     }
     
     public void run()
@@ -47,11 +67,12 @@ public class AuraDataCollector extends AbstractDataCollector
         {
             driver.softboot(card, pair, dom);
             drm = new AuraDRM(card, pair, dom);
-            String mbid = drm.getMainboardId();
-            long mbid_n = Long.parseLong(mbid, 16);
+            mbid = drm.getMainboardId();
+            mbid_numerique = Long.parseLong(mbid, 16);
             
-            // Load the DOMAPP FPGA image
-            drm.sendCommand("s\" domapp.sbi.gz\" find if gunzip fpga endif");
+            if (useDOMApp) drm.loadDOMAppSBI();
+
+            // Now flag this process as IDLE
             setRunLevel(RunLevel.IDLE);
 
             t3.schedule(new TCALTask(), 1000L, 1000L);
@@ -66,6 +87,10 @@ public class AuraDataCollector extends AbstractDataCollector
                     Thread.sleep(5000);
                     drm.writeVirtualAddress(4, powerControlBits);
                     while (drm.readVirtualAddress(4) != powerControlBits) Thread.sleep(100);
+                    for (int ant = 0; ant < 4; ant++)
+                        for (int band = 0; band < 4; band++)
+                            drm.setRadioDAC(ant, band, radioDACs[ant][band]);
+                    drm.writeRadioDACs();
                     setRunLevel(RunLevel.CONFIGURED);
                     break;
                 case STARTING:
@@ -73,19 +98,8 @@ public class AuraDataCollector extends AbstractDataCollector
                     setRunLevel(RunLevel.RUNNING);
                     break;
                 case RUNNING:
-                    ByteBuffer buf = drm.forcedTrig(1);
-                    buf.order(ByteOrder.LITTLE_ENDIAN);
-                    long domclk = buf.getLong(28);
-                    long utc = rapcal.domToUTC(domclk).in_0_1ns();
-                    ByteBuffer xtb = ByteBuffer.allocate(4886);
-                    xtb.putInt(4886);
-                    xtb.putInt(602);
-                    xtb.putLong(mbid_n);
-                    xtb.putLong(domclk);
-                    xtb.putLong(utc);
-                    xtb.put(buf);
-                    xtb.rewind();
-                    hits.consume(xtb);
+                    if (forcedTrigger.get()) sendRadioBuffer(drm.forcedTrig(1));
+                    if (radioTrigger.get()) sendRadioBuffer(drm.radioTrig(1)); 
                     break;
                 case STOPPING:
                     drm.powerOffFlasherboard();
@@ -103,11 +117,43 @@ public class AuraDataCollector extends AbstractDataCollector
         t3.cancel();
     }
     
+    private void sendRadioBuffer(ByteBuffer buf)
+    {
+        buf.order(ByteOrder.LITTLE_ENDIAN);
+        long domclk = buf.getLong(28);
+        long utc = rapcal.domToUTC(domclk).in_0_1ns();
+        ByteBuffer xtb = ByteBuffer.allocate(4886);
+        xtb.putInt(4886);
+        xtb.putInt(602);
+        xtb.putLong(mbid_numerique);
+        xtb.putLong(domclk);
+        xtb.putLong(utc);
+        xtb.put(buf);
+        xtb.rewind();
+        try
+        {
+            hits.consume(xtb);
+        }
+        catch (IOException iox)
+        {
+            logger.error("Caught IOException: " + iox.getLocalizedMessage());
+        }
+    }
+    
+    public void setForcedTriggers(boolean enabled)
+    {
+        forcedTrigger.set(enabled);
+    }
+    
+    public void setRadioTriggers(boolean enabled)
+    {
+        radioTrigger.set(enabled);
+    }
+    
     @Override
     public void close()
     {
-        // TODO Auto-generated method stub
-
+        drm.close();
     }
 
     @Override

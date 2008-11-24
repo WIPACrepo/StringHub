@@ -28,6 +28,11 @@ public class AuraDRM extends IcebootInterface
         super(card, pair, dom);
     }
     
+    public ByteBuffer radioTrig(int n) throws IOException
+    {
+        return readTRACRData(n + " radiotrig", n*4854 + 3);
+    }
+    
     public ByteBuffer forcedTrig(int n) throws IOException
     {
         return readTRACRData(n + " forcedtrig", n*4854 + 3);
@@ -73,6 +78,11 @@ public class AuraDRM extends IcebootInterface
         writeVirtualAddress(cmd+1, (val >> 8) & 0xff);
     }
     
+    /**
+     * This command actually effects the write for the DACs set by the setRadioDAC
+     * call which must have been previously called one or more times.
+     * 
+     */
     public void writeRadioDACs() throws IOException
     {
         writeVirtualAddress(0xB8, 0x01);
@@ -92,20 +102,7 @@ public class AuraDRM extends IcebootInterface
     
     private ByteBuffer readTRACRData(String cmd, int bufsize) throws IOException
     {
-        ByteBuffer buf = ByteBuffer.allocate(256);
-        buf.put(cmd.getBytes());
-        buf.put("\r\n".getBytes()).flip();
-        send(buf);
-        if (logger.isDebugEnabled()) logger.debug("Sending: " + cmd);
-        while (true)
-        {
-            ByteBuffer ret = recv();
-            byte[] bytearray = new byte[ret.remaining()];
-            ret.get(bytearray);
-            String fragment = new String(bytearray);
-            if (logger.isDebugEnabled()) logger.debug("Received: " + fragment);
-            if (fragment.contains(cmd)) break;
-        }
+        sendCommand(cmd, "");
         ByteBuffer data = ByteBuffer.allocate(bufsize);
         while (data.remaining() > 0) 
         {

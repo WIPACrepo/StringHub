@@ -21,8 +21,8 @@ public class IcebootInterface extends DOMIO
     }
     
     /**
-     * Higher-level interface to sending iceboot commands and returning any data
-     * beyond the command echo.
+     * Higher-level interface to sending iceboot commands. This method is normally called with an expect
+     * string of "> \n" which 
      * @param cmd
      * @param expect
      * @return 
@@ -72,5 +72,29 @@ public class IcebootInterface extends DOMIO
     public void powerOffFlasherboard() throws IOException
     {
         sendCommand("disableFB");
+    }
+    
+    /**
+     * Read the DOM FPGA system time at the STF address
+     * @return 48-bit DOM clock in 25 ns tick units (approx.)
+     * @throws IOException
+     */
+    public long getDOMClockSTF() throws IOException
+    {
+        String[] w = sendCommand("$90081040 @ $90081044 @ . . drop drop").split(" ");
+        long hiByte = Integer.parseInt(w[0]);
+        long loByte = Integer.parseInt(w[1]);
+        if (hiByte < 0L) hiByte += (1L << 32);
+        if (loByte < 0L) loByte += (1L << 32);
+        return (hiByte << 32) | loByte;
+    }
+
+    /**
+     * Loads the DOMApp FPGA image.
+     * @throws IOException
+     */
+    public void loadDOMAppSBI() throws IOException
+    {
+        sendCommand("s\" domapp.sbi.gz\" find if gunzip fpga endif");
     }
 }
