@@ -9,12 +9,16 @@ import org.apache.log4j.Logger;
 public class AuraDRM extends IcebootInterface
 {
     private static final int FL_BASE        = 0x60000000;
+    @SuppressWarnings("unused")
     private static final int TRACR_STATUS   = FL_BASE + 0x10; 
+    @SuppressWarnings("unused")
     private static final int FIFO_READ      = FL_BASE + 0x25;
     private static final int FIFO_RESET     = FL_BASE + 0x29;
     private static final int VIRT_HI        = FL_BASE + 0x21;
     private static final int VIRT_LO        = FL_BASE + 0x22;
     private static final int VIRT_RW        = FL_BASE + 0x23;
+    private static final int MAX_POWER_TRY  = 100;
+    
     private static final int[] dacMap = new int[] { 
         0x9A, 0x9E, 0xA2, 0xA6,         // antenna 0 : bands 0 - 3 
         0x98, 0x9C, 0xA0, 0xA4,         // antenna 1 : bands 0 - 3
@@ -30,12 +34,12 @@ public class AuraDRM extends IcebootInterface
     
     public ByteBuffer radioTrig(int n) throws IOException
     {
-        return readTRACRData(n + " radiotrig", n*4854 + 3);
+        return readTRACRData(n + " radiotrig", n*4848 + 3);
     }
     
     public ByteBuffer forcedTrig(int n) throws IOException
     {
-        return readTRACRData(n + " forcedtrig", n*4854 + 3);
+        return readTRACRData(n + " forcedtrig", n*4848 + 3);
     }
     
     public int readVirtualAddress(int command) throws IOException
@@ -63,6 +67,23 @@ public class AuraDRM extends IcebootInterface
     }
     
     /**
+     * 
+     * @param pwr
+     * @throws IOException
+     * @throws InterruptedException
+     */
+    public boolean writePowerBits(int pwr) throws IOException, InterruptedException
+    {
+        writeVirtualAddress(4, pwr);
+        int powerTry = 0;
+        while (readVirtualAddress(4) != pwr && powerTry++ < MAX_POWER_TRY) Thread.sleep(100);
+        
+        if (powerTry <= MAX_POWER_TRY) return true;
+        logger.warn("Never got good power state.");
+        return false;
+    }
+
+    /**
      * This command queues up the radio DACs for a write operation.  To actually write
      * the DACs follow up with writeRadioDACs() 
      * @param ant
@@ -72,7 +93,7 @@ public class AuraDRM extends IcebootInterface
      */
     public void setRadioDAC(int ant, int band, int val) throws IOException
     {
-        int ich = 4 * (ant - 1) + (band - 1);
+        int ich = (ant << 2) | band;
         int cmd = dacMap[ich];
         writeVirtualAddress(cmd, val & 0xff);
         writeVirtualAddress(cmd+1, (val >> 8) & 0xff);
@@ -102,13 +123,15 @@ public class AuraDRM extends IcebootInterface
     
     private ByteBuffer readTRACRData(String cmd, int bufsize) throws IOException
     {
-        sendCommand(cmd, "");
+        sendCommand(cmd, null);
         ByteBuffer data = ByteBuffer.allocate(bufsize);
         while (data.remaining() > 0) 
         {
             ByteBuffer ret = recv();
             data.put(ret);
+            logger.debug("still looking for " + data.remaining() + " bytes.");
         }
+        if (logger.isDebugEnabled()) logger.debug("Got ByteBuffer(" + bufsize + ") from DOM.");
         // Ensure that the prompt has been seen in the last 3 bytes of the buffer - then ignore it
         assert data.get(bufsize - 3) == '>' && 
             data.get(bufsize - 2) == ' ' && 

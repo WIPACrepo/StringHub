@@ -22,10 +22,13 @@ public class IcebootInterface extends DOMIO
     
     /**
      * Higher-level interface to sending iceboot commands. This method is normally called with an expect
-     * string of "> \n" which 
+     * string of "> \n" which will cause the method to return all bytes up to the iceboot prompt
+     * to be returned to the calling frame.  A null expect string will cause only the iceboot echo of
+     * the sent command to be processed (this is not returned to the caller) and is useful in cases
+     * where the caller has asked for binary data, for example, which requires special processing.
      * @param cmd
      * @param expect
-     * @return 
+     * @return iceboot output string
      * @throws IOException
      */
     public String sendCommand(String cmd, String expect) throws IOException

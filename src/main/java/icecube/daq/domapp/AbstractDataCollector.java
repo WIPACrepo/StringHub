@@ -194,6 +194,7 @@ public abstract class AbstractDataCollector extends Thread
 	public synchronized void setRunLevel(RunLevel runLevel)
 	{
 	    this.runLevel = runLevel;
+	    if (logger.isDebugEnabled()) logger.debug("Run level is " + this.runLevel);
 	}
 
 

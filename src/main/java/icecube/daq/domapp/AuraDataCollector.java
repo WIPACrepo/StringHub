@@ -38,7 +38,7 @@ public class AuraDataCollector extends AbstractDataCollector
             { 2000, 3000, 3200, 3250 },
             { 2000, 3000, 3200, 3250 }
     };
-    
+   
     private static final Logger logger = Logger.getLogger(AuraDataCollector.class);
     
     public AuraDataCollector(int card, int pair, char dom, BufferConsumer hits)
@@ -83,15 +83,28 @@ public class AuraDataCollector extends AbstractDataCollector
                 switch (getRunLevel())
                 {
                 case CONFIGURING:
+                    Thread.sleep(1000);
                     drm.powerOnFlasherboard();
-                    Thread.sleep(5000);
-                    drm.writeVirtualAddress(4, powerControlBits);
-                    while (drm.readVirtualAddress(4) != powerControlBits) Thread.sleep(100);
-                    for (int ant = 0; ant < 4; ant++)
-                        for (int band = 0; band < 4; band++)
-                            drm.setRadioDAC(ant, band, radioDACs[ant][band]);
-                    drm.writeRadioDACs();
-                    setRunLevel(RunLevel.CONFIGURED);
+                    Thread.sleep(5500);
+                    
+                    /* 
+                     * There is a little black-magic here - write only the amplifier
+                     * power bits first - then go back once you have confirmation of
+                     * this state to turn on the SHORTs.
+                     */
+                    if ( !((drm.writePowerBits(powerControlBits & 15)) &&
+                            drm.writePowerBits(powerControlBits))) 
+                    {
+                        setRunLevel(RunLevel.STOPPING);
+                    }
+                    else
+                    {
+                        for (int ant = 0; ant < 4; ant++)
+                            for (int band = 0; band < 4; band++)
+                                drm.setRadioDAC(ant, band, radioDACs[ant][band]);
+                        drm.writeRadioDACs();
+                        setRunLevel(RunLevel.CONFIGURED);
+                    }
                     break;
                 case STARTING:
                     drm.resetTRACRFifo();
@@ -116,12 +129,14 @@ public class AuraDataCollector extends AbstractDataCollector
         
         t3.cancel();
     }
-    
+
     private void sendRadioBuffer(ByteBuffer buf)
     {
         buf.order(ByteOrder.LITTLE_ENDIAN);
         long domclk = buf.getLong(28);
         long utc = rapcal.domToUTC(domclk).in_0_1ns();
+        if (logger.isDebugEnabled())
+            logger.debug("DOMClk: " + domclk + " - UTC: " + utc);
         ByteBuffer xtb = ByteBuffer.allocate(4886);
         xtb.putInt(4886);
         xtb.putInt(602);
@@ -132,6 +147,7 @@ public class AuraDataCollector extends AbstractDataCollector
         xtb.rewind();
         try
         {
+            logger.debug("Sending buffer of size " + xtb.remaining());
             hits.consume(xtb);
         }
         catch (IOException iox)
@@ -150,6 +166,11 @@ public class AuraDataCollector extends AbstractDataCollector
         radioTrigger.set(enabled);
     }
     
+    public void setRadioDACs(short[][] dacs)
+    {
+        this.radioDACs = dacs;
+    }
+
     @Override
     public void close()
     {
@@ -159,35 +180,30 @@ public class AuraDataCollector extends AbstractDataCollector
     @Override
     public long getAcquisitionLoopCount()
     {
-        // TODO Auto-generated method stub
         return 0;
     }
 
     @Override
     public long getNumHits()
     {
-        // TODO Auto-generated method stub
         return 0;
     }
 
     @Override
     public long getNumMoni()
     {
-        // TODO Auto-generated method stub
         return 0;
     }
 
     @Override
     public long getNumSupernova()
     {
-        // TODO Auto-generated method stub
         return 0;
     }
 
     @Override
     public long getNumTcal()
     {
-        // TODO Auto-generated method stub
         return 0;
     }
 
@@ -210,7 +226,6 @@ public class AuraDataCollector extends AbstractDataCollector
         @Override
         public void run()
         {
-            // TODO Auto-generated method stub
             try
             {
                 try
@@ -230,12 +245,10 @@ public class AuraDataCollector extends AbstractDataCollector
             }
             catch (IOException e)
             {
-                // TODO Auto-generated catch block
                 e.printStackTrace();
             }
             catch (InterruptedException e)
             {
-                // TODO Auto-generated catch block
                 e.printStackTrace();
             }
             catch (RAPCalException rcx)
