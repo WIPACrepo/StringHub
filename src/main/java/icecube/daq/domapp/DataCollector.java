@@ -5,6 +5,7 @@ package icecube.daq.domapp;
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.StreamBinder;
+import icecube.daq.domapp.LocalCoincidenceConfiguration.RxMode;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
 import icecube.daq.dor.GPSException;
@@ -24,6 +25,7 @@ import java.nio.ByteOrder;
 import java.nio.channels.ClosedByInterruptException;
 import java.text.DecimalFormat;
 import java.util.LinkedList;
+import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -958,18 +960,19 @@ public class DataCollector
                 setRunLevel(RunLevel.CONFIGURING);
                 if (flasherConfig != null)
                 {
-                    if (logger.isInfoEnabled()) {
-                        logger.info("Starting flasher subrun");
-                    }
+                    if (logger.isInfoEnabled()) logger.info("Starting flasher subrun");
                     DOMConfiguration tempConfig = new DOMConfiguration(config);
                     tempConfig.setHV(-1);
                     tempConfig.setTriggerMode(TriggerMode.FB);
-                    tempConfig.setLC(new LocalCoincidenceConfiguration());
+                    LocalCoincidenceConfiguration lcX = new LocalCoincidenceConfiguration();
+                    lcX.setRxMode(RxMode.RXNONE);
+                    tempConfig.setLC(lcX);
                     tempConfig.setEngineeringFormat(
-                            new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 128 })
+                            new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 64 })
                             );
                     tempConfig.setMux(MuxState.FB_CURRENT);
                     configure(tempConfig);
+                    sleep(new Random().nextInt(250));
                     app.beginFlasherRun(
                             (short) flasherConfig.getBrightness(),
                             (short) flasherConfig.getWidth(),
