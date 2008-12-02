@@ -188,16 +188,37 @@ public class MockAppender
     }
 
     /**
+     * Is this appender sending log messages?
+     *
+     * @return <tt>true</tt> if this appender is connected
+     */
+    public boolean isConnected()
+    {
+        return true;
+    }
+
+    /**
      * Is this appender sending log messages to the specified host and port.
      *
-     * @param host host name/IP address
-     * @param port port number
+     * @param logHost DAQ host name/IP address
+     * @param logPort DAQ port number
+     * @param liveHost I3Live host name/IP address
+     * @param livePort I3Live port number
      *
      * @return <tt>true</tt> if this appender uses the host:port
      */
-    public boolean isConnected(String host, int port)
+    public boolean isConnected(String logHost, int logPort, String liveHost,
+                               int livePort)
     {
         return true;
+    }
+
+    /**
+     * Reconnect to the remote socket.
+     */
+    public void reconnect()
+    {
+        // do nothing
     }
 
     /**
