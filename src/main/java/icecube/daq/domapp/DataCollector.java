@@ -18,8 +18,10 @@ import icecube.daq.rapcal.ZeroCrossingRAPCal;
 import icecube.daq.util.RealTimeRateMeter;
 import icecube.daq.util.UTC;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedByInterruptException;
@@ -697,8 +699,9 @@ public class DataCollector
         }
         catch (Exception x)
         {
-            x.printStackTrace();
-            logger.error("Intercepted error in DataCollector runcore: " + x);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream(1024);
+            x.printStackTrace(new PrintStream(baos));
+            logger.error("Intercepted error in DataCollector runcore: " + x + "\n" + baos.toString());
             /*
              * TODO cleanup needed set run level to ZOMBIE so that controller knows
              * that this channel has expired and does not wait.
