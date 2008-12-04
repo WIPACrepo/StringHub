@@ -1072,7 +1072,7 @@ public class DataCollector
 
         InterruptorTask()
         {
-            pinged.set(false);
+            pinged = new AtomicBoolean(false);
         }
 
         public void run()
