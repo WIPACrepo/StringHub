@@ -28,6 +28,7 @@ import java.util.LinkedList;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 
@@ -684,26 +685,26 @@ public class DataCollector
         nextSupernovaDomClock = 0L;
         numSupernovaGaps = 0;
 
-        if (logger.isInfoEnabled()) {
-            logger.info("Begin data collection thread");
-        }
+        logger.info("Begin data collection thread");
 
         // Create a watcher timer
         Timer watcher = new Timer(getName() + "-timer");
-
+        InterruptorTask intTask = new InterruptorTask();
+        watcher.schedule(intTask, 30000L, 5000L);
         try
         {
-            runcore(watcher);
+            runcore(intTask);
         }
         catch (Exception x)
         {
             x.printStackTrace();
             logger.error("Intercepted error in DataCollector runcore: " + x);
-            // HACK set run level to ZOMBIE so that controller knows
-            // that this channel has expired and does not wait.
+            /*
+             * TODO cleanup needed set run level to ZOMBIE so that controller knows
+             * that this channel has expired and does not wait.
+             */
             setRunLevel(RunLevel.ZOMBIE);
         }
-
         watcher.cancel();
 
         // clear interrupted flag if it is set
@@ -726,17 +727,17 @@ public class DataCollector
             logger.error(iox);
         }
 
-        if (logger.isInfoEnabled()) {
-            logger.info("End data collection thread.");
-        }
+        logger.info("End data collection thread.");
 
     } /* END OF run() METHOD */
 
-    /** Wrap up softboot -> domapp behavior */
+    /**
+     * Wrap up softboot -> domapp behavior 
+     * */
     private IDOMApp softbootToDomapp() throws IOException, InterruptedException
     {
         /*
-         * Based on some talk /w/ JEJ @ Utrecht going for multiple retries here
+         * Based on discussion /w/ JEJ in Utrecht café, going for multiple retries here
          */
         for (int iBootTry = 0; iBootTry < 2; iBootTry++)
         {
@@ -798,12 +799,10 @@ public class DataCollector
      * this seems best. So the thread run method will handle that recovery
      * process
      */
-    private void runcore(Timer watcher) throws Exception
+    private void runcore(InterruptorTask intTask) throws Exception
     {
-        InterruptorTask intTask = new InterruptorTask(this);
-        watcher.schedule(intTask, 30000L, 20000L);
 
-		driver.resetComstat(card, pair, dom);
+        driver.resetComstat(card, pair, dom);
 
         // Wrap up in retry loop - sometimes getMainboardID fails/times out
         // DOM is in a strange state here
@@ -855,9 +854,7 @@ public class DataCollector
             throw new Exception("Couldn't get DOM MB ID after "+NT+" trials.");
 
         intTask.ping();
-        if (logger.isInfoEnabled()) {
-            logger.info("Found DOM " + mbid + " running " + app.getRelease());
-        }
+        logger.info("Found DOM " + mbid + " running " + app.getRelease());
 
         // Grab 2 RAPCal data points to get started
         for (int nTry = 0; nTry < 10 && validRAPCalCount < 2; nTry++) execRapCal();
@@ -1071,28 +1068,31 @@ public class DataCollector
      */
     class InterruptorTask extends TimerTask
     {
-        private Thread  thread;
-        private boolean pinged;
+        private AtomicBoolean pinged;
 
-        InterruptorTask(Thread thread)
+        InterruptorTask()
         {
-            this.thread = thread;
-            this.pinged = false;
+            pinged.set(false);
         }
 
         public void run()
         {
-            if (!pinged) thread.interrupt();
-            pinged = false;
+            if (!pinged.get()) 
+            {
+                logger.error("data collection thread has become non-responsive - aborting.");
+                app.close();
+                interrupt();
+            }
+            pinged.set(false);
         }
 
-        synchronized void ping()
+        public void ping()
         {
             if (logger.isDebugEnabled())
             {
                 logger.debug("pinged at " + fmt.format(System.nanoTime() * 1.0E-09));
             }
-            pinged = true;
+            pinged.set(true);
         }
     }
 
