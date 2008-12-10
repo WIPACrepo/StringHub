@@ -59,7 +59,8 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     private final DAQBufferComparator bufferCmp = new DAQBufferComparator();
     private boolean running;
     private static final Logger logger = Logger.getLogger(MultiChannelMergeSort.class);
-    private long lastUT;
+    private volatile long lastInputUT;
+    private volatile long lastUT;
     private int inputCounter;
     private int outputCounter;
     
@@ -83,7 +84,7 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     
     public MultiChannelMergeSort(int nch, BufferConsumer out, String channelType)
     {
-        this(nch, out, "g", 100000);
+        this(nch, out, channelType, 100000);
     }
 
     /**
@@ -120,7 +121,7 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     
     public void run()
     {
-        terminalNode = Node.makeTree(inputMap.values(), bufferCmp);
+        terminalNode = Node.makeTree(inputMap.values());
         running = true;
         
         while (running)
@@ -129,6 +130,7 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
             {
                 ByteBuffer buf = q.take();
                 DAQBuffer daqBuffer = new DAQBuffer(buf);
+                lastInputUT = daqBuffer.timestamp;
                 if (logger.isDebugEnabled())
                 {
                     logger.debug(
@@ -178,6 +180,9 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
         eos.clear();
         return eos.asReadOnlyBuffer();
     }
+    
+    public long getLastInputTime() { return lastInputUT; }
+    public long getLastOutputTime() { return lastUT; }
     
 }
 

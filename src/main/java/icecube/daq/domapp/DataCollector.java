@@ -713,17 +713,15 @@ public class DataCollector
         // clear interrupted flag if it is set
         interrupted();
 
-        // Make sure eos is written
+        // Make sure EoS (end-of-stream symbol) is written
         try
         {
-            ByteBuffer otrava = MultiChannelMergeSort.eos(numericMBID);
-            if (hitsConsumer != null) hitsConsumer.consume(otrava.asReadOnlyBuffer());
-            if (moniConsumer != null) moniConsumer.consume(otrava.asReadOnlyBuffer());
-            if (tcalConsumer != null) tcalConsumer.consume(otrava.asReadOnlyBuffer());
-            if (supernovaConsumer != null) supernovaConsumer.consume(otrava.asReadOnlyBuffer());
-            if (logger.isInfoEnabled()) {
-                logger.info("Wrote EOS to streams.");
-            }
+            ByteBuffer eos = MultiChannelMergeSort.eos(numericMBID);
+            if (hitsConsumer != null) hitsConsumer.consume(eos.asReadOnlyBuffer());
+            if (moniConsumer != null) moniConsumer.consume(eos.asReadOnlyBuffer());
+            if (tcalConsumer != null) tcalConsumer.consume(eos.asReadOnlyBuffer());
+            if (supernovaConsumer != null) supernovaConsumer.consume(eos.asReadOnlyBuffer());
+            logger.info("Wrote EOS to streams.");
         }
         catch (IOException iox)
         {
@@ -1006,14 +1004,12 @@ public class DataCollector
                     logger.info("Got STOP RUN signal " + canonicalName());
                 }
                 app.endRun();
-                ByteBuffer otrava = MultiChannelMergeSort.eos(numericMBID);
-                if (hitsConsumer != null) hitsConsumer.consume(otrava.asReadOnlyBuffer());
-                if (moniConsumer != null) moniConsumer.consume(otrava.asReadOnlyBuffer());
-                if (tcalConsumer != null) tcalConsumer.consume(otrava.asReadOnlyBuffer());
-                if (supernovaConsumer != null) supernovaConsumer.consume(otrava.asReadOnlyBuffer());
-                if (logger.isInfoEnabled()) {
-                    logger.info("Wrote EOS to streams.");
-                }
+                ByteBuffer eos = MultiChannelMergeSort.eos(numericMBID);
+                if (hitsConsumer != null) hitsConsumer.consume(eos.asReadOnlyBuffer());
+                if (moniConsumer != null) moniConsumer.consume(eos.asReadOnlyBuffer());
+                if (tcalConsumer != null) tcalConsumer.consume(eos.asReadOnlyBuffer());
+                if (supernovaConsumer != null) supernovaConsumer.consume(eos.asReadOnlyBuffer());
+                logger.info("Wrote EOS to streams.");
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
             }

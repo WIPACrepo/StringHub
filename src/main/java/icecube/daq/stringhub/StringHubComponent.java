@@ -8,13 +8,11 @@ import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.AbstractDataCollector;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.DataCollector;
-import icecube.daq.domapp.DataCollectorMBean;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
 import icecube.daq.io.DAQComponentOutputProcess;
-import icecube.daq.io.OutputChannel;
 import icecube.daq.io.PayloadReader;
 import icecube.daq.io.SimpleOutputEngine;
 import icecube.daq.juggler.component.DAQCompException;
@@ -44,8 +42,11 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -56,7 +57,7 @@ import org.dom4j.Node;
 import org.dom4j.io.SAXReader;
 import org.xml.sax.SAXException;
 
-public class StringHubComponent extends DAQComponent
+public class StringHubComponent extends DAQComponent implements StringHubMBean
 {
 
 	private static final Logger logger = Logger.getLogger(StringHubComponent.class);
@@ -82,9 +83,6 @@ public class StringHubComponent extends DAQComponent
     private MultiChannelMergeSort tcalSort;
     private MultiChannelMergeSort scalSort;
 	private String configurationPath;
-	private String configured = "NO";
-	private int nch;
-	private DataCollectorMBean collectorMonitor;
 
 	private boolean enableTriggering = false;
 	private ISourceID sourceId;
@@ -111,10 +109,10 @@ public class StringHubComponent extends DAQComponent
 
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
-
+		addMBean("stringhub", this);
+		
 		payloadFactory = new MasterPayloadFactory(cache);
 		sender         = new Sender(hubId, payloadFactory);
-		nch            = 0;
 
 		if (logger.isInfoEnabled()) {
 			logger.info("starting up StringHub component " + hubId);
@@ -212,7 +210,7 @@ public class StringHubComponent extends DAQComponent
 	{
 		if (isSim)
 		{
-			ArrayList<DeployedDOM> attachedDOMs = domRegistry.getDomsOnString(getNumber());
+			Collection<DeployedDOM> attachedDOMs = domRegistry.getDomsOnString(getNumber());
 			activeDOMs = new ArrayList<DOMChannelInfo>(attachedDOMs.size());
 			for (DeployedDOM dom : attachedDOMs)
 			{
@@ -225,7 +223,6 @@ public class StringHubComponent extends DAQComponent
 		}
 		else
 		{
-		    // put the driver into blocking mode
 		    driver.setBlocking(true);
 			activeDOMs = driver.discoverActiveDOMs();
 			if (logger.isInfoEnabled()) {
@@ -261,8 +258,6 @@ public class StringHubComponent extends DAQComponent
 			realism = "SIMULATION";
 		else
 			realism = "REAL DOMS";
-
-		configured = "YES";
 
 		try
 		{
@@ -311,17 +306,31 @@ public class StringHubComponent extends DAQComponent
 
 			fis.close();
 
-			// Find intersection of discovered / configured channels
-			nch = 0;
+            int nch = 0;
+			/***********
+			 * 
+			 * Dropped DOM detection logic - WARN if channel on string AND in config
+			 * BUT NOT in the list of active DOMs.  Oh, and count the number of
+			 * channels that are active AND requested in the config while we're looping
+			 */
+			Set<String> activeDomSet = new HashSet<String>();
 			for (DOMChannelInfo chanInfo : activeDOMs)
-				if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) nch++;
-
-			if (nch == 0)
-			    throw new DAQCompException("No Active DOMs on Hub selected in configuration.");
-
-			if (logger.isInfoEnabled()) {
-				logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
+			{
+			    activeDomSet.add(chanInfo.mbid);
+			    if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) nch++;
 			}
+			
+	         if (nch == 0)
+	                throw new DAQCompException("No Active DOMs on Hub selected in configuration.");
+
+			for (DeployedDOM deployedDOM : domRegistry.getDomsOnString(getNumber()))
+			{
+			    String mbid = deployedDOM.getMainboardId();
+			    if (!activeDomSet.contains(mbid) && xmlConfig.getDOMConfig(mbid) != null)
+			        logger.warn("DOM " + deployedDOM + " requested in configuration but not found.");
+			}
+			        
+			logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
 
 			// Must make sure to release file resources associated with the previous
 			// runs since we are throwing away the collectors and starting from scratch
@@ -566,7 +575,7 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 3588 2008-10-21 14:01:51Z kael $";
+		return "$Id: StringHubComponent.java 3717 2008-12-10 19:24:47Z kael $";
     }
 
 	public IByteBufferCache getCache()
@@ -598,4 +607,23 @@ public class StringHubComponent extends DAQComponent
 	{
 		return sender;
 	}
+
+    public int getNumberOfActiveChannels()
+    {
+        int nch = 0;
+        for (AbstractDataCollector adc : conn.getCollectors()) if (adc.isRunning()) nch++;
+        return nch;
+    }
+
+    public long getTimeOfLastHitInputToHKN1()
+    {
+        if (hitsSort == null) return 0L;
+        return hitsSort.getLastInputTime();
+    }
+
+    public long getTimeOfLastHitOutputFromHKN1()
+    {
+        if (hitsSort == null) return 0L;
+        return hitsSort.getLastOutputTime();
+    }
 }
