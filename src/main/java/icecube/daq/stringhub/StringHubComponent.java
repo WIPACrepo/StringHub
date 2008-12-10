@@ -57,7 +57,7 @@ import org.dom4j.Node;
 import org.dom4j.io.SAXReader;
 import org.xml.sax.SAXException;
 
-public class StringHubComponent extends DAQComponent implements StringHubMBean
+public class StringHubComponent extends DAQComponent implements StringHubComponentMBean
 {
 
 	private static final Logger logger = Logger.getLogger(StringHubComponent.class);
@@ -575,7 +575,7 @@ public class StringHubComponent extends DAQComponent implements StringHubMBean
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 3717 2008-12-10 19:24:47Z kael $";
+		return "$Id: StringHubComponent.java 3720 2008-12-10 22:54:21Z kael $";
     }
 
 	public IByteBufferCache getCache()
