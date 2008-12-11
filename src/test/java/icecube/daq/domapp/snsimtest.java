@@ -26,8 +26,8 @@ public class snsimtest implements BufferConsumer {
 	Vector<Long> numericMBID = new Vector<Long>();
 	Vector<Integer> snScaler = new Vector<Integer>();
 	Vector<Long> snTime = new Vector<Long>();
-	Vector<Integer> snScalerBinned = new Vector<Integer>();
-	Vector<Long> snTimeBinned = new Vector<Long>();
+//	Vector<Integer> snScalerBinned = new Vector<Integer>();
+//	Vector<Integer> snTimeBinned = new Vector<Integer>();
 		
 	Vector<Long> numMBID = new Vector<Long>();
 	Vector<Integer> oneSecScaler = new Vector<Integer>();
@@ -43,7 +43,12 @@ public class snsimtest implements BufferConsumer {
 	
 	double[] effVolumeScaling = new double[60];
 	double[] avgSnSignal = new double[916];
-	
+
+	int runLength = 900; // in seconds
+
+	long[] snScalerBinned = new long[runLength];
+	long[] snTimeBinned = new long[runLength];
+
 	
 	@BeforeClass
 	public static void setupLogging()
@@ -120,7 +125,7 @@ public class snsimtest implements BufferConsumer {
 		for (int i = 0; i<chInfo.size(); i++) {		
 			s1.get(i).signalStartRun();
 		}
-		int runLength = 120;
+//		int runLength = 120;
 		Thread.sleep(runLength*1000);
 		
 		for (int i = 0; i<chInfo.size(); i++) {		
@@ -137,7 +142,24 @@ public class snsimtest implements BufferConsumer {
 			s1.get(i).signalShutdown();
 		}
 		
-	/* section 1: use this portion only if section 1 in consumer is on */
+		try {
+			FileWriter outFile = new FileWriter("/Users/rmaruyama/Documents/IceCubeDocs/SN/DataChallenge/binnedRates.txt", false);
+			BufferedWriter out = new BufferedWriter(outFile);
+			StringBuffer strBuffer = new StringBuffer();
+
+			for (int i = 0; i<runLength ; i++) {
+				strBuffer.append(snTimeBinned[i] + "\t" + snScalerBinned[i] + "\n");
+			}
+			strBuffer.append("\n");
+			out.write(strBuffer.toString());
+			out.flush();
+			out.close();
+	    	} catch (IOException e) {
+	    		System.err.println ("Error writing to file");
+	    }		
+
+		
+//	/* section 1: use this portion only if section 1 in consumer is on */
 //		try {
 //	    	FileWriter outFile = new FileWriter("/Users/rmaruyama/Documents/IceCubeDocs/SN/DataChallenge/test.txt", false);
 //	        BufferedWriter out = new BufferedWriter(outFile);
@@ -186,9 +208,9 @@ public class snsimtest implements BufferConsumer {
 //			// add scaler to oneSecScaler of the right MBID
 //			oneSecScaler.set(mbidIndex, oneSecScaler.get(mbidIndex) + snScaler.get(i));
 //		}
-	/* end section 1 */
+//	/* end section 1 */
 		
-		System.out.println("dom # \t baseRate \t/t cnts above bkg \t signalTime from run start ");
+		System.out.println("dom # \t baseRate \t cnts above bkg \t signalTime from run start ");
 		
 		for (int i = 0; i<numMBID.size(); ++i) {
 			System.out.println((i+1) + "\t" + baseRate.get(i) + "\t" + (integratedCounts.get(i)-300*runLength) + "\t\t" + signalTime.get(i));
@@ -228,14 +250,14 @@ public class snsimtest implements BufferConsumer {
 //			if (mbidIndex == 13) {
 //				System.out.println(mbid + " " +(utc-(previousUtc.get(mbidIndex)+previousRecl.get(mbidIndex)*(timeBin))) + " " + (recl-10));
 //			}
-			if (previousUtc.get(mbidIndex)!= -1L) {	// if this is not the first time :
+			if (previousUtc.get(mbidIndex)!= -1L) {	// if this is not the beginning :
 				assertEquals("time stamp out of synch", utc, (previousUtc.get(mbidIndex)+previousRecl.get(mbidIndex)*(timeBin)));				
 				assertEquals("number of scalers not multiple of 4", 0,  (recl - 10)%4);				
 			}
 			previousUtc.set(mbidIndex, utc);
 			previousRecl.set(mbidIndex, (short) (recl-10));
 
-//		/* section 1: use this portion only if section 1 in test is on */
+//		/* section 1: use this to record every instance of snscaler. use only if section 1 in test is on */
 //			for (int i = 0; i< recl-10; i++) {
 //				int scaler = buf.get(i+42);
 //				numericMBID.add(mbid);
@@ -247,8 +269,10 @@ public class snsimtest implements BufferConsumer {
 			for (int i = 0; i< recl-10; i++) {
                 int scaler = buf.get(i+42);
                 long scalerTime = utc + i*timeBin;
+                long timeFromStart = scalerTime - startTime.get(0); 
                 
-                if ((scalerTime - t0.get(mbidIndex)) > oneSecond) {		
+                /* Checks on trigger, baseRate, counts above background. */
+                if (scalerTime - t0.get(mbidIndex) > oneSecond) {		
     				if (signalTime.get(mbidIndex)==0) {		
     	   				if (oneSecScaler.get(mbidIndex) > 2*300) {
     	   					signalTime.set(mbidIndex, (double) (scalerTime - startTime.get(mbidIndex))/oneSecond);
@@ -262,8 +286,15 @@ public class snsimtest implements BufferConsumer {
     			}
     			oneSecScaler.set(mbidIndex, oneSecScaler.get(mbidIndex) + scaler);
 				integratedCounts.set(mbidIndex, integratedCounts.get(mbidIndex) + scaler);
+				
+				/* Bin scaler into one-second time bins */
+				snTimeBinned[(int) (timeFromStart/oneSecond)] = (int) (timeFromStart/oneSecond);
+				snScalerBinned[(int) (timeFromStart/oneSecond)] = snScalerBinned[(int) (timeFromStart/oneSecond)] + scaler;
            }
-        }
+			if (mbidIndex == 13) {
+				System.out.println("time: " + t0.get(13));
+			}
+       }
     }
 
 }
