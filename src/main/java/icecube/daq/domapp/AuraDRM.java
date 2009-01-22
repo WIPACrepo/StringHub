@@ -18,7 +18,10 @@ public class AuraDRM extends IcebootInterface
     private static final int VIRT_LO        = FL_BASE + 0x22;
     private static final int VIRT_RW        = FL_BASE + 0x23;
     private static final int MAX_POWER_TRY  = 100;
-    
+    private static final int PWR_BITS       = 6;
+
+    private static final int MAX_EVT_SIZE   = 5000;
+
     private static final int[] dacMap = new int[] { 
         0x9A, 0x9E, 0xA2, 0xA6,         // antenna 0 : bands 0 - 3 
         0x98, 0x9C, 0xA0, 0xA4,         // antenna 1 : bands 0 - 3
@@ -34,12 +37,12 @@ public class AuraDRM extends IcebootInterface
     
     public ByteBuffer radioTrig(int n) throws IOException
     {
-        return readTRACRData(n + " radiotrig", n*4848 + 3);
+        return readTRACRData(n + " radiotrig", n);
     }
     
     public ByteBuffer forcedTrig(int n) throws IOException
     {
-        return readTRACRData(n + " forcedtrig", n*4848 + 3);
+        return readTRACRData(n + " forcedtrig", n);
     }
     
     public int readVirtualAddress(int command) throws IOException
@@ -74,7 +77,13 @@ public class AuraDRM extends IcebootInterface
      */
     public boolean writePowerBits(int pwr) throws IOException, InterruptedException
     {
-        writeVirtualAddress(4, pwr);
+        // Ramp power on by turning on a bit at a time
+        int pwrMask = 0x1;
+        for (int i = 0; i < PWR_BITS; i++) {
+            writeVirtualAddress(4, pwr & pwrMask);
+            pwrMask = (pwrMask << 1) | 0x1;
+            Thread.sleep(200);
+        }
         int powerTry = 0;
         while (readVirtualAddress(4) != pwr && powerTry++ < MAX_POWER_TRY) Thread.sleep(100);
         
@@ -93,10 +102,11 @@ public class AuraDRM extends IcebootInterface
      */
     public void setRadioDAC(int ant, int band, int val) throws IOException
     {
+        logger.debug("Setting DAC ("+ant+","+band+") to "+val);
         int ich = (ant << 2) | band;
         int cmd = dacMap[ich];
-        writeVirtualAddress(cmd, val & 0xff);
-        writeVirtualAddress(cmd+1, (val >> 8) & 0xff);
+        writeVirtualAddress(cmd+1, val & 0xff);
+        writeVirtualAddress(cmd, (val >> 8) & 0xff);
     }
     
     /**
@@ -121,22 +131,31 @@ public class AuraDRM extends IcebootInterface
         }
     }
     
-    private ByteBuffer readTRACRData(String cmd, int bufsize) throws IOException
+    private ByteBuffer readTRACRData(String cmd, int nEvents) throws IOException
     {
         sendCommand(cmd, null);
-        ByteBuffer data = ByteBuffer.allocate(bufsize);
-        while (data.remaining() > 0) 
+        ByteBuffer data = ByteBuffer.allocate(nEvents*MAX_EVT_SIZE+3);
+        boolean finished = false;
+        int p = 0;
+        while ((data.remaining() > 0) && (!finished))
         {
             ByteBuffer ret = recv();
             data.put(ret);
-            logger.debug("still looking for " + data.remaining() + " bytes.");
+            // Look for trailing 0xbeef + prompt
+            p = data.position();
+            if ((p > 5) &&
+                (data.get(p - 5) == (byte)0xbe) &&
+                (data.get(p - 4) == (byte)0xef) &&
+                (data.get(p - 3) == '>') && 
+                (data.get(p - 2) == ' ') && 
+                (data.get(p - 1) == '\n')) {
+                logger.debug("Found 0xbeef + prompt at position "+p+".");
+                finished = true;
+            }
         }
-        if (logger.isDebugEnabled()) logger.debug("Got ByteBuffer(" + bufsize + ") from DOM.");
-        // Ensure that the prompt has been seen in the last 3 bytes of the buffer - then ignore it
-        assert data.get(bufsize - 3) == '>' && 
-            data.get(bufsize - 2) == ' ' && 
-            data.get(bufsize - 1) == '\n';
-        return (ByteBuffer) data.rewind().limit(bufsize - 3);
+        p = data.position();
+        if (logger.isDebugEnabled()) logger.debug("Got ByteBuffer("+p+" bytes) from DOM.");
+        return (ByteBuffer) data.rewind().limit(p-3);
     }
     
     public void resetTRACRFifo() throws IOException
