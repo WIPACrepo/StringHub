@@ -32,6 +32,12 @@ public class AuraDataCollector extends AbstractDataCollector
     private boolean useDOMApp;
     private String mbid;
     private long mbid_numerique;
+    private int evtCnt;
+
+    private static final int EVT_DOM_CLK         = 28;
+    private static final int EVT_TRACR_MATCH_CLK = 40;
+    private static final int EVT_TRACR_CLK       = 106;
+
     private short[][] radioDACs = {
             { 2000, 3000, 3200, 3250 },
             { 2000, 3000, 3200, 3250 },
@@ -52,6 +58,7 @@ public class AuraDataCollector extends AbstractDataCollector
         driver = Driver.getInstance();
         rapcal = new ZeroCrossingRAPCal();
         this.hits = hits;
+        this.evtCnt = 0;
         running = new AtomicBoolean(false);
         powerControlBits = 0x3f;
         this.useDOMApp = useDOMApp;
@@ -88,12 +95,10 @@ public class AuraDataCollector extends AbstractDataCollector
                     Thread.sleep(5500);
                     
                     /* 
-                     * There is a little black-magic here - write only the amplifier
-                     * power bits first - then go back once you have confirmation of
-                     * this state to turn on the SHORTs.
+                     * There is a little black-magic here -- amplifier bits and then 
+                     * SHORTS are turned on one by one.
                      */
-                    if ( !((drm.writePowerBits(powerControlBits & 15)) &&
-                            drm.writePowerBits(powerControlBits))) 
+                    if ( !(drm.writePowerBits(powerControlBits)))
                     {
                         setRunLevel(RunLevel.STOPPING);
                     }
@@ -132,14 +137,35 @@ public class AuraDataCollector extends AbstractDataCollector
 
     private void sendRadioBuffer(ByteBuffer buf)
     {
+        int xtbSize = buf.limit()+32;
+
+        // Decode clocks and translate to UT via rapcal
+        long utc;
         buf.order(ByteOrder.LITTLE_ENDIAN);
-        long domclk = buf.getLong(28);
-        long utc = rapcal.domToUTC(domclk).in_0_1ns();
-        if (logger.isDebugEnabled())
-            logger.debug("DOMClk: " + domclk + " - UTC: " + utc);
-        ByteBuffer xtb = ByteBuffer.allocate(4886);
-        xtb.putInt(4886);
-        xtb.putInt(602);
+        long domclk = buf.getLong(EVT_DOM_CLK);
+        if (buf.limit() > EVT_TRACR_CLK+6) {
+            long tracr_match_clk = buf.getLong(EVT_TRACR_MATCH_CLK) & 0xffffffffffL;
+            long tracr_clk = 0;
+            buf.order(ByteOrder.BIG_ENDIAN);
+            for (int i = 0; i < 6; i++)
+                tracr_clk = (tracr_clk << 8) | ((int)buf.get(EVT_TRACR_CLK+i) & 0xff);
+            tracr_clk = tracr_clk & 0xffffffffffL;
+            buf.order(ByteOrder.LITTLE_ENDIAN);
+            utc = rapcal.domToUTC(domclk-2*tracr_match_clk+2*tracr_clk).in_0_1ns();
+            if (logger.isDebugEnabled()) {
+                logger.debug("DOMClk: " + domclk + " TracrMatchClk: "+tracr_match_clk
+                             +" TracrClk: "+tracr_clk+" - UTC: " + utc); 
+                logger.debug("Offset (.1ns): " + (rapcal.domToUTC(domclk).in_0_1ns()-utc));
+            }
+        }
+        else {            
+            utc = rapcal.domToUTC(domclk).in_0_1ns();
+            if (logger.isDebugEnabled())
+                logger.debug("No tracr clock (beacon?): DOMClk: " + domclk + " - UTC: " + utc);
+        }
+        ByteBuffer xtb = ByteBuffer.allocate(xtbSize);
+        xtb.putInt(xtbSize);
+        xtb.putInt(evtCnt++);
         xtb.putLong(mbid_numerique);
         xtb.putLong(domclk);
         xtb.putLong(utc);
