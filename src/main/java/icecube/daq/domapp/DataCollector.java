@@ -144,10 +144,25 @@ public class DataCollector
     private long                nextSupernovaDomClock;
     private HitBufferAB         abBuffer;
     private int                 numSupernovaGaps;
+    
+    /**
+     * The waitForRAPCal flag if true will force the time synchronizer
+     * to only output DOM timestamped objects when a RAPCal before and
+     * a RAPCal after the object time have been registered.  This may
+     * give some improvement to the reconstructed UTC time because
+     * interpolation instead of extrapolation is used.
+     */
     private final boolean       waitForRAPCal = Boolean.getBoolean(
             "icecube.daq.domapp.datacollector.waitForRAPCal");
 
+    /**
+     * The engineeringHit buffer magic number used internally by stringHub.
+     */
     private final int           MAGIC_ENGINEERING_HIT_FMTID = 2;
+    
+    /**
+     * The SLC / delta-compressed hit buffer magic number.
+     */
     private final int           MAGIC_COMPRESSED_HIT_FMTID  = 3;
     private final int           MAGIC_MONITOR_FMTID         = 102;
     private final int           MAGIC_TCAL_FMTID            = 202;
@@ -692,7 +707,7 @@ public class DataCollector
         // Create a watcher timer
         Timer watcher = new Timer(getName() + "-timer");
         InterruptorTask intTask = new InterruptorTask();
-        watcher.schedule(intTask, 30000L, 5000L);
+        watcher.schedule(intTask, 15000L, 5000L);
         try
         {
             runcore(intTask);
@@ -1079,7 +1094,7 @@ public class DataCollector
             if (!pinged.get()) 
             {
                 logger.error("data collection thread has become non-responsive - aborting.");
-                app.close();
+                if (app != null) app.close();
                 interrupt();
             }
             pinged.set(false);
@@ -1113,13 +1128,11 @@ public class DataCollector
 
     public String getMBID()
     {
-        // TODO Auto-generated method stub
-        return null;
+        return mbid;
     }
 
     public String getRunState()
     {
-        // TODO Auto-generated method stub
         return getRunLevel().toString();
     }
 
