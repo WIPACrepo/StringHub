@@ -120,22 +120,24 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
         /*
          * Component derives behavioral characteristics from
-         * its 'minor ID' - they are ...
-         * (1) component xx81 - xx99 : icetop
-         * (2) component xx01 - xx80 : in-ice
-         * (3) component xx00        : amandaHub
+         * its 'minor ID' which is the low 3 (decimal) digits of
+         * the hub component ID:
+         *  (1) component x000        : amandaHub
+         *  (2) component x001 - x199 : in-ice hub (81 - 86 are deep core but this currently doesn't mean anything)
+         *  (3) component x200 - x299 : icetop
+         * I
          */
-        int minorHubId = hubId % 100;
+        int minorHubId = hubId % 1000;
 
         hitOut = null;
 
         if (minorHubId > 0)
         {
             hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "hitOut");
-            if (minorHubId > 80)
-                addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
-            else
+            if (minorHubId < 200)
                 addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
+            else
+                addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
             sender.setHitOutput(hitOut);
         }
 
@@ -359,7 +361,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 				if (isSim)
 				{
-					boolean isAmanda = (getNumber() % 100) == 0;
+					boolean isAmanda = (getNumber() % 1000) == 0;
 
 					dc = new SimDataCollector(chanInfo, config,
 					        hitsSort,
@@ -575,7 +577,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 3720 2008-12-10 22:54:21Z kael $";
+		return "$Id: StringHubComponent.java 3847 2009-01-25 10:42:33Z kael $";
     }
 
 	public IByteBufferCache getCache()
