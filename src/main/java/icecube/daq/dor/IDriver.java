@@ -24,5 +24,7 @@ public interface IDriver
     String getComstat(int card, int pair, char dom) throws IOException;
 
     String getFPGARegs(int card) throws IOException;
+    
+    String getProcfileID(int card, int pair, char dom) throws IOException;
 
 }

@@ -823,7 +823,8 @@ public class DataCollector
         // Wrap up in retry loop - sometimes getMainboardID fails/times out
         // DOM is in a strange state here
         // this is a workaround for "Type 3" dropped DOMs
-        numericMBID = 0;
+        mbid = driver.getProcfileID(card, pair, dom);
+        numericMBID = Long.parseLong(mbid, 16);
         int NT      = 2;
         for(int i = 0; i < NT; i++)
         {
