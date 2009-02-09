@@ -707,7 +707,7 @@ public class DataCollector
         // Create a watcher timer
         Timer watcher = new Timer(getName() + "-timer");
         InterruptorTask intTask = new InterruptorTask();
-        watcher.schedule(intTask, 15000L, 5000L);
+        watcher.schedule(intTask, 20000L, 5000L);
         try
         {
             runcore(intTask);
