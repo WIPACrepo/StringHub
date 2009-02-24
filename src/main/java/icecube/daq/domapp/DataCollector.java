@@ -105,6 +105,8 @@ public class DataCollector
     private IDOMApp             app;
     private GPSInfo             gps;
     private UTC                 gpsOffset;
+    /** This counter tracks the number of sequential GPS errors */
+    private int                 gpsErrorCount;
     private RAPCal              rapcal;
     private IDriver             driver;
     private boolean             stop_thread;
@@ -299,7 +301,8 @@ public class DataCollector
         this.config = config;
 
         gps = null;
-
+        gpsErrorCount = 0;
+        
         runLevel = RunLevel.INITIALIZING;
         gpsOffset = new UTC(0L);
         abBuffer  = new HitBufferAB();
@@ -641,8 +644,21 @@ public class DataCollector
     {
         try
         {
-            gps = driver.readGPS(card);
-            gpsOffset = gps.getOffset();
+            try
+            {
+                if (gpsErrorCount < 10)
+                {
+                    gps = driver.readGPS(card);
+                    gpsOffset = gps.getOffset();
+                    gpsErrorCount = 0;
+                }
+            }
+            catch (GPSException gpsx)
+            {
+                gpsx.printStackTrace();
+                logger.warn("Got GPS exception - time translation to UTC will be incomplete");
+                gpsErrorCount += 1;
+            }
             TimeCalib tcal = driver.readTCAL(card, pair, dom);
             rapcal.update(tcal, gpsOffset);
 
@@ -659,11 +675,6 @@ public class DataCollector
             rapcalExceptionCount++;
             rcex.printStackTrace();
             logger.warn("Got RAPCal exception");
-        }
-        catch (GPSException gpsx)
-        {
-            gpsx.printStackTrace();
-            logger.warn("Got GPS exception");
         }
         catch (IOException iox)
         {
