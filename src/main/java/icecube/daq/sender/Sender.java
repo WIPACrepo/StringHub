@@ -724,6 +724,16 @@ public class Sender
     }
 
     /**
+     * Get number of hits dropped while stopping.
+     *
+     * @return number of hits dropped
+     */
+    public long getNumHitsDropped()
+    {
+        return getNumDataPayloadsDropped();
+    }
+
+    /**
      * Get number of hits queued for processing.
      *
      * @return number of hits queued
@@ -831,16 +841,6 @@ public class Sender
     public long getNumRecycled()
     {
         return numRecycled;
-    }
-
-    /**
-     * Get number of hits not used for a readout.
-     *
-     * @return number of unused hits
-     */
-    public long getNumUnusedHits()
-    {
-        return getNumUnusedDataPayloads();
     }
 
     /**

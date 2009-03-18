@@ -73,6 +73,13 @@ public interface SenderMonitor
     long getNumHitsDiscarded();
 
     /**
+     * Get number of hits dropped while stopping.
+     *
+     * @return number of hits dropped
+     */
+    long getNumHitsDropped();
+
+    /**
      * Get number of hits queued for processing.
      *
      * @return number of hits queued
@@ -148,13 +155,6 @@ public interface SenderMonitor
      * @return number of recycled payloads
      */
     long getNumRecycled();
-
-    /**
-     * Get number of hits not used for a readout.
-     *
-     * @return number of unused hits
-     */
-    long getNumUnusedHits();
 
     /**
      * Get current rate of readouts per second.

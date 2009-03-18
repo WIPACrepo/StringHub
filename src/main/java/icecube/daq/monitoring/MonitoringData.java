@@ -129,6 +129,20 @@ public class MonitoringData
     }
 
     /**
+     * Get number of hits dropped while stopping.
+     *
+     * @return number of hits dropped
+     */
+    public long getNumHitsDropped()
+    {
+        if (sender == null) {
+            return 0;
+        }
+
+        return sender.getNumHitsDropped();
+    }
+
+    /**
      * Get number of hits queued for processing.
      *
      * @return num hits queued
@@ -280,20 +294,6 @@ public class MonitoringData
         }
 
         return sender.getNumRecycled();
-    }
-
-    /**
-     * Get number of hits not used for a readout.
-     *
-     * @return num unused hits
-     */
-    public long getNumUnusedHits()
-    {
-        if (sender == null) {
-            return 0;
-        }
-
-        return sender.getNumUnusedHits();
     }
 
     /**
@@ -465,6 +465,7 @@ public class MonitoringData
             buf.append("\n  numEmptyLoops ").append(getNumEmptyLoops());
             buf.append("\n  numHitsCached ").append(getNumHitsCached());
             buf.append("\n  numHitsDiscarded ").append(getNumHitsDiscarded());
+            buf.append("\n  numHitsDropped ").append(getNumHitsDropped());
             buf.append("\n  numHitsQueued ").append(getNumHitsQueued());
             buf.append("\n  numHitsRcvd ").append(getNumHitsReceived());
             buf.append("\n  numNullHits ").append(getNumNullHits());
@@ -481,7 +482,6 @@ public class MonitoringData
                 append(getNumReadoutsIgnored());
             buf.append("\n  numReadoutsSent ").append(getNumReadoutsSent());
             buf.append("\n  numRecycled ").append(getNumRecycled());
-            buf.append("\n  numUnusedHits ").append(getNumUnusedHits());
             buf.append("\n  totBadHits ").append(getTotalBadHits());
             buf.append("\n  totDataStopsRcvd ").
                 append(getTotalDataStopsReceived());
