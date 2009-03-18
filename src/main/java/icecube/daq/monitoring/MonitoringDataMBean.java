@@ -76,6 +76,13 @@ public interface MonitoringDataMBean
     //long getNumHitsDiscarded();
 
     /**
+     * Get number of hits dropped while stopping
+     *
+     * @return num hits dropped
+     */
+    //long getNumHitsDropped();
+
+    /**
      * Get number of hits queued for processing.
      *
      * @return num hits queued
@@ -151,11 +158,4 @@ public interface MonitoringDataMBean
      * @return num recycled
      */
     //long getNumRecycled();
-
-    /**
-     * Get number of hits not used for a readout.
-     *
-     * @return num unused hits
-     */
-    //long getNumUnusedHits();
 }
