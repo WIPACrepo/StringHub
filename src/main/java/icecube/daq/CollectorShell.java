@@ -338,7 +338,7 @@ public class CollectorShell
         {
     		csh.collector = new DataCollector(card, pair, dom, csh.config,
     		        hitsConsumer, moniConsumer, scalConsumer, tcalConsumer,
-    		        null, null, null);
+    		        null, null);
         }
 
 		csh.collector.signalConfigure();

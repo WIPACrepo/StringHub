@@ -4,7 +4,6 @@ package icecube.daq.domapp;
 
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.bindery.MultiChannelMergeSort;
-import icecube.daq.bindery.StreamBinder;
 import icecube.daq.domapp.LocalCoincidenceConfiguration.RxMode;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
@@ -24,7 +23,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.channels.ClosedByInterruptException;
 import java.text.DecimalFormat;
 import java.util.LinkedList;
 import java.util.Random;
@@ -114,6 +112,8 @@ public class DataCollector
     private BufferConsumer      moniConsumer;
     private BufferConsumer      tcalConsumer;
     private BufferConsumer      supernovaConsumer;
+    
+    private InterruptorTask intTask = new InterruptorTask();
 
     private static final Logger         logger  = Logger.getLogger(DataCollector.class);
     private static final DecimalFormat  fmt     = new DecimalFormat("#0.000000000");
@@ -156,6 +156,8 @@ public class DataCollector
      */
     private final boolean       waitForRAPCal = Boolean.getBoolean(
             "icecube.daq.domapp.datacollector.waitForRAPCal");
+    
+    private boolean alwaysSoftboot = false;
 
     /**
      * The engineeringHit buffer magic number used internally by stringHub.
@@ -246,21 +248,18 @@ public class DataCollector
     public DataCollector(DOMChannelInfo chInfo, BufferConsumer hitsTo) 
     throws IOException, MessageException
     {
-        this(chInfo.card, chInfo.pair, chInfo.dom, null, hitsTo, null, null, null, null, null, null);
+        this(chInfo.card, chInfo.pair, chInfo.dom, null, hitsTo, null, null, null, null, null);
     }
 
     public DataCollector(
-            int card, 
-            int pair, 
-            char dom, 
+            int card, int pair, char dom, 
             DOMConfiguration config,
             BufferConsumer hitsTo,
             BufferConsumer moniTo,
             BufferConsumer supernovaTo,
             BufferConsumer tcalTo,
             IDriver driver, 
-            RAPCal rapcal, 
-            IDOMApp app) throws IOException, MessageException
+            RAPCal rapcal) throws IOException, MessageException
     {
         super(card, pair, dom);
         this.card = card;
@@ -297,7 +296,7 @@ public class DataCollector
                 this.rapcal = new ZeroCrossingRAPCal();
             }
         }
-        this.app = app;
+        this.app = null;
         this.config = config;
 
         gps = null;
@@ -648,8 +647,19 @@ public class DataCollector
             {
                 if (gpsErrorCount < 10)
                 {
-                    gps = driver.readGPS(card);
-                    gpsOffset = gps.getOffset();
+                    GPSInfo newGPS = driver.readGPS(card);
+                    UTC newOffset = newGPS.getOffset();
+                    if (gps == null || newOffset.equals(gpsOffset))
+                    {
+                        gps = newGPS;
+                        gpsOffset = gps.getOffset();
+                    }
+                    else if (gps != null)
+                    {
+                        logger.error(
+                                "GPS offset mis-alignment detected - old GPS: " + 
+                                gps + " new GPS: " + newGPS);
+                    }
                     gpsErrorCount = 0;
                 }
             }
@@ -717,11 +727,10 @@ public class DataCollector
 
         // Create a watcher timer
         Timer watcher = new Timer(getName() + "-timer");
-        InterruptorTask intTask = new InterruptorTask();
-        watcher.schedule(intTask, 20000L, 5000L);
+        watcher.schedule(intTask, 10000L, 5000L);
         try
         {
-            runcore(intTask);
+            runcore();
         }
         catch (Exception x)
         {
@@ -761,7 +770,7 @@ public class DataCollector
     /**
      * Wrap up softboot -> domapp behavior 
      * */
-    private IDOMApp softbootToDomapp() throws IOException, InterruptedException
+    private void softbootToDomapp() throws IOException, InterruptedException
     {
         /*
          * Based on discussion /w/ JEJ in Utrecht café, going for multiple retries here
@@ -772,6 +781,7 @@ public class DataCollector
             {
                 driver.commReset(card, pair, dom);
                 driver.softboot (card, pair, dom);
+                intTask.ping();
                 break;
             }
             catch (IOException iox)
@@ -781,11 +791,12 @@ public class DataCollector
             }
         }
 
-        FileNotFoundException savedEx = null;
-
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 2; i++) 
+        {
+            Thread.sleep(20);
             driver.commReset(card, pair, dom);
-
+            Thread.sleep(20);
+            
             if (app == null)
             {
                 // If app is null it implies the collector has deferred
@@ -793,31 +804,21 @@ public class DataCollector
                 try
                 {
                     app = new DOMApp(this.card, this.pair, this.dom);
+                    intTask.ping();
+                    Thread.sleep(20);
                     break;
                 }
                 catch (FileNotFoundException ex)
                 {
-					logger.error("Trial "+i+": Open of "+card+""+pair+dom+" failed!");
-					logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
-					logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
-                    app = null;
-                    savedEx = ex;
+                    logger.error(
+                            "Trial " + i + ": Open of " + card + "" + pair + dom + " " + 
+                            "failed! - comstats:\n" + driver.getComstat(card, pair, dom) +
+                            "FPGA registers:\n" + driver.getFPGARegs(0));
+                    if (i == 1) throw ex;
                 }
             }
         }
-
-        if (app == null)
-        {
-            if (savedEx != null) throw savedEx;
-            throw new FileNotFoundException("Couldn't open DOMApp");
-        }
-        else if (savedEx != null)
-        {
-            logger.error("Successful DOMApp retry after initial failure", savedEx);
-        }
-
         app.transitionToDOMApp();
-        return app;
     }
 
     /**
@@ -826,61 +827,58 @@ public class DataCollector
      * this seems best. So the thread run method will handle that recovery
      * process
      */
-    private void runcore(InterruptorTask intTask) throws Exception
+    private void runcore() throws Exception
     {
 
         driver.resetComstat(card, pair, dom);
 
-        // Wrap up in retry loop - sometimes getMainboardID fails/times out
-        // DOM is in a strange state here
-        // this is a workaround for "Type 3" dropped DOMs
+        /*
+         * I need the MBID right now just in case I have to shut this stream down.
+         */
         mbid = driver.getProcfileID(card, pair, dom);
         numericMBID = Long.parseLong(mbid, 16);
-        int NT      = 2;
-        for(int i = 0; i < NT; i++)
+        boolean needSoftboot = true;
+        
+        if (!alwaysSoftboot)
         {
-            intTask.ping();
+            // Go for broke - maybe the DOM is already in DOMApp - if anything goes wrong here
+            // then assume DOM is not in DOMApp and go through perilous softboot process
             try
             {
-                app = softbootToDomapp();
-                try
+                if (app == null)
                 {
+                    app = new DOMApp(card, pair, dom);
                     mbid = app.getMainboardID();
+                    needSoftboot = false;
                 }
-                catch (MessageException ex)
-                {
-                    // if exception is wrapping a ClosedByInterruptException,
-                    //   then throw the original exception
-                    if (ex.getCause() != null &&
-                        ex.getCause() instanceof ClosedByInterruptException)
-                    {
-                        throw (ClosedByInterruptException) ex.getCause();
-                    }
-
-                    // otherwise, throw the MessageException
-                    throw ex;
-                }
-                numericMBID = Long.valueOf(mbid, 16).longValue();
-                break;
             }
-            catch (ClosedByInterruptException ex)
+            catch (Exception ex)
             {
-                // clear the interrupt so it doesn't cause future problems
-                Thread.interrupted();
-
-                // log exception and continue
-                logger.error("Timeout on trial "+i+" getting DOM ID", ex);
-				logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
-				logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
-				app = null; /* We have to do this to guarantee that we reopen when we retry */
+                app = null;
+                logger.info("DOM probably not in DOMApp mode - softbooting: " + ex.getLocalizedMessage());
             }
         }
+        
+        if (needSoftboot)
+        {
+            for (int iTry = 0; iTry < 2; iTry++)
+            {
+                try
+                {
+                    softbootToDomapp();
+                    mbid = app.getMainboardID();
+                }
+                catch (Exception ex2)
+                {
+                    if (iTry == 1) throw ex2;
+                    logger.error("Failure to softboot to DOMApp - will retry one time.");
+                }
+            }
+        }
+        numericMBID = Long.parseLong(mbid, 16);
 
         setRunLevel(RunLevel.IDLE);
         
-        if (numericMBID == 0)
-            throw new Exception("Couldn't get DOM MB ID after "+NT+" trials.");
-
         intTask.ping();
         logger.info("Found DOM " + mbid + " running " + app.getRelease());
 

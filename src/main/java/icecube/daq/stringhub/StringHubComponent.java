@@ -374,13 +374,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 				{
 					dc = new DataCollector(
 							chanInfo.card, chanInfo.pair, chanInfo.dom, config,
-							hitsSort,
-							moniSort,
-							scalSort,
-							tcalSort,
-							null,
-							null,
-							null);
+							hitsSort, moniSort, scalSort, tcalSort,
+							null,null);
 					addMBean("DataCollectorMonitor-" + chanInfo.mbid, dc);
 				}
 
@@ -577,7 +572,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 3847 2009-01-25 10:42:33Z kael $";
+		return "$Id: StringHubComponent.java 3981 2009-03-23 23:01:20Z kael $";
     }
 
 	public IByteBufferCache getCache()
