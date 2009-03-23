@@ -98,4 +98,14 @@ public class UTC implements Comparable<UTC> {
 			return 0;
 	}
 
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (!(obj instanceof UTC)) return false;
+        UTC o = (UTC) obj;
+        return tick10 == o.tick10;
+    }
+	
+	
+
 }

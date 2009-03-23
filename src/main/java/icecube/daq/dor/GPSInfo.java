@@ -56,8 +56,10 @@ public class GPSInfo {
 	 */
 	public ByteBuffer getBuffer() { return record.asReadOnlyBuffer(); }
 
-	public String toString() {
-		return timestring + " : Quality = " + quality + "  : " + offset;
+	public String toString() 
+	{
+		return timestring + " : Quality = " + quality + 
+		    " DOR clk: " + dorclk + " GPS offset: " + offset;
 	}
 
 }
