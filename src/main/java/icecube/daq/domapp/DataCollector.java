@@ -845,17 +845,16 @@ public class DataCollector
             // then assume DOM is not in DOMApp and go through perilous softboot process
             try
             {
-                if (app == null)
-                {
-                    app = new DOMApp(card, pair, dom);
-                    mbid = app.getMainboardID();
-                    needSoftboot = false;
-                }
+                logger.debug("Autodetecting DOMApp");
+                app = new DOMApp(card, pair, dom);
+                mbid = app.getMainboardID();
+                needSoftboot = false;
             }
             catch (Exception ex)
             {
+                if (app != null) app.close();
                 app = null;
-                logger.info("DOM probably not in DOMApp mode - softbooting: " + ex.getLocalizedMessage());
+                logger.debug("DOM probably not in DOMApp mode - softbooting: " + ex.getLocalizedMessage());
             }
         }
         
