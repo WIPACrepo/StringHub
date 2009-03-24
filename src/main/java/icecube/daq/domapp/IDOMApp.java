@@ -304,6 +304,14 @@ public interface IDOMApp {
 			throws MessageException;
 
 	/**
+	 * Test if DOM is running DOMApp or IceBoot
+	 * @return true if running DOMApp, false if running IceBoot
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
+	boolean isRunningDOMApp() throws IOException, InterruptedException;
+	
+	/**
 	 * Put the DOM into DOMApp.  On entry to this call the DOM
 	 * may be either in iceboot or domapp.  It makes a determination
 	 * of whether or not it is already in domapp by sending a

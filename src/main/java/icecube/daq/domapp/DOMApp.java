@@ -599,6 +599,21 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.SET_TRIG_MODE, buf);
     }
 
+    public boolean isRunningDOMApp() throws IOException, InterruptedException
+    {
+        ByteBuffer buf = ByteBuffer.allocate(8);
+        buf.put(new byte[] { 1, 10, 0, 0, 13, 10, 0, 0} );
+        buf.flip();
+        devIO.send(buf);
+        ByteBuffer ack = ByteBuffer.allocate(34);
+        while (ack.position() < 20) ack.put(devIO.recv());
+        // if the 5th byte is an 'E'
+        if (ack.get(5) != (byte) 69) return true;
+        // finish up reading iceboot response
+        while (ack.position() < 34) ack.put(devIO.recv());
+        return false;
+    }
+    
     /*
      * (non-Javadoc)
      *

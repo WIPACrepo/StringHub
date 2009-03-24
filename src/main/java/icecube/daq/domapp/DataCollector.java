@@ -791,31 +791,28 @@ public class DataCollector
             }
         }
 
+        if (interrupted()) throw new InterruptedException();
+        
         for (int i = 0; i < 2; i++) 
         {
             Thread.sleep(20);
             driver.commReset(card, pair, dom);
             Thread.sleep(20);
             
-            if (app == null)
+            try
             {
-                // If app is null it implies the collector has deferred
-                // opening of the DOR devfile to the thread.
-                try
-                {
-                    app = new DOMApp(this.card, this.pair, this.dom);
-                    intTask.ping();
-                    Thread.sleep(20);
-                    break;
-                }
-                catch (FileNotFoundException ex)
-                {
-                    logger.error(
-                            "Trial " + i + ": Open of " + card + "" + pair + dom + " " + 
-                            "failed! - comstats:\n" + driver.getComstat(card, pair, dom) +
-                            "FPGA registers:\n" + driver.getFPGARegs(0));
-                    if (i == 1) throw ex;
-                }
+                app = new DOMApp(this.card, this.pair, this.dom);
+                intTask.ping();
+                Thread.sleep(20);
+                break;
+            }
+            catch (FileNotFoundException ex)
+            {
+                logger.error(
+                        "Trial " + i + ": Open of " + card + "" + pair + dom + " " + 
+                        "failed! - comstats:\n" + driver.getComstat(card, pair, dom) +
+                        "FPGA registers:\n" + driver.getFPGARegs(0));
+                if (i == 1) throw ex;
             }
         }
         app.transitionToDOMApp();
@@ -841,20 +838,17 @@ public class DataCollector
         
         if (!alwaysSoftboot)
         {
-            // Go for broke - maybe the DOM is already in DOMApp - if anything goes wrong here
-            // then assume DOM is not in DOMApp and go through perilous softboot process
-            try
+            logger.debug("Autodetecting DOMApp");
+            app = new DOMApp(card, pair, dom);
+            if (app.isRunningDOMApp()) 
             {
-                logger.debug("Autodetecting DOMApp");
-                app = new DOMApp(card, pair, dom);
-                mbid = app.getMainboardID();
                 needSoftboot = false;
+                mbid = app.getMainboardID();
             }
-            catch (Exception ex)
+            else
             {
-                if (app != null) app.close();
+                app.close();
                 app = null;
-                logger.debug("DOM probably not in DOMApp mode - softbooting: " + ex.getLocalizedMessage());
             }
         }
         
