@@ -860,6 +860,7 @@ public class DataCollector
                 {
                     softbootToDomapp();
                     mbid = app.getMainboardID();
+					break;
                 }
                 catch (Exception ex2)
                 {

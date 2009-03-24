@@ -608,7 +608,14 @@ public class DOMApp implements IDOMApp
         ByteBuffer ack = ByteBuffer.allocate(34);
         while (ack.position() < 20) ack.put(devIO.recv());
         // if the 5th byte is an 'E'
-        if (ack.get(5) != (byte) 69) return true;
+	StringBuffer debugTxt = new StringBuffer("DOMApp detector returns");
+	for (int i = 0; i < 8; i++) {
+	    int b = ack.get(i);
+	    if (b < 0) b += 256;
+	    debugTxt.append(String.format(" %02x", b));
+	}
+	logger.debug(debugTxt);
+        if (ack.get(4) != (byte) 0x45) return true;
         // finish up reading iceboot response
         while (ack.position() < 34) ack.put(devIO.recv());
         return false;
