@@ -843,6 +843,14 @@ public class DataCollector
             if (app.isRunningDOMApp()) 
             {
                 needSoftboot = false;
+                try
+                {
+                    app.endRun();
+                }
+                catch (MessageException mex)
+                {
+                    // this is benign so ignore
+                }
                 mbid = app.getMainboardID();
             }
             else
