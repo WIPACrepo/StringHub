@@ -213,7 +213,7 @@ public final class Driver implements IDriver {
 			FileChannel ch = syncgps.getChannel();
 			int nr = ch.read(buf);
 			if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + file.getAbsolutePath());
-			if (nr != 22) throw new GPSException(file.getAbsolutePath());
+			if (nr != 22) throw new GPSNotReady(file.getAbsolutePath(), nr);
 			ch.close();
 			syncgps.close();
 			buf.flip();

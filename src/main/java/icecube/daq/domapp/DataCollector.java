@@ -9,6 +9,7 @@ import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
 import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
+import icecube.daq.dor.GPSNotReady;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.rapcal.RAPCal;
@@ -663,6 +664,10 @@ public class DataCollector
                     gpsErrorCount = 0;
                 }
             }
+            catch (GPSNotReady gpsn)
+            {
+                logger.warn("GPS not ready.");
+            }
             catch (GPSException gpsx)
             {
                 gpsx.printStackTrace();
@@ -671,7 +676,8 @@ public class DataCollector
             }
             TimeCalib tcal = driver.readTCAL(card, pair, dom);
             rapcal.update(tcal, gpsOffset);
-
+            lastTcalRead = System.currentTimeMillis();
+            
             validRAPCalCount++;
 
             if (getRunLevel().equals(RunLevel.RUNNING))
@@ -885,8 +891,11 @@ public class DataCollector
         logger.info("Found DOM " + mbid + " running " + app.getRelease());
 
         // Grab 2 RAPCal data points to get started
-        for (int nTry = 0; nTry < 10 && validRAPCalCount < 2; nTry++) execRapCal();
-        lastTcalRead = System.currentTimeMillis();
+        for (int nTry = 0; nTry < 10 && validRAPCalCount < 2; nTry++) 
+        {
+            Thread.sleep(100);
+            execRapCal();
+        }
 
         /*
          * Workhorse - the run loop
@@ -906,10 +915,7 @@ public class DataCollector
             /* Do TCAL and GPS -- this always runs regardless of the run state */
             if (t - lastTcalRead >= tcalReadInterval)
             {
-                if (logger.isDebugEnabled()) {
-                    logger.debug("Doing TCAL - runLevel is " + getRunLevel());
-                }
-                lastTcalRead = t;
+                if (logger.isDebugEnabled()) logger.debug("Doing TCAL - runLevel is " + getRunLevel());
                 execRapCal();
             }
 
