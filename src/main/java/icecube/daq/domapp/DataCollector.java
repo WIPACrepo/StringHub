@@ -158,7 +158,7 @@ public class DataCollector
     private final boolean       waitForRAPCal = Boolean.getBoolean(
             "icecube.daq.domapp.datacollector.waitForRAPCal");
     
-    private boolean alwaysSoftboot = false;
+    private boolean alwaysSoftboot = true;
 
     /**
      * The engineeringHit buffer magic number used internally by stringHub.
@@ -390,6 +390,7 @@ public class DataCollector
         app.setCableLengths(lc.getCableLengthUp(), lc.getCableLengthDn());
         app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
         app.setScalerDeadtime(config.getScalerDeadtime());
+        app.setAtwdReadout(config.getAtwdChipSelect());
 
         // Do the pedestal subtraction
         if (config.getPedestalSubtraction())
