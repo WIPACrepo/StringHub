@@ -284,11 +284,17 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			 * configuration directives.
 			 */
 			Node hubNode = doc.selectSingleNode("runConfig/stringHub[@hubId='" + hubId + "']");
+			boolean dcSoftboot = false;
+			
 			if (hubNode != null)
 			{
-			    if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) enableTriggering();
-			    if (hubNode.valueOf("sender/forwardIsolatedHitsToTrigger").equalsIgnoreCase("true"))
+			    if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) 
+			        enableTriggering();
+			    else if (hubNode.valueOf("sender/forwardIsolatedHitsToTrigger").equalsIgnoreCase("true"))
 			        sender.forwardIsolatedHitsToTrigger();
+			    else if (hubNode.valueOf("dataCollector/softboot").equalsIgnoreCase("true"))
+			        dcSoftboot = true;
+			    
 			}
 			if (logger.isInfoEnabled()) {
 				logger.info("Number of domConfigNodes found: " + configNodeList.size());
@@ -379,6 +385,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 					addMBean("DataCollectorMonitor-" + chanInfo.mbid, dc);
 				}
 
+                dc.setSoftbootBehavior(dcSoftboot);
 				hitsSort.register(chanInfo.mbid_numerique);
 				moniSort.register(chanInfo.mbid_numerique);
 				scalSort.register(chanInfo.mbid_numerique);
@@ -572,7 +579,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 3981 2009-03-23 23:01:20Z kael $";
+		return "$Id: StringHubComponent.java 4043 2009-04-06 19:30:32Z kael $";
     }
 
 	public IByteBufferCache getCache()

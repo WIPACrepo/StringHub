@@ -158,8 +158,6 @@ public class DataCollector
     private final boolean       waitForRAPCal = Boolean.getBoolean(
             "icecube.daq.domapp.datacollector.waitForRAPCal");
     
-    private boolean alwaysSoftboot = true;
-
     /**
      * The engineeringHit buffer magic number used internally by stringHub.
      */
@@ -787,8 +785,8 @@ public class DataCollector
             try
             {
                 driver.commReset(card, pair, dom);
-                driver.softboot (card, pair, dom);
                 intTask.ping();
+                driver.softboot (card, pair, dom);
                 break;
             }
             catch (IOException iox)
@@ -798,8 +796,6 @@ public class DataCollector
             }
         }
 
-        if (interrupted()) throw new InterruptedException();
-        
         for (int i = 0; i < 2; i++) 
         {
             Thread.sleep(20);
@@ -808,8 +804,8 @@ public class DataCollector
             
             try
             {
-                app = new DOMApp(this.card, this.pair, this.dom);
                 intTask.ping();
+                app = new DOMApp(this.card, this.pair, this.dom);
                 Thread.sleep(20);
                 break;
             }
@@ -856,7 +852,8 @@ public class DataCollector
                 }
                 catch (MessageException mex)
                 {
-                    // this is benign so ignore
+                    // this is normally what one would expect from a
+                    // DOMApp not currently in running mode, ignore
                 }
                 mbid = app.getMainboardID();
             }
