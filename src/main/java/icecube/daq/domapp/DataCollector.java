@@ -588,7 +588,15 @@ public class DataCollector
         tcalBuffer.putLong(0L);
         tcalBuffer.putLong(tcal.getDomTx().in_0_1ns());
         tcal.writeUncompressedRecord(tcalBuffer);
-        tcalBuffer.put(gps.getBuffer()).flip();
+        if (gps == null)
+        {
+            tcalBuffer.put("\001 000 00:00:00-\000\000\000\000\000\000\000\000".getBytes());
+        }
+        else 
+        {
+            tcalBuffer.put(gps.getBuffer());
+        }
+        tcalBuffer.flip();
         tcalBuffer.putInt(0, tcalBuffer.remaining());
         dispatchBuffer(tcalBuffer, tcalConsumer);
     }
