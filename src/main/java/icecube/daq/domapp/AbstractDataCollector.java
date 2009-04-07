@@ -30,6 +30,7 @@ public abstract class AbstractDataCollector extends Thread
     protected RunLevel runLevel;
     protected DOMConfiguration config;
     protected FlasherboardConfiguration flasherConfig;
+    protected boolean alwaysSoftboot = false;
     private static final Logger logger = Logger.getLogger(AbstractDataCollector.class);
 
     public AbstractDataCollector(int card, int pair, char dom)
@@ -211,4 +212,9 @@ public abstract class AbstractDataCollector extends Thread
 	{
 	    return 0L;
 	}
+
+    public void setSoftbootBehavior(boolean dcSoftboot)
+    {
+        alwaysSoftboot = dcSoftboot;
+    }
 }
