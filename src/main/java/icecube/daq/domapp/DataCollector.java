@@ -851,24 +851,31 @@ public class DataCollector
         {
             logger.debug("Autodetecting DOMApp");
             app = new DOMApp(card, pair, dom);
-            if (app.isRunningDOMApp()) 
+            try
             {
-                needSoftboot = false;
-                try
+                if (app.isRunningDOMApp()) 
                 {
-                    app.endRun();
+                    needSoftboot = false;
+                    try
+                    {
+                        app.endRun();
+                    }
+                    catch (MessageException mex)
+                    {
+                        // this is normally what one would expect from a
+                        // DOMApp not currently in running mode, ignore
+                    }
+                    mbid = app.getMainboardID();
                 }
-                catch (MessageException mex)
+                else
                 {
-                    // this is normally what one would expect from a
-                    // DOMApp not currently in running mode, ignore
+                    app.close();
+                    app = null;
                 }
-                mbid = app.getMainboardID();
             }
-            else
+            catch (InterruptedException intx)
             {
-                app.close();
-                app = null;
+                logger.warn("DOM is not responding to DOMApp query - will attempt to softboot");
             }
         }
         
