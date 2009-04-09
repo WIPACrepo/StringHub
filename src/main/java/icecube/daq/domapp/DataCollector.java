@@ -876,6 +876,9 @@ public class DataCollector
             catch (InterruptedException intx)
             {
                 logger.warn("DOM is not responding to DOMApp query - will attempt to softboot");
+                // Clear this thread's interrupted status
+                interrupted();
+                intTask.ping();
             }
         }
         
