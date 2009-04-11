@@ -20,5 +20,10 @@ public class DOMChannelInfo {
 	{
 	    return mbid_numerique;
 	}
-
+	
+	@Override
+	public String toString()
+	{
+	    return card + "" + pair + "" + dom;
+	}
 }
