@@ -350,7 +350,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 			SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniBufMgr, moniOut.getChannel());
 	        SecondaryStreamConsumer supernovaConsumer = new SecondaryStreamConsumer(hubId, snBufMgr, supernovaOut.getChannel());
-	        SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId, tcalBufMgr, tcalOut.getChannel());
+	        SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId, tcalBufMgr, tcalOut.getChannel(), tcalPrescale);
 
 			// Start the merger-sorter objects
 			hitsSort = new MultiChannelMergeSort(nch, sender);
@@ -581,7 +581,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 4082 2009-04-16 09:04:53Z kael $";
+		return "$Id: StringHubComponent.java 4083 2009-04-16 09:20:29Z kael $";
     }
 
 	public IByteBufferCache getCache()
