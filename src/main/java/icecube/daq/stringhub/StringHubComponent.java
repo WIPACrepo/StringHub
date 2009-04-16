@@ -286,15 +286,17 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			Node hubNode = doc.selectSingleNode("runConfig/stringHub[@hubId='" + hubId + "']");
 			boolean dcSoftboot = false;
 			
+			int tcalPrescale = 10;
+			
 			if (hubNode != null)
 			{
-			    if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) 
-			        enableTriggering();
-			    else if (hubNode.valueOf("sender/forwardIsolatedHitsToTrigger").equalsIgnoreCase("true"))
+			    if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) enableTriggering();
+			    if (hubNode.valueOf("sender/forwardIsolatedHitsToTrigger").equalsIgnoreCase("true"))
 			        sender.forwardIsolatedHitsToTrigger();
-			    else if (hubNode.valueOf("dataCollector/softboot").equalsIgnoreCase("true"))
+			    if (hubNode.valueOf("dataCollector/softboot").equalsIgnoreCase("true"))
 			        dcSoftboot = true;
-			    
+			    String tcalPStxt = hubNode.valueOf("tcalPrescale");
+			    if (tcalPStxt.length() != 0) tcalPrescale = Integer.parseInt(tcalPStxt);
 			}
 			if (logger.isInfoEnabled()) {
 				logger.info("Number of domConfigNodes found: " + configNodeList.size());
@@ -579,7 +581,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 4069 2009-04-11 06:16:15Z kael $";
+		return "$Id: StringHubComponent.java 4082 2009-04-16 09:04:53Z kael $";
     }
 
 	public IByteBufferCache getCache()

@@ -24,11 +24,22 @@ public class SecondaryStreamConsumer implements BufferConsumer
     private IByteBufferCache cacheMgr           = null;
     private static final Logger logger          = Logger.getLogger(SecondaryStreamConsumer.class);
     private WritableByteChannel dbgChan = null;
+    /** 
+     * Set a prescale of N on the output
+     */
+    private int prescale;
+    private int prescaleCounter = 0;
 
-	public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, OutputChannel outputChannel)
+    public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, OutputChannel outputChannel)
+    {
+        this(hubId, cacheMgr, outputChannel, 1);
+    }
+    
+	public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, OutputChannel outputChannel, int prescale)
     {
         this.outputChannel = outputChannel;
         this.cacheMgr = cacheMgr;
+        this.prescale = prescale;
         idMap.put(102, 5);
         idMap.put(202, 4);
         idMap.put(302, 16);
@@ -67,7 +78,11 @@ public class SecondaryStreamConsumer implements BufferConsumer
                 dbgChan.write(payloadBuffer);
                 payloadBuffer.rewind();
             }
-            outputChannel.receiveByteBuffer(payloadBuffer);
+            if (prescale <=0 || ++prescaleCounter == prescale)
+            {
+                outputChannel.receiveByteBuffer(payloadBuffer);
+                prescaleCounter = 0;
+            }
         }
     }
 }
