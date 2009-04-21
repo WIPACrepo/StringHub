@@ -586,7 +586,7 @@ public class DataCollector
         tcalBuffer.putInt(0).putInt(MAGIC_TCAL_FMTID);
         tcalBuffer.putLong(numericMBID);
         tcalBuffer.putLong(0L);
-        tcalBuffer.putLong(tcal.getDomTx().in_0_1ns());
+        tcalBuffer.putLong(tcal.getDomTx().in_0_1ns() / 250L);
         tcal.writeUncompressedRecord(tcalBuffer);
         if (gps == null)
         {
