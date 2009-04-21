@@ -1,6 +1,7 @@
 package icecube.daq.domapp;
 
 import icecube.daq.bindery.BufferConsumer;
+import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.dor.Driver;
 import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
@@ -131,7 +132,14 @@ public class AuraDataCollector extends AbstractDataCollector
         {
             ex.printStackTrace();
         }
-        
+        try
+        {
+            hits.consume(MultiChannelMergeSort.eos(mbid_numerique));
+        }
+        catch (IOException iox)
+        {
+            iox.printStackTrace();
+        }
         t3.cancel();
     }
 
@@ -180,6 +188,11 @@ public class AuraDataCollector extends AbstractDataCollector
         {
             logger.error("Caught IOException: " + iox.getLocalizedMessage());
         }
+    }
+    
+    public String getMainboardId()
+    {
+        return this.mbid;
     }
     
     public void setForcedTriggers(boolean enabled)
