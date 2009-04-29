@@ -356,7 +356,7 @@ public class XMLConfig extends DefaultHandler
 		    else
 		        currentConfig.setAtwdChargeStamp(false);
 		    String channel = attributes.getValue("channel");
-		    if (channel.equals("auto"))
+		    if (channel == null || channel.equals("auto"))
 		        currentConfig.setChargeStampAutoRange();
 		    else
 		        currentConfig.setChargeStampAtwdFixedChannel(Byte.parseByte(channel));
