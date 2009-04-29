@@ -110,7 +110,11 @@ public class DOMConfiguration implements Serializable
 
 	public AtwdChipSelect getAtwdChipSelect() { return atwdSelect; }
 	
-	public byte getChargeStampFixedChannel() { return (byte) (chargeStampAtwdChannel == (byte) 1 ? 1 : 0); }
+	public byte getChargeStampFixedChannel() 
+	{ 
+	    if (chargeStampAtwdChannel < 0) return 0;
+	    return chargeStampAtwdChannel; 
+    }
 
 	/**
 	 * Returns the value of the configuration monitoring interval.

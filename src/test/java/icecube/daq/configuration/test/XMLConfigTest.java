@@ -97,4 +97,10 @@ public class XMLConfigTest
 	{
 	    assertEquals(AtwdChipSelect.ATWD_A, config.getAtwdChipSelect());
 	}
+	
+	@Test public void testAtwdChargeStamp()
+	{
+	    assertTrue(config.isAtwdChargeStamp());
+	    assertEquals(2, (int) config.getChargeStampFixedChannel());
+	}
 }
