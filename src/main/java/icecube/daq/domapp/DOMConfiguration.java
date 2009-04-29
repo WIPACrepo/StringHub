@@ -214,7 +214,12 @@ public class DOMConfiguration implements Serializable
     {
         return chargeStampATWD;
     }
-
+	
+	public void setAtwdChargeStamp(boolean setval)
+	{
+	    chargeStampATWD = setval;
+	}
+	
 	public boolean isAutoRangeChargeStamp()
     {
         return chargeStampAtwdChannel == -1;

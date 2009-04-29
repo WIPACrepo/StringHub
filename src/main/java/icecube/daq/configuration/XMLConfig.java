@@ -349,6 +349,18 @@ public class XMLConfig extends DefaultHandler
 		{
 		    internalState = ParserState.CHARGE_HISTOGRAM;
 		}
+		else if (localName.equals("chargeStamp"))
+		{
+		    if (attributes.getValue("type").equals("atwd"))
+		        currentConfig.setAtwdChargeStamp(true);
+		    else
+		        currentConfig.setAtwdChargeStamp(false);
+		    String channel = attributes.getValue("channel");
+		    if (channel.equals("auto"))
+		        currentConfig.setChargeStampAutoRange();
+		    else
+		        currentConfig.setChargeStampAtwdFixedChannel(Byte.parseByte(channel));
+		}
 		else if (localName.equals("cableLength"))
 		{
 			if (attributes.getValue("dir").equals("up"))
