@@ -34,6 +34,7 @@ public class AuraDataCollector extends AbstractDataCollector
     private String mbid;
     private long mbid_numerique;
     private int evtCnt;
+    private long tracr_clock_offset = 0L;
 
     private static final int EVT_DOM_CLK         = 28;
     private static final int EVT_TRACR_MATCH_CLK = 40;
@@ -114,6 +115,7 @@ public class AuraDataCollector extends AbstractDataCollector
                     break;
                 case STARTING:
                     drm.resetTRACRFifo();
+                    tracr_clock_offset = drm.getTRACRClockOffset(500);
                     setRunLevel(RunLevel.RUNNING);
                     break;
                 case RUNNING:
@@ -159,7 +161,7 @@ public class AuraDataCollector extends AbstractDataCollector
                 tracr_clk = (tracr_clk << 8) | ((int)buf.get(EVT_TRACR_CLK+i) & 0xff);
             tracr_clk = tracr_clk & 0xffffffffffL;
             buf.order(ByteOrder.LITTLE_ENDIAN);
-            utc = rapcal.domToUTC(domclk-2*tracr_match_clk+2*tracr_clk).in_0_1ns();
+            utc = rapcal.domToUTC(2*tracr_clk + tracr_clock_offset).in_0_1ns();
             if (logger.isDebugEnabled()) {
                 logger.debug("DOMClk: " + domclk + " TracrMatchClk: "+tracr_match_clk
                              +" TracrClk: "+tracr_clk+" - UTC: " + utc); 
