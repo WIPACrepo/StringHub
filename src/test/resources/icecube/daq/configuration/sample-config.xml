@@ -47,6 +47,7 @@
 		<fastMonitorInterval>    1.5</fastMonitorInterval>
 		<enableIceTopMinBias/>
 		<atwdChipSelect>A</atwdChipSelect>
+		<chargeStamp type="atwd" channel="2"/>
         <localCoincidence>
             <type>soft</type>
             <mode>up-or-down</mode>
