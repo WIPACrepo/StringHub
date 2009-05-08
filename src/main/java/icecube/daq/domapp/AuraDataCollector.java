@@ -115,7 +115,8 @@ public class AuraDataCollector extends AbstractDataCollector
                     break;
                 case STARTING:
                     drm.resetTRACRFifo();
-                    tracr_clock_offset = drm.getTRACRClockOffset(500);
+                    tracr_clock_offset = drm.getTRACRClockOffset(10000);
+                    logger.info("STARTING RUN on DOM " + mbid + " TRACR offset: " + tracr_clock_offset);
                     setRunLevel(RunLevel.RUNNING);
                     break;
                 case RUNNING:
@@ -183,7 +184,8 @@ public class AuraDataCollector extends AbstractDataCollector
         xtb.rewind();
         try
         {
-            logger.debug("Sending buffer of size " + xtb.remaining());
+            if (logger.isDebugEnabled())
+                logger.debug("Sending buffer of size " + xtb.remaining());
             hits.consume(xtb);
         }
         catch (IOException iox)
