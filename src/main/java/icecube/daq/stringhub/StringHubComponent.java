@@ -434,6 +434,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	{
 	    logger.info("StringHub is starting the run.");
 
+	    sender.reset();
+
 	    hitsSort.start();
 	    moniSort.start();
 	    scalSort.start();
@@ -581,7 +583,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 4083 2009-04-16 09:20:29Z kael $";
+		return "$Id: StringHubComponent.java 4134 2009-05-08 21:12:30Z dglo $";
     }
 
 	public IByteBufferCache getCache()

@@ -77,10 +77,4 @@ public class RequestReader
     {
         sender.addRequestStop();
     }
-
-    public void startProcessing()
-    {
-        super.startProcessing();
-        sender.reset();
-    }
 }
