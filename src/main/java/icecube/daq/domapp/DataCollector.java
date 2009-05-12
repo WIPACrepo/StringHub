@@ -213,6 +213,12 @@ public class DataCollector
 
         ByteBuffer pop()
         {
+            /* 
+             * Handle the special cases where only one ATWD is activated
+             * presumably because of broken hardware.
+             */
+            if (config.getAtwdChipSelect() == AtwdChipSelect.ATWD_A) return popA();
+            if (config.getAtwdChipSelect() == AtwdChipSelect.ATWD_B) return popB();
             if (alist.isEmpty() || blist.isEmpty()) return null;
             long aclk = alist.getFirst().getLong(24);
             long bclk = blist.getFirst().getLong(24);
