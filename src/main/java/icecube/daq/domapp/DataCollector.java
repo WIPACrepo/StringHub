@@ -217,8 +217,16 @@ public class DataCollector
              * Handle the special cases where only one ATWD is activated
              * presumably because of broken hardware.
              */
-            if (config.getAtwdChipSelect() == AtwdChipSelect.ATWD_A) return popA();
-            if (config.getAtwdChipSelect() == AtwdChipSelect.ATWD_B) return popB();
+            if (config.getAtwdChipSelect() == AtwdChipSelect.ATWD_A) 
+            {
+                if (alist.isEmpty()) return null;
+                return popA();
+            }
+            if (config.getAtwdChipSelect() == AtwdChipSelect.ATWD_B) 
+            {
+                if (blist.isEmpty()) return null;
+                return popB();
+            }
             if (alist.isEmpty() || blist.isEmpty()) return null;
             long aclk = alist.getFirst().getLong(24);
             long bclk = blist.getFirst().getLong(24);
@@ -533,12 +541,7 @@ public class DataCollector
                     outputBuffer.putInt(word3);        // +50
                     outputBuffer.put(in).flip();
                     in.limit(buffer_limit);
-                    
-                    ////////
-                    //
                     // DO the A/B stuff
-                    //
-                    ////////
                     dispatchHitBuffer(atwdChip, outputBuffer);
                 }
                 // Restore previous byte order
