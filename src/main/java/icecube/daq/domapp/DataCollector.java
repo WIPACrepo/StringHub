@@ -856,9 +856,9 @@ public class DataCollector
         if (!alwaysSoftboot)
         {
             logger.debug("Autodetecting DOMApp");
-            app = new DOMApp(card, pair, dom);
             try
             {
+                app = new DOMApp(card, pair, dom);
                 if (app.isRunningDOMApp()) 
                 {
                     needSoftboot = false;
@@ -883,6 +883,13 @@ public class DataCollector
             {
                 logger.warn("DOM is not responding to DOMApp query - will attempt to softboot");
                 // Clear this thread's interrupted status
+                interrupted();
+                intTask.ping();
+            }
+            catch (FileNotFoundException fnfx)
+            {
+                logger.warn("DOR device driver open failure - will attemp to softboot");
+                // Again - clear interrupted status if set
                 interrupted();
                 intTask.ping();
             }
