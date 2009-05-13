@@ -749,7 +749,7 @@ public class DataCollector
 
         // Create a watcher timer
         Timer watcher = new Timer(getName() + "-timer");
-        watcher.schedule(intTask, 10000L, 5000L);
+        watcher.schedule(intTask, 20000L, 5000L);
         try
         {
             runcore();
@@ -882,17 +882,10 @@ public class DataCollector
                     app = null;
                 }
             }
-            catch (InterruptedException intx)
+            catch (Exception x)
             {
                 logger.warn("DOM is not responding to DOMApp query - will attempt to softboot");
                 // Clear this thread's interrupted status
-                intTask.ping();
-                interrupted();
-            }
-            catch (IOException iox)
-            {
-                logger.warn("DOR device driver open failure - will attemp to softboot");
-                // Again - clear interrupted status if set
                 intTask.ping();
                 interrupted();
             }
