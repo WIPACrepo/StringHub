@@ -886,15 +886,15 @@ public class DataCollector
             {
                 logger.warn("DOM is not responding to DOMApp query - will attempt to softboot");
                 // Clear this thread's interrupted status
-                interrupted();
                 intTask.ping();
+                interrupted();
             }
-            catch (FileNotFoundException fnfx)
+            catch (IOException iox)
             {
                 logger.warn("DOR device driver open failure - will attemp to softboot");
                 // Again - clear interrupted status if set
-                interrupted();
                 intTask.ping();
+                interrupted();
             }
         }
         
