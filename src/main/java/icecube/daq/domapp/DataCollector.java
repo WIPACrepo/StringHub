@@ -521,8 +521,11 @@ public class DataCollector
                         int trigMask = (word1 >> 18) & 0x1fff;
                         logger.debug("DELTA HIT - CLK: " + domClock + " TRIG: " + Integer.toHexString(trigMask));
                     }
-                    short version = 0x01;
-                    short pedestal = config.getPedestalSubtraction() ? (short) 0x01 : (short) 0x00;
+                    short version = 0x02;
+                    short fpq = (short) (
+                            (config.getPedestalSubtraction() ? 1 : 0) |
+                            (config.isAtwdChargeStamp() ? 2 : 0)
+                            );
                     in.limit(pos + hitSize);
                     outputBuffer = ByteBuffer.allocate(hitSize + 42);
                     // Standard Header
@@ -535,7 +538,7 @@ public class DataCollector
                     // This is the 'byte order' word
                     outputBuffer.putShort((short) 1);  // +32
                     outputBuffer.putShort(version);    // +34
-                    outputBuffer.putShort(pedestal);   // +36
+                    outputBuffer.putShort(fpq);        // +36
                     outputBuffer.putLong(domClock);    // +38
                     outputBuffer.putInt(word1);        // +46
                     outputBuffer.putInt(word3);        // +50
