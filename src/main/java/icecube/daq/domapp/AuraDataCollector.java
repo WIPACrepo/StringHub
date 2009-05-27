@@ -29,6 +29,7 @@ public class AuraDataCollector extends AbstractDataCollector
     private AtomicBoolean running;
     private AtomicBoolean forcedTrigger;
     private AtomicBoolean radioTrigger;
+    private AtomicBoolean changeTriggerSetting;
     private int powerControlBits;
     private boolean useDOMApp;
     private String mbid;
@@ -46,7 +47,8 @@ public class AuraDataCollector extends AbstractDataCollector
             { 2000, 3000, 3200, 3250 },
             { 2000, 3000, 3200, 3250 }
     };
-   
+    
+    private int triggerSetting=68; // This is the default 3/4 channels and 3/4 bands
     private static final Logger logger = Logger.getLogger(AuraDataCollector.class);
     
     public AuraDataCollector(int card, int pair, char dom, BufferConsumer hits)
@@ -66,6 +68,7 @@ public class AuraDataCollector extends AbstractDataCollector
         this.useDOMApp = useDOMApp;
         this.forcedTrigger = new AtomicBoolean(true);
         this.radioTrigger  = new AtomicBoolean(false);
+	changeTriggerSetting = new AtomicBoolean(false);
     }
     
     public void run()
@@ -92,11 +95,24 @@ public class AuraDataCollector extends AbstractDataCollector
                 switch (getRunLevel())
                 {
                 case CONFIGURING:
+		    // Turn on TRACR 
                     Thread.sleep(1000);
                     drm.powerOnFlasherboard();
                     Thread.sleep(5500);
-                    
+		    /*
+		     * Get tracr-mb time offset. Make sure the cluster does not trigger by setting all DACs to 0
+		     */
+
+		    for (int ant = 0; ant < 4; ant++)
+			for (int band = 0; band < 4; band++)
+			    drm.setRadioDAC(ant, band, 0);
+		    drm.writeRadioDACs();
+		    drm.resetTRACRFifo();
+                    tracr_clock_offset = drm.getTRACRClockOffset(10000);
+                    logger.info(" Got TRACR offset: " + tracr_clock_offset);
+  
                     /* 
+		     * Turn on power
                      * There is a little black-magic here -- amplifier bits and then 
                      * SHORTS are turned on one by one.
                      */
@@ -110,13 +126,22 @@ public class AuraDataCollector extends AbstractDataCollector
                             for (int band = 0; band < 4; band++)
                                 drm.setRadioDAC(ant, band, radioDACs[ant][band]);
                         drm.writeRadioDACs();
+			if (changeTriggerSetting.get()) {
+			    drm.setTriggerLogic(triggerSetting);
+			    logger.info(mbid+" Trigger Setting changed to"+drm.getTriggerLogic());
+			}
+			else
+			{
+			    logger.info(mbid+" Default trigger Setting used"+drm.getTriggerLogic());
+			}  
+
                         setRunLevel(RunLevel.CONFIGURED);
                     }
+
                     break;
                 case STARTING:
-                    drm.resetTRACRFifo();
-                    tracr_clock_offset = drm.getTRACRClockOffset(10000);
-                    logger.info("STARTING RUN on DOM " + mbid + " TRACR offset: " + tracr_clock_offset);
+		    drm.resetTRACRFifo();
+                    logger.info("STARTING RUN on DOM " + mbid );
                     setRunLevel(RunLevel.RUNNING);
                     break;
                 case RUNNING:
@@ -199,6 +224,11 @@ public class AuraDataCollector extends AbstractDataCollector
         return this.mbid;
     }
     
+    public void setTriggerLogic(int value)
+    {
+	this.triggerSetting = value;
+	changeTriggerSetting.set(true);
+    } 
     public void setForcedTriggers(boolean enabled)
     {
         forcedTrigger.set(enabled);

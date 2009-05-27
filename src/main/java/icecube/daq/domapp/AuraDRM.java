@@ -151,6 +151,18 @@ public class AuraDRM extends IcebootInterface
         }
     }
     
+    public void setTriggerLogic(int value)   throws IOException
+    {
+	writeVirtualAddress(0x49, value);
+
+    }
+
+    public int getTriggerLogic()  throws IOException
+    {
+	return readVirtualAddress(0x49);
+
+    }
+
     private ByteBuffer readTRACRData(String cmd, int nEvents) throws IOException
     {
         sendCommand(cmd, null);
