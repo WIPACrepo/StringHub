@@ -6,6 +6,7 @@ import icecube.daq.eventbuilder.impl.ReadoutDataPayloadFactory;
 import icecube.daq.io.DAQOutputChannelManager;
 import icecube.daq.io.OutputChannel;
 import icecube.daq.monitoring.SenderMonitor;
+import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.IDOMID;
 import icecube.daq.payload.IDomHit;
 import icecube.daq.payload.ILoadablePayload;
@@ -367,6 +368,7 @@ public class Sender
 
     private DAQOutputChannelManager hitOut;
     private OutputChannel hitChan;
+    private IByteBufferCache hitCache;
 
     private DAQOutputChannelManager dataOut;
     private OutputChannel dataChan;
@@ -499,8 +501,15 @@ public class Sender
                                    engData.getLocalCoincidenceMode() != 0 ||
                                    engData.getTriggerMode() == 4))
                 {
-                    ByteBuffer payBuf =
-                        ByteBuffer.allocate(payload.getPayloadLength());
+                    ByteBuffer payBuf;
+                    if (hitCache != null) {
+                        payBuf =
+                            hitCache.acquireBuffer(payload.getPayloadLength());
+                    } else {
+                        payBuf =
+                            ByteBuffer.allocate(payload.getPayloadLength());
+                    }
+
                     try {
                         ((IWriteablePayload) payload).writePayload(false, 0,
                                                                    payBuf);
@@ -1198,6 +1207,16 @@ public class Sender
     {
         dataOut = dest;
         dataChan = null;
+    }
+
+    /**
+     * Set the buffer cache where hit payloads tracked.
+     *
+     * @param cache hit buffer cache
+     */
+    public void setHitCache(IByteBufferCache cache)
+    {
+        hitCache = cache;
     }
 
     /**

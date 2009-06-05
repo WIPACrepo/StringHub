@@ -139,6 +139,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
             else
                 addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
             sender.setHitOutput(hitOut);
+            sender.setHitCache(cache);
         }
 
 
@@ -583,7 +584,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 4134 2009-05-08 21:12:30Z dglo $";
+		return "$Id: StringHubComponent.java 4261 2009-06-05 18:11:54Z dglo $";
     }
 
 	public IByteBufferCache getCache()
