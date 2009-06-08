@@ -62,10 +62,10 @@ public class ReplayHubComponent
         addCache(genMgr);
         addMBean("GenericBuffer", genMgr);
 
-        MasterPayloadFactory payloadFactory =
-            new MasterPayloadFactory(genMgr);
-
-        sender = new Sender(hubId, payloadFactory);
+        IByteBufferCache rdoutDataCache  =
+            new VitreousBufferCache("SHRdOut#" + hubId);
+        addCache(DAQConnector.TYPE_READOUT_DATA, rdoutDataCache);
+        sender = new Sender(hubId, rdoutDataCache);
 
         if (LOG.isInfoEnabled()) {
             LOG.info("starting up ReplayHub component " + hubId);
@@ -89,6 +89,9 @@ public class ReplayHubComponent
                 addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
             sender.setHitOutput(hitOut);
         }
+
+        MasterPayloadFactory payloadFactory =
+            new MasterPayloadFactory(genMgr);
 
         RequestReader reqIn;
         try

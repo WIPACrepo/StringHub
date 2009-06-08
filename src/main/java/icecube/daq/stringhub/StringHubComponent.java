@@ -140,8 +140,10 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		addCache(cache);
 		addMBean("PyrateBufferManager", cache);
 
-		payloadFactory = new MasterPayloadFactory(cache);
-		sender         = new Sender(hubId, payloadFactory);
+		IByteBufferCache rdoutDataCache  =
+			new VitreousBufferCache(cacheName + "RdOut" + cacheNum);
+		addCache(DAQConnector.TYPE_READOUT_DATA, rdoutDataCache);
+		sender         = new Sender(hubId, rdoutDataCache);
 
 		if (logger.isInfoEnabled()) {
 			logger.info("starting up StringHub component " + hubId);
@@ -160,6 +162,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
             sender.setHitCache(cache);
         }
 
+        payloadFactory = new MasterPayloadFactory(cache);
 
         try
         {
@@ -602,7 +605,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 4268 2009-06-08 16:50:49Z dglo $";
+		return "$Id: StringHubComponent.java 4270 2009-06-08 22:33:57Z dglo $";
     }
 
 	public IByteBufferCache getCache()

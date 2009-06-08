@@ -14,7 +14,6 @@ import icecube.daq.payload.IPayload;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.IWriteablePayload;
-import icecube.daq.payload.MasterPayloadFactory;
 import icecube.daq.payload.PayloadDestination;
 import icecube.daq.payload.PayloadRegistry;
 import icecube.daq.payload.SourceIdRegistry;
@@ -372,6 +371,7 @@ public class Sender
 
     private DAQOutputChannelManager dataOut;
     private OutputChannel dataChan;
+    private IByteBufferCache dataCache;
 
     /** list of payloads to be deleted after back end has stopped */
     private ArrayList finalData;
@@ -400,10 +400,10 @@ public class Sender
     /**
      * Create a readout request filler.
      *
-     * @param mgr component manager
-     * @param masterFactory master payload factory
+     * @param stringHubId this stringHub's ID
+     * @param rdoutDataMgr ReadoutDataPayload byte buffer cache
      */
-    public Sender(int stringHubId, MasterPayloadFactory masterFactory)
+    public Sender(int stringHubId, IByteBufferCache rdoutDataMgr)
     {
         super("Sender#" + stringHubId, false);
 
@@ -414,9 +414,10 @@ public class Sender
         hitFactory = new HitPayloadFactory();
         domHitFactory = new DomHitFactory();
 
-        final int readoutDataType = PayloadRegistry.PAYLOAD_ID_READOUT_DATA;
-        readoutDataFactory = (ReadoutDataPayloadFactory)
-            masterFactory.getPayloadFactory(readoutDataType);
+        readoutDataFactory = new ReadoutDataPayloadFactory();
+        readoutDataFactory.setByteBufferCache(rdoutDataMgr);
+
+        dataCache = rdoutDataMgr;
 
         forwardLC0Hits = false;
     }
@@ -1179,8 +1180,12 @@ public class Sender
     public boolean sendOutput(ILoadablePayload payload)
     {
         boolean sent = false;
-        ByteBuffer buf =
-            ByteBuffer.allocate(payload.getPayloadLength());
+        ByteBuffer buf;
+        if (dataCache == null) {
+            buf = ByteBuffer.allocate(payload.getPayloadLength());
+        } else {
+            buf = dataCache.acquireBuffer(payload.getPayloadLength());
+        }
         try {
             ((IWriteablePayload) payload).writePayload(false, 0, buf);
         } catch (Exception ex) {
