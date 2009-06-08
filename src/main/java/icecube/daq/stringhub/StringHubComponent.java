@@ -101,33 +101,51 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
         this.hubId = hubId;
 		this.isSim = isSim;
 
-		final String bufName = "PyrateBufferManager";
-
-		cache  = new VitreousBufferCache();
-		addCache(cache);
-		addMBean(bufName, cache);
-
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
 		addMBean("stringhub", this);
 		
+        /*
+         * Component derives behavioral characteristics from
+         * its 'minor ID' which is the low 3 (decimal) digits of
+         * the hub component ID:
+         *  (1) component x000        : amandaHub
+         *  (2) component x001 - x199 : in-ice hub
+		 *      (81 - 86 are deep core but this currently doesn't mean anything)
+         *  (3) component x200 - x299 : icetop
+         * I
+         */
+        int minorHubId = hubId % 1000;
+
+		String cacheName;
+		String cacheNum;
+		if (minorHubId == 0) {
+			cacheName = "AM";
+			cacheNum = "";
+		} else if (minorHubId <= 80) {
+			cacheName = "SH#" + minorHubId;
+			cacheNum = "#" + minorHubId;
+		} else if (minorHubId <= 200) {
+			cacheName = "DC";
+			cacheNum = "#" + (minorHubId - 80);
+		} else if (minorHubId <= 300) {
+			cacheName = "IT";
+			cacheNum = "#" + (minorHubId - 200);
+		} else {
+			cacheName = "??";
+			cacheNum = "#" + minorHubId;
+		}
+
+		cache  = new VitreousBufferCache(cacheName + cacheNum);
+		addCache(cache);
+		addMBean("PyrateBufferManager", cache);
+
 		payloadFactory = new MasterPayloadFactory(cache);
 		sender         = new Sender(hubId, payloadFactory);
 
 		if (logger.isInfoEnabled()) {
 			logger.info("starting up StringHub component " + hubId);
 		}
-
-        /*
-         * Component derives behavioral characteristics from
-         * its 'minor ID' which is the low 3 (decimal) digits of
-         * the hub component ID:
-         *  (1) component x000        : amandaHub
-         *  (2) component x001 - x199 : in-ice hub (81 - 86 are deep core but this currently doesn't mean anything)
-         *  (3) component x200 - x299 : icetop
-         * I
-         */
-        int minorHubId = hubId % 1000;
 
         hitOut = null;
 
@@ -164,17 +182,17 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
         addMBean("sender", monData);
 
         // Following are the payload output engines for the secondary streams
-		moniBufMgr  = new VitreousBufferCache();
+		moniBufMgr  = new VitreousBufferCache(cacheName + "Moni" + cacheNum);
 		addCache(DAQConnector.TYPE_MONI_DATA, moniBufMgr);
         moniOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "moniOut");
         addMonitoredEngine(DAQConnector.TYPE_MONI_DATA, moniOut);
 
-		tcalBufMgr  = new VitreousBufferCache();
+		tcalBufMgr  = new VitreousBufferCache(cacheName + "TCal" + cacheNum);
 		addCache(DAQConnector.TYPE_TCAL_DATA, tcalBufMgr);
         tcalOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "tcalOut");
         addMonitoredEngine(DAQConnector.TYPE_TCAL_DATA, tcalOut);
 
-		snBufMgr  = new VitreousBufferCache();
+		snBufMgr  = new VitreousBufferCache(cacheName + "SN" + cacheNum);
 		addCache(DAQConnector.TYPE_SN_DATA, snBufMgr);
         supernovaOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
         addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaOut);
@@ -584,7 +602,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 4261 2009-06-05 18:11:54Z dglo $";
+		return "$Id: StringHubComponent.java 4268 2009-06-08 16:50:49Z dglo $";
     }
 
 	public IByteBufferCache getCache()

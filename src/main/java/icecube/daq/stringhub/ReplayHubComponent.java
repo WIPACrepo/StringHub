@@ -58,7 +58,7 @@ public class ReplayHubComponent
         addMBean("jvm", new MemoryStatistics());
         addMBean("system", new SystemStatistics());
 
-        IByteBufferCache genMgr  = new VitreousBufferCache();
+        IByteBufferCache genMgr = new VitreousBufferCache("RHGen#" + hubId);
         addCache(genMgr);
         addMBean("GenericBuffer", genMgr);
 
@@ -113,7 +113,8 @@ public class ReplayHubComponent
 
         // monitoring output stream
 /*
-        IByteBufferCache moniBufMgr = new VitreousBufferCache();
+        IByteBufferCache moniBufMgr =
+            new VitreousBufferCache("RHMoni#" + hubId);
         addCache(DAQConnector.TYPE_MONI_DATA, moniBufMgr);
 
         SimpleOutputEngine moniOut =
@@ -121,7 +122,8 @@ public class ReplayHubComponent
         addMonitoredEngine(DAQConnector.TYPE_MONI_DATA, moniOut);
 
         // time calibration output stream
-        IByteBufferCache tcalBufMgr  = new VitreousBufferCache();
+        IByteBufferCache tcalBufMgr =
+            new VitreousBufferCache("RHTCal#" + hubId);
         addCache(DAQConnector.TYPE_TCAL_DATA, tcalBufMgr);
 
         SimpleOutputEngine tcalOut =
@@ -129,7 +131,7 @@ public class ReplayHubComponent
         addMonitoredEngine(DAQConnector.TYPE_TCAL_DATA, tcalOut);
 
         // supernova output stream
-        IByteBufferCache snBufMgr = new VitreousBufferCache();
+        IByteBufferCache snBufMgr = new VitreousBufferCache("RHSN#" + hubId);
         addCache(DAQConnector.TYPE_SN_DATA, snBufMgr);
 
         SimpleOutputEngine snOut =
