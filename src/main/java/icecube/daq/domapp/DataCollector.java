@@ -415,7 +415,7 @@ public class DataCollector
         // set chargestamp source
         app.setChargeStampType(!config.isAtwdChargeStamp(), 
                 config.isAutoRangeChargeStamp(), 
-                config.getChargeStampFixedChannel());
+                config.getChargeStampChannel());
         
         // enable charge stamp histogramming
         app.histoChargeStamp(config.getHistoInterval(), config.getHistoPrescale());

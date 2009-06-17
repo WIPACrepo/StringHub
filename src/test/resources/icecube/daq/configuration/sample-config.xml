@@ -6,6 +6,11 @@
         A test config file to illustrate an example of a valid DOM.
     </description>
 
+    <domConfig mbid="9a0744bca158">
+        <format><deltaCompressed/></format>
+        <chargeStamp type="atwd"/>
+    </domConfig>
+    
     <domConfig mbid="57bc3f3a220d">
         <format> 
             <engineeringFormat>

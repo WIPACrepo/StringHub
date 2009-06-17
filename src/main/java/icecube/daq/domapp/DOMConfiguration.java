@@ -6,50 +6,58 @@ public class DOMConfiguration implements Serializable
 {
 	private static final long serialVersionUID = 2L;
 
-	private int hardwareMonitorInterval = 30*40000000;
-	private int configMonitorInterval = 2000000000;
-	private int fastMonitorInterval   = 40000000;
-	private TriggerMode triggerMode = TriggerMode.SPE;
-	private boolean compressionEnabled = false;
-	private EngineeringRecordFormat engFormat = new EngineeringRecordFormat();
-	private short[] dacs = new short[] {
-			850, 2300,  350, 2250,  850, 2300,  350, 2130,
-			600,  560,  800,    0, 1023,  800,  450, 1023,
-			};
-	private MuxState mux = MuxState.OFF;
-	private short pmt_hv = -1;
-	private PulserMode pulserMode = PulserMode.BEACON;
-	private short pulserRate = 5;
-	private LocalCoincidenceConfiguration lc = new LocalCoincidenceConfiguration();
-	private boolean supernovaEnabled = false;
-	private boolean supernovaSpe = true;
-	private int supernovaDeadtime = 51200;
-	private int scalerDeadtime = 51200;
-	private boolean pedestalSubtract = false;
-	private boolean simulation = false;
-	private double simNoiseRate = 25.0;
-	
-	/** Boolean flag for selection of ICETOP MINBIAS mode */
-	private boolean enableMinBias = false;
-	
-	/** Switch selecting which ATWD is used (or both) */
-	private AtwdChipSelect atwdSelect = AtwdChipSelect.PING_PONG;
-	
-	/** The fraction of hits that have HLC bit set (simulation only) */ 
-	private double simHLCFrac = 1.0;   
-	private int histoInterval = 10;
-	private short histoPrescale = (short) 8;
-	private boolean chargeStampATWD = false;
-	private byte chargeStampAtwdChannel = -1;
+	private int                   hardwareMonitorInterval = 30 * 40000000;
+    private int                   configMonitorInterval   = 2000000000;
+    private int                   fastMonitorInterval     = 40000000;
+    private TriggerMode           triggerMode             = TriggerMode.SPE;
+    private boolean               compressionEnabled      = false;
+    
+    private EngineeringRecordFormat engFormat             = new EngineeringRecordFormat();
+    
+    private short[]               dacs = new short[] { 
+            850, 2300, 350, 2250, 
+            850, 2300, 350, 2130, 
+            600,  560, 800,    0, 
+            1023, 800, 450, 1023 
+            };
+    private MuxState              mux                     = MuxState.OFF;
+    private short                 pmt_hv                  = -1;
+    private PulserMode            pulserMode              = PulserMode.BEACON;
+    private short                 pulserRate              = 5;
+    
+    
+    private LocalCoincidenceConfiguration lc                      = new LocalCoincidenceConfiguration();
+    
+    
+    private boolean               supernovaEnabled        = false;
+    private boolean               supernovaSpe            = true;
+    private int                   supernovaDeadtime       = 51200;
+    private int                   scalerDeadtime          = 51200;
+    private boolean               pedestalSubtract        = false;
+    private boolean               simulation              = false;
+    private double                simNoiseRate            = 25.0;
+
+    /** Boolean flag for selection of ICETOP MINBIAS mode */
+    private boolean               enableMinBias           = false;
+
+    /** Switch selecting which ATWD is used (or both) */
+    private AtwdChipSelect        atwdSelect              = AtwdChipSelect.PING_PONG;
+
+    /** The fraction of hits that have HLC bit set (simulation only) */
+    private double                simHLCFrac              = 1.0;
+    private int                   histoInterval           = 10;
+    private short                 histoPrescale           = (short) 8;
+    private boolean               chargeStampATWD         = false;
+    private byte                  chargeStampAtwdChannel  = -1;
 	
 	/** Set for injecting supernova simulation signal */
-	private	boolean 		snSigEnabled = true;					
-	private double 			snDistance = 10.;				
-	private boolean 		effVolumeEnabled = true;		
+	private	boolean               snSigEnabled = true;					
+	private double                snDistance = 10.;				
+	private boolean               effVolumeEnabled = true;		
 
 	public DOMConfiguration()
 	{
-
+	    // Do nothing but signal public default constructor
 	}
 
 	/**
@@ -110,9 +118,10 @@ public class DOMConfiguration implements Serializable
 
 	public AtwdChipSelect getAtwdChipSelect() { return atwdSelect; }
 	
-	public byte getChargeStampFixedChannel() 
+	public byte getChargeStampChannel() 
 	{ 
-	    if (chargeStampAtwdChannel < 0) return 0;
+	    if (chargeStampAtwdChannel < 0) 
+	        return (byte) (-chargeStampAtwdChannel);
 	    return chargeStampAtwdChannel; 
     }
 
@@ -199,7 +208,7 @@ public class DOMConfiguration implements Serializable
 	}
 
 	public double getSnDistance() {
-	return snDistance;
+	    return snDistance;
     }
 
 	/**
@@ -219,24 +228,17 @@ public class DOMConfiguration implements Serializable
         return chargeStampATWD;
     }
 	
-	public void setAtwdChargeStamp(boolean setval)
-	{
-	    chargeStampATWD = setval;
-	}
-	
 	public boolean isAutoRangeChargeStamp()
     {
-        return chargeStampAtwdChannel == -1;
-    }
-
-	public boolean isDeltaCompressionEnabled() { return compressionEnabled; }
-
-	public boolean isEffVolumeEnabled() {
-	    return effVolumeEnabled;
+        return chargeStampAtwdChannel < 0;
     }
 	
-	public boolean isMinBiasEnabled() { return enableMinBias; }
+	public boolean isDeltaCompressionEnabled() { return compressionEnabled; }
 
+	public boolean isEffVolumeEnabled() { return effVolumeEnabled;}
+
+	public boolean isMinBiasEnabled() { return enableMinBias; }
+	
 	/**
 	 * Returns true if this is a simulated DOM or false if it is real.
 	 * @return true if simDOM, false if not
@@ -256,17 +258,22 @@ public class DOMConfiguration implements Serializable
 	 * @return the supernovaSpe
 	 */
 	public boolean isSupernovaSpe() { return supernovaSpe; }
+
+	public void setAtwdChargeStamp(boolean setval)
+	{
+	    chargeStampATWD = setval;
+	}
 	
 	public void setAtwdChipSelect(AtwdChipSelect cs) { atwdSelect = cs; }
 
-	public void setChargeStampAtwdFixedChannel(byte chan)
+	public void setChargeStampAtwdChannel(byte chan)
     {
         chargeStampAtwdChannel = chan;
     }
 
 	public void setChargeStampAutoRange()
     {
-        chargeStampAtwdChannel = -1;
+	    if (chargeStampAtwdChannel > 0) chargeStampAtwdChannel = (byte) (-chargeStampAtwdChannel);
     }
 
 	/**

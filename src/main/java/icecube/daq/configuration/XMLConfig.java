@@ -191,7 +191,7 @@ public class XMLConfig extends DefaultHandler
 		        if (text.equals("auto"))
 		            currentConfig.setChargeStampAutoRange();
 		        else
-		            currentConfig.setChargeStampAtwdFixedChannel(Byte.parseByte(text));
+		            currentConfig.setChargeStampAtwdChannel(Byte.parseByte(text));
 		    }
 		    else if (localName.equals("chargeHistogram"))
 		    {
@@ -357,9 +357,9 @@ public class XMLConfig extends DefaultHandler
 		        currentConfig.setAtwdChargeStamp(false);
 		    String channel = attributes.getValue("channel");
 		    if (channel == null || channel.equals("auto"))
-		        currentConfig.setChargeStampAutoRange();
+		        currentConfig.setChargeStampAtwdChannel((byte) -2);
 		    else
-		        currentConfig.setChargeStampAtwdFixedChannel(Byte.parseByte(channel));
+		        currentConfig.setChargeStampAtwdChannel(Byte.parseByte(channel));
 		}
 		else if (localName.equals("cableLength"))
 		{

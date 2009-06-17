@@ -26,7 +26,7 @@ public class XMLConfigTest
 	private static final MockAppender appender = new MockAppender();
 
 	private XMLConfig xmlConfig;
-	private DOMConfiguration config;
+	private DOMConfiguration config, config2;
 	
 	/**
 	 * This should make the tests JUnit 3.8 compatible
@@ -49,12 +49,14 @@ public class XMLConfigTest
 		xmlConfig = new XMLConfig();
 		xmlConfig.parseXMLConfig(xmlIn);
 		config = xmlConfig.getDOMConfig("57bc3f3a220d");
+		config2 = xmlConfig.getDOMConfig("9a0744bca158");
 	}
 
 	@Test public void testGotDOMConfigs() 
 	{
 		// look for the dom configs declared
 		assertNotNull(config);
+		assertNotNull(config2);
 	}
 	
 	@Test public void testFormat()
@@ -101,6 +103,9 @@ public class XMLConfigTest
 	@Test public void testAtwdChargeStamp()
 	{
 	    assertTrue(config.isAtwdChargeStamp());
-	    assertEquals(2, (int) config.getChargeStampFixedChannel());
+	    assertEquals(2, (int) config.getChargeStampChannel());
+	    assertTrue(config2.isAtwdChargeStamp());
+	    assertTrue(config2.isAutoRangeChargeStamp());
+	    assertEquals(2, (int) config2.getChargeStampChannel());
 	}
 }
