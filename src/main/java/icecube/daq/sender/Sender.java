@@ -1309,6 +1309,10 @@ public class Sender
 
     public String toString()
     {
-        return "" + sourceId;
+        if (sourceId == null) {
+            return "UNKNOWN";
+        }
+
+        return sourceId.toString();
     }
 }
