@@ -106,7 +106,8 @@ public class AuraDRM extends IcebootInterface
         }
         int powerTry = 0;
         while (readVirtualAddress(4) != pwr && powerTry++ < MAX_POWER_TRY) Thread.sleep(100);
-        
+	
+	logger.warn("Trying to set power to "+pwr);
         if (powerTry <= MAX_POWER_TRY) return true;
         logger.warn("Never got good power state.");
         return false;
