@@ -64,7 +64,7 @@ public class AuraDataCollector extends AbstractDataCollector
         this.hits = hits;
         this.evtCnt = 0;
         running = new AtomicBoolean(false);
-        powerControlBits = 0x3f;
+        //this.powerControlBits = 0x3f;
         this.useDOMApp = useDOMApp;
         this.forcedTrigger = new AtomicBoolean(true);
         this.radioTrigger  = new AtomicBoolean(false);
@@ -121,11 +121,14 @@ public class AuraDataCollector extends AbstractDataCollector
                         setRunLevel(RunLevel.STOPPING);
                     }
                     else
-                    {
-                        for (int ant = 0; ant < 4; ant++)
-                            for (int band = 0; band < 4; band++)
-                                drm.setRadioDAC(ant, band, radioDACs[ant][band]);
-                        drm.writeRadioDACs();
+                    { 
+			if (radioTrigger.get())  // Write dacs only if not forced trigger
+			    {
+				for (int ant = 0; ant < 4; ant++)
+				    for (int band = 0; band < 4; band++)
+					drm.setRadioDAC(ant, band, radioDACs[ant][band]);
+				drm.writeRadioDACs();
+			    }
 			if (changeTriggerSetting.get()) {
 			    drm.setTriggerLogic(triggerSetting);
 			    logger.info(mbid+" Trigger Setting changed to"+drm.getTriggerLogic());
@@ -224,6 +227,10 @@ public class AuraDataCollector extends AbstractDataCollector
         return this.mbid;
     }
     
+    public void setPowerLevel (int value)
+    {
+	this.powerControlBits=value;
+    }
     public void setTriggerLogic(int value)
     {
 	this.triggerSetting = value;
