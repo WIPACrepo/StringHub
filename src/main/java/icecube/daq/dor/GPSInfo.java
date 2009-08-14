@@ -45,6 +45,11 @@ public class GPSInfo {
 		buf.limit(limit);
 	}
 
+	public int getDay() { return day; }
+	public int getHour() { return hour; }
+	public int getMin() { return min; }
+	public int getSecond() { return sec; }
+	
 	public int getQuality() { return quality; }
 
 	public UTC getOffset() { return offset; }
