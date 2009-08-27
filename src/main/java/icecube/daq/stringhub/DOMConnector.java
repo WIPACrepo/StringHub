@@ -7,6 +7,7 @@ import icecube.daq.domapp.RunLevel;
 import icecube.daq.juggler.component.DAQConnector;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 import org.apache.log4j.Logger;
 
@@ -140,9 +141,13 @@ public class DOMConnector
 	public void startProcessing()
 		throws Exception
 	{
-		for (AbstractDataCollector dc : collectors)
+		CLOOP: for (AbstractDataCollector dc : collectors)
 		{
-		    while (!dc.isConfigured()) Thread.sleep(100);
+		    while (!dc.isConfigured()) 
+	        {
+		        if (dc.isZombie()) continue CLOOP;
+		        Thread.sleep(100);
+	        }
 			dc.signalStartRun();
 		}
 	}

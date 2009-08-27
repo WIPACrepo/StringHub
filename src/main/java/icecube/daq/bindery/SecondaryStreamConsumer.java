@@ -1,8 +1,7 @@
 /* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
 package icecube.daq.bindery;
 
-import icecube.daq.io.PayloadDestinationOutputEngine;
-import icecube.daq.io.PayloadTransmitChannel;
+import icecube.daq.io.OutputChannel;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.impl.SourceID4B;
 
@@ -21,17 +20,26 @@ import org.apache.log4j.Logger;
 public class SecondaryStreamConsumer implements BufferConsumer
 {
     private HashMap<Integer, Integer> idMap     = new HashMap<Integer, Integer>();
-    private PayloadTransmitChannel outputChannel= null;
-    private PayloadDestinationOutputEngine outputEngine = null;
+    private OutputChannel outputChannel= null;
     private IByteBufferCache cacheMgr           = null;
     private static final Logger logger          = Logger.getLogger(SecondaryStreamConsumer.class);
     private WritableByteChannel dbgChan = null;
+    /** 
+     * Set a prescale of N on the output
+     */
+    private int prescale;
+    private int prescaleCounter = 0;
 
-	public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, PayloadDestinationOutputEngine outputEngine)
+    public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, OutputChannel outputChannel)
     {
-        this.outputEngine = outputEngine;
-        this.outputChannel = outputEngine.lookUpEngineBySourceID(new SourceID4B(0));
+        this(hubId, cacheMgr, outputChannel, 1);
+    }
+    
+	public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, OutputChannel outputChannel, int prescale)
+    {
+        this.outputChannel = outputChannel;
         this.cacheMgr = cacheMgr;
+        this.prescale = prescale;
         idMap.put(102, 5);
         idMap.put(202, 4);
         idMap.put(302, 16);
@@ -54,7 +62,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
         if (recl == 32 && utc == Long.MAX_VALUE)
         {
             logger.info("Stopping payload destinations");
-            outputEngine.getPayloadDestinationCollection().stopAllPayloadDestinations();
+            outputChannel.sendLastAndStop();
         }
         else
         {
@@ -70,7 +78,11 @@ public class SecondaryStreamConsumer implements BufferConsumer
                 dbgChan.write(payloadBuffer);
                 payloadBuffer.rewind();
             }
-            outputChannel.receiveByteBuffer(payloadBuffer);
+            if (prescale <=0 || ++prescaleCounter == prescale)
+            {
+                outputChannel.receiveByteBuffer(payloadBuffer);
+                prescaleCounter = 0;
+            }
         }
     }
 }

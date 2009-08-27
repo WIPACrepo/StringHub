@@ -43,14 +43,12 @@ public final class DeltaCompressedHit
 		DeltaCompressedHit hit = new DeltaCompressedHit();
 		//int pos = buf.position();
 		int word1 = buf.getInt();
-		logger.debug("DeltaHit word0: " + Integer.toHexString(word1));
+		if (logger.isDebugEnabled()) {
+			logger.debug("DeltaHit word0: " + Integer.toHexString(word1));
+		}
 		assert (word1 & 0x80000000) != 0;
-		if ((word1 & 0x00040000) != 0) hit.triggerMask.add(TriggerBit.SPE);
-		if ((word1 & 0x00080000) != 0) hit.triggerMask.add(TriggerBit.MPE);
-		if ((word1 & 0x00100000) != 0) hit.triggerMask.add(TriggerBit.CPU);
-		if ((word1 & 0x00200000) != 0) hit.triggerMask.add(TriggerBit.PULSER);
-		if ((word1 & 0x00400000) != 0) hit.triggerMask.add(TriggerBit.LED);
-		if ((word1 & 0x00800000) != 0) hit.triggerMask.add(TriggerBit.FLASHER);
+		for (TriggerBit trigBit : TriggerBit.values())
+		    if ((word1 & (1 << (18 + trigBit.ordinal()))) != 0) hit.triggerMask.add(trigBit);
 
 		hit.fadcAvailable = (word1 & 0x8000) != 0;
 		hit.atwdAvailable = (word1 & 0x4000) != 0;
@@ -71,7 +69,7 @@ public final class DeltaCompressedHit
 			hit.chargeStamp[2] <<= 1;
 		}
 		DeltaMCodec codec = new DeltaMCodec(buf);
-		if (hit.fadcAvailable) hit.fADC =codec.decode(256);
+		if (hit.fadcAvailable) hit.fADC = codec.decode(256);
 		if (hit.atwdAvailable)
 		{
 			for (int i = 0; i < natwd+1; i++) hit.atwd[i] = codec.decode(128);

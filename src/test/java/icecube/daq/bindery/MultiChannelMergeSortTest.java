@@ -73,11 +73,13 @@ public class MultiChannelMergeSortTest implements BufferConsumer
         for (int iMoni = 0; iMoni < 10; iMoni++)
         {
             Thread.sleep(1000L);
-            logger.info(
-                    "MMS in: " + mms.getNumberOfInputs() + 
-                    " out: " + mms.getNumberOfOutputs() +
-                    " queue size " + mms.getQueueSize()
-                    );
+            if (logger.isInfoEnabled()) {
+                logger.info(
+                        "MMS in: " + mms.getNumberOfInputs() + 
+                        " out: " + mms.getNumberOfOutputs() +
+                        " queue size " + mms.getQueueSize()
+                        );
+            }
         }
         
         for (int ch = 0; ch < nch; ch++) genArr[ch].signalStop();
@@ -91,7 +93,7 @@ public class MultiChannelMergeSortTest implements BufferConsumer
         long utc = buf.getLong(24);
         if (lastUT > utc) timeOrdered = false;
         numBuffersSeen++;
-        if (numBuffersSeen % 100000 == 0) logger.info("# buffers: " + numBuffersSeen);
+        if (numBuffersSeen % 100000 == 0 && logger.isInfoEnabled()) logger.info("# buffers: " + numBuffersSeen);
     }
     
     public static void main(String[] args) throws Exception
@@ -149,7 +151,9 @@ class BufferGenerator extends Thread
     public void run()
     {
         synchronized (this) { run = true; }
-        logger.info("Starting run thread of buffer generator " + mbid);
+        if (logger.isInfoEnabled()) {
+            logger.info("Starting run thread of buffer generator " + mbid);
+        }
         try
         {
             while (isRunning() && !interrupted())
@@ -187,7 +191,9 @@ class BufferGenerator extends Thread
         {
             ex.printStackTrace();
         }
-        logger.info("Buffer generator thread " + mbid + " exiting.");
+        if (logger.isInfoEnabled()) {
+            logger.info("Buffer generator thread " + mbid + " exiting.");
+        }
     }
     
     ByteBuffer eos()

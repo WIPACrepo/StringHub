@@ -50,6 +50,12 @@ public interface IDOMApp {
 	void disableHV() throws MessageException;
 
 	/**
+	 * Disable readout of every 8192nd waveform even if it doesn't meet HLC requirement.
+	 * @throws MessageException
+	 */
+	void disableMinBias() throws MessageException;
+	
+	/**
 	 * Disable the supernova scaler readout.
 	 * @throws MessageException
 	 */
@@ -62,6 +68,12 @@ public interface IDOMApp {
 	 */
 	void enableHV() throws MessageException;
 
+	/**
+	 * @see #disableMinBias()
+	 * @throws MessageException
+	 */
+	void enableMinBias() throws MessageException;
+	
 	/**
 	 * Enable data collection from the supernova system.
 	 * @throws MessageException
@@ -155,6 +167,12 @@ public interface IDOMApp {
 	 */
 	short[] queryHV() throws MessageException;
 
+	/**
+	 * Allow the ATWD to be set to A or B or both.
+	 * @param sel
+	 */
+	void setAtwdReadout(AtwdChipSelect sel) throws MessageException;
+	
 	/**
 	 * Set the LC cable lengths.
 	 * @param up 4-element array of shorts holding the up link delays.
@@ -285,6 +303,14 @@ public interface IDOMApp {
 	void setTriggerMode(TriggerMode mode)
 			throws MessageException;
 
+	/**
+	 * Test if DOM is running DOMApp or IceBoot
+	 * @return true if running DOMApp, false if running IceBoot
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
+	boolean isRunningDOMApp() throws IOException, InterruptedException;
+	
 	/**
 	 * Put the DOM into DOMApp.  On entry to this call the DOM
 	 * may be either in iceboot or domapp.  It makes a determination

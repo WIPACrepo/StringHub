@@ -3,7 +3,6 @@ package icecube.daq.stringhub;
 
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.SecondaryStreamConsumer;
-import icecube.daq.bindery.StreamBinder;
 import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.AbstractDataCollector;
@@ -13,21 +12,18 @@ import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
-import icecube.daq.io.PayloadDestinationOutputEngine;
+import icecube.daq.io.DAQComponentOutputProcess;
+import icecube.daq.io.PayloadReader;
+import icecube.daq.io.SimpleOutputEngine;
 import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
-import icecube.daq.monitoring.DataCollectorMonitor;
 import icecube.daq.monitoring.MonitoringData;
-import icecube.daq.payload.ByteBufferPayloadDestination;
 import icecube.daq.payload.IByteBufferCache;
-import icecube.daq.payload.IPayloadDestination;
-import icecube.daq.payload.IPayloadDestinationCollection;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.MasterPayloadFactory;
-import icecube.daq.payload.PayloadDestinationCollection;
 import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
@@ -44,13 +40,13 @@ import icecube.daq.util.FlasherboardConfiguration;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.channels.Pipe;
-import java.nio.channels.SelectableChannel;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -61,7 +57,7 @@ import org.dom4j.Node;
 import org.dom4j.io.SAXReader;
 import org.xml.sax.SAXException;
 
-public class StringHubComponent extends DAQComponent
+public class StringHubComponent extends DAQComponent implements StringHubComponentMBean
 {
 
 	private static final Logger logger = Logger.getLogger(StringHubComponent.class);
@@ -69,14 +65,17 @@ public class StringHubComponent extends DAQComponent
     private int hubId;
 	private boolean isSim = false;
 	private Driver driver = Driver.getInstance();
+	private IByteBufferCache cache;
 	private Sender sender;
 	private MasterPayloadFactory payloadFactory;
 	private DOMRegistry domRegistry;
 	private IByteBufferCache moniBufMgr, tcalBufMgr, snBufMgr;
-	private PayloadDestinationOutputEngine moniPayloadDest;
-	private PayloadDestinationOutputEngine tcalPayloadDest;
-	private PayloadDestinationOutputEngine supernovaPayloadDest;
-	private PayloadDestinationOutputEngine hitOut;
+	private PayloadReader reqIn;
+	private SimpleOutputEngine moniOut;
+	private SimpleOutputEngine tcalOut;
+	private SimpleOutputEngine supernovaOut;
+	private SimpleOutputEngine hitOut;
+	private SimpleOutputEngine dataOut;
 	private DOMConnector conn = null;
 	private List<DOMChannelInfo> activeDOMs;
 	private MultiChannelMergeSort hitsSort;
@@ -84,61 +83,87 @@ public class StringHubComponent extends DAQComponent
     private MultiChannelMergeSort tcalSort;
     private MultiChannelMergeSort scalSort;
 	private String configurationPath;
-	private String configured = "NO";
-	private int nch;
-	private DataCollectorMonitor collectorMonitor;
 
 	private boolean enableTriggering = false;
 	private ISourceID sourceId;
 	private IStringTriggerHandler triggerHandler;
 	private static final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
 
-	public StringHubComponent(int hubId) throws Exception
+	public StringHubComponent(int hubId)
 	{
-		super(DAQCmdInterface.DAQ_STRING_HUB, hubId);
+		this(hubId, (hubId >= 1000 && hubId < 2000));
+	}
+
+	public StringHubComponent(int hubId, boolean isSim)
+	{
+		super(COMPONENT_NAME, hubId);
 
         this.hubId = hubId;
-
-		final String bufName = "PyrateBufferManager";
-
-		IByteBufferCache hitBufMgr  = new VitreousBufferCache();
-		addCache(hitBufMgr);
-		addMBean(bufName, hitBufMgr);
+		this.isSim = isSim;
 
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
-
-		payloadFactory = new MasterPayloadFactory(hitBufMgr);
-		sender         = new Sender(hubId, payloadFactory);
-		isSim          = (hubId >= 1000 && hubId < 2000);
-		nch            = 0;
-
-		logger.info("starting up StringHub component " + hubId);
-
+		addMBean("stringhub", this);
+		
         /*
          * Component derives behavioral characteristics from
-         * its 'minor ID' - they are ...
-         * (1) component xx81 - xx99 : icetop
-         * (2) component xx01 - xx80 : in-ice
-         * (3) component xx00        : amandaHub
+         * its 'minor ID' which is the low 3 (decimal) digits of
+         * the hub component ID:
+         *  (1) component x000        : amandaHub
+         *  (2) component x001 - x199 : in-ice hub
+		 *      (81 - 86 are deep core but this currently doesn't mean anything)
+         *  (3) component x200 - x299 : icetop
+         * I
          */
-        int minorHubId = hubId % 100;
+        int minorHubId = hubId % 1000;
+
+		String cacheName;
+		String cacheNum;
+		if (minorHubId == 0) {
+			cacheName = "AM";
+			cacheNum = "";
+		} else if (minorHubId <= 80) {
+			cacheName = "SH#" + minorHubId;
+			cacheNum = "#" + minorHubId;
+		} else if (minorHubId <= 200) {
+			cacheName = "DC";
+			cacheNum = "#" + (minorHubId - 80);
+		} else if (minorHubId <= 300) {
+			cacheName = "IT";
+			cacheNum = "#" + (minorHubId - 200);
+		} else {
+			cacheName = "??";
+			cacheNum = "#" + minorHubId;
+		}
+
+		cache  = new VitreousBufferCache(cacheName + cacheNum);
+		addCache(cache);
+		addMBean("PyrateBufferManager", cache);
+
+		IByteBufferCache rdoutDataCache  =
+			new VitreousBufferCache(cacheName + "RdOut" + cacheNum);
+		addCache(DAQConnector.TYPE_READOUT_DATA, rdoutDataCache);
+		sender         = new Sender(hubId, rdoutDataCache);
+
+		if (logger.isInfoEnabled()) {
+			logger.info("starting up StringHub component " + hubId);
+		}
 
         hitOut = null;
 
         if (minorHubId > 0)
         {
-            hitOut = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "hitOut");
-            if (minorHubId > 80)
-                addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
-            else
+            hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "hitOut");
+            if (minorHubId < 200)
                 addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
-            hitOut.registerBufferManager(hitBufMgr);
-            sender.setHitOutputDestination(hitOut.getPayloadDestinationCollection());
+            else
+                addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
+            sender.setHitOutput(hitOut);
+            sender.setHitCache(cache);
         }
 
+        payloadFactory = new MasterPayloadFactory(cache);
 
-        RequestReader reqIn;
         try
         {
             reqIn = new RequestReader(COMPONENT_NAME, sender, payloadFactory);
@@ -149,39 +174,31 @@ public class StringHubComponent extends DAQComponent
         }
         addMonitoredEngine(DAQConnector.TYPE_READOUT_REQUEST, reqIn);
 
-        PayloadDestinationOutputEngine dataOut =
-            new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "dataOut");
-        dataOut.registerBufferManager(hitBufMgr);
+		dataOut =
+            new SimpleOutputEngine(COMPONENT_NAME, hubId, "dataOut");
         addMonitoredEngine(DAQConnector.TYPE_READOUT_DATA, dataOut);
 
-        IPayloadDestinationCollection dataColl = dataOut.getPayloadDestinationCollection();
-        sender.setDataOutputDestination(dataColl);
+        sender.setDataOutput(dataOut);
 
         MonitoringData monData = new MonitoringData();
         monData.setSenderMonitor(sender);
         addMBean("sender", monData);
 
-		collectorMonitor = new DataCollectorMonitor();
-		addMBean("datacollectormonitor", collectorMonitor);
-
         // Following are the payload output engines for the secondary streams
-		moniBufMgr  = new VitreousBufferCache();
+		moniBufMgr  = new VitreousBufferCache(cacheName + "Moni" + cacheNum);
 		addCache(DAQConnector.TYPE_MONI_DATA, moniBufMgr);
-        moniPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "moniOut");
-        moniPayloadDest.registerBufferManager(moniBufMgr);
-        addMonitoredEngine(DAQConnector.TYPE_MONI_DATA, moniPayloadDest);
+        moniOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "moniOut");
+        addMonitoredEngine(DAQConnector.TYPE_MONI_DATA, moniOut);
 
-		tcalBufMgr  = new VitreousBufferCache();
+		tcalBufMgr  = new VitreousBufferCache(cacheName + "TCal" + cacheNum);
 		addCache(DAQConnector.TYPE_TCAL_DATA, tcalBufMgr);
-        tcalPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "tcalOut");
-        tcalPayloadDest.registerBufferManager(tcalBufMgr);
-        addMonitoredEngine(DAQConnector.TYPE_TCAL_DATA, tcalPayloadDest);
+        tcalOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "tcalOut");
+        addMonitoredEngine(DAQConnector.TYPE_TCAL_DATA, tcalOut);
 
-		snBufMgr  = new VitreousBufferCache();
+		snBufMgr  = new VitreousBufferCache(cacheName + "SN" + cacheNum);
 		addCache(DAQConnector.TYPE_SN_DATA, snBufMgr);
-        supernovaPayloadDest = new PayloadDestinationOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
-        supernovaPayloadDest.registerBufferManager(snBufMgr);
-        addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaPayloadDest);
+        supernovaOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
+        addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaOut);
     }
 
 	@Override
@@ -189,7 +206,9 @@ public class StringHubComponent extends DAQComponent
 	{
 		super.setGlobalConfigurationDir(dirName);
 		configurationPath = dirName;
-		logger.info("Setting the ueber configuration directory to " + configurationPath);
+		if (logger.isInfoEnabled()) {
+			logger.info("Setting the ueber configuration directory to " + configurationPath);
+		}
         // get a reference to the DOM registry - useful later
         try {
 			domRegistry = DOMRegistry.loadRegistry(configurationPath);
@@ -215,7 +234,7 @@ public class StringHubComponent extends DAQComponent
 	{
 		if (isSim)
 		{
-			ArrayList<DeployedDOM> attachedDOMs = domRegistry.getDomsOnString(getNumber());
+			Collection<DeployedDOM> attachedDOMs = domRegistry.getDomsOnString(getNumber());
 			activeDOMs = new ArrayList<DOMChannelInfo>(attachedDOMs.size());
 			for (DeployedDOM dom : attachedDOMs)
 			{
@@ -228,10 +247,11 @@ public class StringHubComponent extends DAQComponent
 		}
 		else
 		{
-		    // put the driver into blocking mode
 		    driver.setBlocking(true);
 			activeDOMs = driver.discoverActiveDOMs();
-			logger.info("Found " + activeDOMs.size() + " active DOMs.");
+			if (logger.isInfoEnabled()) {
+				logger.info("Found " + activeDOMs.size() + " active DOMs.");
+			}
 		}
 	}
 
@@ -242,12 +262,10 @@ public class StringHubComponent extends DAQComponent
         sourceId = SourceIdRegistry.getISourceIDFromNameAndId(COMPONENT_NAME, hubId);
         triggerHandler = new StringTriggerHandler(sourceId);
         triggerHandler.setMasterPayloadFactory(payloadFactory);
-        triggerHandler.setPayloadOutput(hitOut.getPayloadDestinationCollection());
+        triggerHandler.setPayloadOutput(hitOut);
 
-        // This is the output of the Sender
-        IPayloadDestination payloadDestination = new ByteBufferPayloadDestination(
-                triggerHandler, hitOut.getBufferManager());
-        sender.setHitOutputDestination(new PayloadDestinationCollection(payloadDestination));
+        // feed sender output through string trigger
+        sender.setHitOutput(triggerHandler);
         logger.info("triggering enabled");
 	}
 
@@ -264,8 +282,6 @@ public class StringHubComponent extends DAQComponent
 			realism = "SIMULATION";
 		else
 			realism = "REAL DOMS";
-
-		configured = "YES";
 
 		try
 		{
@@ -290,34 +306,62 @@ public class StringHubComponent extends DAQComponent
 			 * configuration directives.
 			 */
 			Node hubNode = doc.selectSingleNode("runConfig/stringHub[@hubId='" + hubId + "']");
+			boolean dcSoftboot = false;
+			
+			int tcalPrescale = 10;
+			
 			if (hubNode != null)
 			{
 			    if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) enableTriggering();
 			    if (hubNode.valueOf("sender/forwardIsolatedHitsToTrigger").equalsIgnoreCase("true"))
 			        sender.forwardIsolatedHitsToTrigger();
+			    if (hubNode.valueOf("dataCollector/softboot").equalsIgnoreCase("true"))
+			        dcSoftboot = true;
+			    String tcalPStxt = hubNode.valueOf("tcalPrescale");
+			    if (tcalPStxt.length() != 0) tcalPrescale = Integer.parseInt(tcalPStxt);
 			}
-			logger.info("Number of domConfigNodes found: " + configNodeList.size());
+			if (logger.isInfoEnabled()) {
+				logger.info("Number of domConfigNodes found: " + configNodeList.size());
+			}
 			for (Node configNode : configNodeList) {
 				String tag = configNode.getText();
 				if (!tag.endsWith(".xml"))
 					tag = tag + ".xml";
 				File configFile = new File(domConfigsDirectory, tag);
-				logger.info("Configuring " + realism
+				if (logger.isInfoEnabled()) {
+					logger.info("Configuring " + realism
 							+ " - loading config from "
 							+ configFile.getAbsolutePath());
+				}
 				xmlConfig.parseXMLConfig(new FileInputStream(configFile));
 			}
 
 			fis.close();
 
-			// Find intersection of discovered / configured channels
-			nch = 0;
+            int nch = 0;
+			/***********
+			 * 
+			 * Dropped DOM detection logic - WARN if channel on string AND in config
+			 * BUT NOT in the list of active DOMs.  Oh, and count the number of
+			 * channels that are active AND requested in the config while we're looping
+			 */
+			Set<String> activeDomSet = new HashSet<String>();
 			for (DOMChannelInfo chanInfo : activeDOMs)
-				if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) nch++;
+			{
+			    activeDomSet.add(chanInfo.mbid);
+			    if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) nch++;
+			}
+			
+	         if (nch == 0)
+	                throw new DAQCompException("No Active DOMs on Hub selected in configuration.");
 
-			if (nch == 0)
-			    throw new DAQCompException("No Active DOMs on Hub selected in configuration.");
-
+			for (DeployedDOM deployedDOM : domRegistry.getDomsOnString(getNumber()))
+			{
+			    String mbid = deployedDOM.getMainboardId();
+			    if (!activeDomSet.contains(mbid) && xmlConfig.getDOMConfig(mbid) != null)
+			        logger.warn("DOM " + deployedDOM + " requested in configuration but not found.");
+			}
+			        
 			logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
 
 			// Must make sure to release file resources associated with the previous
@@ -325,10 +369,10 @@ public class StringHubComponent extends DAQComponent
 			if (conn != null) conn.destroy();
 
 			conn = new DOMConnector(nch);
-	
-			SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniBufMgr, moniPayloadDest);
-	        SecondaryStreamConsumer supernovaConsumer = new SecondaryStreamConsumer(hubId, snBufMgr, supernovaPayloadDest);
-	        SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId, tcalBufMgr, tcalPayloadDest);
+
+			SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniBufMgr, moniOut.getChannel());
+	        SecondaryStreamConsumer supernovaConsumer = new SecondaryStreamConsumer(hubId, snBufMgr, supernovaOut.getChannel());
+	        SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId, tcalBufMgr, tcalOut.getChannel(), tcalPrescale);
 
 			// Start the merger-sorter objects
 			hitsSort = new MultiChannelMergeSort(nch, sender);
@@ -347,39 +391,37 @@ public class StringHubComponent extends DAQComponent
 
 				if (isSim)
 				{
+					boolean isAmanda = (getNumber() % 1000) == 0;
+
 					dc = new SimDataCollector(chanInfo, config,
-					        hitsSort, 
+					        hitsSort,
 					        moniSort,
 					        scalSort,
-					        tcalSort);
+					        tcalSort,
+					        isAmanda);
 				}
 				else
 				{
 					dc = new DataCollector(
 							chanInfo.card, chanInfo.pair, chanInfo.dom, config,
-							hitsSort,
-							moniSort,
-							scalSort,
-							tcalSort,
-							null,
-							null,
-							null);
+							hitsSort, moniSort, scalSort, tcalSort,
+							null,null);
+					addMBean("DataCollectorMonitor-" + chanInfo, dc);
 				}
 
+                dc.setSoftbootBehavior(dcSoftboot);
 				hitsSort.register(chanInfo.mbid_numerique);
 				moniSort.register(chanInfo.mbid_numerique);
 				scalSort.register(chanInfo.mbid_numerique);
 				tcalSort.register(chanInfo.mbid_numerique);
 				conn.add(dc);
-				logger.debug("Starting new DataCollector thread on (" + cwd + ").");
+				if (logger.isDebugEnabled()) logger.debug("Starting new DataCollector thread on (" + cwd + ").");
 			}
 
 			logger.info("Starting up HKN1 sorting trees...");
 
 			// Still need to get the data collectors to pick up and do something with the config
 			conn.configure();
-
-			collectorMonitor.setConnector(conn);
 		}
 
 		catch (FileNotFoundException fnx)
@@ -413,12 +455,14 @@ public class StringHubComponent extends DAQComponent
 	public void starting() throws DAQCompException
 	{
 	    logger.info("StringHub is starting the run.");
-	    
+
+	    sender.reset();
+
 	    hitsSort.start();
 	    moniSort.start();
 	    scalSort.start();
 	    tcalSort.start();
-	    
+
 		try
 		{
 			conn.startProcessing();
@@ -439,8 +483,31 @@ public class StringHubComponent extends DAQComponent
 	    boolean[] wirePairSemaphore = new boolean[32];
 	    long validXTime = 0L;
 
-	    logger.info("Beginning subrun");
+	    logger.info("Beginning subrun - turning off any running flashers");
 
+	    // STEP #1 - signal all currently running flashers to stop
+	    for (AbstractDataCollector adc : conn.getCollectors())
+	    {
+	        if (adc.isRunning() && adc.getFlasherConfig() != null)
+	        {
+	            adc.setFlasherConfig(null);
+	            adc.signalStartSubRun();
+	        }
+	    }
+	    for (AbstractDataCollector adc : conn.getCollectors())
+	    {
+	        if (adc.isZombie()) continue;
+	        try
+	        {
+	            while (!adc.isRunning()) Thread.sleep(100);
+	        }
+	        catch (InterruptedException intx)
+	        {
+	            logger.warn("Interrupted sleep on ADC subrun start.");
+	        }
+	    }
+	    
+	    // STEP #2 - now activate newly requested flashers
         for (AbstractDataCollector adc : conn.getCollectors())
         {
             String mbid = adc.getMainboardId();
@@ -464,7 +531,7 @@ public class StringHubComponent extends DAQComponent
                 wirePairSemaphore[pairIndex] = true;
             }
 
-            boolean stateChange = flasherConfig != null || adc.getFlasherConfig() != null;
+            boolean stateChange = flasherConfig != null;
             if (stateChange)
             {
                 adc.setFlasherConfig(flasherConfig);
@@ -486,7 +553,8 @@ public class StringHubComponent extends DAQComponent
                 logger.warn("Interrupted sleep on ADC subrun start.");
             }
         }
-	    logger.info("Subrun time is " + validXTime);
+
+        logger.info("Subrun time is " + validXTime);
 	    return validXTime;
 	}
 
@@ -537,7 +605,55 @@ public class StringHubComponent extends DAQComponent
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 2699 2008-02-28 20:12:05Z kael $";
+		return "$Id: StringHubComponent.java 4270 2009-06-08 22:33:57Z dglo $";
     }
 
+	public IByteBufferCache getCache()
+	{
+		return cache;
+	}
+
+	public DAQComponentOutputProcess getDataWriter()
+	{
+		return dataOut;
+	}
+
+	public DAQComponentOutputProcess getHitWriter()
+	{
+		return hitOut;
+	}
+
+	public int getHubId()
+	{
+		return hubId;
+	}
+
+	public PayloadReader getRequestReader()
+	{
+		return reqIn;
+	}
+
+	public Sender getSender()
+	{
+		return sender;
+	}
+
+    public int getNumberOfActiveChannels()
+    {
+        int nch = 0;
+        for (AbstractDataCollector adc : conn.getCollectors()) if (adc.isRunning()) nch++;
+        return nch;
+    }
+
+    public long getTimeOfLastHitInputToHKN1()
+    {
+        if (hitsSort == null) return 0L;
+        return hitsSort.getLastInputTime();
+    }
+
+    public long getTimeOfLastHitOutputFromHKN1()
+    {
+        if (hitsSort == null) return 0L;
+        return hitsSort.getLastOutputTime();
+    }
 }

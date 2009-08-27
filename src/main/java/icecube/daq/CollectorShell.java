@@ -331,13 +331,14 @@ public class CollectorShell
         {
             String mbid = "00000000ABCD";
             csh.collector = new SimDataCollector(new DOMChannelInfo(mbid, card, pair, dom), csh.config,
-                    hitsConsumer, moniConsumer, scalConsumer, tcalConsumer);
+                    hitsConsumer, moniConsumer, scalConsumer, tcalConsumer,
+                    false);
         }
         else
         {
     		csh.collector = new DataCollector(card, pair, dom, csh.config,
     		        hitsConsumer, moniConsumer, scalConsumer, tcalConsumer,
-    		        null, null, null);
+    		        null, null);
         }
 
 		csh.collector.signalConfigure();

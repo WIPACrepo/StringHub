@@ -133,7 +133,9 @@ public class DeltaMCodec
 		case 11: // null-op
 			break;
 		}
-		logger.debug("shift up - bpw = " + bitsPerWord);
+		if (logger.isDebugEnabled()) {
+			logger.debug("shift up - bpw = " + bitsPerWord);
+		}
 	}
 
 	private void shiftDown()
@@ -159,7 +161,9 @@ public class DeltaMCodec
 			bitBoundary = 4;
 			break;
 		}
-		logger.debug("shift down - bpw = " + bitsPerWord);
+		if (logger.isDebugEnabled()) {
+			logger.debug("shift down - bpw = " + bitsPerWord);
+		}
 	}
 
 	/**
@@ -171,7 +175,9 @@ public class DeltaMCodec
 	{
 		reg |= ( bits & (1 << bitsPerWord) - 1 ) << bvalid;
 		bvalid += bitsPerWord;
-		logger.debug("putBits(" + bits + ")");
+		if (logger.isDebugEnabled()) {
+			logger.debug("putBits(" + bits + ")");
+		}
 		registerLog();
 		while (bvalid > 7)
 		{
@@ -194,7 +200,9 @@ public class DeltaMCodec
 			int nextByte = buf.get() & 0xff;
 			reg |= nextByte << bvalid;
 			bvalid += 8;
-			logger.debug("get next byte " + Integer.toBinaryString(nextByte & 0xff));
+			if (logger.isDebugEnabled()) {
+				logger.debug("get next byte " + Integer.toBinaryString(nextByte & 0xff));
+			}
 		}
 		int val = reg & ((1 << bitsPerWord) - 1);
 		registerLog();
@@ -213,7 +221,9 @@ public class DeltaMCodec
 		{
 			StringBuffer bstr = new StringBuffer(Integer.toBinaryString(reg));
 			while (bstr.length() < bvalid) bstr.insert(0, "0");
-			logger.debug("bit register = B\"" + bstr + "\"");
+			if (logger.isDebugEnabled()) {
+				logger.debug("bit register = B\"" + bstr + "\"");
+			}
 		}
 	}
 

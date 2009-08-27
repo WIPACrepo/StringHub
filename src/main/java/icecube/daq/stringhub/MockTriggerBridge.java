@@ -14,8 +14,13 @@ public class MockTriggerBridge extends DAQComponent {
 	{
 		super(DAQCmdInterface.DAQ_GLOBAL_TRIGGER, 0);
 
-		genericCacheManager = new VitreousBufferCache();
+		genericCacheManager = new VitreousBufferCache("MockTrig");
 		addCache(genericCacheManager);
+	}
+
+	public String getVersionInfo()
+	{
+		return "$Id";
 	}
 
 	/**
@@ -23,7 +28,15 @@ public class MockTriggerBridge extends DAQComponent {
 	 */
 	public static void main(String[] args) throws Exception
 	{
-		new DAQCompServer(new MockTriggerBridge(), args);
+		DAQCompServer srvr;
+		try {
+			srvr = new DAQCompServer(new MockTriggerBridge(), args);
+		} catch (IllegalArgumentException ex) {
+			System.err.println(ex.getMessage());
+			System.exit(1);
+			return; // without this, compiler whines about uninitialized 'srvr'
+		}
+		srvr.startServing();
 	}
 
 }

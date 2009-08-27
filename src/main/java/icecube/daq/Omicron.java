@@ -76,7 +76,9 @@ public class Omicron {
 		XMLConfig xmlConfig = new XMLConfig();
 		xmlConfig.parseXMLConfig(new FileInputStream(args[index++]));
 
-		logger.info("Begin logging at " + new java.util.Date());
+		if (logger.isInfoEnabled()) {
+			logger.info("Begin logging at " + new java.util.Date());
+		}
 		collectors = new ArrayList<DataCollector>();
 
 		// Must first count intersection of configured and discovered DOMs
@@ -112,11 +114,11 @@ public class Omicron {
 			DataCollector dc = new DataCollector(
 					chInfo.card, chInfo.pair, chInfo.dom, config,
 					hitsSort, moniSort, scalSort, tcalSort,
-					null, null, null
+					null, null
 					);
 			collectors.add(dc);
-			logger.debug("Starting new DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ").");
-			logger.debug("DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ") started.");
+			if (logger.isDebugEnabled()) logger.debug("Starting new DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ").");
+			if (logger.isDebugEnabled()) logger.debug("DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ") started.");
 		}
 
 		hitsSort.start();
@@ -130,7 +132,9 @@ public class Omicron {
 		// List of objects that need removal
 		HashSet<DataCollector> reaper = new HashSet<DataCollector>();
 
-		logger.info("Waiting for collectors to initialize");
+		if (logger.isInfoEnabled()) {
+			logger.info("Waiting for collectors to initialize");
+		}
 		for (DataCollector dc : collectors)
 		{
             while (dc.isAlive() && 
@@ -176,7 +180,7 @@ public class Omicron {
 			{
 				while (!dc.getRunLevel().equals(RunLevel.CONFIGURED) && System.currentTimeMillis() - t0 < 15000L)
 				{
-					logger.debug("Waiting of DC " + dc.getName() + " to configure.");
+					if (logger.isDebugEnabled()) logger.debug("Waiting of DC " + dc.getName() + " to configure.");
 					Thread.sleep(500);
 				}
 				if (!dc.getRunLevel().equals(RunLevel.CONFIGURED))

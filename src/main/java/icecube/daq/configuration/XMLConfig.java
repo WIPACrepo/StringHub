@@ -1,5 +1,6 @@
 package icecube.daq.configuration;
 
+import icecube.daq.domapp.AtwdChipSelect;
 import icecube.daq.domapp.BadEngineeringFormat;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.EngineeringRecordFormat;
@@ -90,6 +91,23 @@ public class XMLConfig extends DefaultHandler
 			short val = Short.parseShort(text);
 			currentConfig.setHV(val);
 		}
+		else if (localName.equals("atwdChipSelect"))
+		{
+		    if (text.equals("A"))
+		        currentConfig.setAtwdChipSelect(AtwdChipSelect.ATWD_A);
+		    else if (text.equals("B"))
+		        currentConfig.setAtwdChipSelect(AtwdChipSelect.ATWD_B);
+		    else
+		        currentConfig.setAtwdChipSelect(AtwdChipSelect.PING_PONG);
+		}
+		else if (localName.equals("enableIceTopMinBias"))
+		{
+		    currentConfig.enableMinBias();
+		}
+		else if (localName.equals("disableIceTopMinBias"))
+		{
+		    currentConfig.disableMinBias();
+		}
 		else if (localName.equals("analogMux"))
 		{
 			if (text.equals("off"))
@@ -173,7 +191,7 @@ public class XMLConfig extends DefaultHandler
 		        if (text.equals("auto"))
 		            currentConfig.setChargeStampAutoRange();
 		        else
-		            currentConfig.setChargeStampAtwdFixedChannel(Byte.parseByte(text));
+		            currentConfig.setChargeStampAtwdChannel(Byte.parseByte(text));
 		    }
 		    else if (localName.equals("chargeHistogram"))
 		    {
@@ -331,6 +349,18 @@ public class XMLConfig extends DefaultHandler
 		{
 		    internalState = ParserState.CHARGE_HISTOGRAM;
 		}
+		else if (localName.equals("chargeStamp"))
+		{
+		    if (attributes.getValue("type").equals("atwd"))
+		        currentConfig.setAtwdChargeStamp(true);
+		    else
+		        currentConfig.setAtwdChargeStamp(false);
+		    String channel = attributes.getValue("channel");
+		    if (channel == null || channel.equals("auto"))
+		        currentConfig.setChargeStampAtwdChannel((byte) -2);
+		    else
+		        currentConfig.setChargeStampAtwdChannel(Byte.parseByte(channel));
+		}
 		else if (localName.equals("cableLength"))
 		{
 			if (attributes.getValue("dir").equals("up"))
@@ -364,9 +394,11 @@ public class XMLConfig extends DefaultHandler
 		{
 		    long t0 = System.currentTimeMillis();
 			parser.parse(xmlIn, this);
-			logger.info("XML parsing completed - took " +
+			if (logger.isInfoEnabled()) {
+				logger.info("XML parsing completed - took " +
 						(System.currentTimeMillis() - t0) +
 						" milliseconds.");
+			}
 		}
 		catch (Exception except)
 		{

@@ -92,7 +92,8 @@ public class StreamBinder extends Thread
 
     public void register(SelectableChannel ch, String streamName) throws IOException
     {
-        logger.debug("Registering channel " + streamName);
+        if (logger.isDebugEnabled())
+            logger.debug("Registering channel " + streamName);
         if (nreg == inputs.size()) throw new IllegalStateException("Too many input channels registered");
         Node<DAQRecord> node = inputs.get(nreg++);
         node.setName(streamName);
@@ -121,7 +122,8 @@ public class StreamBinder extends Thread
                 {
                     SelectionKey key = it.next();
                     it.remove();
-                    logger.debug("Sort tree object count = " + counter);
+                    if (logger.isDebugEnabled())
+                        logger.debug("Sort tree object count = " + counter);
                     // overflow handling - check whether the counter is too
                     // large
                     if (counter > counterMax)
@@ -258,8 +260,6 @@ public class StreamBinder extends Thread
                 int pos = iobuf.position();
                 int recl = iobuf.getInt(pos);
                 assert recl >= 32;
-                if (logger.isDebugEnabled())
-                    logger.debug(getName() + " : parsing " + recl + "-byte record @ pos = " + pos);
                 if (iobuf.remaining() < recl) break;
                 ByteBuffer buf = ByteBuffer.allocate(recl);
                 int limit = iobuf.limit();

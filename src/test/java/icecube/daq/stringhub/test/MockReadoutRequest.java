@@ -1,0 +1,131 @@
+package icecube.daq.stringhub.test;
+
+import icecube.daq.payload.ILoadablePayload;
+import icecube.daq.payload.ISourceID;
+import icecube.daq.trigger.IReadoutRequest;
+import icecube.daq.trigger.IReadoutRequestElement;
+import icecube.daq.payload.IUTCTime;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.zip.DataFormatException;
+
+public class MockReadoutRequest
+    implements ILoadablePayload, IReadoutRequest
+{
+    private int uid;
+    private ISourceID srcId;
+    private List elemList;
+
+    public MockReadoutRequest()
+    {
+        this(-1, -1, null);
+    }
+
+    public MockReadoutRequest(IReadoutRequest rReq)
+    {
+        this(rReq.getUID(), rReq.getSourceID(),
+             rReq.getReadoutRequestElements());
+    }
+
+    public MockReadoutRequest(int uid, int srcId)
+    {
+        this(uid, new MockSourceID(srcId), null);
+    }
+
+    public MockReadoutRequest(int uid, int srcId, List elemList)
+    {
+        this(uid, new MockSourceID(srcId), elemList);
+    }
+
+    public MockReadoutRequest(int uid, ISourceID srcId, List elemList)
+    {
+        this.uid = uid;
+        this.srcId = srcId;
+        this.elemList = elemList;
+    }
+
+    public void addElement(IReadoutRequestElement elem)
+    {
+        if (elemList == null) {
+            elemList = new ArrayList();
+        }
+
+        elemList.add(elem);
+    }
+
+    public void addElement(int type, long firstTime, long lastTime, long domId,
+                           int srcId)
+    {
+        addElement(new MockReadoutRequestElement(type, firstTime, lastTime,
+                                                 domId, srcId));
+    }
+
+    public Object deepCopy()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public ByteBuffer getPayloadBacking()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public int getPayloadInterfaceType()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public int getPayloadLength()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public IUTCTime getPayloadTimeUTC()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public int getPayloadType()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public List getReadoutRequestElements()
+    {
+        if (elemList == null) {
+            elemList = new ArrayList();
+        }
+
+        return elemList;
+    }
+
+    public ISourceID getSourceID()
+    {
+        return srcId;
+    }
+
+    public int getUID()
+    {
+        return uid;
+    }
+
+    public void loadPayload()
+        throws IOException, DataFormatException
+    {
+        // do nothing
+    }
+
+    public void recycle()
+    {
+        // do nothing
+    }
+
+    public String toString()
+    {
+        return "MockRdoutReq[" + uid + " src " + srcId + " elem*" +
+            elemList.size() + "]";
+    }
+}

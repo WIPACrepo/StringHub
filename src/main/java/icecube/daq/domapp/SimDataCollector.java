@@ -64,6 +64,8 @@ public class SimDataCollector extends AbstractDataCollector
 	private double[] avgSnSignal;
 	private double[] effVolumeScaling;
 
+    private boolean isAmanda;
+
     private static final Logger logger = Logger.getLogger(SimDataCollector.class);
 
     public SimDataCollector(int card, int pair, char dom, double[] avgSnSignal,
@@ -75,7 +77,7 @@ public class SimDataCollector extends AbstractDataCollector
 
 	public SimDataCollector(DOMChannelInfo chanInfo, BufferConsumer hitsConsumer)
     {
-        this(chanInfo, null, hitsConsumer, null, null, null);
+        this(chanInfo, null, hitsConsumer, null, null, null, false);
     }
 
     public SimDataCollector(DOMChannelInfo chanInfo,
@@ -83,7 +85,8 @@ public class SimDataCollector extends AbstractDataCollector
                             BufferConsumer hitsConsumer,
                             BufferConsumer moniConsumer,
                             BufferConsumer scalConsumer,
-                            BufferConsumer tcalConsumer
+                            BufferConsumer tcalConsumer,
+                            boolean isAmanda
                             )
     {
         super(chanInfo.card, chanInfo.pair, chanInfo.dom);
@@ -93,6 +96,7 @@ public class SimDataCollector extends AbstractDataCollector
         this.moniConsumer = moniConsumer;
         this.scalConsumer = scalConsumer;
         this.tcalConsumer = tcalConsumer;
+        this.isAmanda     = isAmanda;
         runLevel          = RunLevel.IDLE;
         numHits           = 0;
         loopCounter       = 0;
@@ -115,7 +119,10 @@ public class SimDataCollector extends AbstractDataCollector
 
     public void signalShutdown()
     {
-        logger.info("Shutting down data collector [" + card + "" + pair + "" + dom + "]");
+        if (logger.isInfoEnabled()) {
+            logger.info("Shutting down data collector [" + card + "" + pair +
+                        "" + dom + "]");
+        }
         setRunStopFlag(true);
     }
 
@@ -145,7 +152,7 @@ public class SimDataCollector extends AbstractDataCollector
             if (hitsConsumer != null) hitsConsumer.consume(otrava.asReadOnlyBuffer());
             if (moniConsumer != null) moniConsumer.consume(otrava.asReadOnlyBuffer());
             if (tcalConsumer != null) tcalConsumer.consume(otrava.asReadOnlyBuffer());
-            if (scalConsumer != null) scalConsumer.consume(otrava.asReadOnlyBuffer());
+            if (scalConsumer != null && !isAmanda) scalConsumer.consume(otrava.asReadOnlyBuffer());
         } catch (IOException iox) {
             iox.printStackTrace();
             logger.error(iox.getMessage());
@@ -157,10 +164,13 @@ public class SimDataCollector extends AbstractDataCollector
         Calendar now = new GregorianCalendar();
         Calendar startOfYear = new GregorianCalendar(now.get(Calendar.YEAR), 0, 1);
         t0 = startOfYear.getTimeInMillis();
-        logger.debug("Start of year = " + t0);
+        if (logger.isDebugEnabled()) logger.debug("Start of year = " + t0);
 
         clock = 0L;
-        logger.info("Simulated DOM at " + card + "" + pair + "" + dom + " started at dom clock " + clock);
+        if (logger.isInfoEnabled()) {
+            logger.info("Simulated DOM at " + card + "" + pair + "" + dom +
+                        " started at dom clock " + clock);
+        }
 
         lastGenHit = 0L;
         lastBeacon = 0L;
@@ -168,6 +178,8 @@ public class SimDataCollector extends AbstractDataCollector
         try {
             // Simulate the device open latency
             Thread.sleep(1400);
+
+            boolean snStopped = false;
 
             while (keepRunning()) {
                 boolean needSomeSleep = true;
@@ -204,7 +216,22 @@ public class SimDataCollector extends AbstractDataCollector
                     int nHits = generateHits(currTime);
                     generateMoni(currTime);
                     generateTCal(currTime);
-                    generateSupernova(currTime);
+                    if (!isAmanda) {
+                        generateSupernova(currTime);
+                    } else if (!snStopped) {
+                        logger.error("Immediately stopping supernova channel");
+                        try {
+                            ByteBuffer otrava =
+                                MultiChannelMergeSort.eos(numericMBID);
+                            if (scalConsumer != null)
+                                scalConsumer.consume(otrava.asReadOnlyBuffer());
+                        } catch (IOException iox) {
+                            iox.printStackTrace();
+                            logger.error("Couldn't stop supernova channel",
+                                         iox);
+                        }
+                        snStopped = true;
+                    }
                     if (nHits > 0) needSomeSleep = false;
                     break;
                 case STOPPING:
@@ -275,19 +302,18 @@ public class SimDataCollector extends AbstractDataCollector
     private int generateSupernova(long currTime) throws IOException {
         if (currTime - lastSupernova/10000L < 1000L) return 0;
         // Simulate SN wrap-around
-//        if (currTime - lastSupernova/10000L > 10000L) {
-//            lastSupernova = (currTime - 10000L)*10000L;
-//            logger.warn("Buffer overflow in SN record channel: " + mbid);
-//        }
+        if (currTime - lastSupernova/10000L > 10000L) {
+            lastSupernova = (currTime - 10000L)*10000L;
+            logger.warn("Buffer overflow in SN record channel: " + mbid);
+        }
         int dtms = (int) (currTime - lastSupernova/10000L);
         int nsn = dtms * 10000 / 16384 /4*4;      // restrict utc advancing to 4*1.6384 ms increments only
         // sn Data Challenge
 		long runStartMilli = getRunStartTime()/10000000L + t0;
 		long hundredSec = 100000L;
-		long snStartTime = ((runStartMilli/hundredSec)+1)*hundredSec;	// start sn within the next 100 sec (in ms)
-		int dtsnSig = (int) (lastSupernova/10000L - snStartTime);
-		int nsnSig = dtsnSig*10000/16384;
-		int maxnsnSig = 15000*10000/16384;
+		long tenMinutes = 6*hundredSec;
+//		long snStartTime = ((runStartMilli/hundredSec)+1)*hundredSec;	// start sn within the next 100 sec (in ms)
+		long snStartTime = ((runStartMilli/hundredSec)+1)*hundredSec + tenMinutes;	// start sn within the next 100 sec (in ms) + some specified time
 		double effVol = 1.;
 		if (effVolumeEnabled) {
 			int domZNum = 8*card + 2*pair + (2-(dom-'A'));	// dom = 'A' -> 2, dom = 'B' -> 1
@@ -296,13 +322,13 @@ public class SimDataCollector extends AbstractDataCollector
 		//	
         short recl = (short) (10 + nsn);
         ByteBuffer buf = ByteBuffer.allocate(recl+32);
-        long utc = lastSupernova*1000L - t0 * 10000000L;
+        long utc = lastSupernova*1000L - t0 * 10000000L;  // utc is in 1e-10sec
         long clk = utc / 250L;
-        if (logger.isDebugEnabled())
-        {
-//            logger.debug("MBID: " + mbid + " lastSupernova: " + lastSupernova + " UTC: " + utc + " # SN: " + nsn);
-        }
-        lastSupernova = lastSupernova + nsn*16384;
+        
+//        if (logger.isDebugEnabled())
+//        {
+//            logger.debug("runStartMilli: " + runStartMilli + " MBID: " + mbid + " lastSupernova: " + lastSupernova + " UTC: " + utc + " # SN: " + nsn);
+//        }
         
         buf.putInt(recl+32);
         buf.putInt(302);
@@ -318,15 +344,28 @@ public class SimDataCollector extends AbstractDataCollector
         buf.put((byte) ((clk >>  8) & 0xff));
         buf.put((byte) clk);
         for (int i = 0; i < nsn; i++) {
-	    double snRate = 0.;
-	    if (snSigEnabled && (nsnSig+i+1>0) && (nsnSig+i<maxnsnSig)) {
-		snRate = snSignalPerDom(nsnSig + i)*effVol*(10./snDistance)*(10./snDistance);
-	    }
-	    int scaler = poissonRandom.nextInt(300 * 0.0016384) + poissonRandom.nextInt(snRate);
-	    if (scaler > 15) scaler = 15;
-	    buf.put((byte) scaler);
+		    double snRate = 0.;
+		    long binTime = lastSupernova/10000L + i*10000/16384;  // time of the i'th nsn bin in ms
+//		    if ((nsnSig+i+1 > 0) && (nsnSig+i < maxnsnSig)) {
+    		if (snSigEnabled) {
+    			if (binTime > snStartTime) {
+    				if (binTime < snStartTime + 16.384*916) {  	// There are 916 bins of 16.384 ms in the signal model below			
+		    			int snBin = (int) ((binTime - snStartTime)*10000/16384);
+//    			        if (logger.isDebugEnabled()) {
+//    			            logger.debug("snBin: " + snBin);
+//    			        }
+		    			snRate = snSignalPerDom(snBin)*effVol*(10./snDistance)*(10./snDistance);
+		    		}
+		    	}
+		    }
+		    int scaler = poissonRandom.nextInt(300 * 0.0016384) + poissonRandom.nextInt(snRate);
+		    if (scaler > 15) scaler = 15;
+		    buf.put((byte) scaler);
         }
         buf.flip();
+
+        lastSupernova = lastSupernova + nsn*16384;
+        
         if (scalConsumer != null) scalConsumer.consume(buf);
         return 1;
     }
@@ -341,7 +380,8 @@ public class SimDataCollector extends AbstractDataCollector
         double mu = dt * rate;
         int n = poissonRandom.nextInt(mu);
         numHits += n;
-         logger.debug("Generated " + n + " events in interval " + lastGenHit + ":" + currTime);
+//         if (logger.isDebugEnabled())
+//             logger.debug("Generated " + n + " events in interval " + lastGenHit + ":" + currTime);
         ArrayList<Long> eventTimes = new ArrayList<Long>(n);
         // generate n random times in the interval
         for (int i = 0; i < n; i++) {
@@ -378,7 +418,8 @@ public class SimDataCollector extends AbstractDataCollector
             int word3 = 0x00000000;
             buf.putInt(word1).putInt(word3);
             buf.flip();
-            logger.debug("Writing " + buf.remaining() + " byte hit at UTC = " + utc);
+//            if (logger.isDebugEnabled())
+//                logger.debug("Writing " + buf.remaining() + " byte hit at UTC = " + utc);
             if (hitsConsumer != null) hitsConsumer.consume(buf);
         }
         return n;
@@ -464,9 +505,9 @@ public class SimDataCollector extends AbstractDataCollector
     }
 
     /**
-     * Contains supernova signal extracted from Livermore paper in 10*1.6384ms bins 
-     * (we only have luminosity in 0.1sec resolution)
-	 * @param nsnSigBin the 1.6384ms time bin to set
+     * Contains supernova signal extracted from Livermore paper in 10*1.6384ms bins for a 10 kpc supernova.
+     * (we only have luminosity in 0.1sec resolution).  The entire signal has 916 entries, lasting 15 seconds.
+	 * @param nsnSigBin: the 1.6384ms time bin to set
      * @return expected supernova signal per DOM in the 1.6384ms bin
      */
    public double snSignalPerDom(int nsnSigBin) {
@@ -620,7 +661,7 @@ public class SimDataCollector extends AbstractDataCollector
     			0.0382441, 0.0382441 
     	};
     	double s = avgSnSignalPerDom[nsnSigBin/10]/10.;
-	logger.debug("SN signal[" + nsnSigBin + "]: " + s);
+//	if (logger.isDebugEnabled()) logger.debug("SN signal[" + nsnSigBin + "]: " + s);
 	return s;
     }
 

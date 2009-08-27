@@ -59,15 +59,10 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     private final DAQBufferComparator bufferCmp = new DAQBufferComparator();
     private boolean running;
     private static final Logger logger = Logger.getLogger(MultiChannelMergeSort.class);
-    private long lastUT;
-    private static final ByteBuffer eos = ByteBuffer.allocate(32);
+    private volatile long lastInputUT;
+    private volatile long lastUT;
     private int inputCounter;
     private int outputCounter;
-    
-    static
-    {
-        eos.putInt(0, 32).putInt(4, 0).putLong(24, Long.MAX_VALUE);
-    }
     
     public MultiChannelMergeSort(int nch, BufferConsumer out)
     {
@@ -89,7 +84,7 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     
     public MultiChannelMergeSort(int nch, BufferConsumer out, String channelType)
     {
-        this(nch, out, "g", 100000);
+        this(nch, out, channelType, 100000);
     }
 
     /**
@@ -126,7 +121,7 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     
     public void run()
     {
-        terminalNode = Node.makeTree(inputMap.values(), bufferCmp);
+        terminalNode = Node.makeTree(inputMap.values());
         running = true;
         
         while (running)
@@ -135,6 +130,7 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
             {
                 ByteBuffer buf = q.take();
                 DAQBuffer daqBuffer = new DAQBuffer(buf);
+                lastInputUT = daqBuffer.timestamp;
                 if (logger.isDebugEnabled())
                 {
                     logger.debug(
@@ -179,10 +175,14 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     
     public static ByteBuffer eos(long mbid)
     {
-        eos.putLong(8, mbid);
+        ByteBuffer eos = ByteBuffer.allocate(32);
+        eos.putInt(0, 32).putInt(4, 0).putLong(8, mbid).putLong(24, Long.MAX_VALUE);
         eos.clear();
         return eos.asReadOnlyBuffer();
     }
+    
+    public long getLastInputTime() { return lastInputUT; }
+    public long getLastOutputTime() { return lastUT; }
     
 }
 

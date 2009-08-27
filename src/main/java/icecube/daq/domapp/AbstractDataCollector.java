@@ -30,6 +30,7 @@ public abstract class AbstractDataCollector extends Thread
     protected RunLevel runLevel;
     protected DOMConfiguration config;
     protected FlasherboardConfiguration flasherConfig;
+    protected boolean alwaysSoftboot = false;
     private static final Logger logger = Logger.getLogger(AbstractDataCollector.class);
 
     public AbstractDataCollector(int card, int pair, char dom)
@@ -95,6 +96,7 @@ public abstract class AbstractDataCollector extends Thread
 	 */
 	public void signalStartRun()
 	{
+		logger.info("signalStartRun");
 	    switch (getRunLevel())
 	    {
 	    case CONFIGURED:
@@ -113,7 +115,9 @@ public abstract class AbstractDataCollector extends Thread
             setRunLevel(RunLevel.STOPPING);
             break;
         default:
-            logger.info("Ignoring stop from run level " + runLevel);
+            if (logger.isInfoEnabled()) {
+                logger.info("Ignoring stop from run level " + runLevel);
+            }
         }
 	}
 
@@ -173,6 +177,11 @@ public abstract class AbstractDataCollector extends Thread
 	{
 	    return runLevel == RunLevel.STOPPING;
 	}
+	
+	public synchronized boolean isZombie()
+	{
+	    return runLevel == RunLevel.ZOMBIE;
+	}
 
 	/**
 	 * Subclasses should override to provide last run start time in 0.1 ns ticks.
@@ -186,6 +195,7 @@ public abstract class AbstractDataCollector extends Thread
 	public synchronized void setRunLevel(RunLevel runLevel)
 	{
 	    this.runLevel = runLevel;
+	    if (logger.isDebugEnabled()) logger.debug("Run level is " + this.runLevel);
 	}
 
 
@@ -202,4 +212,9 @@ public abstract class AbstractDataCollector extends Thread
 	{
 	    return 0L;
 	}
+
+    public void setSoftbootBehavior(boolean dcSoftboot)
+    {
+        alwaysSoftboot = dcSoftboot;
+    }
 }

@@ -3,7 +3,7 @@ package icecube.daq.dor;
 public class GPSException extends Exception {
 
 	private static final long serialVersionUID = 1L;
-	private String procfile;
+	protected String procfile;
 	private Exception wrappedException;
 
 	public GPSException(String procfile) {

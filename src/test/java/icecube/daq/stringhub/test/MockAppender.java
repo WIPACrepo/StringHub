@@ -1,11 +1,12 @@
 package icecube.daq.stringhub.test;
 
+import icecube.daq.common.IDAQAppender;
+
 import java.util.ArrayList;
 
 import org.apache.log4j.Appender;
 import org.apache.log4j.Layout;
 import org.apache.log4j.Level;
-
 import org.apache.log4j.spi.ErrorHandler;
 import org.apache.log4j.spi.Filter;
 import org.apache.log4j.spi.LocationInfo;
@@ -15,12 +16,14 @@ import org.apache.log4j.spi.LoggingEvent;
  * Mock log4j appender.
  */
 public class MockAppender
-    implements Appender
+    implements IDAQAppender
 {
     /** minimum level of log messages which will be print. */
     private Level minLevel;
     /** <tt>true</tt> if messages should be printed as well as cached. */
     private boolean verbose;
+    /** <tt>true</tt> if messages are not kept. */
+    private boolean flushMsgs;
 
     private ArrayList<LoggingEvent> eventList;
 
@@ -86,20 +89,32 @@ public class MockAppender
     public void doAppend(LoggingEvent evt)
     {
         if (evt.getLevel().toInt() >= minLevel.toInt()) {
-            eventList.add(evt);
+            if (!flushMsgs) {
+                eventList.add(evt);
+            }
 
             if (verbose) {
-                LocationInfo loc = evt.getLocationInformation();
-
-                System.out.println(evt.getLoggerName() + " " + evt.getLevel() +
-                                   " [" + loc.fullInfo + "] " +
-                                   evt.getMessage());
-
-                String[] stack = evt.getThrowableStrRep();
-                for (int i = 0; stack != null && i < stack.length; i++) {
-                    System.out.println("> " + stack[i]);
-                }
+                dumpEvent(evt);
             }
+        }
+    }
+
+    /**
+     * Dump a logging event to System.out
+     *
+     * @param evt logging event
+     */
+    private void dumpEvent(LoggingEvent evt)
+    {
+        LocationInfo loc = evt.getLocationInformation();
+
+        System.out.println(evt.getLoggerName() + " " + evt.getLevel() +
+                           " [" + loc.fullInfo + "] " +
+                           evt.getMessage());
+
+        String[] stack = evt.getThrowableStrRep();
+        for (int i = 0; stack != null && i < stack.length; i++) {
+            System.out.println("> " + stack[i]);
         }
     }
 
@@ -173,6 +188,40 @@ public class MockAppender
     }
 
     /**
+     * Is this appender sending log messages?
+     *
+     * @return <tt>true</tt> if this appender is connected
+     */
+    public boolean isConnected()
+    {
+        return true;
+    }
+
+    /**
+     * Is this appender sending log messages to the specified host and port.
+     *
+     * @param logHost DAQ host name/IP address
+     * @param logPort DAQ port number
+     * @param liveHost I3Live host name/IP address
+     * @param livePort I3Live port number
+     *
+     * @return <tt>true</tt> if this appender uses the host:port
+     */
+    public boolean isConnected(String logHost, int logPort, String liveHost,
+                               int livePort)
+    {
+        return true;
+    }
+
+    /**
+     * Reconnect to the remote socket.
+     */
+    public void reconnect()
+    {
+        // do nothing
+    }
+
+    /**
      * Unimplemented.
      *
      * @return ???
@@ -190,6 +239,16 @@ public class MockAppender
     public void setErrorHandler(ErrorHandler x0)
     {
         throw new Error("Unimplemented");
+    }
+
+    /**
+     * Should log messages be flushed?
+     *
+     * @param val <tt>false</tt> if log messages should be saved
+     */
+    public void setFlushMessages(boolean val)
+    {
+        flushMsgs = val;
     }
 
     /**

@@ -40,7 +40,8 @@ public class DOMIO {
 		try {
 			file.close();
 			channel.close();
-			logger.debug("Closed file/channel for [" + card + "" + pair + dom + "]");
+			if (logger.isDebugEnabled())
+				logger.debug("Closed file/channel for [" + card + "" + pair + dom + "]");
 		} catch (IOException iox) {
 			iox.printStackTrace();
 			logger.error("Error on close of DOMIO: " + iox.getMessage());
@@ -56,7 +57,7 @@ public class DOMIO {
 	public int send(ByteBuffer buf) throws IOException {
 		int nw = channel.write(buf);
         if (logger.isDebugEnabled())
-            logger.debug("ch=(" + card + ", " + pair + ", " + dom + ") xmit " + nw + " bytes to DOM.");
+            logger.debug("dorch=" + card + "" + pair + "" + dom + " - xmit " + nw + " bytes to DOM.");
 		return nw;
 	}
 
@@ -72,7 +73,7 @@ public class DOMIO {
 	    int nr = channel.read(in);
 
         if (logger.isDebugEnabled())
-            logger.debug("ch=(" + card + ", " + pair + ", " + dom + ") read " + nr + " bytes from DOM.");
+            logger.debug("dorch=" + card + "" + pair + "" + dom + " - read " + nr + " bytes from DOM.");
 		in.flip();
 		return in;
 	}
