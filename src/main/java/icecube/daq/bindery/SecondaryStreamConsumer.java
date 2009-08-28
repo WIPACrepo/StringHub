@@ -3,7 +3,6 @@ package icecube.daq.bindery;
 
 import icecube.daq.io.OutputChannel;
 import icecube.daq.payload.IByteBufferCache;
-import icecube.daq.payload.impl.SourceID4B;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

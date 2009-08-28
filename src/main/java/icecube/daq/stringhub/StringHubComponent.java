@@ -20,12 +20,13 @@ import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
+import icecube.daq.oldpayload.impl.MasterPayloadFactory;
 import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.ISourceID;
-import icecube.daq.payload.MasterPayloadFactory;
 import icecube.daq.payload.SourceIdRegistry;
-import icecube.daq.payload.VitreousBufferCache;
+import icecube.daq.payload.impl.ReadoutRequestFactory;
+import icecube.daq.payload.impl.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
 import icecube.daq.trigger.component.GlobalConfiguration;
@@ -67,7 +68,6 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	private Driver driver = Driver.getInstance();
 	private IByteBufferCache cache;
 	private Sender sender;
-	private MasterPayloadFactory payloadFactory;
 	private DOMRegistry domRegistry;
 	private IByteBufferCache moniBufMgr, tcalBufMgr, snBufMgr;
 	private PayloadReader reqIn;
@@ -104,7 +104,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
 		addMBean("stringhub", this);
-		
+
         /*
          * Component derives behavioral characteristics from
          * its 'minor ID' which is the low 3 (decimal) digits of
@@ -162,11 +162,11 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
             sender.setHitCache(cache);
         }
 
-        payloadFactory = new MasterPayloadFactory(cache);
-
+        ReadoutRequestFactory rdoutReqFactory =
+            new ReadoutRequestFactory(cache);
         try
         {
-            reqIn = new RequestReader(COMPONENT_NAME, sender, payloadFactory);
+            reqIn = new RequestReader(COMPONENT_NAME, sender, rdoutReqFactory);
         }
         catch (IOException ioe)
         {
@@ -222,6 +222,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			e.printStackTrace();
 			logger.error(e.getMessage());
 		}
+
+		sender.setDOMRegistry(domRegistry);
 	}
 
 	/**
@@ -261,7 +263,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
         sourceId = SourceIdRegistry.getISourceIDFromNameAndId(COMPONENT_NAME, hubId);
         triggerHandler = new StringTriggerHandler(sourceId);
-        triggerHandler.setMasterPayloadFactory(payloadFactory);
+        triggerHandler.setMasterPayloadFactory(new MasterPayloadFactory(cache));
         triggerHandler.setPayloadOutput(hitOut);
 
         // feed sender output through string trigger
@@ -307,9 +309,9 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			 */
 			Node hubNode = doc.selectSingleNode("runConfig/stringHub[@hubId='" + hubId + "']");
 			boolean dcSoftboot = false;
-			
+
 			int tcalPrescale = 10;
-			
+
 			if (hubNode != null)
 			{
 			    if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) enableTriggering();
@@ -340,7 +342,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
             int nch = 0;
 			/***********
-			 * 
+
 			 * Dropped DOM detection logic - WARN if channel on string AND in config
 			 * BUT NOT in the list of active DOMs.  Oh, and count the number of
 			 * channels that are active AND requested in the config while we're looping
@@ -351,7 +353,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			    activeDomSet.add(chanInfo.mbid);
 			    if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) nch++;
 			}
-			
+
 	         if (nch == 0)
 	                throw new DAQCompException("No Active DOMs on Hub selected in configuration.");
 
@@ -361,7 +363,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			    if (!activeDomSet.contains(mbid) && xmlConfig.getDOMConfig(mbid) != null)
 			        logger.warn("DOM " + deployedDOM + " requested in configuration but not found.");
 			}
-			        
+
 			logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
 
 			// Must make sure to release file resources associated with the previous
@@ -506,7 +508,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	            logger.warn("Interrupted sleep on ADC subrun start.");
 	        }
 	    }
-	    
+
 	    // STEP #2 - now activate newly requested flashers
         for (AbstractDataCollector adc : conn.getCollectors())
         {
@@ -605,7 +607,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 4270 2009-06-08 22:33:57Z dglo $";
+		return "$Id: StringHubComponent.java 4574 2009-08-28 21:32:32Z dglo $";
     }
 
 	public IByteBufferCache getCache()

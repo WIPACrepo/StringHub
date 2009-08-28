@@ -2,9 +2,10 @@ package icecube.daq.sender;
 
 import icecube.daq.io.PushPayloadReader;
 import icecube.daq.payload.ILoadablePayload;
-import icecube.daq.payload.MasterPayloadFactory;
-import icecube.daq.payload.splicer.Payload;
-import icecube.daq.trigger.IReadoutRequest;
+import icecube.daq.payload.IPayload;
+import icecube.daq.payload.IReadoutRequest;
+import icecube.daq.payload.impl.ReadoutRequestFactory;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.apache.commons.logging.Log;
@@ -22,7 +23,7 @@ public class RequestReader
     /** back-end processor which digests readout requests. */
     private Sender sender;
 
-    private MasterPayloadFactory masterFactory;
+    private ReadoutRequestFactory factory;
 
     /**
      * Read requests from global trigger.
@@ -32,7 +33,7 @@ public class RequestReader
      * @param factory payload factory
      */
     public RequestReader(String name, Sender sender,
-                         MasterPayloadFactory factory)
+                         ReadoutRequestFactory factory)
         throws IOException
     {
         // parent constructor wants same args
@@ -43,7 +44,7 @@ public class RequestReader
         }
         this.sender = sender;
 
-        masterFactory = factory;
+        this.factory = factory;
     }
 
     public void pushBuffer(ByteBuffer buf)
@@ -52,14 +53,10 @@ public class RequestReader
         IReadoutRequest pay;
 
         try {
-            pay = (IReadoutRequest) masterFactory.createPayload(0, buf);
+            pay = factory.createPayload(buf, 0);
         } catch (Exception ex) {
             LOG.error("Cannot create readout request", ex);
             throw new IOException("Cannot create readout request");
-        }
-
-        if (pay == null) {
-            return;
         }
 
         try {
@@ -70,7 +67,7 @@ public class RequestReader
         }
 
         //try putting the payload into the list.
-        sender.addRequest((Payload) pay);
+        sender.addRequest((IPayload) pay);
     }
 
     public void sendStop()

@@ -2,10 +2,10 @@ package icecube.daq.stringhub.test;
 
 import icecube.daq.payload.IDOMID;
 import icecube.daq.payload.IPayloadDestination;
+import icecube.daq.payload.IReadoutRequestElement;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.IWriteablePayloadRecord;
-import icecube.daq.trigger.IReadoutRequestElement;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

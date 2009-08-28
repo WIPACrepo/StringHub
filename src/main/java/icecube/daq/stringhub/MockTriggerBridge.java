@@ -4,7 +4,7 @@ import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.juggler.component.DAQCompServer;
 import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.payload.IByteBufferCache;
-import icecube.daq.payload.VitreousBufferCache;
+import icecube.daq.payload.impl.VitreousBufferCache;
 
 public class MockTriggerBridge extends DAQComponent {
 

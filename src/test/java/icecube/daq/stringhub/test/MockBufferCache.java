@@ -14,11 +14,10 @@ public class MockBufferCache
     {
     }
 
-    public ByteBuffer acquireBuffer(int bytes)
+    public synchronized ByteBuffer acquireBuffer(int bytes)
     {
         bufsAlloc++;
         bytesAlloc += bytes;
-
         return ByteBuffer.allocate(bytes);
     }
 
@@ -48,6 +47,11 @@ public class MockBufferCache
     }
 
     public long getMaxAquiredBytes()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public String getName()
     {
         throw new Error("Unimplemented");
     }
@@ -84,7 +88,12 @@ public class MockBufferCache
 
     public void returnBuffer(ByteBuffer buf)
     {
+        returnBuffer(buf.capacity());
+    }
+
+    public synchronized void returnBuffer(int bytes)
+    {
         bufsAlloc--;
-        bytesAlloc -= buf.capacity();
+        bytesAlloc -= bytes;
     }
 }

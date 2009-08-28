@@ -1,7 +1,7 @@
 package icecube.daq.stringhub.test;
 
 import icecube.daq.payload.IUTCTime;
-import icecube.util.Poolable;
+import icecube.daq.payload.Poolable;
 
 public class MockUTCTime
     implements IUTCTime, Poolable
