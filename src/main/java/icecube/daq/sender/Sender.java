@@ -740,6 +740,8 @@ public class Sender
 
         IReadoutRequest req = (IReadoutRequest) reqPayload;
 
+        final int uid = req.getUID();
+
         IUTCTime startTime = null;
         IUTCTime endTime = null;
 
@@ -776,11 +778,11 @@ public class Sender
         latestReadoutEndTime = endTime.longValue();
 
         if (log.isWarnEnabled() && dataList.size() == 0) {
-            log.warn("Sending empty hit record list for window [" +
+            log.warn("Sending empty hit record list " + uid + " window [" +
                      startTime + " - " + endTime + "]");
         } else if (log.isDebugEnabled()) {
-            log.debug("Closing hit record list for window [" + startTime +
-                      " - " + endTime + "]");
+            log.debug("Closing hit record list " + uid + " window [" +
+                      startTime + " - " + endTime + "]");
         }
 
         List<DOMHit> hitDataList = new ArrayList<DOMHit>();
@@ -790,8 +792,6 @@ public class Sender
 
         // sort by timestamp/source ID
         Collections.sort(hitDataList, HIT_SORTER);
-
-        final int uid = req.getUID();
 
         if (domRegistry == null) {
             throw new Error("DOM registry has not been set");
