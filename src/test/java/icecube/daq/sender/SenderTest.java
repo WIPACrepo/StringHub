@@ -963,7 +963,6 @@ public class SenderTest
 
         if (domRegistry == null) {
             String configDir = getClass().getResource("/config").getPath();
-System.err.println("CFGDIR "+configDir);
             try {
                 domRegistry = DOMRegistry.loadRegistry(configDir);
             } catch (Exception ex) {
