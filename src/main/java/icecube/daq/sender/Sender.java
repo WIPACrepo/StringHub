@@ -16,6 +16,7 @@ import icecube.daq.payload.IWriteablePayload;
 import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.impl.DOMHit;
 import icecube.daq.payload.impl.DOMHitFactory;
+import icecube.daq.payload.impl.DOMHitReadoutData;
 import icecube.daq.payload.impl.HitRecordList;
 import icecube.daq.payload.PayloadException;
 import icecube.daq.reqFiller.RequestFiller;
@@ -130,12 +131,15 @@ public class Sender
     extends RequestFiller
     implements BufferConsumer, SenderMonitor
 {
+    protected static final int DEFAULT_TRIGGER_MODE = 2;
+
     private static Log log = LogFactory.getLog(Sender.class);
 
     /** Used to sort hits before building readout data payloads. */
     private static final HitSorter HIT_SORTER = new HitSorter();
 
-    protected static final int DEFAULT_TRIGGER_MODE = 2;
+    /** Version of events being built */
+    public static final int EVENT_VERSION = 5;
 
     private ISourceID sourceId;
 
@@ -799,13 +803,18 @@ public class Sender
 
         // build readout data
         ILoadablePayload readout;
-        try {
-            readout =
-                new HitRecordList(domRegistry, startTime.longValue(), uid,
-                                  sourceId, hitDataList);
-        } catch (PayloadException pe) {
-            log.error("Cannot build list of hit records", pe);
-            return null;
+        if (EVENT_VERSION < 5) {
+            readout = new DOMHitReadoutData(uid, sourceId, startTime, endTime,
+                                            hitDataList);
+        } else {
+            try {
+                readout =
+                    new HitRecordList(domRegistry, startTime.longValue(), uid,
+                                      sourceId, hitDataList);
+            } catch (PayloadException pe) {
+                log.error("Cannot build list of hit records", pe);
+                return null;
+            }
         }
 /*
         Iterator hitIter = hitDataList.iterator();
