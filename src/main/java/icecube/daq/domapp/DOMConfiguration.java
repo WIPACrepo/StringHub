@@ -51,7 +51,7 @@ public class DOMConfiguration implements Serializable
     private byte                  chargeStampAtwdChannel  = -1;
 	
 	/** Set for injecting supernova simulation signal */
-	private	boolean               snSigEnabled = true;					
+	private	boolean               snSigEnabled = false;					
 	private double                snDistance = 10.;				
 	private boolean               effVolumeEnabled = true;		
 
