@@ -119,7 +119,10 @@ public enum MessageType {
 	BEGIN_FB_RUN(4, 27),
 	
 	/** Stop an on-going flasher run */
-	END_FB_RUN(4, 28);
+	END_FB_RUN(4, 28),
+	
+	/** Change FB parameters - akin to the BEGIN_FB_RUN message */
+	CHANGE_FB_SETTINGS(4, 29);
 
 	private byte facility;
 	private byte subtype;

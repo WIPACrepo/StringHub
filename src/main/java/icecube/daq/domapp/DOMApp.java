@@ -34,6 +34,18 @@ public class DOMApp implements IDOMApp
         devIO.close();
     }
 
+    public void changeFlasherSettings(
+            short brightness, 
+            short width, 
+            short delay, 
+            short mask, 
+            short rate) throws MessageException
+    {
+        ByteBuffer buf = ByteBuffer.allocate(10);
+        buf.putShort(brightness).putShort(width).putShort(delay).putShort(mask).putShort(rate).flip();
+        sendMessage(MessageType.CHANGE_FB_SETTINGS, buf);
+    }
+    
     public void beginFlasherRun(short brightness, short width, short delay, short mask, short rate)
             throws MessageException
     {
