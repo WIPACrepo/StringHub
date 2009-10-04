@@ -1031,7 +1031,7 @@ public class DataCollector
                  * I must stop the current run unless I was just running a flasher run
                  * on this DOM and I am just changing the flasher parameters.
                  */
-                if (!latelyRunningFlashers && flasherConfig != null)
+                if (!(latelyRunningFlashers && flasherConfig != null))
                 {
                     setRunLevel(RunLevel.STOPPING_SUBRUN);
                     app.endRun();
