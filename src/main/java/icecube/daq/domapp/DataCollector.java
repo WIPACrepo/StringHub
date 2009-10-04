@@ -1027,7 +1027,11 @@ public class DataCollector
                 break;
 
             case STARTING_SUBRUN:
-                if (latelyRunningFlashers && flasherConfig == null)
+                /*
+                 * I must stop the current run unless I was just running a flasher run
+                 * on this DOM and I am just changing the flasher parameters.
+                 */
+                if (!latelyRunningFlashers && flasherConfig != null)
                 {
                     setRunLevel(RunLevel.STOPPING_SUBRUN);
                     app.endRun();
@@ -1037,19 +1041,9 @@ public class DataCollector
                 if (flasherConfig != null)
                 {
                     if (logger.isInfoEnabled()) logger.info("Starting flasher subrun");
-                    DOMConfiguration tempConfig = new DOMConfiguration(config);
-                    tempConfig.setHV(-1);
-                    tempConfig.setTriggerMode(TriggerMode.FB);
-                    LocalCoincidenceConfiguration lcX = new LocalCoincidenceConfiguration();
-                    lcX.setRxMode(RxMode.RXNONE);
-                    tempConfig.setLC(lcX);
-                    tempConfig.setEngineeringFormat(
-                            new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 64 })
-                            );
-                    tempConfig.setMux(MuxState.FB_CURRENT);
-                    configure(tempConfig);
-                    sleep(new Random().nextInt(250));
                     if (latelyRunningFlashers)
+                    {
+                        logger.info("Changing flasher board configuration");
                         app.changeFlasherSettings(
                                 (short) flasherConfig.getBrightness(),
                                 (short) flasherConfig.getWidth(),
@@ -1057,7 +1051,22 @@ public class DataCollector
                                 (short) flasherConfig.getMask(),
                                 (short) flasherConfig.getRate()
                                 );
+                    }
                     else
+                    {
+                        DOMConfiguration tempConfig = new DOMConfiguration(config);
+                        tempConfig.setHV(-1);
+                        tempConfig.setTriggerMode(TriggerMode.FB);
+                        LocalCoincidenceConfiguration lcX = new LocalCoincidenceConfiguration();
+                        lcX.setRxMode(RxMode.RXNONE);
+                        tempConfig.setLC(lcX);
+                        tempConfig.setEngineeringFormat(
+                                new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 64 })
+                                );
+                        tempConfig.setMux(MuxState.FB_CURRENT);
+                        configure(tempConfig);
+                        sleep(new Random().nextInt(250));
+                        logger.info("Beginning new flasher board run");
                         app.beginFlasherRun(
                                 (short) flasherConfig.getBrightness(),
                                 (short) flasherConfig.getWidth(),
@@ -1065,6 +1074,7 @@ public class DataCollector
                                 (short) flasherConfig.getMask(),
                                 (short) flasherConfig.getRate()
                                 );
+                    }
                     latelyRunningFlashers = true;
                 }
                 else
