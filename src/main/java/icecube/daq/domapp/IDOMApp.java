@@ -21,6 +21,24 @@ public interface IDOMApp {
 	throws MessageException;
 
 	/**
+	 * Similar to beginFlasherRun message but doesn't need to have a powered-off flasher
+	 * initial state.  
+	 * @param brightness
+	 * @param width
+	 * @param delay
+	 * @param mask
+	 * @param rate
+	 * @throws MessageException
+	 */
+	public void changeFlasherSettings(
+            short brightness, 
+            short width, 
+            short delay, 
+            short mask, 
+            short rate) 
+	 throws MessageException;
+
+	/**
 	 * Some data collectors need to free things like file handles.
 	 */
 	void close();

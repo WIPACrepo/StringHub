@@ -44,6 +44,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -484,18 +485,36 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	     */
 	    boolean[] wirePairSemaphore = new boolean[32];
 	    long validXTime = 0L;
+	    
+	    /* Load the configs into a map so that I can search them better */
+	    HashMap<String, FlasherboardConfiguration> fcMap = new HashMap<String, FlasherboardConfiguration>(60);
+	    for (FlasherboardConfiguration fb : flasherConfigs) fcMap.put(fb.getMainboardID(), fb);
+	    
+	    /*
+	     * Divide the DOMs into 4 categories ...
+	     *     Category 1: Flashing current subrun - not flashing next subrun.  Simply turn
+	     *     these DOMs' flashers off - this must be done over all DOMs in first pass to
+	     *     ensure that DOMs on the same wire pair are never simultaneously on (it blows
+	     *     the DOR card firmware fuse).
+	     *     Category 2: Flashing current subrun - flashing with new config next subrun.
+	     *     These DOMs must get the CHANGE_FLASHER signal (new feature added DOM-MB 437+)
+	     *     Category 3: Not flashing current subrun - flashing next subrun.  These DOMs
+	     *     get a START_FLASHER_RUN signal
+	     *     Category 4: Others
+	     */
 
-	    logger.info("Beginning subrun - turning off any running flashers");
-
-	    // STEP #1 - signal all currently running flashers to stop
+	    logger.info("Beginning subrun - turning off requested flashers");
 	    for (AbstractDataCollector adc : conn.getCollectors())
 	    {
-	        if (adc.isRunning() && adc.getFlasherConfig() != null)
+	        if (adc.isRunning() 
+	                && adc.getFlasherConfig() != null 
+	                && !fcMap.containsKey(adc.getMainboardId()))
 	        {
 	            adc.setFlasherConfig(null);
 	            adc.signalStartSubRun();
 	        }
 	    }
+	    
 	    for (AbstractDataCollector adc : conn.getCollectors())
 	    {
 	        if (adc.isZombie()) continue;
@@ -509,34 +528,17 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	        }
 	    }
 
-	    // STEP #2 - now activate newly requested flashers
+	    logger.info("Turning on / changing flasher configs for next subrun");
         for (AbstractDataCollector adc : conn.getCollectors())
         {
             String mbid = adc.getMainboardId();
-            FlasherboardConfiguration flasherConfig = null;
-
-            // Hunt for this DOM channel in the flasher config list
-            for (FlasherboardConfiguration fbc : flasherConfigs)
-            {
-	            if (fbc.getMainboardID().equals(mbid))
-	            {
-	                flasherConfig = fbc;
-	                break;
-	            }
-            }
-
-            if (flasherConfig != null)
+            if (fcMap.containsKey(mbid))
             {
                 int pairIndex = 4 * adc.getCard() + adc.getPair();
                 if (wirePairSemaphore[pairIndex])
                     throw new DAQCompException("Cannot activate > 1 flasher run per DOR wire pair.");
                 wirePairSemaphore[pairIndex] = true;
-            }
-
-            boolean stateChange = flasherConfig != null;
-            if (stateChange)
-            {
-                adc.setFlasherConfig(flasherConfig);
+                adc.setFlasherConfig(fcMap.get(mbid));
                 adc.signalStartSubRun();
             }
 	    }
@@ -607,7 +609,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 4574 2009-08-28 21:32:32Z dglo $";
+		return "$Id: StringHubComponent.java 4640 2009-10-04 19:11:10Z kael $";
     }
 
 	public IByteBufferCache getCache()

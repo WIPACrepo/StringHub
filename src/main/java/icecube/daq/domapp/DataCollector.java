@@ -25,6 +25,8 @@ import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.DecimalFormat;
+import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.Timer;
@@ -32,6 +34,8 @@ import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
+
+import com.ibm.icu.util.Calendar;
 
 /**
  * A data collection engine which drives the readout of the hits,
@@ -170,6 +174,7 @@ public class DataCollector
     private final int           MAGIC_MONITOR_FMTID         = 102;
     private final int           MAGIC_TCAL_FMTID            = 202;
     private final int           MAGIC_SUPERNOVA_FMTID       = 302;
+    private boolean latelyRunningFlashers;
     
     
     /**
@@ -321,6 +326,7 @@ public class DataCollector
         
         // Calculate 10-sec averages of the hit rate
         rtHitRate = new RealTimeRateMeter(100000000000L);
+        latelyRunningFlashers = false;
         start();
     }
 
@@ -668,6 +674,13 @@ public class DataCollector
                 if (gpsErrorCount < 10)
                 {
                     GPSInfo newGPS = driver.readGPS(card);
+                    Date now = new Date();                    
+                    GregorianCalendar calendar = new GregorianCalendar(
+                            new GregorianCalendar().get(GregorianCalendar.YEAR),    /* THE YEAR  */ 
+                            1,                                                      /* THE MONTH */
+                            1);                                                     /* THE DAY   */
+                    calendar.add(Calendar.DAY_OF_YEAR, newGPS.getDay() - 1);
+
                     UTC newOffset = newGPS.getOffset();
                     if (gps == null || newOffset.equals(gpsOffset))
                     {
@@ -1014,9 +1027,13 @@ public class DataCollector
                 break;
 
             case STARTING_SUBRUN:
-                setRunLevel(RunLevel.STOPPING_SUBRUN);
-                app.endRun();
-                setRunLevel(RunLevel.CONFIGURING);
+                if (latelyRunningFlashers && flasherConfig == null)
+                {
+                    setRunLevel(RunLevel.STOPPING_SUBRUN);
+                    app.endRun();
+                    setRunLevel(RunLevel.CONFIGURING);
+                    latelyRunningFlashers = false;
+                }
                 if (flasherConfig != null)
                 {
                     if (logger.isInfoEnabled()) logger.info("Starting flasher subrun");
@@ -1032,13 +1049,23 @@ public class DataCollector
                     tempConfig.setMux(MuxState.FB_CURRENT);
                     configure(tempConfig);
                     sleep(new Random().nextInt(250));
-                    app.beginFlasherRun(
-                            (short) flasherConfig.getBrightness(),
-                            (short) flasherConfig.getWidth(),
-                            (short) flasherConfig.getDelay(),
-                            (short) flasherConfig.getMask(),
-                            (short) flasherConfig.getRate()
-                            );
+                    if (latelyRunningFlashers)
+                        app.changeFlasherSettings(
+                                (short) flasherConfig.getBrightness(),
+                                (short) flasherConfig.getWidth(),
+                                (short) flasherConfig.getDelay(),
+                                (short) flasherConfig.getMask(),
+                                (short) flasherConfig.getRate()
+                                );
+                    else
+                        app.beginFlasherRun(
+                                (short) flasherConfig.getBrightness(),
+                                (short) flasherConfig.getWidth(),
+                                (short) flasherConfig.getDelay(),
+                                (short) flasherConfig.getMask(),
+                                (short) flasherConfig.getRate()
+                                );
+                    latelyRunningFlashers = true;
                 }
                 else
                 {
