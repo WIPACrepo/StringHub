@@ -259,21 +259,23 @@ public class Sender
                 tinyHit = null;
             }
 
-            if (tinyHit != null && hitChan != null &&
+            if (tinyHit != null &&
                 (forwardLC0Hits ||
                  tinyHit.getLocalCoincidenceMode() != 0 ||
                  tinyHit.getTriggerMode() == 4))
             {
-                ByteBuffer payBuf;
-                try {
-                    payBuf = tinyHit.getHitBuffer(hitCache);
-                } catch (PayloadException pe) {
-                    log.error("Couldn't get buffer for hit " + tinyHit, pe);
-                    payBuf = null;
-                }
+                if (hitChan != null) {
+                    ByteBuffer payBuf;
+                    try {
+                        payBuf = tinyHit.getHitBuffer(hitCache);
+                    } catch (PayloadException pe) {
+                        log.error("Couldn't get buffer for hit " + tinyHit, pe);
+                        payBuf = null;
+                    }
 
-                if (payBuf != null) {
-                    hitChan.receiveByteBuffer(payBuf);
+                    if (payBuf != null) {
+                        hitChan.receiveByteBuffer(payBuf);
+                    }
                 }
 
                 // remember most recent time for monitoring
