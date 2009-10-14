@@ -2,6 +2,7 @@ package icecube.daq.sender;
 
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.common.DAQCmdInterface;
+import icecube.daq.common.EventVersion;
 import icecube.daq.io.DAQOutputChannelManager;
 import icecube.daq.io.OutputChannel;
 import icecube.daq.monitoring.SenderMonitor;
@@ -137,9 +138,6 @@ public class Sender
 
     /** Used to sort hits before building readout data payloads. */
     private static final HitSorter HIT_SORTER = new HitSorter();
-
-    /** Version of events being built */
-    public static final int EVENT_VERSION = 5;
 
     private ISourceID sourceId;
 
@@ -803,7 +801,7 @@ public class Sender
 
         // build readout data
         ILoadablePayload readout;
-        if (EVENT_VERSION < 5) {
+        if (EventVersion.VERSION < 5) {
             readout = new DOMHitReadoutData(uid, sourceId, startTime, endTime,
                                             hitDataList);
         } else {
