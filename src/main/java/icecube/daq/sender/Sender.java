@@ -259,12 +259,21 @@ public class Sender
                 tinyHit = null;
             }
 
-            if (tinyHit != null &&
-                (forwardLC0Hits ||
-                 tinyHit.getLocalCoincidenceMode() != 0 ||
-                 tinyHit.getTriggerMode() == 4))
-            {
-                if (hitChan != null) {
+            if (tinyHit != null) {
+
+                // remember most recent time for monitoring
+                latestHitTime = tinyHit.getTimestamp();
+
+                // save hit so it can be sent to event builder
+                addData(tinyHit);
+
+                // send some hits to local trigger component
+                if (hitChan != null &&
+                    (forwardLC0Hits ||
+                     tinyHit.getLocalCoincidenceMode() != 0 ||
+                     tinyHit.getTriggerMode() == 4))
+                {
+                    // extract hit's ByteBuffer
                     ByteBuffer payBuf;
                     try {
                         payBuf = tinyHit.getHitBuffer(hitCache);
@@ -273,16 +282,12 @@ public class Sender
                         payBuf = null;
                     }
 
+                    // transmit ByteBuffer to local trigger component
                     if (payBuf != null) {
                         hitChan.receiveByteBuffer(payBuf);
                     }
                 }
             }
-
-            // remember most recent time for monitoring
-            latestHitTime = tinyHit.getTimestamp();
-
-            addData(tinyHit);
         }
 
         buf.flip();
