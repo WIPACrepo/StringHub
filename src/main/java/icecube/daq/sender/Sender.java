@@ -277,12 +277,12 @@ public class Sender
                         hitChan.receiveByteBuffer(payBuf);
                     }
                 }
-
-                // remember most recent time for monitoring
-                latestHitTime = tinyHit.getTimestamp();
-
-                addData(tinyHit);
             }
+
+            // remember most recent time for monitoring
+            latestHitTime = tinyHit.getTimestamp();
+
+            addData(tinyHit);
         }
 
         buf.flip();
