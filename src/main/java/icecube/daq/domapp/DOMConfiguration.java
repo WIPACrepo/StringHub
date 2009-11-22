@@ -48,7 +48,7 @@ public class DOMConfiguration implements Serializable
     private int                   histoInterval           = 10;
     private short                 histoPrescale           = (short) 8;
     private boolean               chargeStampATWD         = false;
-    private byte                  chargeStampAtwdChannel  = -1;
+    private byte                  chargeStampAtwdChannel  = -2;
 	
 	/** Set for injecting supernova simulation signal */
 	private	boolean               snSigEnabled = false;					
@@ -273,7 +273,7 @@ public class DOMConfiguration implements Serializable
 
 	public void setChargeStampAutoRange()
     {
-	    if (chargeStampAtwdChannel > 0) chargeStampAtwdChannel = (byte) (-chargeStampAtwdChannel);
+	    chargeStampAtwdChannel = (byte) -2;
     }
 
 	/**
