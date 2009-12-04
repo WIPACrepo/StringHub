@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.GregorianCalendar;
+import java.util.TimeZone;
 
 import org.apache.log4j.Logger;
 
@@ -161,9 +162,14 @@ public class SimDataCollector extends AbstractDataCollector
 
     public void runCore()
     {
-        Calendar now = new GregorianCalendar();
-        Calendar startOfYear = new GregorianCalendar(now.get(Calendar.YEAR), 0, 1);
-        t0 = startOfYear.getTimeInMillis();
+        Calendar cal = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
+        cal.set(Calendar.DAY_OF_YEAR, 1);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        t0 = cal.getTimeInMillis();
+        
         if (logger.isDebugEnabled()) logger.debug("Start of year = " + t0);
 
         clock = 0L;
