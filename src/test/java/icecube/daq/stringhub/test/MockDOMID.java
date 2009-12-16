@@ -57,10 +57,6 @@ public class MockDOMID
 
     public String toString()
     {
-        String str = Long.toHexString(domId);
-        while (str.length() < 12) {
-            str = "0" + str;
-        }
-        return str;
+        return String.format("%012x", domId);
     }
 }

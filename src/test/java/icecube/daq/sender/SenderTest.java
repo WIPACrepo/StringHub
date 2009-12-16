@@ -187,7 +187,7 @@ class ExpectedHit
 
     public String toString()
     {
-        return "ExpHit@" + Long.toHexString(domId) + "[time " + utcTime +
+        return "ExpHit@" + String.format("%012x", domId) + "[time " + utcTime +
             " type " + trigType + " cfg " + cfgId + " src " + srcId +
             " mode " + trigMode + "]";
     }
@@ -383,10 +383,10 @@ class ExpectedOldDeltaHit
             dataBuf.append(']');
         }
 
-        return "ExpDeltaHit@" + Long.toHexString(domId) + "[time " + utcTime +
-            " vers " + version + " ped " + pedestal + " clock " + domClock +
-            " lc " + lcMode + " trig " + trigMode + " wave " + waveformFlags +
-            " peak " + peakInfo + dataBuf + "]";
+        return "ExpDeltaHit@" + String.format("%012x", domId) +
+            "[time " + utcTime + " vers " + version + " ped " + pedestal +
+            " clock " + domClock + " lc " + lcMode + " trig " + trigMode +
+            " wave " + waveformFlags + " peak " + peakInfo + dataBuf + "]";
     }
 }
 
@@ -741,9 +741,10 @@ class ExpectedOldEngHit
             atwdBuf.append(']');
         }
 
-        return "ExpEngHit@" + Long.toHexString(domId) + "[time " + utcTime +
-            " chip " + atwdChip + " mode " + trigMode + " clock " + domClock +
-            fadcBuf.toString() + atwdBuf.toString() + "]";
+        return "ExpEngHit@" + String.format("%012x", domId) +
+            "[time " + utcTime + " chip " + atwdChip + " mode " + trigMode +
+            " clock " + domClock + fadcBuf.toString() + atwdBuf.toString() +
+            "]";
     }
 }
 
