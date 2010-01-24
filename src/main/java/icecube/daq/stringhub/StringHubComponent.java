@@ -227,6 +227,20 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		sender.setDOMRegistry(domRegistry);
 	}
 
+    /**
+     * Close all open files, sockets, etc.
+     */
+    public void closeAll()
+        throws IOException
+    {
+		moniOut.destroyProcessor();
+		tcalOut.destroyProcessor();
+		supernovaOut.destroyProcessor();
+		hitOut.destroyProcessor();
+		reqIn.destroyProcessor();
+		dataOut.destroyProcessor();
+	}
+
 	/**
 	 * This method will force the string hub to query the driver for a list of DOMs.
 	 * For a DOM to be detected its cardX/pairY/domZ/id procfile must report a valid
@@ -609,7 +623,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 4640 2009-10-04 19:11:10Z kael $";
+		return "$Id: StringHubComponent.java 4860 2010-01-24 17:47:28Z dglo $";
     }
 
 	public IByteBufferCache getCache()
