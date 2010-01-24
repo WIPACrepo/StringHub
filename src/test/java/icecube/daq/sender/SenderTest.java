@@ -18,6 +18,7 @@ import icecube.daq.stringhub.test.MockReadoutRequest;
 import icecube.daq.stringhub.test.MockUTCTime;
 import icecube.daq.util.DOMRegistry;
 
+import java.io.IOException;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -1736,6 +1737,7 @@ public class SenderTest
 
     @Test
     public void testConsumeStop()
+        throws IOException
     {
         MockBufferCache cache = new MockBufferCache();
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
@@ -1754,7 +1756,14 @@ public class SenderTest
 
         waitForDataStop(sender, 1);
 
-        sender.stopThread();
+        sender.addRequestStop();
+
+        waitForRequestStop(sender, 1);
+
+        if (sender.isRunning()) {
+            sender.stopThread();
+            fail("Expected thread to be stopped");
+        }
 
         waitForSenderStop(sender);
 
@@ -1768,6 +1777,7 @@ public class SenderTest
 
     @Test
     public void testConsumeEngHit()
+        throws IOException
     {
         MockBufferCache cache = new MockBufferCache();
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
@@ -1825,6 +1835,7 @@ public class SenderTest
 
     @Test
     public void testConsumeDeltaHit()
+        throws IOException
     {
         MockBufferCache cache = new MockBufferCache();
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
@@ -1886,6 +1897,7 @@ public class SenderTest
 
     @Test
     public void testConsumeHitsAndRequest()
+        throws IOException
     {
         MockBufferCache cache = new MockBufferCache();
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
@@ -2113,6 +2125,23 @@ public class SenderTest
         }
         assertEquals("Request was not dequeued",
                      0, sender.getNumRequestsQueued());
+    }
+
+    private static final void waitForRequestStop(Sender sender, long numStops)
+    {
+        for (int i = 0; i < 20; i++) {
+            if (sender.getTotalRequestStopsReceived() == numStops) {
+                break;
+            }
+
+            try {
+                Thread.sleep(100);
+            } catch (Exception ex) {
+                // ignore interrupts
+            }
+        }
+        assertEquals("Data stop was not received",
+                     numStops, sender.getTotalDataStopsReceived());
     }
 
     private static final void waitForSenderStop(Sender sender)

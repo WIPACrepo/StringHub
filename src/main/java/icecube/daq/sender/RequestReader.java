@@ -72,6 +72,10 @@ public class RequestReader
 
     public void sendStop()
     {
-        sender.addRequestStop();
+        try {
+            sender.addRequestStop();
+        } catch (IOException ioe) {
+            LOG.error("Cannot add stop to request queue", ioe);
+        }
     }
 }

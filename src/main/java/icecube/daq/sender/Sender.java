@@ -23,6 +23,7 @@ import icecube.daq.payload.PayloadException;
 import icecube.daq.reqFiller.RequestFiller;
 import icecube.daq.util.DOMRegistry;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -248,7 +249,13 @@ public class Sender
                 }
             }
 
-            addDataStop();
+            try {
+                addDataStop();
+            } catch (IOException ioe) {
+                if (log.isErrorEnabled()) {
+                    log.error("Couldn't add data stop to queue", ioe);
+                }
+            }
         } else {
             // process hit
             DOMHit tinyHit;
@@ -265,7 +272,13 @@ public class Sender
                 latestHitTime = tinyHit.getTimestamp();
 
                 // save hit so it can be sent to event builder
-                addData(tinyHit);
+                try {
+                    addData(tinyHit);
+                } catch (IOException ioe) {
+                    if (log.isErrorEnabled()) {
+                        log.error("Couldn't add data to queue", ioe);
+                    }
+                }
 
                 // send some hits to local trigger component
                 if (hitChan != null &&
