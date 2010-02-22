@@ -37,6 +37,7 @@ import icecube.daq.trigger.control.StringTriggerHandler;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
+import icecube.daq.util.StringHubAlert;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -375,8 +376,16 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			for (DeployedDOM deployedDOM : domRegistry.getDomsOnString(getNumber()))
 			{
 			    String mbid = deployedDOM.getMainboardId();
-			    if (!activeDomSet.contains(mbid) && xmlConfig.getDOMConfig(mbid) != null)
+			    if (!activeDomSet.contains(mbid) && xmlConfig.getDOMConfig(mbid) != null) {
 			        logger.warn("DOM " + deployedDOM + " requested in configuration but not found.");
+
+					StringHubAlert.sendDOMAlert(getAlerter(), "droppedDOM",
+												"Dropped DOM", 0, 0, (char) 0,
+												deployedDOM.getMainboardId(),
+												deployedDOM.getName(),
+												deployedDOM.getStringMajor(),
+												deployedDOM.getStringMinor());
+				}
 			}
 
 			logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
@@ -426,11 +435,14 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 					addMBean("DataCollectorMonitor-" + chanInfo, dc);
 				}
 
+				dc.setDomInfo(domRegistry.getDom(chanInfo.mbid));
+
                 dc.setSoftbootBehavior(dcSoftboot);
 				hitsSort.register(chanInfo.mbid_numerique);
 				moniSort.register(chanInfo.mbid_numerique);
 				scalSort.register(chanInfo.mbid_numerique);
 				tcalSort.register(chanInfo.mbid_numerique);
+				dc.setAlerter(getAlerter());
 				conn.add(dc);
 				if (logger.isDebugEnabled()) logger.debug("Starting new DataCollector thread on (" + cwd + ").");
 			}
@@ -623,7 +635,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 4860 2010-01-24 17:47:28Z dglo $";
+		return "$Id: StringHubComponent.java 4911 2010-02-22 23:44:38Z dglo $";
     }
 
 	public IByteBufferCache getCache()

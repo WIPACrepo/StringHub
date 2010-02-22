@@ -16,6 +16,7 @@ import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.ZeroCrossingRAPCal;
 import icecube.daq.util.RealTimeRateMeter;
+import icecube.daq.util.StringHubAlert;
 import icecube.daq.util.UTC;
 
 import java.io.ByteArrayOutputStream;
@@ -780,6 +781,9 @@ public class DataCollector
              * that this channel has expired and does not wait.
              */
             setRunLevel(RunLevel.ZOMBIE);
+            StringHubAlert.sendDOMAlert(alerter, "zombieDOM", "Zombie DOM",
+                                        card, pair, dom, mbid, name, major,
+										minor);
         }
         watcher.cancel();
 
