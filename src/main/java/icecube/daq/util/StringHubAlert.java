@@ -16,8 +16,8 @@ public class StringHubAlert
     /**
      * Send a DOM alert.
      */
-    public static final void sendDOMAlert(Alerter alerter, String type,
-                                          String condition, int card, int pair,
+    public static final void sendDOMAlert(Alerter alerter, String condition,
+                                          String desc, int card, int pair,
                                           char dom, String mbid, String name,
                                           int major, int minor)
     {
@@ -39,10 +39,9 @@ public class StringHubAlert
         vars.put("minor", minor);
 
         try {
-            alerter.send(type, Alerter.PRIO_ITS, condition, vars);
+            alerter.send(Alerter.PRIO_ITS, condition, desc, vars);
         } catch (AlertException ae) {
-            LOG.error("Cannot send " + type + " alert", ae);
+            LOG.error("Cannot send " + condition + " alert", ae);
         }
     }
-
 }

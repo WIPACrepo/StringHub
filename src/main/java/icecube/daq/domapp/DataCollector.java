@@ -781,9 +781,9 @@ public class DataCollector
              * that this channel has expired and does not wait.
              */
             setRunLevel(RunLevel.ZOMBIE);
-            StringHubAlert.sendDOMAlert(alerter, "zombieDOM", "Zombie DOM",
+            StringHubAlert.sendDOMAlert(alerter, "Zombie DOM", "Zombie DOM",
                                         card, pair, dom, mbid, name, major,
-										minor);
+                                        minor);
         }
         watcher.cancel();
 

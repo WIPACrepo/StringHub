@@ -8,7 +8,9 @@ import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.StreamBinder;
 import icecube.daq.dor.DOMChannelInfo;
+import icecube.daq.util.StringHubAlert;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -160,6 +162,18 @@ public class SimDataCollector extends AbstractDataCollector
         }
     }
 
+    private boolean fakeAlert()
+    {
+        final File flagFile = new File("/tmp/dom.alert");
+        if (!flagFile.exists()) {
+            return false;
+        }
+
+        StringHubAlert.sendDOMAlert(alerter, "Fake DOM alert", "Fake DOM alert",
+                                    card, pair, dom, mbid, name, major, minor);
+        return true;
+    }
+
     public void runCore()
     {
         Calendar cal = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
@@ -237,6 +251,10 @@ public class SimDataCollector extends AbstractDataCollector
                                          iox);
                         }
                         snStopped = true;
+                    }
+                    if (fakeAlert()) {
+                        setRunLevel(RunLevel.ZOMBIE);
+                        setRunStopFlag(true);
                     }
                     if (nHits > 0) needSomeSleep = false;
                     break;

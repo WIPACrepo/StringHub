@@ -22,9 +22,9 @@ import static org.junit.Assert.*;
 class MockAlerter
     implements Alerter
 {
-    private String expType;
     private int expPrio;
     private String expCond;
+    private String expDesc;
     private Map<String, Object> expVars;
 
     public MockAlerter()
@@ -68,15 +68,10 @@ class MockAlerter
         return true;
     }
 
-    public void send(String type, int priority, String condition,
+    public void send(int priority, String condition, String desc,
                      Map<String, Object> vars)
         throws AlertException
     {
-        if (type != expType) {
-            throw new Error("Expected alert type \"" + expType + "\", got \"" +
-                            type + "\"");
-        }
-
         if (priority != expPrio) {
             throw new Error("Expected alert priority " + expPrio + ", got " +
                             priority);
@@ -85,6 +80,11 @@ class MockAlerter
         if (!condition.equals(expCond)) {
             throw new Error("Expected alert condition \"" + expCond +
                             "\", got \"" + condition);
+        }
+
+        if (!desc.equals(expDesc)) {
+            throw new Error("Expected alert description \"" + expDesc +
+                            "\", got \"" + desc);
         }
 
         if ((vars == null || vars.size() == 0) &&
@@ -138,13 +138,19 @@ class MockAlerter
         }
     }
 
-    void setExpected(String type, int priority, String condition,
+    void setExpected(int priority, String condition, String desc,
                      Map<String, Object> vars)
     {
-        expType = type;
         expPrio = priority;
         expCond = condition;
+        expDesc = desc;
         expVars = vars;
+    }
+
+    public void setLive(String host, int port)
+        throws AlertException
+    {
+        throw new Error("Unimplemented");
     }
 }
 
@@ -161,8 +167,8 @@ public class StringHubAlertTest
     public void testAlert()
         throws Exception
     {
-        final String type = "testDOM";
         final String condition = "Test DOM alert";
+        final String desc = "Test description";
         final int card = 1;
         final int pair = 23;
         final char dom = 'A';
@@ -181,9 +187,9 @@ public class StringHubAlertTest
         vars.put("minor", minor);
 
         MockAlerter alerter = new MockAlerter();
-        alerter.setExpected(type, Alerter.PRIO_ITS, condition, vars);
+        alerter.setExpected(Alerter.PRIO_ITS, condition, desc, vars);
 
-        StringHubAlert.sendDOMAlert(alerter, type, condition, card, pair, dom,
+        StringHubAlert.sendDOMAlert(alerter, condition, desc, card, pair, dom,
                                     mbid, name, major, minor);
     }
 }

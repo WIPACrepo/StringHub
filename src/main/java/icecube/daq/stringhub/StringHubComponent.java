@@ -379,8 +379,9 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			    if (!activeDomSet.contains(mbid) && xmlConfig.getDOMConfig(mbid) != null) {
 			        logger.warn("DOM " + deployedDOM + " requested in configuration but not found.");
 
-					StringHubAlert.sendDOMAlert(getAlerter(), "droppedDOM",
-												"Dropped DOM", 0, 0, (char) 0,
+					StringHubAlert.sendDOMAlert(getAlerter(), "Dropped DOM",
+												"Dropped DOM during configure",
+												0, 0, (char) 0,
 												deployedDOM.getMainboardId(),
 												deployedDOM.getName(),
 												deployedDOM.getStringMajor(),
@@ -635,7 +636,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 4911 2010-02-22 23:44:38Z dglo $";
+		return "$Id: StringHubComponent.java 4912 2010-02-23 23:02:50Z dglo $";
     }
 
 	public IByteBufferCache getCache()
