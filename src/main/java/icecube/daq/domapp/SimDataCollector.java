@@ -498,11 +498,6 @@ public class SimDataCollector extends AbstractDataCollector
         return loopCounter;
     }
 
-    public String getMainboardId()
-    {
-        return mbid;
-    }
-
     public void start()
     {
         // TODO Auto-generated method stub
