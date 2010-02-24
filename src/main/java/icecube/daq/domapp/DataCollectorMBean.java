@@ -10,7 +10,7 @@ public interface DataCollectorMBean
      * Get the mainboard ID for this DataCollector
      * @return 12-char hex string
      */
-    String getMBID();
+    String getMainboardId();
     
     /**
      * Get the rate of the hits
