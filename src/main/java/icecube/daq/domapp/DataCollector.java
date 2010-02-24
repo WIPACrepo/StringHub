@@ -102,9 +102,6 @@ public class DataCollector
     extends AbstractDataCollector
     implements DataCollectorMBean 
 {
-    private int                 card;
-    private int                 pair;
-    private char                dom;
     private long                numericMBID;
     private IDOMApp             app;
     private GPSInfo             gps;
