@@ -26,9 +26,11 @@ public class StringHubAlert
         }
 
         HashMap<String, Object> vars = new HashMap<String, Object>();
-        vars.put("card", card);
-        vars.put("pair", pair);
-        vars.put("dom", dom);
+        if (dom != (char) 0) {
+            vars.put("card", card);
+            vars.put("pair", pair);
+            vars.put("dom", dom);
+        }
         if (mbid != null) {
             vars.put("mbid", mbid);
         }
