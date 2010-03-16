@@ -669,39 +669,42 @@ public class DataCollector
         {
             try
             {
-                if (gpsErrorCount < 10)
-                {
-                    GPSInfo newGPS = driver.readGPS(card);
-                    Date now = new Date();                    
-                    GregorianCalendar calendar = new GregorianCalendar(
-                            new GregorianCalendar().get(GregorianCalendar.YEAR),    /* THE YEAR  */ 
-                            1,                                                      /* THE MONTH */
-                            1);                                                     /* THE DAY   */
-                    calendar.add(Calendar.DAY_OF_YEAR, newGPS.getDay() - 1);
+                GPSInfo newGPS = driver.readGPS(card);
+                Date now = new Date();                    
+                GregorianCalendar calendar = new GregorianCalendar(
+                        new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
+                calendar.add(Calendar.DAY_OF_YEAR, newGPS.getDay() - 1);
 
-                    UTC newOffset = newGPS.getOffset();
-                    if (gps == null || newOffset.equals(gpsOffset))
-                    {
-                        gps = newGPS;
-                        gpsOffset = gps.getOffset();
-                    }
-                    else if (gps != null)
-                    {
-                        logger.error(
-                                "GPS offset mis-alignment detected - old GPS: " + 
-                                gps + " new GPS: " + newGPS);
-                    }
-                    gpsErrorCount = 0;
+                UTC newOffset = newGPS.getOffset();
+                if (gps == null || newOffset.equals(gpsOffset))
+                {
+                    gps = newGPS;
+                    gpsOffset = gps.getOffset();
+                }
+                else if (gps != null)
+                {
+                    logger.error(
+                            "GPS offset mis-alignment detected - old GPS: " + 
+                            gps + " new GPS: " + newGPS);
+                    StringHubAlert.sendDOMAlert(
+                            alerter, "GPS Error", "GPS Offset mis-match", 
+                            card, pair, dom, mbid, name, major, minor);
                 }
             }
             catch (GPSNotReady gpsn)
             {
                 logger.warn("GPS not ready.");
+                StringHubAlert.sendDOMAlert(
+                        alerter, "GPS Error", "SyncGPS procfile not ready", 
+                        card, pair, dom, mbid, name, major, minor);
             }
             catch (GPSException gpsx)
             {
                 gpsx.printStackTrace();
                 logger.warn("Got GPS exception - time translation to UTC will be incomplete");
+                StringHubAlert.sendDOMAlert(
+                        alerter, "GPS Error", "SyncGPS procfile I/O error", 
+                        card, pair, dom, mbid, name, major, minor);                
                 gpsErrorCount += 1;
             }
             TimeCalib tcal = driver.readTCAL(card, pair, dom);
