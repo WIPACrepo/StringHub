@@ -222,6 +222,13 @@ public interface IDOMApp {
 	void setHV(short dac) throws MessageException;
 
 	/**
+	 * Sets the DOM lookback memory depth in powers of 2
+	 * @param depth
+	 * @throws MessageException
+	 */
+	public void setLBMDepth(LBMDepth depth) throws MessageException;
+	
+	/**
 	 * Sets the LC (Rx) mode.  This determines whether the DOM
 	 * will require presence of neighboring DOM LC signals.
 	 * @param mode the LC mode

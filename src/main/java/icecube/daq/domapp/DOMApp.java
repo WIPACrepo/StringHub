@@ -476,6 +476,13 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.SET_HV, buf);
     }
 
+    public void setLBMDepth(LBMDepth depth) throws MessageException
+    {
+        ByteBuffer buf = ByteBuffer.allocate(1);
+        buf.put((byte) (depth.ordinal()+8));
+        sendMessage(MessageType.SET_LBM_DEPTH);
+    }
+    
     /*
      * (non-Javadoc)
      *
