@@ -143,6 +143,7 @@ public class DataCollector
     private long                lastTcalUT;
     private volatile long       runStartUT = 0L;
     private int                 numLBMOverflows       = 0;
+    private int                 numConsecutiveGPSExceptions;
     
     private RealTimeRateMeter   rtHitRate;
 
@@ -677,7 +678,7 @@ public class DataCollector
                 GregorianCalendar calendar = new GregorianCalendar(
                         new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
                 calendar.add(Calendar.DAY_OF_YEAR, newGPS.getDay() - 1);
-
+                numConsecutiveGPSExceptions = 0;
                 UTC newOffset = newGPS.getOffset();
                 if (gps == null || newOffset.equals(gpsOffset))
                 {
@@ -697,9 +698,10 @@ public class DataCollector
             catch (GPSNotReady gpsn)
             {
                 logger.warn("GPS not ready.");
-                StringHubAlert.sendDOMAlert(
-                        alerter, "GPS Error", "SyncGPS procfile not ready", 
-                        card, pair, dom, mbid, name, major, minor);
+                if (numConsecutiveGPSExceptions++ > 5)
+                    StringHubAlert.sendDOMAlert(
+                            alerter, "GPS Error", "SyncGPS procfile not ready", 
+                            card, pair, dom, mbid, name, major, minor);
             }
             catch (GPSException gpsx)
             {

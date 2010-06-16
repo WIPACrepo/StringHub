@@ -212,11 +212,11 @@ public final class Driver implements IDriver {
 		try 
 		{
 		    /*
-		     * There is a 5-trial limit to open and successfully read
+		     * There is a 2-trial limit to open and successfully read
 		     * the 22-byte GPS data from the syncgps procfile.  As of
 		     * 2010 at least this is still a slightly fragile operation.
 		     */
-		    for (int iGPSTrial = 0; iGPSTrial < 5; iGPSTrial++)
+		    for (int iGPSTrial = 0; iGPSTrial < 2; iGPSTrial++)
 		    {
     			RandomAccessFile syncgps = new RandomAccessFile(file, "r");
     			FileChannel ch = syncgps.getChannel();
