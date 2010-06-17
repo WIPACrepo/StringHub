@@ -496,8 +496,28 @@ public class DOMApp implements IDOMApp
     public LBMDepth getLBMDepth() throws MessageException
     {
         ByteBuffer buf = sendMessage(MessageType.GET_LBM_DEPTH);
-        int bits = buf.get();
-        return LBMDepth.values()[bits-8];
+        int length = buf.getInt();
+        switch (length)
+        {
+        case 0x000100: return LBMDepth.LBM_256;
+        case 0x000200: return LBMDepth.LBM_512;
+        case 0x000400: return LBMDepth.LBM_1K;
+        case 0x000800: return LBMDepth.LBM_2K;
+        case 0x001000: return LBMDepth.LBM_4K;
+        case 0x002000: return LBMDepth.LBM_8K;
+        case 0x004000: return LBMDepth.LBM_16K;
+        case 0x008000: return LBMDepth.LBM_32K;
+        case 0x010000: return LBMDepth.LBM_64K;
+        case 0x020000: return LBMDepth.LBM_128K;
+        case 0x040000: return LBMDepth.LBM_256K;
+        case 0x080000: return LBMDepth.LBM_512K;
+        case 0x100000: return LBMDepth.LBM_1M;
+        case 0x200000: return LBMDepth.LBM_2M;
+        case 0x400000: return LBMDepth.LBM_4M;
+        case 0x800000: return LBMDepth.LBM_8M;
+        default:
+            throw new MessageException(MessageType.GET_LBM_DEPTH, new IllegalArgumentException()); 
+        }
     }
     
     /*
