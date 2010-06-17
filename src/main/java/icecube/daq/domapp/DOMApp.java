@@ -480,7 +480,7 @@ public class DOMApp implements IDOMApp
     {
         ByteBuffer buf = ByteBuffer.allocate(1);
         buf.put((byte) (depth.ordinal()+8));
-        sendMessage(MessageType.SET_LBM_DEPTH);
+        sendMessage(MessageType.SET_LBM_DEPTH, buf);
     }
     
     /*
