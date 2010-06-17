@@ -479,7 +479,7 @@ public class DOMApp implements IDOMApp
     public void setLBMDepth(LBMDepth depth) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(1);
-        buf.put((byte) (depth.ordinal()+8));
+        buf.put((byte) (depth.ordinal()+8)).flip();
         sendMessage(MessageType.SET_LBM_DEPTH, buf);
     }
     
