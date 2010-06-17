@@ -384,7 +384,7 @@ public class DOMApp implements IDOMApp
                 msgBufferOut.put(out);
             }
             msgBufferOut.flip();
-            int status = msgBufferOut.get(7);
+            int status = (msgBufferOut.get(7) & 0xff);
             msgBufferOut.position(8);
             if (!(type.equals(msgBufferOut.get(0), msgBufferOut.get(1)) && status == 1))
                 throw new MessageException(type, msgBufferOut.get(0), msgBufferOut.get(1), status);
@@ -480,7 +480,24 @@ public class DOMApp implements IDOMApp
     {
         ByteBuffer buf = ByteBuffer.allocate(1);
         buf.put((byte) (depth.ordinal()+8)).flip();
-        sendMessage(MessageType.SET_LBM_DEPTH, buf);
+        try 
+        {
+            sendMessage(MessageType.SET_LBM_DEPTH, buf);
+        } 
+        catch (MessageException mex)
+        {
+            /* 
+             * work-around to ignore messages which fail here - domapp forgot
+             * to set the success to OK on this message!
+             */
+        }
+    }
+    
+    public LBMDepth getLBMDepth() throws MessageException
+    {
+        ByteBuffer buf = sendMessage(MessageType.GET_LBM_DEPTH);
+        int bits = buf.get();
+        return LBMDepth.values()[bits-8];
     }
     
     /*

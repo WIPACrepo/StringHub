@@ -58,6 +58,9 @@ public enum MessageType {
 	
 	/** Enable (1) or disable (0) transmission of MinBias waveforms (1:8192 prescale) */
 	SELECT_MINBIAS(2,62),
+	
+	GET_DATA_ACCESS_ERROR_ID(2, 2),
+	GET_DATA_ACCESS_ERROR_STR(2, 3),
 	GET_DATA(3, 11),
 	
 	GET_MONI(3, 12),
