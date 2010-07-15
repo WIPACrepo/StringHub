@@ -28,7 +28,7 @@ public class DOMConnector
 	 */
 	public DOMConnector(int nch)
 	{
-		super("DOMs");
+		super("DOMs", false);
 
 		collectors = new ArrayList<AbstractDataCollector>();
 	}
