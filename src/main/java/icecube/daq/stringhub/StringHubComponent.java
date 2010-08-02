@@ -13,6 +13,7 @@ import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
 import icecube.daq.io.DAQComponentOutputProcess;
+import icecube.daq.io.OutputChannel;
 import icecube.daq.io.PayloadReader;
 import icecube.daq.io.SimpleOutputEngine;
 import icecube.daq.juggler.component.DAQCompException;
@@ -603,6 +604,17 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			// throw new DAQCompException(e.getMessage());
 		}
 
+		SimpleOutputEngine[] eng = new SimpleOutputEngine[] {
+			moniOut, supernovaOut, tcalOut
+		};
+
+		for (int i = 0; i < eng.length; i++) {
+			OutputChannel chan = eng[i].getChannel();
+			if (chan != null) {
+				chan.sendLastAndStop();
+			}
+		}
+
         logger.info("Returning from stop.");
 	}
 
@@ -636,7 +648,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 4912 2010-02-23 23:02:50Z dglo $";
+		return "$Id: StringHubComponent.java 5111 2010-08-02 20:41:12Z dglo $";
     }
 
 	public IByteBufferCache getCache()
