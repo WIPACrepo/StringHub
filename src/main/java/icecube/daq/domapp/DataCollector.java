@@ -577,7 +577,7 @@ public class DataCollector
             {
                 String moniMsg = monitor.toString();
                 if (logger.isDebugEnabled()) logger.debug(moniMsg);
-                if (moniMsg.contains("LBM Overflow")) numLBMOverflows++;
+                if (moniMsg.contains("LBM OVERFLOW")) numLBMOverflows++;
             }
             numMoni++;
             ByteBuffer moniBuffer = ByteBuffer.allocate(monitor.getLength()+32);
