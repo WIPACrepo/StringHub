@@ -93,6 +93,16 @@ public class DOMConnector
 	}
 
 	/**
+	 * Return number of active channels.
+	 *
+	 * @return number of active channels
+	 */
+	public int getNumberOfChannels()
+	{
+		return collectors.size();
+	}
+
+	/**
 	 * Get current engine state.
 	 *
 	 * @return state string
