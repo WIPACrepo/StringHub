@@ -36,8 +36,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 
-import com.ibm.icu.util.Calendar;
-
 /**
  * A data collection engine which drives the readout of the hits,
  * monitor, tcal, and supernova streams from a single DOM channel.
@@ -677,7 +675,7 @@ public class DataCollector
                 Date now = new Date();                    
                 GregorianCalendar calendar = new GregorianCalendar(
                         new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
-                calendar.add(Calendar.DAY_OF_YEAR, newGPS.getDay() - 1);
+                calendar.add(GregorianCalendar.DAY_OF_YEAR, newGPS.getDay() - 1);
                 numConsecutiveGPSExceptions = 0;
                 UTC newOffset = newGPS.getOffset();
                 if (gps == null || newOffset.equals(gpsOffset))
