@@ -154,16 +154,16 @@ public final class Driver implements IDriver {
 			for (int pair = 0; pair < 4; pair++) {
 				File pdir = makeProcfileDir("" + card + "" + pair);
 				if (!pdir.exists() || !power(card, pair)) continue;
-				if (logger.isInfoEnabled()) {
-					logger.info("Found powered pair on (" + card + ", " + pair + ").");
+				if (logger.isDebugEnabled()) {
+					logger.debug("Found powered pair on (" + card + ", " + pair + ").");
 				}
 				for (int dom = 0; dom < 2; dom++) {
 					File ddir = makeProcfileDir("" + card + "" + pair + ab[dom]);
 					if (ddir.exists()) {
 						String mbid = getProcfileID(card, pair, ab[dom]);
 						if (mbid.matches("[0-9a-f]{12}") && !mbid.equals("000000000000")) {
-							if (logger.isInfoEnabled()) {
-								logger.info("Found active DOM on (" + card + ", " + pair + ", " + ab[dom] + ")");
+							if (logger.isDebugEnabled()) {
+								logger.debug("Found active DOM on (" + card + ", " + pair + ", " + ab[dom] + ")");
 							}
 							channelList.add(new DOMChannelInfo(mbid, card, pair, ab[dom]));
 						}
@@ -209,7 +209,7 @@ public final class Driver implements IDriver {
 
 		ByteBuffer buf = ByteBuffer.allocate(22);
 		File file = makeProcfile("" + card, "syncgps");
-		try 
+		try
 		{
 		    /*
 		     * There is a 2-trial limit to open and successfully read
@@ -247,7 +247,7 @@ public final class Driver implements IDriver {
 		}
 		catch (InterruptedException intx)
 		{
-		    
+
 		}
 		return null;
 	}

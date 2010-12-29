@@ -25,14 +25,14 @@ import org.apache.log4j.Logger;
 
 /**
  *
- * Simulator for StringHub DataCollector.  This simulation is fairly basic at the moment but 
+ * Simulator for StringHub DataCollector.  This simulation is fairly basic at the moment but
  * is nevertheless useful as a generator to provide bona-fide inputs to the downstream DAQ
  * which is quite oblivious of the sham going on under its nose.
- * 
+ *
  * The SimDataCollector produces Poissonian generated hits at a rate specified in the supplied
  * configuration by the simNoiseRate parameter - typically this will come from an XML config
  * with tag of same name.
- * 
+ *
  * @author krokodil
  *
  */
@@ -59,9 +59,9 @@ public class SimDataCollector extends AbstractDataCollector
     private long            loopCounter;
     private double          pulserRate = 1.0;
     private volatile long   runStartUT = 0L;
-	private	boolean 		snSigEnabled;					
-	private double 			snDistance;				
-	private boolean 		effVolumeEnabled;		
+	private	boolean 		snSigEnabled;
+	private double 			snDistance;
+	private boolean 		effVolumeEnabled;
 
     private Thread thread;
 	private double[] avgSnSignal;
@@ -144,11 +144,11 @@ public class SimDataCollector extends AbstractDataCollector
     {
         setRunStopFlag(false);
 
-        logger.info("Entering run loop.");
+        logger.debug("Entering run loop.");
 
         runCore();
 
-        logger.info("Exited runCore() loop.");
+        logger.debug("Exited runCore() loop.");
 
         try {
             ByteBuffer otrava = MultiChannelMergeSort.eos(numericMBID);
@@ -183,12 +183,12 @@ public class SimDataCollector extends AbstractDataCollector
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MILLISECOND, 0);
         t0 = cal.getTimeInMillis();
-        
+
         if (logger.isDebugEnabled()) logger.debug("Start of year = " + t0);
 
         clock = 0L;
-        if (logger.isInfoEnabled()) {
-            logger.info("Simulated DOM at " + card + "" + pair + "" + dom +
+        if (logger.isDebugEnabled()) {
+            logger.debug("Simulated DOM at " + card + "" + pair + "" + dom +
                         " started at dom clock " + clock);
         }
 
@@ -211,7 +211,7 @@ public class SimDataCollector extends AbstractDataCollector
                     // Simulate configure time
                     Thread.sleep(500);
                     setRunLevel(RunLevel.CONFIGURED);
-                    logger.info("DOM is now configured.");
+                    logger.debug("DOM is now configured.");
                     break;
                 case STARTING:
                     // go to start run
@@ -260,7 +260,7 @@ public class SimDataCollector extends AbstractDataCollector
                     break;
                 case STOPPING:
                     Thread.sleep(100);
-                    logger.info("Stopping data collection");
+                    logger.debug("Stopping data collection");
                     setRunLevel(RunLevel.CONFIGURED);
                     return;
                 }
@@ -343,17 +343,17 @@ public class SimDataCollector extends AbstractDataCollector
 			int domZNum = 8*card + 2*pair + (2-(dom-'A'));	// dom = 'A' -> 2, dom = 'B' -> 1
 			effVol = effVolumeScaling(domZNum);
 		}
-		//	
+		//
         short recl = (short) (10 + nsn);
         ByteBuffer buf = ByteBuffer.allocate(recl+32);
         long utc = lastSupernova*1000L - t0 * 10000000L;  // utc is in 1e-10sec
         long clk = utc / 250L;
-        
+
 //        if (logger.isDebugEnabled())
 //        {
 //            logger.debug("runStartMilli: " + runStartMilli + " MBID: " + mbid + " lastSupernova: " + lastSupernova + " UTC: " + utc + " # SN: " + nsn);
 //        }
-        
+
         buf.putInt(recl+32);
         buf.putInt(302);
         buf.putLong(numericMBID);
@@ -373,7 +373,7 @@ public class SimDataCollector extends AbstractDataCollector
 //		    if ((nsnSig+i+1 > 0) && (nsnSig+i < maxnsnSig)) {
     		if (snSigEnabled) {
     			if (binTime > snStartTime) {
-    				if (binTime < snStartTime + 16.384*916) {  	// There are 916 bins of 16.384 ms in the signal model below			
+    				if (binTime < snStartTime + 16.384*916) {  	// There are 916 bins of 16.384 ms in the signal model below
 		    			int snBin = (int) ((binTime - snStartTime)*10000/16384);
 //    			        if (logger.isDebugEnabled()) {
 //    			            logger.debug("snBin: " + snBin);
@@ -389,11 +389,11 @@ public class SimDataCollector extends AbstractDataCollector
         buf.flip();
 
         lastSupernova = lastSupernova + nsn*16384;
-        
+
         if (scalConsumer != null) scalConsumer.consume(buf);
         return 1;
     }
-   
+
    /**
      * Contains all the yucky hit generation logic
      * @return number of hits generated in the time interval
@@ -502,7 +502,7 @@ public class SimDataCollector extends AbstractDataCollector
     {
         // TODO Auto-generated method stub
     }
-    
+
     /**
      * Contains effective volume scaling factor per DOM for single photon detection
      * at 60 DOM locations starting at +500m going down by 17m, down to -503m.
@@ -677,7 +677,7 @@ public class SimDataCollector extends AbstractDataCollector
     			0.0382441, 0.0382441, 0.0382441, 0.0382441, 0.0382441, 0.0382441,
     			0.0382441, 0.0382441, 0.0382441, 0.0382441, 0.0382441, 0.0382441,
     			0.0382441, 0.0382441, 0.0382441, 0.0382441, 0.0382441, 0.0382441,
-    			0.0382441, 0.0382441 
+    			0.0382441, 0.0382441
     	};
     	double s = avgSnSignalPerDom[nsnSigBin/10]/10.;
 //	if (logger.isDebugEnabled()) logger.debug("SN signal[" + nsnSigBin + "]: " + s);
@@ -687,10 +687,10 @@ public class SimDataCollector extends AbstractDataCollector
 	public double[] getEffVolumeScaling() {
 		return effVolumeScaling;
 	}
-	
+
 	public void setEffVolumeScaling(double[] effVolumeScaling) {
 		this.effVolumeScaling = effVolumeScaling;
-		
+
 	}
 
 	public double[] getAvgSnSignal() {

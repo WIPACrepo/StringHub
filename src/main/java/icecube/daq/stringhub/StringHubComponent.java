@@ -268,8 +268,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		{
 		    driver.setBlocking(true);
 			activeDOMs = driver.discoverActiveDOMs();
-			if (logger.isInfoEnabled()) {
-				logger.info("Found " + activeDOMs.size() + " active DOMs.");
+			if (logger.isDebugEnabled()) {
+				logger.debug("Found " + activeDOMs.size() + " active DOMs.");
 			}
 		}
 	}
@@ -339,16 +339,16 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			    String tcalPStxt = hubNode.valueOf("tcalPrescale");
 			    if (tcalPStxt.length() != 0) tcalPrescale = Integer.parseInt(tcalPStxt);
 			}
-			if (logger.isInfoEnabled()) {
-				logger.info("Number of domConfigNodes found: " + configNodeList.size());
+			if (logger.isDebugEnabled()) {
+				logger.debug("Number of domConfigNodes found: " + configNodeList.size());
 			}
 			for (Node configNode : configNodeList) {
 				String tag = configNode.getText();
 				if (!tag.endsWith(".xml"))
 					tag = tag + ".xml";
 				File configFile = new File(domConfigsDirectory, tag);
-				if (logger.isInfoEnabled()) {
-					logger.info("Configuring " + realism
+				if (logger.isDebugEnabled()) {
+					logger.debug("Configuring " + realism
 							+ " - loading config from "
 							+ configFile.getAbsolutePath());
 				}
@@ -390,7 +390,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 				}
 			}
 
-			logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
+			logger.debug("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
 
 			// Must make sure to release file resources associated with the previous
 			// runs since we are throwing away the collectors and starting from scratch
@@ -449,7 +449,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 				if (logger.isDebugEnabled()) logger.debug("Starting new DataCollector thread on (" + cwd + ").");
 			}
 
-			logger.info("Starting up HKN1 sorting trees...");
+			logger.debug("Starting up HKN1 sorting trees...");
 
 			// Still need to get the data collectors to pick up and do something with the config
 			conn.configure();
@@ -513,11 +513,11 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	     */
 	    boolean[] wirePairSemaphore = new boolean[32];
 	    long validXTime = 0L;
-	    
+
 	    /* Load the configs into a map so that I can search them better */
 	    HashMap<String, FlasherboardConfiguration> fcMap = new HashMap<String, FlasherboardConfiguration>(60);
 	    for (FlasherboardConfiguration fb : flasherConfigs) fcMap.put(fb.getMainboardID(), fb);
-	    
+
 	    /*
 	     * Divide the DOMs into 4 categories ...
 	     *     Category 1: Flashing current subrun - not flashing next subrun.  Simply turn
@@ -534,15 +534,15 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	    logger.info("Beginning subrun - turning off requested flashers");
 	    for (AbstractDataCollector adc : conn.getCollectors())
 	    {
-	        if (adc.isRunning() 
-	                && adc.getFlasherConfig() != null 
+	        if (adc.isRunning()
+	                && adc.getFlasherConfig() != null
 	                && !fcMap.containsKey(adc.getMainboardId()))
 	        {
 	            adc.setFlasherConfig(null);
 	            adc.signalStartSubRun();
 	        }
 	    }
-	    
+
 	    for (AbstractDataCollector adc : conn.getCollectors())
 	    {
 	        if (adc.isZombie()) continue;
@@ -648,7 +648,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 5111 2010-08-02 20:41:12Z dglo $";
+		return "$Id: StringHubComponent.java 12502 2010-12-29 23:09:00Z dglo $";
     }
 
 	public IByteBufferCache getCache()
