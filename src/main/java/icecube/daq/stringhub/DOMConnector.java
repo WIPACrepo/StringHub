@@ -56,10 +56,10 @@ public class DOMConnector
 		}
 
 		// wait for things to configure
-		for (AbstractDataCollector dc : collectors) 
+		for (AbstractDataCollector dc : collectors)
 		    while(dc.isConfiguring()) Thread.sleep(100);
-		
-		logger.info("Data collector ensemble has been configured.");
+
+		logger.debug("Data collector ensemble has been configured.");
 	}
 
 	/**
@@ -71,10 +71,10 @@ public class DOMConnector
 		throws Exception
 	{
 	    stopProcessing();
-	    
+
 		for (AbstractDataCollector dc : collectors) dc.signalShutdown();
 
-		for (AbstractDataCollector dc : collectors) 
+		for (AbstractDataCollector dc : collectors)
 		{
 		    while (dc.isAlive()) Thread.sleep(100);
 	        dc.close();
@@ -123,7 +123,7 @@ public class DOMConnector
 			if (dc.isRunning()) return false;
 		return true;
 	}
-	
+
 	/**
 	 * Are all data collectors running?
 	 */
@@ -153,7 +153,7 @@ public class DOMConnector
 	{
 		CLOOP: for (AbstractDataCollector dc : collectors)
 		{
-		    while (!dc.isConfigured()) 
+		    while (!dc.isConfigured())
 	        {
 		        if (dc.isZombie()) continue CLOOP;
 		        Thread.sleep(100);
@@ -170,10 +170,10 @@ public class DOMConnector
 	public void stopProcessing()
 		throws Exception
 	{
-		for (AbstractDataCollector dc : collectors) 
+		for (AbstractDataCollector dc : collectors)
 			dc.signalStopRun();
 
-		for (AbstractDataCollector dc : collectors) 
+		for (AbstractDataCollector dc : collectors)
 		{
 			while (dc.isStopping()) Thread.sleep(100);
 		}
