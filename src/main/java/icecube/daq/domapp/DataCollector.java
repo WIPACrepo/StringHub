@@ -672,18 +672,12 @@ public class DataCollector
             try
             {
                 GPSInfo newGPS = driver.readGPS(card);
-                Date now = new Date();
                 GregorianCalendar calendar = new GregorianCalendar(
                         new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
                 calendar.add(GregorianCalendar.DAY_OF_YEAR, newGPS.getDay() - 1);
                 numConsecutiveGPSExceptions = 0;
                 UTC newOffset = newGPS.getOffset();
-                if (gps == null || newOffset.equals(gpsOffset))
-                {
-                    gps = newGPS;
-                    gpsOffset = gps.getOffset();
-                }
-                else if (gps != null)
+                if (!(gps == null || newOffset.equals(gpsOffset)))
                 {
                     logger.error(
                             "GPS offset mis-alignment detected - old GPS: " +
@@ -692,6 +686,8 @@ public class DataCollector
                             alerter, "GPS Error", "GPS Offset mis-match",
                             card, pair, dom, mbid, name, major, minor);
                 }
+                gps = newGPS;
+                gpsOffset = gps.getOffset();
             }
             catch (GPSNotReady gpsn)
             {
