@@ -1040,6 +1040,9 @@ public class DataCollector
                  * I must stop the current run unless I was just running a flasher run
                  * on this DOM and I am just changing the flasher parameters.
                  */
+                logger.info("Starting subrun - flasher config is " + 
+                        (flasherConfig == null ? "not" : "") + " null / lately " +
+                        (latelyRunningFlashers ? "" : "not") + " running flashers.");
                 if (!(latelyRunningFlashers && flasherConfig != null))
                 {
                     setRunLevel(RunLevel.STOPPING_SUBRUN);
@@ -1049,10 +1052,10 @@ public class DataCollector
                 }
                 if (flasherConfig != null)
                 {
-                    if (logger.isDebugEnabled()) logger.debug("Starting flasher subrun");
+                    logger.info("Starting flasher subrun");
                     if (latelyRunningFlashers)
                     {
-                        logger.debug("Changing flasher board configuration");
+                        logger.info("Only changing flasher board configuration");
                         app.changeFlasherSettings(
                                 (short) flasherConfig.getBrightness(),
                                 (short) flasherConfig.getWidth(),
@@ -1075,7 +1078,7 @@ public class DataCollector
                         tempConfig.setMux(MuxState.FB_CURRENT);
                         configure(tempConfig);
                         sleep(new Random().nextInt(250));
-                        logger.debug("Beginning new flasher board run");
+                        logger.info("Beginning new flasher board run");
                         app.beginFlasherRun(
                                 (short) flasherConfig.getBrightness(),
                                 (short) flasherConfig.getWidth(),
@@ -1088,9 +1091,7 @@ public class DataCollector
                 }
                 else
                 {
-                    if (logger.isDebugEnabled()) {
-                        logger.debug("Returning to non-flashing state");
-                    }
+                    logger.info("Returning to non-flashing state");
                     configure(config);
                     app.beginRun();
                 }
