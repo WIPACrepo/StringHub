@@ -457,19 +457,17 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 		catch (FileNotFoundException fnx)
 		{
-			logger.error("Could not find the configuration file.");
+			logger.error("Could not find the configuration file.", fnx);
 			throw new DAQCompException(fnx.getMessage());
 		}
 		catch (IOException iox)
 		{
-			iox.printStackTrace();
-			logger.error("Caught IOException - " + iox.getMessage());
-			throw new DAQCompException(iox.getMessage());
+			logger.error("Caught IOException", iox);
+			throw new DAQCompException("Cannot configure", iox);
 		}
 		catch (Exception e)
 		{
-			e.printStackTrace();
-			throw new DAQCompException(e.getMessage());
+			throw new DAQCompException("Unexpected exception", e);
 		}
 
 
@@ -648,7 +646,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 12502 2010-12-29 23:09:00Z dglo $";
+		return "$Id: StringHubComponent.java 12616 2011-02-01 23:27:50Z dglo $";
     }
 
 	public IByteBufferCache getCache()
