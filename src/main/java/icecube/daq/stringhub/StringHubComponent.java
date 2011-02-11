@@ -646,7 +646,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 12616 2011-02-01 23:27:50Z dglo $";
+		return "$Id: StringHubComponent.java 12655 2011-02-11 22:58:27Z mnewcomb $";
     }
 
 	public IByteBufferCache getCache()
@@ -685,6 +685,21 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
         for (AbstractDataCollector adc : conn.getCollectors()) if (adc.isRunning()) nch++;
         return nch;
     }
+
+	public int[] getNumberOfActiveAndTotalChannels() {
+		int nch = 0;
+		int total = 0;
+		for (AbstractDataCollector adc : conn.getCollectors()) {
+			if(adc.isRunning()) nch++;
+			total++;
+		}
+		
+		int[] returnVal = new int[2];
+		returnVal[0] = nch;
+		returnVal[1] = total;
+
+		return returnVal;
+	}
 
     public long getTimeOfLastHitInputToHKN1()
     {
