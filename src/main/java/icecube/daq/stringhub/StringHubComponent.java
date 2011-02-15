@@ -114,7 +114,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
          * the hub component ID:
          *  (1) component x000        : amandaHub
          *  (2) component x001 - x199 : in-ice hub
-		 *      (81 - 86 are deep core but this currently doesn't mean anything)
+		 *      (79 - 86 are deep core but this currently doesn't mean anything)
          *  (3) component x200 - x299 : icetop
          * I
          */
@@ -125,8 +125,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		if (minorHubId == 0) {
 			cacheName = "AM";
 			cacheNum = "";
-		} else if (minorHubId <= 80) {
-			cacheName = "SH#" + minorHubId;
+		} else if (minorHubId <= 78) {
+			cacheName = "SH";
 			cacheNum = "#" + minorHubId;
 		} else if (minorHubId <= 200) {
 			cacheName = "DC";
@@ -646,7 +646,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 12655 2011-02-11 22:58:27Z mnewcomb $";
+		return "$Id: StringHubComponent.java 12662 2011-02-15 19:03:06Z dglo $";
     }
 
 	public IByteBufferCache getCache()
@@ -693,7 +693,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			if(adc.isRunning()) nch++;
 			total++;
 		}
-		
+
 		int[] returnVal = new int[2];
 		returnVal[0] = nch;
 		returnVal[1] = total;
