@@ -664,13 +664,13 @@ public class DOMApp implements IDOMApp
         ByteBuffer ack = ByteBuffer.allocate(34);
         while (ack.position() < 20) ack.put(devIO.recv());
         // if the 5th byte is an 'E'
-	StringBuffer debugTxt = new StringBuffer("DOMApp detector returns");
-	for (int i = 0; i < 8; i++) {
-	    int b = ack.get(i);
-	    if (b < 0) b += 256;
-	    debugTxt.append(String.format(" %02x", b));
-	}
-	logger.debug(debugTxt);
+        StringBuffer debugTxt = new StringBuffer("DOMApp detector returns");
+        for (int i = 0; i < 8; i++) {
+            int b = ack.get(i);
+            if (b < 0) b += 256;
+            debugTxt.append(String.format(" %02x", b));
+        }
+        logger.debug(debugTxt);
         if (ack.get(4) != (byte) 0x45) return true;
         // finish up reading iceboot response
         while (ack.position() < 34) ack.put(devIO.recv());
@@ -759,6 +759,21 @@ public class DOMApp implements IDOMApp
         ByteBuffer buf = ByteBuffer.allocate(4);
         buf.put((byte) 1).flip();
         sendMessage(MessageType.SELECT_MINBIAS, buf);        
+    }
+
+    public FastMoniRateType getFastMoniRateType() throws MessageException
+    {
+        ByteBuffer buf = sendMessage(MessageType.GET_FAST_MONI_RATE_TYPE);
+        byte type = buf.get();
+        if (type == 0) return FastMoniRateType.F_MONI_RATE_HLC;
+        return FastMoniRateType.F_MONI_RATE_SLC;
+    }
+
+    public void setFastMoniRateType(FastMoniRateType type) throws MessageException
+    {
+        ByteBuffer buf = ByteBuffer.allocate(1);
+        buf.put((byte) type.ordinal()).flip();
+        sendMessage(MessageType.SET_FAST_MONI_RATE_TYPE, buf);
     }
 
 }

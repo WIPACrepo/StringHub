@@ -143,7 +143,7 @@ public class DataCollector
     private int                 numLBMOverflows       = 0;
     private int                 numConsecutiveGPSExceptions;
 
-    private RealTimeRateMeter   rtHitRate;
+    private RealTimeRateMeter   rtHitRate, rtLCRate;
 
     private long                nextSupernovaDomClock;
     private HitBufferAB         abBuffer;
@@ -323,6 +323,7 @@ public class DataCollector
 
         // Calculate 10-sec averages of the hit rate
         rtHitRate = new RealTimeRateMeter(100000000000L);
+        rtLCRate  = new RealTimeRateMeter(100000000000L);
         latelyRunningFlashers = false;
         start();
     }
@@ -410,6 +411,9 @@ public class DataCollector
         app.setScalerDeadtime(config.getScalerDeadtime());
         app.setAtwdReadout(config.getAtwdChipSelect());
 
+        // TODO figure out if we want this
+        // app.setFastMoniRateType(FastMoniRateType.F_MONI_RATE_HLC);
+        
         // Do the pedestal subtraction
         if (config.getPedestalSubtraction())
         {
@@ -440,8 +444,18 @@ public class DataCollector
         long utc    = rapcal.domToUTC(domclk).in_0_1ns();
         buf.putLong(24, utc);
         int fmtId = buf.getInt(4);
-        if (fmtId == MAGIC_ENGINEERING_HIT_FMTID || fmtId == MAGIC_COMPRESSED_HIT_FMTID) rtHitRate.recordEvent(utc);
         target.consume(buf);
+        
+        // Collect HLC / SLC hit statistics ...
+        switch ( buf.getInt(4) )
+        {
+        case MAGIC_COMPRESSED_HIT_FMTID:
+            int flagsLC = (buf.getInt(46) & 0x30000) >> 16;
+            if (flagsLC != 0) rtLCRate.recordEvent(utc);
+            // intentional fall-through
+        case MAGIC_ENGINEERING_HIT_FMTID:
+            rtHitRate.recordEvent(utc);
+        }
         return utc;
     }
 
@@ -1227,6 +1241,11 @@ public class DataCollector
     public String getRunState()
     {
         return getRunLevel().toString();
+    }
+
+    public double getHitRateLC()
+    {
+        return rtLCRate.getRate();
     }
 
 }

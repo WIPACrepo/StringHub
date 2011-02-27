@@ -107,6 +107,9 @@ public enum MessageType {
 	
 	SELECT_ATWD(3, 35),
 	
+	GET_FAST_MONI_RATE_TYPE(3, 36),
+	SET_FAST_MONI_RATE_TYPE(3, 37),
+	
 	/** Start a data collection run on the DOM */
 	BEGIN_RUN(4, 12),
 	

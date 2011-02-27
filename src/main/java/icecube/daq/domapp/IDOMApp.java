@@ -119,6 +119,14 @@ public interface IDOMApp {
 	ArrayList<ByteBuffer> getData(int n) throws MessageException;
 
 	/**
+	 * Get the currently configured ASCII-F (a.k.a. "FAST") monitoring
+	 * records' variant : either HLC hits or SLC hits are counted
+	 * @return enumeration type HLC/SLC
+	 * @throws MessageException
+	 */
+	FastMoniRateType getFastMoniRateType() throws MessageException;
+	
+	/**
 	 * Query the DOMApp for the DOM mainboard ID (12-char hex string)
 	 * @return
 	 * @throws MessageException
@@ -214,6 +222,14 @@ public interface IDOMApp {
 	void setEngineeringFormat(EngineeringRecordFormat fmt)
 			throws MessageException;
 
+	/**
+	 * Set the current type of hits to count and emit in the ASCII F
+	 * monitoring records: either HLC hits or SLC hits (all hits)
+	 * @param type
+	 * @throws MessageException
+	 */
+	void setFastMoniRateType(FastMoniRateType type) throws MessageException;
+	
 	/**
 	 * Set the PMT HV programming DAC.
 	 * @param dac HV volts * 2, must be in range [0..4095]
