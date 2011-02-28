@@ -41,9 +41,10 @@ public class StringHubAlert
         vars.put("minor", minor);
 
         try {
-            alerter.send(Alerter.PRIO_ITS, condition, desc, vars);
+            alerter.send(Alerter.PRIO_SCP, condition, desc, vars);
         } catch (AlertException ae) {
             LOG.error("Cannot send " + condition + " alert", ae);
         }
     }
 }
+
