@@ -187,7 +187,7 @@ public class StringHubAlertTest
         vars.put("minor", minor);
 
         MockAlerter alerter = new MockAlerter();
-        alerter.setExpected(Alerter.PRIO_ITS, condition, desc, vars);
+        alerter.setExpected(Alerter.PRIO_SCP, condition, desc, vars);
 
         StringHubAlert.sendDOMAlert(alerter, condition, desc, card, pair, dom,
                                     mbid, name, major, minor);
