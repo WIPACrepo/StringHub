@@ -393,11 +393,19 @@ public class DataCollector
                 app.pulserOn();
         }
 
-        if (config.isMinBiasEnabled())
-            app.enableMinBias();
-        else
-            app.disableMinBias();
-
+        // now step carefull around this - some old MB versions don't support the message
+        try 
+        {
+            if (config.isMinBiasEnabled())
+                app.enableMinBias();
+            else
+                app.disableMinBias();
+        } 
+        catch (MessageException mex)
+        {
+            logger.warn("Unable to configure MinBias");
+        }
+        
         app.setPulserRate(config.getPulserRate());
         LocalCoincidenceConfiguration lc = config.getLC();
         app.setLCType(lc.getType());
@@ -409,7 +417,15 @@ public class DataCollector
         app.setCableLengths(lc.getCableLengthUp(), lc.getCableLengthDn());
         app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
         app.setScalerDeadtime(config.getScalerDeadtime());
-        app.setAtwdReadout(config.getAtwdChipSelect());
+        
+        try 
+        {
+            app.setAtwdReadout(config.getAtwdChipSelect());
+        }
+        catch (MessageException mex)
+        {
+            logger.warn("Unable to configure ATWD chip select");
+        }   
 
         // TODO figure out if we want this
         // app.setFastMoniRateType(FastMoniRateType.F_MONI_RATE_HLC);
@@ -422,13 +438,29 @@ public class DataCollector
             app.collectPedestals(200, 200, 200);
         }
 
-        // set chargestamp source
-        app.setChargeStampType(!config.isAtwdChargeStamp(),
-                config.isAutoRangeChargeStamp(),
-                config.getChargeStampChannel());
+        // set chargestamp source - again fail with WARNING if cannot get the
+        // message through because of old mainboard release
+        try 
+        {
+            app.setChargeStampType(!config.isAtwdChargeStamp(),
+                    config.isAutoRangeChargeStamp(),
+                    config.getChargeStampChannel());
+        }
+        catch (MessageException mex)
+        {
+            logger.warn("Unable to configure chargestamp type");
+        }          
 
         // enable charge stamp histogramming
-        app.histoChargeStamp(config.getHistoInterval(), config.getHistoPrescale());
+        try 
+        {
+            app.histoChargeStamp(config.getHistoInterval(), config.getHistoPrescale());
+        }
+        catch (MessageException mex)
+        {
+            logger.warn("Unable to configure chargestamp histogramming");
+        }   
+        
 
         long configT1 = System.currentTimeMillis();
         if (logger.isDebugEnabled()) {
