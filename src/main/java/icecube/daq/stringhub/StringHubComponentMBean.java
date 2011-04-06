@@ -27,4 +27,10 @@ public interface StringHubComponentMBean
      * @return
      */
     long getTimeOfLastHitOutputFromHKN1();
+
+    /**
+     * Return the number of LBM overflows inside this string
+     * @return  a long value representing the total lbm overflows in this string
+     */
+    long getTotalLBMOverflows();
 }

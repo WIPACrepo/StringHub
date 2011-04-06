@@ -223,6 +223,11 @@ public abstract class AbstractDataCollector extends Thread
 	    return 0L;
 	}
 
+    public long getLBMOverflowCount()
+    {
+        return 0L;
+    }
+
     public void setSoftbootBehavior(boolean dcSoftboot)
     {
         alwaysSoftboot = dcSoftboot;

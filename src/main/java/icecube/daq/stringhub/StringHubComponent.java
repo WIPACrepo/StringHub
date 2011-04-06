@@ -51,6 +51,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.Random;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -92,6 +93,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	private IStringTriggerHandler triggerHandler;
 	private static final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
 
+	private Random overflowRand;
+
 	public StringHubComponent(int hubId)
 	{
 		this(hubId, (hubId >= 1000 && hubId < 2000));
@@ -103,6 +106,10 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
         this.hubId = hubId;
 		this.isSim = isSim;
+
+		if(this.isSim) {
+			overflowRand = new Random();
+		}
 
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
@@ -646,7 +653,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 12662 2011-02-15 19:03:06Z dglo $";
+		return "$Id: StringHubComponent.java 12835 2011-04-06 22:41:02Z mnewcomb $";
     }
 
 	public IByteBufferCache getCache()
@@ -699,6 +706,19 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		returnVal[1] = total;
 
 		return returnVal;
+	}
+
+	public long getTotalLBMOverflows() {
+		long total = 0;
+		
+		if(this.isSim) {
+			total = overflowRand.nextLong();
+   		} else {
+			for (AbstractDataCollector adc : conn.getCollectors()) {
+				total += adc.getLBMOverflowCount();
+			}
+		}
+		return total;
 	}
 
     public long getTimeOfLastHitInputToHKN1()
