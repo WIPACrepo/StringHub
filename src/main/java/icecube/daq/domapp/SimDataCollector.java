@@ -20,6 +20,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
+import java.util.Random;
 
 import org.apache.log4j.Logger;
 
@@ -68,6 +69,8 @@ public class SimDataCollector extends AbstractDataCollector
 	private double[] effVolumeScaling;
 
     private boolean isAmanda;
+    private long lbmOverflowCount=0L;
+    private Random lbmOverflowRandom;
 
     private static final Logger logger = Logger.getLogger(SimDataCollector.class);
 
@@ -111,6 +114,7 @@ public class SimDataCollector extends AbstractDataCollector
             snDistance = config.getSnDistance();
             effVolumeEnabled = config.isEffVolumeEnabled();
         }
+	lbmOverflowRandom = new Random();
         thread = new Thread(this, "SimDataCollector-" + card + "" + pair + dom);
         thread.start();
     }
@@ -120,6 +124,15 @@ public class SimDataCollector extends AbstractDataCollector
         // do nothing
     }
 
+    public long getLBMOverflowCount() {
+	// randomly add a number from 0 to 20 to 
+	// the overflow count 
+	lbmOverflowCount += lbmOverflowRandom.nextInt(20);
+	
+	return lbmOverflowCount;
+    }
+
+	
     public void signalShutdown()
     {
         if (logger.isInfoEnabled()) {

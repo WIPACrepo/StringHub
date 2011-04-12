@@ -93,8 +93,6 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	private IStringTriggerHandler triggerHandler;
 	private static final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
 
-	private Random overflowRand;
-
 	public StringHubComponent(int hubId)
 	{
 		this(hubId, (hubId >= 1000 && hubId < 2000));
@@ -106,10 +104,6 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
         this.hubId = hubId;
 		this.isSim = isSim;
-
-		if(this.isSim) {
-			overflowRand = new Random();
-		}
 
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
@@ -653,7 +647,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 12835 2011-04-06 22:41:02Z mnewcomb $";
+		return "$Id: StringHubComponent.java 12860 2011-04-12 05:13:48Z mnewcomb $";
     }
 
 	public IByteBufferCache getCache()
@@ -711,13 +705,10 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	public long getTotalLBMOverflows() {
 		long total = 0;
 		
-		if(this.isSim) {
-			total = overflowRand.nextLong();
-   		} else {
-			for (AbstractDataCollector adc : conn.getCollectors()) {
-				total += adc.getLBMOverflowCount();
-			}
+		for (AbstractDataCollector adc : conn.getCollectors()) {
+			total += adc.getLBMOverflowCount();
 		}
+
 		return total;
 	}
 
