@@ -6,6 +6,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.dor.DOMChannelInfo;
+import icecube.daq.dor.GPSInfo;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
@@ -78,5 +79,18 @@ public class SimDataCollectorUnitTest implements BufferConsumer
         }
         assertTrue(sawHLC);
         assertTrue(sawSLC);
+    }
+    @Test
+    public void testGPS() throws Exception
+    {
+	DOMChannelInfo chan = new DOMChannelInfo("056a7bb14cde", 0, 1, 'B');
+        BufferConsumer hitsTo;
+	//dc = new DataCollector(chan, hitsTo);
+
+	//GPSInfo newGPS = driver.readGPS(card);
+        //GregorianCalendar calendar = new GregorianCalendar(
+           //     new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
+        //calendar.add(GregorianCalendar.DAY_OF_YEAR, newGPS.getDay() - 1);
+	
     }
 }
