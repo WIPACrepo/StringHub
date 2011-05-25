@@ -4,21 +4,73 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import icecube.daq.dor.IDriver;
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.dor.DOMChannelInfo;
+import icecube.daq.dor.Driver;
 import icecube.daq.dor.GPSInfo;
+import icecube.daq.dor.TimeCalib;
+import icecube.daq.rapcal.RAPCal;
+import icecube.daq.rapcal.RAPCalException;
+import icecube.daq.util.UTC;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import java.util.GregorianCalendar;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
+class BufConsumer implements BufferConsumer
+{
+    LinkedBlockingQueue<ByteBuffer> q;
+
+    public void consume(ByteBuffer buf) throws IOException
+    {
+        try
+        {
+            q.put(buf);
+        }
+        catch (InterruptedException intx)
+        {
+        
+        }
+    }
+}
+class rapcal implements RAPCal
+{
+    public double clockRatio()
+    {
+	throw  new Error("Unimplemented");
+    }
+
+    public double cableLength()
+    {
+	throw  new Error("Unimplemented");
+    }
+
+    public boolean laterThan(long domclk)
+    {
+	throw new Error("Unimplemented");
+    }
+
+    public UTC domToUTC(long domclk)
+    {
+	throw new Error("Unimplemented");
+    }
+
+    public void update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException
+    {
+	throw new Error("Unimplemented");
+    }
+}
+
 public class SimDataCollectorUnitTest implements BufferConsumer
 {
+    private IDriver driver;
     AbstractDataCollector dc;
     LinkedBlockingQueue<ByteBuffer> q;
     
@@ -84,12 +136,18 @@ public class SimDataCollectorUnitTest implements BufferConsumer
     public void testGPS() throws Exception
     {
 	DOMChannelInfo chan = new DOMChannelInfo("056a7bb14cde", 0, 1, 'B');
-        BufferConsumer hitsTo;
-	//dc = new DataCollector(chan, hitsTo);
+	DOMConfiguration config = new DOMConfiguration();
+        BufConsumer hitsTo = new BufConsumer();
+	BufConsumer moniTo = new BufConsumer();
+        BufConsumer supernovaTo = new BufConsumer();
+        BufConsumer tcalTo = new BufConsumer();
+	rapcal rapcal = new rapcal();
+	dc = new DataCollector(chan.card, chan.pair, chan.dom, config, hitsTo, moniTo, supernovaTo, tcalTo, driver, rapcal);
+	driver = Driver.getInstance();
 
-	//GPSInfo newGPS = driver.readGPS(card);
-        //GregorianCalendar calendar = new GregorianCalendar(
-           //     new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
+	//GPSInfo newGPS = driver.readGPS(chan.card);
+        GregorianCalendar calendar = new GregorianCalendar(
+                new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
         //calendar.add(GregorianCalendar.DAY_OF_YEAR, newGPS.getDay() - 1);
 	
     }
