@@ -124,6 +124,7 @@ public class GPSService
     
     public void startService(int card) 
     {
+        if (coll[card] == null) { coll[card] = new GPSCollector(); }
         if (!coll[card].isRunning()) coll[card].startup(card); 
     }
     
