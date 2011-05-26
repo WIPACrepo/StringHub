@@ -618,6 +618,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			}
 		}
 
+		GPSService.getInstance().shutdownAll();
         logger.info("Returning from stop.");
 	}
 
@@ -651,7 +652,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 12985 2011-05-26 07:55:46Z kael $";
+		return "$Id: StringHubComponent.java 12986 2011-05-26 07:57:04Z kael $";
     }
 
 	public IByteBufferCache getCache()
