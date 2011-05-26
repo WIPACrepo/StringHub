@@ -704,8 +704,10 @@ public class DataCollector
         try
         {            
             GPSService gps_serv = GPSService.getInstance();
+            UTC gpsOffset = new UTC(0L);
             GPSInfo gps = gps_serv.getGps(card);
-            UTC gpsOffset = gps.getOffset();
+            if (gps != null) gpsOffset = gps.getOffset();
+            
             TimeCalib tcal = driver.readTCAL(card, pair, dom);
             rapcal.update(tcal, gpsOffset);
             lastTcalRead = System.currentTimeMillis();

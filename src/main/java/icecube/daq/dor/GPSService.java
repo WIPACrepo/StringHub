@@ -82,11 +82,13 @@ public class GPSService
                 }
                 catch (GPSNotReady gps_not_ready)
                 {
-                    logger.warn("GPS not ready.");
-                    if (cons_gpsx_count++ > 5)
+                    if (cons_gpsx_count++ > 10)
+                    {
+                        logger.warn("GPS not ready.");
                         StringHubAlert.sendDOMAlert(
                                 alerter, "GPS Error", "SyncGPS procfile not ready",
                                 card, 0, '-', "000000000000", "GPS", 0, 0);
+                    }
                 }
                 catch (GPSException gps_ex)
                 {
