@@ -1,5 +1,6 @@
 package icecube.daq.dor;
 
+import java.util.GregorianCalendar;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
@@ -56,6 +57,10 @@ public class GPSService
                 {
                     Thread.sleep(240L);
                     GPSInfo newGPS = driver.readGPS(card);
+                    
+                    GregorianCalendar calendar = new GregorianCalendar(
+                            new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
+                    
                     cons_gpsx_count = 0;
                     if (!(gps == null || newGPS.getOffset().equals(gps.getOffset())))
                     {

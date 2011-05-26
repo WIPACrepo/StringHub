@@ -7,9 +7,7 @@ import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.domapp.LocalCoincidenceConfiguration.RxMode;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
-import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
-import icecube.daq.dor.GPSNotReady;
 import icecube.daq.dor.GPSService;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
@@ -27,8 +25,6 @@ import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.DecimalFormat;
-import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.Timer;
@@ -103,10 +99,6 @@ public class DataCollector
 {
     private long                numericMBID;
     private IDOMApp             app;
-    private GPSInfo             gps;
-    private UTC                 gpsOffset;
-    /** This counter tracks the number of sequential GPS errors */
-    private int                 gpsErrorCount;
     private RAPCal              rapcal;
     private IDriver             driver;
     private boolean             stop_thread;
@@ -142,7 +134,6 @@ public class DataCollector
     private long                lastTcalUT;
     private volatile long       runStartUT = 0L;
     private int                 numLBMOverflows       = 0;
-    private int                 numConsecutiveGPSExceptions;
 
     private RealTimeRateMeter   rtHitRate, rtLCRate;
 
@@ -315,11 +306,7 @@ public class DataCollector
         this.app = null;
         this.config = config;
 
-        gps = null;
-        gpsErrorCount = 0;
-
         runLevel = RunLevel.INITIALIZING;
-        gpsOffset = new UTC(0L);
         abBuffer  = new HitBufferAB();
 
         // Calculate 10-sec averages of the hit rate
@@ -715,13 +702,10 @@ public class DataCollector
     private void execRapCal()
     {
         try
-        {
-            GregorianCalendar calendar = new GregorianCalendar(
-                    new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
-            
+        {            
             GPSService gps_serv = GPSService.getInstance();
-            gps = gps_serv.getGps(card);
-            gpsOffset = gps.getOffset();
+            GPSInfo gps = gps_serv.getGps(card);
+            UTC gpsOffset = gps.getOffset();
             TimeCalib tcal = driver.readTCAL(card, pair, dom);
             rapcal.update(tcal, gpsOffset);
             lastTcalRead = System.currentTimeMillis();

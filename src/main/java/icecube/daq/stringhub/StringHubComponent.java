@@ -22,8 +22,8 @@ import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
-import icecube.daq.oldpayload.impl.MasterPayloadFactory;
 import icecube.daq.monitoring.MonitoringData;
+import icecube.daq.oldpayload.impl.MasterPayloadFactory;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.SourceIdRegistry;
@@ -52,7 +52,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.Random;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -652,7 +651,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 12986 2011-05-26 07:57:04Z kael $";
+		return "$Id: StringHubComponent.java 12987 2011-05-26 08:01:34Z kael $";
     }
 
 	public IByteBufferCache getCache()
