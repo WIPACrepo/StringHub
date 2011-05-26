@@ -12,6 +12,7 @@ import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
+import icecube.daq.dor.GPSService;
 import icecube.daq.io.DAQComponentOutputProcess;
 import icecube.daq.io.OutputChannel;
 import icecube.daq.io.PayloadReader;
@@ -438,6 +439,9 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 					addMBean("DataCollectorMonitor-" + chanInfo, dc);
 				}
 
+				// Associate a GPS service to this card, if not already done
+				GPSService.getInstance().startService(chanInfo.card);
+				
 				dc.setDomInfo(domRegistry.getDom(chanInfo.mbid));
 
                 dc.setSoftbootBehavior(dcSoftboot);
@@ -647,7 +651,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 12860 2011-04-12 05:13:48Z mnewcomb $";
+		return "$Id: StringHubComponent.java 12985 2011-05-26 07:55:46Z kael $";
     }
 
 	public IByteBufferCache getCache()

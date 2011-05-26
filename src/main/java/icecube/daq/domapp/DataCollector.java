@@ -10,6 +10,7 @@ import icecube.daq.dor.Driver;
 import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.GPSNotReady;
+import icecube.daq.dor.GPSService;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.rapcal.RAPCal;
@@ -715,43 +716,12 @@ public class DataCollector
     {
         try
         {
-            try
-            {
-                GPSInfo newGPS = driver.readGPS(card);
-                GregorianCalendar calendar = new GregorianCalendar(
-                        new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
-                calendar.add(GregorianCalendar.DAY_OF_YEAR, newGPS.getDay() - 1);
-                numConsecutiveGPSExceptions = 0;
-                UTC newOffset = newGPS.getOffset();
-                if (!(gps == null || newOffset.equals(gpsOffset)))
-                {
-                    logger.error(
-                            "GPS offset mis-alignment detected - old GPS: " +
-                            gps + " new GPS: " + newGPS);
-                    StringHubAlert.sendDOMAlert(
-                            alerter, "GPS Error", "GPS Offset mis-match",
-                            card, pair, dom, mbid, name, major, minor);
-                }
-                gps = newGPS;
-                gpsOffset = gps.getOffset();
-            }
-            catch (GPSNotReady gpsn)
-            {
-                logger.warn("GPS not ready.");
-                if (numConsecutiveGPSExceptions++ > 5)
-                    StringHubAlert.sendDOMAlert(
-                            alerter, "GPS Error", "SyncGPS procfile not ready",
-                            card, pair, dom, mbid, name, major, minor);
-            }
-            catch (GPSException gpsx)
-            {
-                gpsx.printStackTrace();
-                logger.warn("Got GPS exception - time translation to UTC will be incomplete");
-                StringHubAlert.sendDOMAlert(
-                        alerter, "GPS Error", "SyncGPS procfile I/O error",
-                        card, pair, dom, mbid, name, major, minor);
-                gpsErrorCount += 1;
-            }
+            GregorianCalendar calendar = new GregorianCalendar(
+                    new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
+            
+            GPSService gps_serv = GPSService.getInstance();
+            gps = gps_serv.getGps(card);
+            gpsOffset = gps.getOffset();
             TimeCalib tcal = driver.readTCAL(card, pair, dom);
             rapcal.update(tcal, gpsOffset);
             lastTcalRead = System.currentTimeMillis();
