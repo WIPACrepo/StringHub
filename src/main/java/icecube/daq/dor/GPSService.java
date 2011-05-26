@@ -135,7 +135,8 @@ public class GPSService
     
     public void shutdownAll() 
     {
-        for (int i = 0; i < 8; i++) coll[i].shutdown();
+        for (int i = 0; i < 8; i++)
+            if (coll[i] != null && coll[i].isRunning()) coll[i].shutdown();
     }
     
     public void setAlerter(Alerter alerter) { this.alerter = alerter; }
