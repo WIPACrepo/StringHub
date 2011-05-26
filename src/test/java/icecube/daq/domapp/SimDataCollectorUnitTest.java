@@ -3,12 +3,13 @@ package icecube.daq.domapp;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.LinkedBlockingQueue;
-
+import java.io.*;
 import icecube.daq.dor.IDriver;
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
 import icecube.daq.dor.GPSInfo;
+import icecube.daq.dor.GPSService;
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
@@ -135,20 +136,24 @@ public class SimDataCollectorUnitTest implements BufferConsumer
     @Test
     public void testGPS() throws Exception
     {
-	DOMChannelInfo chan = new DOMChannelInfo("056a7bb14cde", 0, 1, 'B');
+	DOMChannelInfo chan = new DOMChannelInfo("056a7bb14cde", 1, 1, 'B');
+	Date dateGPS, dateGreg;
 	DOMConfiguration config = new DOMConfiguration();
         BufConsumer hitsTo = new BufConsumer();
 	BufConsumer moniTo = new BufConsumer();
         BufConsumer supernovaTo = new BufConsumer();
         BufConsumer tcalTo = new BufConsumer();
 	rapcal rapcal = new rapcal();
-	dc = new DataCollector(chan.card, chan.pair, chan.dom, config, hitsTo, moniTo, supernovaTo, tcalTo, driver, rapcal);
-	driver = Driver.getInstance();
+	DataCollector dc = new DataCollector(chan.card, chan.pair, chan.dom, config, hitsTo, moniTo, supernovaTo, tcalTo, driver, rapcal);
+	GPSService gps_serv = GPSService.getInstance();
 
-	//GPSInfo newGPS = driver.readGPS(chan.card);
+	GPSInfo newGPS = gps_serv.getGps( chan.card);
         GregorianCalendar calendar = new GregorianCalendar(
                 new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
-        //calendar.add(GregorianCalendar.DAY_OF_YEAR, newGPS.getDay() - 1);
+	calendar.add(GregorianCalendar.DAY_OF_YEAR, newGPS.getDay() - 1);
+	dateGreg = calendar.getTime();
+	dateGPS = newGPS.getTime();
+	
 	
     }
 }
