@@ -147,6 +147,7 @@ public class SimDataCollectorUnitTest implements BufferConsumer
 	DataCollector dc = new DataCollector(chan.card, chan.pair, chan.dom, config, hitsTo, moniTo, supernovaTo, tcalTo, driver, rapcal);
 	GPSService gps_serv = GPSService.getInstance();
 
+	gps_serv.startService(chan.card);
 	GPSInfo newGPS = gps_serv.getGps( chan.card);
         GregorianCalendar calendar = new GregorianCalendar(
                 new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
