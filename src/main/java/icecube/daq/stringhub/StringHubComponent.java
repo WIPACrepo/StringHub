@@ -79,6 +79,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	private SimpleOutputEngine tcalOut;
 	private SimpleOutputEngine supernovaOut;
 	private SimpleOutputEngine hitOut;
+	private SimpleOutputEngine teOut;
 	private SimpleOutputEngine dataOut;
 	private DOMConnector conn = null;
 	private List<DOMChannelInfo> activeDOMs;
@@ -154,16 +155,23 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		}
 
         hitOut = null;
+        teOut = null;
 
         if (minorHubId > 0)
         {
             hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "hitOut");
-            if (minorHubId < 200)
-                addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
-            else
+            teOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "teOut",
+                                           true);
+            if (minorHubId >= 200) {
                 addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
+            } else {
+                addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
+                addOptionalEngine(DAQConnector.TYPE_TRACKENG_HIT, teOut);
+            }
             sender.setHitOutput(hitOut);
             sender.setHitCache(cache);
+            sender.setTrackEngineOutput(teOut);
+            sender.setTrackEngineCache(cache);
         }
 
         ReadoutRequestFactory rdoutReqFactory =
@@ -240,6 +248,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		tcalOut.destroyProcessor();
 		supernovaOut.destroyProcessor();
 		hitOut.destroyProcessor();
+		teOut.destroyProcessor();
 		reqIn.destroyProcessor();
 		dataOut.destroyProcessor();
 	}
@@ -651,7 +660,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 12987 2011-05-26 08:01:34Z kael $";
+		return "$Id: StringHubComponent.java 12998 2011-05-27 22:16:47Z dglo $";
     }
 
 	public IByteBufferCache getCache()
@@ -708,7 +717,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 	public long getTotalLBMOverflows() {
 		long total = 0;
-		
+
 		for (AbstractDataCollector adc : conn.getCollectors()) {
 			total += adc.getLBMOverflowCount();
 		}
@@ -727,4 +736,9 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
         if (hitsSort == null) return 0L;
         return hitsSort.getLastOutputTime();
     }
+
+	public DAQComponentOutputProcess getTrackEngineWriter()
+	{
+		return teOut;
+	}
 }

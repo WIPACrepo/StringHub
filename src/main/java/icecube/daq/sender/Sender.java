@@ -18,10 +18,12 @@ import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.impl.DOMHit;
 import icecube.daq.payload.impl.DOMHitFactory;
 import icecube.daq.payload.impl.DOMHitReadoutData;
+import icecube.daq.payload.impl.DOMID;
 import icecube.daq.payload.impl.HitRecordList;
 import icecube.daq.payload.PayloadException;
 import icecube.daq.reqFiller.RequestFiller;
 import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.DeployedDOM;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -146,6 +148,10 @@ public class Sender
     private OutputChannel hitChan;
     private IByteBufferCache hitCache;
 
+    private DAQOutputChannelManager teOut;
+    private OutputChannel teChan;
+    private IByteBufferCache teCache;
+
     private DAQOutputChannelManager dataOut;
     private OutputChannel dataChan;
     private IByteBufferCache dataCache;
@@ -176,6 +182,9 @@ public class Sender
 
     /** DOM information from default-dom-geometry.xml */
     private DOMRegistry domRegistry;
+
+    // per-run monitoring counter
+    private long numTEHits;
 
     /**
      * Create a readout request filler.
@@ -249,6 +258,17 @@ public class Sender
                 }
             }
 
+            if (teChan != null) {
+                try {
+                    teChan.sendLastAndStop();
+                } catch (Exception ex) {
+                    if (log.isErrorEnabled()) {
+                        log.error("Couldn't stop track engine destinations",
+                                  ex);
+                    }
+                }
+            }
+
             try {
                 addDataStop();
             } catch (IOException ioe) {
@@ -278,6 +298,17 @@ public class Sender
                     if (log.isErrorEnabled()) {
                         log.error("Couldn't add data to queue", ioe);
                     }
+                }
+
+                if (teChan != null) {
+                    if (domRegistry == null) {
+                        throw new Error("DOM registry has not been set");
+                    }
+
+                    DeployedDOM domData =
+                        domRegistry.getDom(DOMID.toString(tinyHit.getDomId()));
+
+                    writeTrackEngineHit(tinyHit, domData);
                 }
 
                 // send some hits to local trigger component
@@ -348,6 +379,16 @@ public class Sender
             }
         }
         totStopsSent++;
+    }
+
+    public void forwardIsolatedHitsToTrigger()
+    {
+        forwardIsolatedHitsToTrigger(true);
+    }
+
+    public void forwardIsolatedHitsToTrigger(boolean forward)
+    {
+        forwardLC0Hits = forward;
     }
 
     /**
@@ -548,6 +589,16 @@ public class Sender
     public long getNumRecycled()
     {
         return numRecycled;
+    }
+
+    /**
+     * Get number of hits sent to the track engine.
+     *
+     * @return number of track engine hits
+     */
+    public long getNumTEHitsSent()
+    {
+        return numTEHits;
     }
 
     /**
@@ -874,6 +925,16 @@ public class Sender
     }
 
     /**
+     * Reset the back end after it has been stopped.
+     */
+    public void reset()
+    {
+        numTEHits = 0;
+
+        super.reset();
+    }
+
+    /**
      * Send the payload to the output engine.
      *
      * @param payload readout data to send
@@ -929,7 +990,7 @@ ex.printStackTrace();
     }
 
     /**
-     * Set the buffer cache where hit payloads tracked.
+     * Set the buffer cache where hit payloads are tracked.
      *
      * @param cache hit buffer cache
      */
@@ -946,6 +1007,27 @@ ex.printStackTrace();
     public void setHitOutput(DAQOutputChannelManager dest)
     {
         hitOut = dest;
+        hitChan = null;
+    }
+
+    /**
+     * Set the buffer cache where track engine hit payloads are tracked.
+     *
+     * @param cache track engine buffer cache
+     */
+    public void setTrackEngineCache(IByteBufferCache cache)
+    {
+        teCache = cache;
+    }
+
+    /**
+     * Set the output engine where track engine hits payloads are sent.
+     *
+     * @param dest output destination
+     */
+    public void setTrackEngineOutput(DAQOutputChannelManager dest)
+    {
+        teOut = dest;
         hitChan = null;
     }
 
@@ -997,6 +1079,11 @@ ex.printStackTrace();
             }
         }
 
+        if (teOut != null) {
+            teChan = teOut.getChannel();
+            // teChan can be null if track engine is not part of the run
+        }
+
         if (dataOut == null) {
             if (log.isErrorEnabled()) {
                 throw new Error("Data destination has not been set");
@@ -1011,14 +1098,27 @@ ex.printStackTrace();
         super.startThread();
     }
 
-    public void forwardIsolatedHitsToTrigger()
+    /**
+     * Send subset of hit data to the track engine.
+     *
+     * @param tinyHit original hit data
+     * @param domData data for the DOM which observed this hit
+     */
+    private void writeTrackEngineHit(DOMHit tinyHit, DeployedDOM domData)
     {
-        forwardIsolatedHitsToTrigger(true);
-    }
+        ByteBuffer teHit = teCache.acquireBuffer(11);
+        teHit.clear();
 
-    public void forwardIsolatedHitsToTrigger(boolean forward)
-    {
-        forwardLC0Hits = forward;
+        teHit.put((byte) (domData.getStringMajor() % Byte.MAX_VALUE));
+        teHit.put((byte) (domData.getStringMinor() % Byte.MAX_VALUE));
+        teHit.putLong(tinyHit.getTimestamp());
+        teHit.put((byte) (tinyHit.getLocalCoincidenceMode() % 0xff));
+
+        teHit.flip();
+
+        teChan.receiveByteBuffer(teHit);
+
+        numTEHits++;
     }
 
     public String toString()
