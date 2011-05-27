@@ -17,17 +17,17 @@ public class MonitoringData
     }
 
     /**
-     * Get back-end timing profile.
+     * Get internal timing profile.
      *
-     * @return back end timing
+     * @return internal timing
      */
-    public String getBackEndTiming()
+    public String getInternalTiming()
     {
         if (sender == null) {
             return "<NO SENDER>";
         }
 
-        return sender.getBackEndTiming();
+        return sender.getInternalTiming();
     }
 
     /**
@@ -458,7 +458,7 @@ public class MonitoringData
         if (sender == null) {
             buf.append("\n  No sender monitoring data available");
         } else {
-            buf.append("\n  backEndTiming ").append(getBackEndTiming());
+            buf.append("\n  backEndTiming ").append(getInternalTiming());
             buf.append("\n  numBadHits ").append(getNumBadHits());
             buf.append("\n  numBadReadoutRequests ").
                 append(getNumBadReadoutRequests());

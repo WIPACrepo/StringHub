@@ -13,18 +13,18 @@ public interface MonitoringDataMBean
     //long getAverageHitsPerReadout();
 
     /**
-     * Get back-end timing profile.
-     *
-     * @return back end timing
-     */
-    //String getBackEndTiming();
-
-    /**
      * Get current rate of hits per second.
      *
      * @return hits per second
      */
     //double getHitsPerSecond();
+
+    /**
+     * Get internal timing profile.
+     *
+     * @return internal timing
+     */
+    //String getInternalTiming();
 
     /**
      * Get the time of the most recently queued hit.
