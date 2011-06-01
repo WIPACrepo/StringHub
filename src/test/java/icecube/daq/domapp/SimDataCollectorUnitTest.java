@@ -141,6 +141,12 @@ public class SimDataCollectorUnitTest implements BufferConsumer
     {
 	final int dayGPS;
 	final int dayCal;
+	final int hourGPS;
+	final int hourCal;
+	final int minGPS;
+	final int minCal;
+	final int secGPS;
+	final int secCal;
 	DOMChannelInfo chan = new DOMChannelInfo("056a7bb14cde", 1, 1, 'B');
 	DOMConfiguration config = new DOMConfiguration();
         BufConsumer hitsTo = new BufConsumer();
@@ -164,7 +170,41 @@ public class SimDataCollectorUnitTest implements BufferConsumer
 	calendar.add(GregorianCalendar.DAY_OF_YEAR, newGPS.getDay() - 1);
 	dayCal = calendar.get(Calendar.DAY_OF_WEEK);
 	dayGPS = newGPS.getDay();
-	
+	hourCal = calendar.get(Calendar.HOUR_OF_DAY);
+	hourGPS = newGPS.getDay();
+	minCal = calendar.get(Calendar.MINUTE);
+	minGPS = newGPS.getDay();
+	secCal = calendar.get(Calendar.SECOND);
+	secGPS = newGPS.getDay();
+	if(dayGPS != dayCal)
+	{
+	    throw new Error("Unsynchronized");
+	}
+	else if(hourGPS != hourCal)
+	{
+	    throw new Error("Unsynchronized");
+	}
+	else if(minGPS != minCal)
+	{
+	    throw new Error("Unsynchronized");
+	}
+	else
+	{
+	    if(secGPS > secCal)
+	    {
+		if(secGPS-secCal > 4)
+		{
+		    throw new Error("Unsynchronized");
+		}
+    	    }
+	    else
+	    {
+		if(secCal-secGps > 4)
+		{
+		    throw new Error("Unsynchronized");
+		}
+	    }
+	}
 	
     }
 }
