@@ -3,7 +3,7 @@ package icecube.daq.domapp;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.io.*;
+import java.util.Date;
 import icecube.daq.dor.IDriver;
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.dor.DOMChannelInfo;
@@ -20,7 +20,10 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import java.util.Calendar;
 import java.util.GregorianCalendar;
+//import java.lang.reflect.InvocationTargetException;
+//import java.lang.reflect.Method;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -136,24 +139,31 @@ public class SimDataCollectorUnitTest implements BufferConsumer
     @Test
     public void testGPS() throws Exception
     {
+	final int dayGPS;
+	final int dayCal;
 	DOMChannelInfo chan = new DOMChannelInfo("056a7bb14cde", 1, 1, 'B');
-	Date dateGPS, dateGreg;
 	DOMConfiguration config = new DOMConfiguration();
         BufConsumer hitsTo = new BufConsumer();
 	BufConsumer moniTo = new BufConsumer();
         BufConsumer supernovaTo = new BufConsumer();
         BufConsumer tcalTo = new BufConsumer();
 	rapcal rapcal = new rapcal();
-	DataCollector dc = new DataCollector(chan.card, chan.pair, chan.dom, config, hitsTo, moniTo, supernovaTo, tcalTo, driver, rapcal);
-	GPSService gps_serv = GPSService.getInstance();
+		//DataCollector dc = new DataCollector(chan.card, chan.pair, chan.dom, config, hitsTo, moniTo, supernovaTo, tcalTo, driver, rapcal);
+		//GPSService gps_serv = GPSService.getInstance();
+
+	DataCollector privateObject = new DataCollector(chan.card, chan.pair, chan.dom, config, hitsTo, moniTo, supernovaTo, tcalTo, driver, rapcal);
+	Method privateStringMethod = PrivateObject.class.
+            getDeclaredMethod("execRapCal", null);
+	privateStringMethod.setAccessible(true);
+        GPSService gps_serv = (GPSService)privateStringMethod.invoke(privateObject, null);
 
 	gps_serv.startService(chan.card);
 	GPSInfo newGPS = gps_serv.getGps( chan.card);
         GregorianCalendar calendar = new GregorianCalendar(
                 new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
 	calendar.add(GregorianCalendar.DAY_OF_YEAR, newGPS.getDay() - 1);
-	dateGreg = calendar.getTime();
-	dateGPS = newGPS.getTime();
+	dayCal = calendar.get(Calendar.DAY_OF_WEEK);
+	dayGPS = newGPS.getDay();
 	
 	
     }
