@@ -699,7 +699,7 @@ public class DataCollector
         return getName();
     }
 
-    private GPSService execRapCal()
+    private void execRapCal()
     {
         try
         {            
@@ -718,8 +718,7 @@ public class DataCollector
             {
                 tcalProcess(tcal, gps);
             }
-			return gps_serv;
-
+			
         }
         catch (RAPCalException rcex)
         {
@@ -737,7 +736,7 @@ public class DataCollector
             intx.printStackTrace();
             logger.warn("Got interrupted exception");
         }
-	    return null;
+	    
     }
 
     /**
