@@ -8,7 +8,7 @@ import icecube.daq.dor.IDriver;
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
-import icecube.daq.dor.GPSInfo;
+import icecube.daq.dor.IGPSInfo;
 import icecube.daq.dor.GPSService;
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.rapcal.RAPCal;
@@ -150,7 +150,7 @@ public class SimDataCollectorUnitTest implements BufferConsumer
 
 	GPSService gps_serv = GPSService.getInstance();
        	gps_serv.startService(chan.card);
-	/* newGPS is null */GPSInfo newGPS = gps_serv.getGps(chan.card);
+	/* newGPS is null */IGPSInfo newGPS = gps_serv.getGps(chan.card);
         GregorianCalendar calendar = new GregorianCalendar(
                 new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
 	calendar.add(GregorianCalendar.DAY_OF_YEAR, newGPS.getDay() - 1);

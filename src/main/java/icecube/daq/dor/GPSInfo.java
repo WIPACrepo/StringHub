@@ -8,7 +8,7 @@ import java.nio.ByteBuffer;
 
 import org.apache.log4j.Logger;
 
-public class GPSInfo {
+public class GPSInfo implements IGPSInfo {
 	private String timestring;
 	private int day, hour, min, sec;
 	private int quality;

@@ -7,7 +7,7 @@ import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.domapp.LocalCoincidenceConfiguration.RxMode;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
-import icecube.daq.dor.GPSInfo;
+import icecube.daq.dor.IGPSInfo;
 import icecube.daq.dor.GPSService;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
@@ -628,10 +628,10 @@ public class DataCollector
      * Note that the {@link #dispatchBuffer} method is not called since the domClock to
      * UTC mapping does not take place for these types of record.
      * @param tcal the input {@link TimeCalib} object
-     * @param gps the {@link GPSInfo} record is tacked onto the tail of the buffer
+     * @param gps the {@link IGPSInfo} record is tacked onto the tail of the buffer
      * @throws IOException
      */
-    private void tcalProcess(TimeCalib tcal, GPSInfo gps) throws IOException
+    private void tcalProcess(TimeCalib tcal, IGPSInfo gps) throws IOException
     {
         if (tcalConsumer == null) return;
         ByteBuffer tcalBuffer = ByteBuffer.allocate(500);
@@ -705,7 +705,7 @@ public class DataCollector
         {
             GPSService gps_serv = GPSService.getInstance();
             UTC gpsOffset = new UTC(0L);
-            GPSInfo gps = gps_serv.getGps(card);
+            IGPSInfo gps = gps_serv.getGps(card);
             if (gps != null) gpsOffset = gps.getOffset();
 
             TimeCalib tcal = driver.readTCAL(card, pair, dom);
@@ -921,7 +921,7 @@ public class DataCollector
                 {
                     softbootToDomapp();
                     mbid = app.getMainboardID();
-                    break;
+					break;
                 }
                 catch (Exception ex2)
                 {

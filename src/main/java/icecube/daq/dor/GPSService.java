@@ -31,7 +31,7 @@ public class GPSService
         private Driver driver;
         private int card;
         private int cons_gpsx_count;
-        private GPSInfo gps;
+        private IGPSInfo gps;
         private int gps_error_count;
         private AtomicBoolean running;
 
@@ -63,7 +63,7 @@ public class GPSService
                 try
                 {
                     Thread.sleep(240L);
-                    GPSInfo newGPS = driver.readGPS(card);
+                    IGPSInfo newGPS = driver.readGPS(card);
 
                     GregorianCalendar calendar = new GregorianCalendar(
                             new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
@@ -109,7 +109,7 @@ public class GPSService
             }
         }
 
-        synchronized GPSInfo getGps() { return gps; }
+        synchronized IGPSInfo getGps() { return gps; }
 
         public boolean isRunning()
         {
@@ -127,7 +127,7 @@ public class GPSService
 
     public static GPSService getInstance() { return instance; }
 
-    public GPSInfo getGps(int card) { return coll[card].getGps(); }
+    public IGPSInfo getGps(int card) { return coll[card].getGps(); }
 
     public void startService(int card)
     {

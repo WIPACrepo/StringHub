@@ -4,7 +4,7 @@ import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.dor.Driver;
 import icecube.daq.dor.GPSException;
-import icecube.daq.dor.GPSInfo;
+import icecube.daq.dor.IGPSInfo;
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
@@ -320,7 +320,7 @@ public class AuraDataCollector extends AbstractDataCollector
             {
                 try
                 {
-                    GPSInfo gps = driver.readGPS(card);
+                    IGPSInfo gps = driver.readGPS(card);
                     gpsOffset = gps.getOffset();
                 }
                 catch (GPSException gpsx)
