@@ -1,5 +1,3 @@
-/* -*- mode: java; indent-tabs-mode:f; tab-width:4 -*- */
-
 package icecube.daq.dor;
 
 import java.util.GregorianCalendar;
@@ -48,7 +46,7 @@ public class GPSService
         void startup()
         {
             running.set(true);
-            this.start();
+            start();
         }
 
         void shutdown()
@@ -63,29 +61,16 @@ public class GPSService
                 try
                 {
                     Thread.sleep(240L);
-                    IGPSInfo newGPS = driver.readGPS(card);
-
-                    GregorianCalendar calendar = new GregorianCalendar(
-                            new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
-
-                    cons_gpsx_count = 0;
-                    if (!(gps == null || newGPS.getOffset().equals(gps.getOffset())))
-                    {
-                        logger.error(
-                                "GPS offset mis-alignment detected - old GPS: " +
-                                gps + " new GPS: " + newGPS);
-                        StringHubAlert.sendDOMAlert(
-                                alerter, "GPS Error", "GPS Offset mis-match",
-                                card, 0, '-', "000000000000", "GPS", 0, 0);
-                    }
-                    else
-                    {
-                        synchronized (this) { gps = newGPS; }
-                    }
                 }
                 catch (InterruptedException intx)
                 {
                     return;
+                }
+
+                IGPSInfo newGPS;
+                try
+                {
+                    newGPS = driver.readGPS(card);
                 }
                 catch (GPSNotReady gps_not_ready)
                 {
@@ -96,6 +81,7 @@ public class GPSService
                                 alerter, "GPS Error", "SyncGPS procfile not ready",
                                 card, 0, '-', "000000000000", "GPS", 0, 0);
                     }
+                    continue;
                 }
                 catch (GPSException gps_ex)
                 {
@@ -105,6 +91,26 @@ public class GPSService
                             alerter, "GPS Error", "SyncGPS procfile I/O error",
                             card, 0, '-', "000000000000", "GPS", 0, 0);
                     gps_error_count++;
+                    continue;
+                }
+
+                GregorianCalendar calendar = new GregorianCalendar();
+                int year = calendar.get(GregorianCalendar.YEAR);
+                GregorianCalendar jan1 = new GregorianCalendar(year, 1, 1);
+
+                cons_gpsx_count = 0;
+                if (!(gps == null || newGPS.getOffset().equals(gps.getOffset())))
+                {
+                    logger.error("GPS offset mis-alignment detected -" +
+                                 " old GPS: " + gps + " new GPS: " + newGPS);
+                    StringHubAlert.sendDOMAlert(alerter, "GPS Error",
+                                                "GPS Offset mis-match",
+                                                card, 0, '-', "000000000000",
+                                                "GPS", 0, 0);
+                }
+                else
+                {
+                    synchronized (this) { gps = newGPS; }
                 }
             }
         }
