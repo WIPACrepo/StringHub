@@ -39,7 +39,7 @@ class BufConsumer implements BufferConsumer
         }
         catch (InterruptedException intx)
         {
-        
+
         }
     }
 }
@@ -76,19 +76,19 @@ public class SimDataCollectorUnitTest implements BufferConsumer
     private IDriver driver;
     AbstractDataCollector dc;
     LinkedBlockingQueue<ByteBuffer> q;
-    
+
     public SimDataCollectorUnitTest()
     {
         q = new LinkedBlockingQueue<ByteBuffer>(1000);
     }
-    
+
     @BeforeClass
     public static void setupLogging()
     {
         BasicConfigurator.configure();
         Logger.getRootLogger().setLevel(Level.INFO);
     }
-    
+
     @Before
     public void setUp() throws InterruptedException
     {
@@ -116,10 +116,10 @@ public class SimDataCollectorUnitTest implements BufferConsumer
         }
         catch (InterruptedException intx)
         {
-        
+
         }
     }
-    
+
     @Test
     public void testLCSim() throws Exception
     {
@@ -147,7 +147,7 @@ public class SimDataCollectorUnitTest implements BufferConsumer
 	final int secGPS;
 	final int secCal;
 	DOMChannelInfo chan = new DOMChannelInfo("056a7bb14cde", 1, 1, 'B');
-	
+
 	GPSService gps_serv = GPSService.getInstance();
        	gps_serv.startService(chan.card);
 	/* newGPS is null */GPSInfo newGPS = gps_serv.getGps(chan.card);
@@ -191,6 +191,6 @@ public class SimDataCollectorUnitTest implements BufferConsumer
 		}
 	    }
 	}
-	
+
     }
 }

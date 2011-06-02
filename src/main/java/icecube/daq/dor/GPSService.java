@@ -1,3 +1,5 @@
+/* -*- mode: java; indent-tabs-mode:f; tab-width:4 -*- */
+
 package icecube.daq.dor;
 
 import java.util.GregorianCalendar;
@@ -32,8 +34,8 @@ public class GPSService
         private GPSInfo gps;
         private int gps_error_count;
         private AtomicBoolean running;
-        
-        GPSCollector(int card) 
+
+        GPSCollector(int card)
         {
             driver = Driver.getInstance();
             this.card = card;
@@ -42,30 +44,30 @@ public class GPSService
             gps = null;
             running = new AtomicBoolean(false);
         }
-        
+
         void startup()
         {
             running.set(true);
             this.start();
         }
-        
+
         void shutdown()
         {
             running.set(false);
         }
-        
+
         public void run()
         {
             while (running.get())
             {
-                try 
+                try
                 {
                     Thread.sleep(240L);
                     GPSInfo newGPS = driver.readGPS(card);
-                    
+
                     GregorianCalendar calendar = new GregorianCalendar(
                             new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
-                    
+
                     cons_gpsx_count = 0;
                     if (!(gps == null || newGPS.getOffset().equals(gps.getOffset())))
                     {
@@ -106,7 +108,7 @@ public class GPSService
                 }
             }
         }
-        
+
         synchronized GPSInfo getGps() { return gps; }
 
         public boolean isRunning()
@@ -114,30 +116,30 @@ public class GPSService
             return running.get();
         }
     }
-    
+
     private GPSCollector[] coll;
     private static final GPSService instance = new GPSService();
-    
+
     private GPSService()
     {
         coll = new GPSCollector[8];
     }
-    
+
     public static GPSService getInstance() { return instance; }
-    
-    public GPSInfo getGps(int card) { return coll[card].getGps(); } 
-    
-    public void startService(int card) 
+
+    public GPSInfo getGps(int card) { return coll[card].getGps(); }
+
+    public void startService(int card)
     {
         if (coll[card] == null) { coll[card] = new GPSCollector(card); }
-        if (!coll[card].isRunning()) coll[card].startup(); 
+        if (!coll[card].isRunning()) coll[card].startup();
     }
-    
-    public void shutdownAll() 
+
+    public void shutdownAll()
     {
         for (int i = 0; i < 8; i++)
             if (coll[i] != null && coll[i].isRunning()) coll[i].shutdown();
     }
-    
+
     public void setAlerter(Alerter alerter) { this.alerter = alerter; }
 }

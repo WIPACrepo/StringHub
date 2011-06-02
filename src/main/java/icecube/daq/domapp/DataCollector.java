@@ -382,18 +382,18 @@ public class DataCollector
         }
 
         // now step carefull around this - some old MB versions don't support the message
-        try 
+        try
         {
             if (config.isMinBiasEnabled())
                 app.enableMinBias();
             else
                 app.disableMinBias();
-        } 
+        }
         catch (MessageException mex)
         {
             logger.warn("Unable to configure MinBias");
         }
-        
+
         app.setPulserRate(config.getPulserRate());
         LocalCoincidenceConfiguration lc = config.getLC();
         app.setLCType(lc.getType());
@@ -405,19 +405,19 @@ public class DataCollector
         app.setCableLengths(lc.getCableLengthUp(), lc.getCableLengthDn());
         app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
         app.setScalerDeadtime(config.getScalerDeadtime());
-        
-        try 
+
+        try
         {
             app.setAtwdReadout(config.getAtwdChipSelect());
         }
         catch (MessageException mex)
         {
             logger.warn("Unable to configure ATWD chip select");
-        }   
+        }
 
         // TODO figure out if we want this
         // app.setFastMoniRateType(FastMoniRateType.F_MONI_RATE_HLC);
-        
+
         // Do the pedestal subtraction
         if (config.getPedestalSubtraction())
         {
@@ -428,7 +428,7 @@ public class DataCollector
 
         // set chargestamp source - again fail with WARNING if cannot get the
         // message through because of old mainboard release
-        try 
+        try
         {
             app.setChargeStampType(!config.isAtwdChargeStamp(),
                     config.isAutoRangeChargeStamp(),
@@ -437,18 +437,18 @@ public class DataCollector
         catch (MessageException mex)
         {
             logger.warn("Unable to configure chargestamp type");
-        }          
+        }
 
         // enable charge stamp histogramming
-        try 
+        try
         {
             app.histoChargeStamp(config.getHistoInterval(), config.getHistoPrescale());
         }
         catch (MessageException mex)
         {
             logger.warn("Unable to configure chargestamp histogramming");
-        }   
-        
+        }
+
 
         long configT1 = System.currentTimeMillis();
         if (logger.isDebugEnabled()) {
@@ -465,7 +465,7 @@ public class DataCollector
         buf.putLong(24, utc);
         int fmtId = buf.getInt(4);
         target.consume(buf);
-        
+
         // Collect HLC / SLC hit statistics ...
         switch ( buf.getInt(4) )
         {
@@ -702,12 +702,12 @@ public class DataCollector
     private void execRapCal()
     {
         try
-        {            
+        {
             GPSService gps_serv = GPSService.getInstance();
             UTC gpsOffset = new UTC(0L);
             GPSInfo gps = gps_serv.getGps(card);
             if (gps != null) gpsOffset = gps.getOffset();
-            
+
             TimeCalib tcal = driver.readTCAL(card, pair, dom);
             rapcal.update(tcal, gpsOffset);
             lastTcalRead = System.currentTimeMillis();
@@ -718,7 +718,7 @@ public class DataCollector
             {
                 tcalProcess(tcal, gps);
             }
-			
+
         }
         catch (RAPCalException rcex)
         {
@@ -736,7 +736,7 @@ public class DataCollector
             intx.printStackTrace();
             logger.warn("Got interrupted exception");
         }
-	    
+
     }
 
     /**
@@ -921,7 +921,7 @@ public class DataCollector
                 {
                     softbootToDomapp();
                     mbid = app.getMainboardID();
-					break;
+                    break;
                 }
                 catch (Exception ex2)
                 {
@@ -1043,7 +1043,7 @@ public class DataCollector
                  * I must stop the current run unless I was just running a flasher run
                  * on this DOM and I am just changing the flasher parameters.
                  */
-                logger.info("Starting subrun - flasher config is " + 
+                logger.info("Starting subrun - flasher config is " +
                         (flasherConfig == null ? "not" : "") + " null / lately " +
                         (latelyRunningFlashers ? "" : "not") + " running flashers.");
                 if (!(latelyRunningFlashers && flasherConfig != null))

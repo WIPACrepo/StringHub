@@ -1,3 +1,5 @@
+/* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
+
 package icecube.daq.dor;
 
 import icecube.daq.util.UTC;
@@ -49,7 +51,7 @@ public class GPSInfo {
 	public int getHour() { return hour; }
 	public int getMin() { return min; }
 	public int getSecond() { return sec; }
-	
+
 	public int getQuality() { return quality; }
 
 	public UTC getOffset() { return offset; }
@@ -61,9 +63,9 @@ public class GPSInfo {
 	 */
 	public ByteBuffer getBuffer() { return record.asReadOnlyBuffer(); }
 
-	public String toString() 
+	public String toString()
 	{
-		return timestring + " : Quality = " + quality + 
+		return timestring + " : Quality = " + quality +
 		    " DOR clk: " + dorclk + " GPS offset: " + offset;
 	}
 
