@@ -17,6 +17,7 @@ import icecube.daq.stringhub.test.MockBufferCache;
 import icecube.daq.stringhub.test.MockReadoutRequest;
 import icecube.daq.stringhub.test.MockUTCTime;
 import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.DeployedDOM;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
@@ -194,6 +195,76 @@ class ExpectedHit
     }
 }
 
+class ExpectedTEHit
+    extends ExpectedData
+{
+    private int major;
+    private int minor;
+    private long utcTime;
+    private int lcMode;
+
+    ExpectedTEHit(int major, int minor, long utcTime, int lcMode)
+    {
+        this.major = (byte) (major % Byte.MAX_VALUE);
+        this.minor = (byte) (minor % Byte.MAX_VALUE);
+        this.utcTime = utcTime;
+        this.lcMode = (byte) (lcMode % 0xff);
+    }
+
+    ExpectedTEHit(ByteBuffer buf)
+    {
+        if (buf.limit() != 11) {
+            throw new Error("Expected TE hit payload length of 11, not " +
+                            buf.limit());
+        }
+
+        major = buf.get(0);
+        minor = buf.get(1);
+        utcTime = buf.getLong(2);
+        lcMode = buf.get(10);
+    }
+
+    public int compareTo(Object obj)
+    {
+        if (!(obj instanceof ExpectedTEHit)) {
+            return getClass().getName().compareTo(obj.getClass().getName());
+        }
+
+        return compareTo((ExpectedTEHit) obj);
+    }
+
+    public int compareTo(ExpectedTEHit hit)
+    {
+        int val = major - hit.major;
+        if (val == 0) {
+            val = minor - hit.minor;
+            if (val == 0) {
+                val = compareLong(utcTime, hit.utcTime);
+                if (val == 0) {
+                    val = lcMode - hit.lcMode;
+                }
+            }
+        }
+
+        return val;
+    }
+
+    public boolean equals(Object obj)
+    {
+        if (!(obj instanceof ExpectedTEHit)) {
+            return getClass().getName().equals(obj.getClass().getName());
+        }
+
+        return compareTo((ExpectedTEHit) obj) == 0;
+    }
+
+    public String toString()
+    {
+        return "ExpTEHit@" + String.format("%02d-%02d", major, minor) +
+            "[time " + utcTime + " lc " + lcMode + "]";
+    }
+}
+
 class MockHitChannel
     extends MockOutputChannel
 {
@@ -212,6 +283,37 @@ class MockHitChannel
     ExpectedData getBufferData(ByteBuffer buf)
     {
         return new ExpectedHit(buf);
+    }
+}
+
+class MockTrackEngineChannel
+    extends MockOutputChannel
+{
+    MockTrackEngineChannel()
+    {
+        super("trackEngine");
+    }
+
+    void addExpectedTEHit(DOMRegistry registry, long domId, long utcTime,
+                          int trigMode)
+    {
+        String domStr = String.format("%012x", domId);
+
+        // find the registry entry for this DOM
+        DeployedDOM dom = registry.getDom(domStr);
+        if (dom == null) {
+            throw new Error("Cannot find registry entry for DOM " + domStr);
+        }
+
+        addExpectedData(new ExpectedTEHit(dom.getStringMajor(),
+                                          dom.getStringMinor(),
+                                          utcTime,
+                                          trigMode));
+    }
+
+    ExpectedData getBufferData(ByteBuffer buf)
+    {
+        return new ExpectedTEHit(buf);
     }
 }
 
@@ -809,7 +911,7 @@ class ExpectedReadout
             throw new Error("Readout composite section should contain " +
                             (rdoutLen - 46) + " bytes, not " + compLen);
         }
-        
+
         int numHits = buf.getShort(52);
 
         hitList = new ArrayList<ExpectedData>(numHits);
@@ -1827,6 +1929,84 @@ public class SenderTest
         assertEquals("Did not send stop",
                      1L, sender.getTotalStopsSent());
 
+        assertEquals("Not all expected hits were received",
+                     0, hitChan.getNumExpected());
+        assertEquals("Not all expected readouts were received",
+                     0, rdoutChan.getNumExpected());
+    }
+
+    @Test
+    public void testConsumeEngHitWithTE()
+        throws IOException
+    {
+        MockBufferCache cache = new MockBufferCache();
+        Sender sender = new Sender(HUB_SRCID % 1000, cache);
+        sender.setDOMRegistry(domRegistry);
+
+        MockHitChannel hitChan = new MockHitChannel();
+        sender.setHitOutput(new MockOutputChannelManager(hitChan));
+
+        MockTrackEngineChannel teChan = new MockTrackEngineChannel();
+        sender.setTrackEngineOutput(new MockOutputChannelManager(teChan));
+
+        MockReadoutChannel rdoutChan = new MockReadoutChannel();
+        sender.setDataOutput(new MockOutputChannelManager(rdoutChan));
+
+        sender.startThread();
+
+        long domId = 0xfedcba987654L;
+        long utcTime = 123456789L;
+        int atwdChip = 1;
+        short trigMode = 4;
+        long domClock = utcTime / 234L;
+        short[] fadcSamples = new short[] { 1, 2, 3 };
+        Object atwd0Data = new short[32];
+        Object atwd1Data = null;
+        Object atwd2Data = new byte[128];
+        Object atwd3Data = new byte[16];
+
+        ByteBuffer buf = createEngHit(domId, utcTime, atwdChip, trigMode,
+                                      domClock, fadcSamples, atwd0Data,
+                                      atwd1Data, atwd2Data, atwd3Data);
+
+        hitChan.addExpectedHit(domId, utcTime, trigMode, 0, HUB_SRCID,
+                               trigMode);
+
+        teChan.addExpectedTEHit(domRegistry, domId, utcTime, -1);
+
+        sender.consume(buf);
+
+        for (int i = 0; i < 100; i++) {
+            if (sender.getNumTEHitsSent() == 0) {
+                try {
+                    Thread.sleep(1);
+                } catch (Exception ex) {
+                    // ignore interrupts
+                }
+            }
+        }
+
+        sender.stopThread();
+
+        waitForSenderStop(sender);
+
+        assertEquals("Did not receive hit",
+                     1L, sender.getNumHitsReceived());
+        assertEquals("Bad hit time",
+                     utcTime, sender.getLatestHitTime());
+
+        assertEquals("Did not send TE hit",
+                     1L, sender.getNumTEHitsSent());
+
+        assertEquals("Did not receive data stop",
+                     1L, sender.getTotalDataStopsReceived());
+        assertEquals("Did not receive request stop",
+                     1L, sender.getTotalRequestStopsReceived());
+        assertEquals("Did not send stop",
+                     1L, sender.getTotalStopsSent());
+
+        assertEquals("Not all expected TE hits were received",
+                     0, teChan.getNumExpected());
         assertEquals("Not all expected hits were received",
                      0, hitChan.getNumExpected());
         assertEquals("Not all expected readouts were received",

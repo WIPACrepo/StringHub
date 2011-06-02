@@ -10,18 +10,18 @@ public interface SenderMonitor
     long getAverageHitsPerReadout();
 
     /**
-     * Get back-end timing profile.
-     *
-     * @return back-end timing profile
-     */
-    String getBackEndTiming();
-
-    /**
      * Get current rate of hits per second.
      *
      * @return hits/second
      */
     double getHitsPerSecond();
+
+    /**
+     * Get internal timing profile.
+     *
+     * @return internal timing profile
+     */
+    String getInternalTiming();
 
     /**
      * Get the time of the most recently queued hit.

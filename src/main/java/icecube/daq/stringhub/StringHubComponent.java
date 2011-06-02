@@ -12,6 +12,7 @@ import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
+import icecube.daq.dor.GPSService;
 import icecube.daq.io.DAQComponentOutputProcess;
 import icecube.daq.io.OutputChannel;
 import icecube.daq.io.PayloadReader;
@@ -21,8 +22,8 @@ import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
-import icecube.daq.oldpayload.impl.MasterPayloadFactory;
 import icecube.daq.monitoring.MonitoringData;
+import icecube.daq.oldpayload.impl.MasterPayloadFactory;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.SourceIdRegistry;
@@ -51,7 +52,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.Random;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -79,6 +79,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	private SimpleOutputEngine tcalOut;
 	private SimpleOutputEngine supernovaOut;
 	private SimpleOutputEngine hitOut;
+	private SimpleOutputEngine teOut;
 	private SimpleOutputEngine dataOut;
 	private DOMConnector conn = null;
 	private List<DOMChannelInfo> activeDOMs;
@@ -154,16 +155,23 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		}
 
         hitOut = null;
+        teOut = null;
 
         if (minorHubId > 0)
         {
             hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "hitOut");
-            if (minorHubId < 200)
-                addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
-            else
+            teOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "teOut",
+                                           true);
+            if (minorHubId >= 200) {
                 addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
+            } else {
+                addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
+                addOptionalEngine(DAQConnector.TYPE_TRACKENG_HIT, teOut);
+            }
             sender.setHitOutput(hitOut);
             sender.setHitCache(cache);
+            sender.setTrackEngineOutput(teOut);
+            sender.setTrackEngineCache(cache);
         }
 
         ReadoutRequestFactory rdoutReqFactory =
@@ -240,6 +248,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		tcalOut.destroyProcessor();
 		supernovaOut.destroyProcessor();
 		hitOut.destroyProcessor();
+		teOut.destroyProcessor();
 		reqIn.destroyProcessor();
 		dataOut.destroyProcessor();
 	}
@@ -438,6 +447,9 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 					addMBean("DataCollectorMonitor-" + chanInfo, dc);
 				}
 
+				// Associate a GPS service to this card, if not already done
+				GPSService.getInstance().startService(chanInfo.card);
+				
 				dc.setDomInfo(domRegistry.getDom(chanInfo.mbid));
 
                 dc.setSoftbootBehavior(dcSoftboot);
@@ -614,6 +626,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			}
 		}
 
+		GPSService.getInstance().shutdownAll();
         logger.info("Returning from stop.");
 	}
 
@@ -647,7 +660,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 12860 2011-04-12 05:13:48Z mnewcomb $";
+		return "$Id: StringHubComponent.java 12998 2011-05-27 22:16:47Z dglo $";
     }
 
 	public IByteBufferCache getCache()
@@ -704,7 +717,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 	public long getTotalLBMOverflows() {
 		long total = 0;
-		
+
 		for (AbstractDataCollector adc : conn.getCollectors()) {
 			total += adc.getLBMOverflowCount();
 		}
@@ -723,4 +736,9 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
         if (hitsSort == null) return 0L;
         return hitsSort.getLastOutputTime();
     }
+
+	public DAQComponentOutputProcess getTrackEngineWriter()
+	{
+		return teOut;
+	}
 }
