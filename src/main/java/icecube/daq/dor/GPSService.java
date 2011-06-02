@@ -26,16 +26,16 @@ public class GPSService
 
     private class GPSCollector extends Thread
     {
-        private Driver driver;
+        private IDriver driver;
         private int card;
         private int cons_gpsx_count;
         private IGPSInfo gps;
         private int gps_error_count;
         private AtomicBoolean running;
 
-        GPSCollector(int card)
+        GPSCollector(IDriver driver, int card)
         {
-            driver = Driver.getInstance();
+            this.driver = driver;
             this.card = card;
             cons_gpsx_count = 0;
             gps_error_count = 0;
@@ -137,7 +137,14 @@ public class GPSService
 
     public void startService(int card)
     {
-        if (coll[card] == null) { coll[card] = new GPSCollector(card); }
+        startService(Driver.getInstance(), card);
+    }
+
+    public void startService(IDriver driver, int card)
+    {
+        if (coll[card] == null) {
+            coll[card] = new GPSCollector(driver, card);
+        }
         if (!coll[card].isRunning()) coll[card].startup();
     }
 
