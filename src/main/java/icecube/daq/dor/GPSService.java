@@ -132,6 +132,25 @@ public class GPSService
         if (coll[card] == null) { coll[card] = new GPSCollector(card); }
         if (!coll[card].isRunning()) coll[card].startup(); 
     }
+    public void startService(IDriver driver, int card) throws Exception
+    {
+	GPSInfo gps= null;
+	startService(card);
+	GPSInfo newGPS = coll[card].driver.readGPS(card);
+        if (!(gps == null || newGPS.getOffset().equals(gps.getOffset())))
+        {
+            logger.error(
+            "GPS offset mis-alignment detected - old GPS: " +
+            gps + " new GPS: " + newGPS);
+            StringHubAlert.sendDOMAlert(
+            alerter, "GPS Error", "GPS Offset mis-match",
+            card, 0, '-', "000000000000", "GPS", 0, 0);
+        }
+        else
+        {
+            synchronized (this) { gps = newGPS; }
+        }
+    }
     
     public void shutdownAll() 
     {
