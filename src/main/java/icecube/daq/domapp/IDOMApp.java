@@ -54,8 +54,9 @@ public interface IDOMApp {
 	 * @param nAtwd0 number of pedestal waveforms to collect for atwd chip 0.
 	 * @param nAtwd1 number of pedestal waveforms to collect for atwd chip 0.
 	 * @param nFadc number of pedestal waveforms to collect for the fADC.
+	 * @param 0 or 6 average pedestals to program into the DOM
 	 */
-	void collectPedestals(int nAtwd0, int nAtwd1, int nFadc) throws MessageException;
+	void collectPedestals(int nAtwd0, int nAtwd1, int nFadc, Integer... avgPedestals) throws MessageException;
 	
 	void setChargeStampType(boolean fADC, boolean autoRange, byte chan) throws MessageException;
 	
