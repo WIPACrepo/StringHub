@@ -25,5 +25,6 @@ public enum LBMDepth
     LBM_1M,
     LBM_2M,
     LBM_4M,
-    LBM_8M;
+    LBM_8M,
+    LBM_16M;
 }

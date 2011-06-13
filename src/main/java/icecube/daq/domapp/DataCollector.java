@@ -361,7 +361,7 @@ public class DataCollector
                 );
 
         // Always want to force the maximum LBM depth
-        app.setLBMDepth(LBMDepth.LBM_8M);
+        app.setLBMDepth(LBMDepth.LBM_16M);
 
         if (config.isDeltaCompressionEnabled())
             app.setDeltaCompressionFormat();
