@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<domGeometry>
+  <string>
+    <number>1</number>
+    <dom>
+      <mainBoardId>fedcba987654</mainBoardId>
+      <channelId>123</channelId>
+    </dom>
+    <dom>
+      <mainBoardId>edcba9876543</mainBoardId>
+      <channelId>124</channelId>
+    </dom>
+  </string>
+</domGeometry>

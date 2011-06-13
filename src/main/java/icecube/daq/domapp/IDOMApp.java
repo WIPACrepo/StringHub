@@ -21,6 +21,24 @@ public interface IDOMApp {
 	throws MessageException;
 
 	/**
+	 * Similar to beginFlasherRun message but doesn't need to have a powered-off flasher
+	 * initial state.  
+	 * @param brightness
+	 * @param width
+	 * @param delay
+	 * @param mask
+	 * @param rate
+	 * @throws MessageException
+	 */
+	public void changeFlasherSettings(
+            short brightness, 
+            short width, 
+            short delay, 
+            short mask, 
+            short rate) 
+	 throws MessageException;
+
+	/**
 	 * Some data collectors need to free things like file handles.
 	 */
 	void close();
@@ -100,6 +118,14 @@ public interface IDOMApp {
 	ByteBuffer getData() throws MessageException;
 	ArrayList<ByteBuffer> getData(int n) throws MessageException;
 
+	/**
+	 * Get the currently configured ASCII-F (a.k.a. "FAST") monitoring
+	 * records' variant : either HLC hits or SLC hits are counted
+	 * @return enumeration type HLC/SLC
+	 * @throws MessageException
+	 */
+	FastMoniRateType getFastMoniRateType() throws MessageException;
+	
 	/**
 	 * Query the DOMApp for the DOM mainboard ID (12-char hex string)
 	 * @return
@@ -197,12 +223,27 @@ public interface IDOMApp {
 			throws MessageException;
 
 	/**
+	 * Set the current type of hits to count and emit in the ASCII F
+	 * monitoring records: either HLC hits or SLC hits (all hits)
+	 * @param type
+	 * @throws MessageException
+	 */
+	void setFastMoniRateType(FastMoniRateType type) throws MessageException;
+	
+	/**
 	 * Set the PMT HV programming DAC.
 	 * @param dac HV volts * 2, must be in range [0..4095]
 	 * @throws MessageException
 	 */
 	void setHV(short dac) throws MessageException;
 
+	/**
+	 * Sets the DOM lookback memory depth in powers of 2
+	 * @param depth
+	 * @throws MessageException
+	 */
+	public void setLBMDepth(LBMDepth depth) throws MessageException;
+	
 	/**
 	 * Sets the LC (Rx) mode.  This determines whether the DOM
 	 * will require presence of neighboring DOM LC signals.

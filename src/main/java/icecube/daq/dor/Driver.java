@@ -11,6 +11,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -153,16 +154,16 @@ public final class Driver implements IDriver {
 			for (int pair = 0; pair < 4; pair++) {
 				File pdir = makeProcfileDir("" + card + "" + pair);
 				if (!pdir.exists() || !power(card, pair)) continue;
-				if (logger.isInfoEnabled()) {
-					logger.info("Found powered pair on (" + card + ", " + pair + ").");
+				if (logger.isDebugEnabled()) {
+					logger.debug("Found powered pair on (" + card + ", " + pair + ").");
 				}
 				for (int dom = 0; dom < 2; dom++) {
 					File ddir = makeProcfileDir("" + card + "" + pair + ab[dom]);
 					if (ddir.exists()) {
 						String mbid = getProcfileID(card, pair, ab[dom]);
 						if (mbid.matches("[0-9a-f]{12}") && !mbid.equals("000000000000")) {
-							if (logger.isInfoEnabled()) {
-								logger.info("Found active DOM on (" + card + ", " + pair + ", " + ab[dom] + ")");
+							if (logger.isDebugEnabled()) {
+								logger.debug("Found active DOM on (" + card + ", " + pair + ", " + ab[dom] + ")");
 							}
 							channelList.add(new DOMChannelInfo(mbid, card, pair, ab[dom]));
 						}
@@ -208,20 +209,33 @@ public final class Driver implements IDriver {
 
 		ByteBuffer buf = ByteBuffer.allocate(22);
 		File file = makeProcfile("" + card, "syncgps");
-		try {
-			RandomAccessFile syncgps = new RandomAccessFile(file, "r");
-			FileChannel ch = syncgps.getChannel();
-			int nr = ch.read(buf);
-			if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + file.getAbsolutePath());
-			if (nr != 22) throw new GPSNotReady(file.getAbsolutePath(), nr);
-			ch.close();
-			syncgps.close();
-			buf.flip();
-			GPSInfo gpsinfo = new GPSInfo(buf);
-			gps.cached = gpsinfo;
-			gps.last_read_time = current;
-			if (logger.isDebugEnabled()) logger.debug("GPS read on " + file.getAbsolutePath() + " - " + gpsinfo);
-			return gpsinfo;
+		try
+		{
+		    /*
+		     * There is a 2-trial limit to open and successfully read
+		     * the 22-byte GPS data from the syncgps procfile.  As of
+		     * 2010 at least this is still a slightly fragile operation.
+		     */
+		    for (int iGPSTrial = 0; iGPSTrial < 2; iGPSTrial++)
+		    {
+    			RandomAccessFile syncgps = new RandomAccessFile(file, "r");
+    			FileChannel ch = syncgps.getChannel();
+    			int nr = ch.read(buf);
+                syncgps.close();
+    			if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + file.getAbsolutePath());
+    			if (nr == 22)
+    			{
+    	            buf.flip();
+    	            GPSInfo gpsinfo = new GPSInfo(buf);
+    	            gps.cached = gpsinfo;
+    	            gps.last_read_time = current;
+    	            if (logger.isDebugEnabled()) logger.debug("GPS read on " + file.getAbsolutePath() + " - " + gpsinfo);
+    	            return gpsinfo;
+    			}
+    			logger.warn("Failed GPS read - only got " + nr + " bytes.  Sleeping and retrying.");
+    			Thread.sleep(new Random().nextInt(100));
+		    }
+			throw new GPSNotReady(file.getAbsolutePath(), 0);
 		}
 		catch (IOException iox)
 		{
@@ -231,6 +245,11 @@ public final class Driver implements IDriver {
 		{
 			throw new GPSException(file.getAbsolutePath(), nex);
 		}
+		catch (InterruptedException intx)
+		{
+
+		}
+		return null;
 	}
 
 	private String getProcfileText(File file) throws IOException {

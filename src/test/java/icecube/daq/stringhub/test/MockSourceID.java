@@ -1,8 +1,8 @@
 package icecube.daq.stringhub.test;
 
 import icecube.daq.payload.ISourceID;
+import icecube.daq.payload.Poolable;
 import icecube.daq.payload.SourceIdRegistry;
-import icecube.util.Poolable;
 
 public class MockSourceID
     implements ISourceID, Poolable

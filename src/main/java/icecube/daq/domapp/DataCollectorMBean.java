@@ -10,7 +10,7 @@ public interface DataCollectorMBean
      * Get the mainboard ID for this DataCollector
      * @return 12-char hex string
      */
-    String getMBID();
+    String getMainboardId();
     
     /**
      * Get the rate of the hits
@@ -18,11 +18,17 @@ public interface DataCollectorMBean
      */
     double getHitRate();
     
+    /**
+     * Get the rate of LC-flagged hits
+     * @return hit rate in Hz
+     */
+    double getHitRateLC();
+    
 	/**
 	 * Get the number of acquired hits.
 	 */
 	long getNumHits();
-
+	
 	/**
 	 * Get the number of monitor records
 	 */

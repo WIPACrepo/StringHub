@@ -16,6 +16,7 @@ import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.ZeroCrossingRAPCal;
 import icecube.daq.util.RealTimeRateMeter;
+import icecube.daq.util.StringHubAlert;
 import icecube.daq.util.UTC;
 
 import java.io.ByteArrayOutputStream;
@@ -25,6 +26,8 @@ import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.DecimalFormat;
+import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.Timer;
@@ -93,13 +96,10 @@ import org.apache.log4j.Logger;
  * @author krokodil
  *
  */
-public class DataCollector 
+public class DataCollector
     extends AbstractDataCollector
-    implements DataCollectorMBean 
+    implements DataCollectorMBean
 {
-    private int                 card;
-    private int                 pair;
-    private char                dom;
     private long                numericMBID;
     private IDOMApp             app;
     private GPSInfo             gps;
@@ -113,7 +113,7 @@ public class DataCollector
     private BufferConsumer      moniConsumer;
     private BufferConsumer      tcalConsumer;
     private BufferConsumer      supernovaConsumer;
-    
+
     private InterruptorTask intTask = new InterruptorTask();
 
     private static final Logger         logger  = Logger.getLogger(DataCollector.class);
@@ -141,13 +141,14 @@ public class DataCollector
     private long                lastTcalUT;
     private volatile long       runStartUT = 0L;
     private int                 numLBMOverflows       = 0;
-    
-    private RealTimeRateMeter   rtHitRate;
+    private int                 numConsecutiveGPSExceptions;
+
+    private RealTimeRateMeter   rtHitRate, rtLCRate;
 
     private long                nextSupernovaDomClock;
     private HitBufferAB         abBuffer;
     private int                 numSupernovaGaps;
-    
+
     /**
      * The waitForRAPCal flag if true will force the time synchronizer
      * to only output DOM timestamped objects when a RAPCal before and
@@ -157,12 +158,12 @@ public class DataCollector
      */
     private final boolean       waitForRAPCal = Boolean.getBoolean(
             "icecube.daq.domapp.datacollector.waitForRAPCal");
-    
+
     /**
      * The engineeringHit buffer magic number used internally by stringHub.
      */
     private final int           MAGIC_ENGINEERING_HIT_FMTID = 2;
-    
+
     /**
      * The SLC / delta-compressed hit buffer magic number.
      */
@@ -170,8 +171,9 @@ public class DataCollector
     private final int           MAGIC_MONITOR_FMTID         = 102;
     private final int           MAGIC_TCAL_FMTID            = 202;
     private final int           MAGIC_SUPERNOVA_FMTID       = 302;
-    
-    
+    private boolean latelyRunningFlashers;
+
+
     /**
      * A helper class to deal with the now-less-than-trivial
      * hit buffering which circumvents the hit out-of-order
@@ -184,7 +186,7 @@ public class DataCollector
      */
     private class HitBufferAB
     {
-        private LinkedList<ByteBuffer> alist, blist; 
+        private LinkedList<ByteBuffer> alist, blist;
         HitBufferAB()
         {
             alist = new LinkedList<ByteBuffer>();
@@ -213,16 +215,16 @@ public class DataCollector
 
         ByteBuffer pop()
         {
-            /* 
+            /*
              * Handle the special cases where only one ATWD is activated
              * presumably because of broken hardware.
              */
-            if (config.getAtwdChipSelect() == AtwdChipSelect.ATWD_A) 
+            if (config.getAtwdChipSelect() == AtwdChipSelect.ATWD_A)
             {
                 if (alist.isEmpty()) return null;
                 return popA();
             }
-            if (config.getAtwdChipSelect() == AtwdChipSelect.ATWD_B) 
+            if (config.getAtwdChipSelect() == AtwdChipSelect.ATWD_B)
             {
                 if (blist.isEmpty()) return null;
                 return popB();
@@ -250,7 +252,7 @@ public class DataCollector
             return null;
         }
     }
-    
+
     /**
      * Simple hits-only constructor (other channels suppressed)
      * @param chInfo structure containing DOM channel information
@@ -258,20 +260,20 @@ public class DataCollector
      * @throws IOException
      * @throws MessageException
      */
-    public DataCollector(DOMChannelInfo chInfo, BufferConsumer hitsTo) 
+    public DataCollector(DOMChannelInfo chInfo, BufferConsumer hitsTo)
     throws IOException, MessageException
     {
         this(chInfo.card, chInfo.pair, chInfo.dom, null, hitsTo, null, null, null, null, null);
     }
 
     public DataCollector(
-            int card, int pair, char dom, 
+            int card, int pair, char dom,
             DOMConfiguration config,
             BufferConsumer hitsTo,
             BufferConsumer moniTo,
             BufferConsumer supernovaTo,
             BufferConsumer tcalTo,
-            IDriver driver, 
+            IDriver driver,
             RAPCal rapcal) throws IOException, MessageException
     {
         super(card, pair, dom);
@@ -282,12 +284,12 @@ public class DataCollector
         moniConsumer = moniTo;
         tcalConsumer = tcalTo;
         supernovaConsumer = supernovaTo;
-        
+
         if (driver != null)
             this.driver = driver;
         else
             this.driver = Driver.getInstance();
-        
+
         if (rapcal != null)
         {
             this.rapcal = rapcal;
@@ -314,13 +316,15 @@ public class DataCollector
 
         gps = null;
         gpsErrorCount = 0;
-        
+
         runLevel = RunLevel.INITIALIZING;
         gpsOffset = new UTC(0L);
         abBuffer  = new HitBufferAB();
-        
+
         // Calculate 10-sec averages of the hit rate
         rtHitRate = new RealTimeRateMeter(100000000000L);
+        rtLCRate  = new RealTimeRateMeter(100000000000L);
+        latelyRunningFlashers = false;
         start();
     }
 
@@ -345,8 +349,8 @@ public class DataCollector
      */
     private void configure(DOMConfiguration config) throws MessageException
     {
-        if (logger.isInfoEnabled()) {
-            logger.info("Configuring DOM on " + canonicalName());
+        if (logger.isDebugEnabled()) {
+            logger.debug("Configuring DOM on " + canonicalName());
         }
         long configT0 = System.currentTimeMillis();
 
@@ -355,6 +359,9 @@ public class DataCollector
                 config.getConfigMonitorInterval(),
                 config.getFastMonitorInterval()
                 );
+
+        // Always want to force the maximum LBM depth
+        app.setLBMDepth(LBMDepth.LBM_8M);
 
         if (config.isDeltaCompressionEnabled())
             app.setDeltaCompressionFormat();
@@ -386,10 +393,18 @@ public class DataCollector
                 app.pulserOn();
         }
 
-        if (config.isMinBiasEnabled()) 
-            app.enableMinBias();
-        else
-            app.disableMinBias();
+        // now step carefull around this - some old MB versions don't support the message
+        try 
+        {
+            if (config.isMinBiasEnabled())
+                app.enableMinBias();
+            else
+                app.disableMinBias();
+        } 
+        catch (MessageException mex)
+        {
+            logger.warn("Unable to configure MinBias");
+        }
         
         app.setPulserRate(config.getPulserRate());
         LocalCoincidenceConfiguration lc = config.getLC();
@@ -402,8 +417,19 @@ public class DataCollector
         app.setCableLengths(lc.getCableLengthUp(), lc.getCableLengthDn());
         app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
         app.setScalerDeadtime(config.getScalerDeadtime());
-        app.setAtwdReadout(config.getAtwdChipSelect());
+        
+        try 
+        {
+            app.setAtwdReadout(config.getAtwdChipSelect());
+        }
+        catch (MessageException mex)
+        {
+            logger.warn("Unable to configure ATWD chip select");
+        }   
 
+        // TODO figure out if we want this
+        // app.setFastMoniRateType(FastMoniRateType.F_MONI_RATE_HLC);
+        
         // Do the pedestal subtraction
         if (config.getPedestalSubtraction())
         {
@@ -411,18 +437,34 @@ public class DataCollector
             // screen in DOMApp for spurious pulses
             app.collectPedestals(200, 200, 200);
         }
-        
-        // set chargestamp source
-        app.setChargeStampType(!config.isAtwdChargeStamp(), 
-                config.isAutoRangeChargeStamp(), 
-                config.getChargeStampChannel());
-        
+
+        // set chargestamp source - again fail with WARNING if cannot get the
+        // message through because of old mainboard release
+        try 
+        {
+            app.setChargeStampType(!config.isAtwdChargeStamp(),
+                    config.isAutoRangeChargeStamp(),
+                    config.getChargeStampChannel());
+        }
+        catch (MessageException mex)
+        {
+            logger.warn("Unable to configure chargestamp type");
+        }          
+
         // enable charge stamp histogramming
-        app.histoChargeStamp(config.getHistoInterval(), config.getHistoPrescale());
+        try 
+        {
+            app.histoChargeStamp(config.getHistoInterval(), config.getHistoPrescale());
+        }
+        catch (MessageException mex)
+        {
+            logger.warn("Unable to configure chargestamp histogramming");
+        }   
         
+
         long configT1 = System.currentTimeMillis();
-        if (logger.isInfoEnabled()) {
-            logger.info("Finished DOM configuration - " + canonicalName() +
+        if (logger.isDebugEnabled()) {
+            logger.debug("Finished DOM configuration - " + canonicalName() +
                         "; configuration took " + (configT1 - configT0) +
                         " milliseconds.");
         }
@@ -434,25 +476,35 @@ public class DataCollector
         long utc    = rapcal.domToUTC(domclk).in_0_1ns();
         buf.putLong(24, utc);
         int fmtId = buf.getInt(4);
-        if (fmtId == MAGIC_ENGINEERING_HIT_FMTID || fmtId == MAGIC_COMPRESSED_HIT_FMTID) rtHitRate.recordEvent(utc);
         target.consume(buf);
+        
+        // Collect HLC / SLC hit statistics ...
+        switch ( buf.getInt(4) )
+        {
+        case MAGIC_COMPRESSED_HIT_FMTID:
+            int flagsLC = (buf.getInt(46) & 0x30000) >> 16;
+            if (flagsLC != 0) rtLCRate.recordEvent(utc);
+            // intentional fall-through
+        case MAGIC_ENGINEERING_HIT_FMTID:
+            rtHitRate.recordEvent(utc);
+        }
         return utc;
     }
-    
+
     private void dispatchHitBuffer(int atwdChip, ByteBuffer hitBuf) throws IOException
     {
         if (atwdChip == 0)
             abBuffer.pushA(hitBuf);
         else
             abBuffer.pushB(hitBuf);
-        while (true) 
+        while (true)
         {
             ByteBuffer buffer = abBuffer.pop();
             if (buffer == null) return;
             dispatchBuffer(buffer, hitsConsumer);
         }
     }
-    
+
 
     private void dataProcess(ByteBuffer in) throws IOException
     {
@@ -461,7 +513,7 @@ public class DataCollector
         // decoding of hit records. This should be cleaned up.
 
         if (hitsConsumer == null) return;
-        
+
         int buffer_limit = in.limit();
 
         // create records from aggregate message data returned from DOMApp
@@ -474,7 +526,7 @@ public class DataCollector
             int atwdChip;
             long domClock;
             ByteBuffer outputBuffer;
-            
+
             switch (fmt)
             {
             case 0x01: /* Early engineering hit data format (pre-pDAQ, in fact) */
@@ -491,16 +543,16 @@ public class DataCollector
                 outputBuffer.putLong(domClock);
                 outputBuffer.put(in).flip();
                 in.limit(buffer_limit);
-                
+
                 ////////
                 //
                 // DO the A/B stuff
                 //
                 ////////
                 dispatchHitBuffer(atwdChip, outputBuffer);
-                
+
                 break;
-                
+
             case 0x90: /* SLC or other compressed hit format */
                 int clkMSB = in.getShort(pos+4);
                 ByteOrder lastOrder = in.order();
@@ -529,7 +581,7 @@ public class DataCollector
                     in.limit(pos + hitSize);
                     outputBuffer = ByteBuffer.allocate(hitSize + 42);
                     // Standard Header
-                    outputBuffer.putInt(hitSize + 42); 
+                    outputBuffer.putInt(hitSize + 42);
                     outputBuffer.putInt(MAGIC_COMPRESSED_HIT_FMTID);
                     outputBuffer.putLong(numericMBID); // +8
                     outputBuffer.putLong(0L);          // +16
@@ -550,7 +602,7 @@ public class DataCollector
                 // Restore previous byte order
                 in.order(lastOrder);
                 break;
-                
+
             default:
                 logger.error("Unknown DOMApp format ID: " + fmt);
                 in.position(pos + len);
@@ -561,7 +613,7 @@ public class DataCollector
     private void moniProcess(ByteBuffer in) throws IOException
     {
         if (moniConsumer == null) return;
-        
+
         while (in.remaining() > 0)
         {
             MonitorRecord monitor = MonitorRecordFactory.createFromBuffer(in);
@@ -569,7 +621,7 @@ public class DataCollector
             {
                 String moniMsg = monitor.toString();
                 if (logger.isDebugEnabled()) logger.debug(moniMsg);
-                if (moniMsg.contains("LBM Overflow")) numLBMOverflows++;
+                if (moniMsg.contains("LBM OVERFLOW")) numLBMOverflows++;
             }
             numMoni++;
             ByteBuffer moniBuffer = ByteBuffer.allocate(monitor.getLength()+32);
@@ -588,7 +640,7 @@ public class DataCollector
      * Note that the {@link #dispatchBuffer} method is not called since the domClock to
      * UTC mapping does not take place for these types of record.
      * @param tcal the input {@link TimeCalib} object
-     * @param gps the {@link GPSInfo} record is tacked onto the tail of the buffer 
+     * @param gps the {@link GPSInfo} record is tacked onto the tail of the buffer
      * @throws IOException
      */
     private void tcalProcess(TimeCalib tcal, GPSInfo gps) throws IOException
@@ -604,7 +656,7 @@ public class DataCollector
         {
             tcalBuffer.put("\001 000 00:00:00-\000\000\000\000\000\000\000\000".getBytes());
         }
-        else 
+        else
         {
             tcalBuffer.put(gps.getBuffer());
         }
@@ -665,38 +717,45 @@ public class DataCollector
         {
             try
             {
-                if (gpsErrorCount < 10)
+                GPSInfo newGPS = driver.readGPS(card);
+                GregorianCalendar calendar = new GregorianCalendar(
+                        new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
+                calendar.add(GregorianCalendar.DAY_OF_YEAR, newGPS.getDay() - 1);
+                numConsecutiveGPSExceptions = 0;
+                UTC newOffset = newGPS.getOffset();
+                if (!(gps == null || newOffset.equals(gpsOffset)))
                 {
-                    GPSInfo newGPS = driver.readGPS(card);
-                    UTC newOffset = newGPS.getOffset();
-                    if (gps == null || newOffset.equals(gpsOffset))
-                    {
-                        gps = newGPS;
-                        gpsOffset = gps.getOffset();
-                    }
-                    else if (gps != null)
-                    {
-                        logger.error(
-                                "GPS offset mis-alignment detected - old GPS: " + 
-                                gps + " new GPS: " + newGPS);
-                    }
-                    gpsErrorCount = 0;
+                    logger.error(
+                            "GPS offset mis-alignment detected - old GPS: " +
+                            gps + " new GPS: " + newGPS);
+                    StringHubAlert.sendDOMAlert(
+                            alerter, "GPS Error", "GPS Offset mis-match",
+                            card, pair, dom, mbid, name, major, minor);
                 }
+                gps = newGPS;
+                gpsOffset = gps.getOffset();
             }
             catch (GPSNotReady gpsn)
             {
                 logger.warn("GPS not ready.");
+                if (numConsecutiveGPSExceptions++ > 5)
+                    StringHubAlert.sendDOMAlert(
+                            alerter, "GPS Error", "SyncGPS procfile not ready",
+                            card, pair, dom, mbid, name, major, minor);
             }
             catch (GPSException gpsx)
             {
                 gpsx.printStackTrace();
                 logger.warn("Got GPS exception - time translation to UTC will be incomplete");
+                StringHubAlert.sendDOMAlert(
+                        alerter, "GPS Error", "SyncGPS procfile I/O error",
+                        card, pair, dom, mbid, name, major, minor);
                 gpsErrorCount += 1;
             }
             TimeCalib tcal = driver.readTCAL(card, pair, dom);
             rapcal.update(tcal, gpsOffset);
             lastTcalRead = System.currentTimeMillis();
-            
+
             validRAPCalCount++;
 
             if (getRunLevel().equals(RunLevel.RUNNING))
@@ -748,7 +807,7 @@ public class DataCollector
         nextSupernovaDomClock = 0L;
         numSupernovaGaps = 0;
 
-        logger.info("Begin data collection thread");
+        logger.debug("Begin data collection thread");
 
         // Create a watcher timer
         Timer watcher = new Timer(getName() + "-timer");
@@ -767,6 +826,9 @@ public class DataCollector
              * that this channel has expired and does not wait.
              */
             setRunLevel(RunLevel.ZOMBIE);
+            StringHubAlert.sendDOMAlert(alerter, "Zombie DOM", "Zombie DOM",
+                                        card, pair, dom, mbid, name, major,
+                                        minor);
         }
         watcher.cancel();
 
@@ -793,7 +855,7 @@ public class DataCollector
     } /* END OF run() METHOD */
 
     /**
-     * Wrap up softboot -> domapp behavior 
+     * Wrap up softboot -> domapp behavior
      * */
     private void softbootToDomapp() throws IOException, InterruptedException
     {
@@ -816,12 +878,12 @@ public class DataCollector
             }
         }
 
-        for (int i = 0; i < 2; i++) 
+        for (int i = 0; i < 2; i++)
         {
             Thread.sleep(20);
             driver.commReset(card, pair, dom);
             Thread.sleep(20);
-            
+
             try
             {
                 intTask.ping();
@@ -832,7 +894,7 @@ public class DataCollector
             catch (FileNotFoundException ex)
             {
                 logger.error(
-                        "Trial " + i + ": Open of " + card + "" + pair + dom + " " + 
+                        "Trial " + i + ": Open of " + card + "" + pair + dom + " " +
                         "failed! - comstats:\n" + driver.getComstat(card, pair, dom) +
                         "FPGA registers:\n" + driver.getFPGARegs(0));
                 if (i == 1) throw ex;
@@ -858,14 +920,14 @@ public class DataCollector
         mbid = driver.getProcfileID(card, pair, dom);
         numericMBID = Long.parseLong(mbid, 16);
         boolean needSoftboot = true;
-        
+
         if (!alwaysSoftboot)
         {
             logger.debug("Autodetecting DOMApp");
             try
             {
                 app = new DOMApp(card, pair, dom);
-                if (app.isRunningDOMApp()) 
+                if (app.isRunningDOMApp())
                 {
                     needSoftboot = false;
                     try
@@ -893,7 +955,7 @@ public class DataCollector
                 interrupted();
             }
         }
-        
+
         if (needSoftboot)
         {
             for (int iTry = 0; iTry < 2; iTry++)
@@ -914,12 +976,14 @@ public class DataCollector
         numericMBID = Long.parseLong(mbid, 16);
 
         setRunLevel(RunLevel.IDLE);
-        
+
         intTask.ping();
-        logger.info("Found DOM " + mbid + " running " + app.getRelease());
+        if (logger.isDebugEnabled()) {
+            logger.debug("Found DOM " + mbid + " running " + app.getRelease());
+        }
 
         // Grab 2 RAPCal data points to get started
-        for (int nTry = 0; nTry < 10 && validRAPCalCount < 2; nTry++) 
+        for (int nTry = 0; nTry < 10 && validRAPCalCount < 2; nTry++)
         {
             Thread.sleep(100);
             execRapCal();
@@ -928,7 +992,9 @@ public class DataCollector
         /*
          * Workhorse - the run loop
          */
-        logger.info("Entering run loop");
+        if (logger.isDebugEnabled()) {
+            logger.debug("Entering run loop");
+        }
 
         while (!stop_thread && !interrupted())
         {
@@ -999,52 +1065,79 @@ public class DataCollector
 
             case CONFIGURING:
                 /* Need to handle a configure */
-                logger.info("Got CONFIGURE signal.");
+                logger.debug("Got CONFIGURE signal.");
                 configure(config);
-                logger.info("DOM is configured.");
+                logger.debug("DOM is configured.");
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
 
             case STARTING:
-                logger.info("Got START RUN signal " + canonicalName());
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Got START RUN signal " + canonicalName());
+                }
                 app.beginRun();
                 storeRunStartTime();
-                logger.info("DOM is running.");
+                logger.debug("DOM is running.");
                 setRunLevel(RunLevel.RUNNING);
                 break;
 
             case STARTING_SUBRUN:
-                setRunLevel(RunLevel.STOPPING_SUBRUN);
-                app.endRun();
-                setRunLevel(RunLevel.CONFIGURING);
+                /*
+                 * I must stop the current run unless I was just running a flasher run
+                 * on this DOM and I am just changing the flasher parameters.
+                 */
+                logger.info("Starting subrun - flasher config is " + 
+                        (flasherConfig == null ? "not" : "") + " null / lately " +
+                        (latelyRunningFlashers ? "" : "not") + " running flashers.");
+                if (!(latelyRunningFlashers && flasherConfig != null))
+                {
+                    setRunLevel(RunLevel.STOPPING_SUBRUN);
+                    app.endRun();
+                    setRunLevel(RunLevel.CONFIGURING);
+                    latelyRunningFlashers = false;
+                }
                 if (flasherConfig != null)
                 {
-                    if (logger.isInfoEnabled()) logger.info("Starting flasher subrun");
-                    DOMConfiguration tempConfig = new DOMConfiguration(config);
-                    tempConfig.setHV(-1);
-                    tempConfig.setTriggerMode(TriggerMode.FB);
-                    LocalCoincidenceConfiguration lcX = new LocalCoincidenceConfiguration();
-                    lcX.setRxMode(RxMode.RXNONE);
-                    tempConfig.setLC(lcX);
-                    tempConfig.setEngineeringFormat(
-                            new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 64 })
-                            );
-                    tempConfig.setMux(MuxState.FB_CURRENT);
-                    configure(tempConfig);
-                    sleep(new Random().nextInt(250));
-                    app.beginFlasherRun(
-                            (short) flasherConfig.getBrightness(),
-                            (short) flasherConfig.getWidth(),
-                            (short) flasherConfig.getDelay(),
-                            (short) flasherConfig.getMask(),
-                            (short) flasherConfig.getRate()
-                            );
+                    logger.info("Starting flasher subrun");
+                    if (latelyRunningFlashers)
+                    {
+                        logger.info("Only changing flasher board configuration");
+                        app.changeFlasherSettings(
+                                (short) flasherConfig.getBrightness(),
+                                (short) flasherConfig.getWidth(),
+                                (short) flasherConfig.getDelay(),
+                                (short) flasherConfig.getMask(),
+                                (short) flasherConfig.getRate()
+                                );
+                    }
+                    else
+                    {
+                        DOMConfiguration tempConfig = new DOMConfiguration(config);
+                        tempConfig.setHV(-1);
+                        tempConfig.setTriggerMode(TriggerMode.FB);
+                        LocalCoincidenceConfiguration lcX = new LocalCoincidenceConfiguration();
+                        lcX.setRxMode(RxMode.RXNONE);
+                        tempConfig.setLC(lcX);
+                        tempConfig.setEngineeringFormat(
+                                new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 64 })
+                                );
+                        tempConfig.setMux(MuxState.FB_CURRENT);
+                        configure(tempConfig);
+                        sleep(new Random().nextInt(250));
+                        logger.info("Beginning new flasher board run");
+                        app.beginFlasherRun(
+                                (short) flasherConfig.getBrightness(),
+                                (short) flasherConfig.getWidth(),
+                                (short) flasherConfig.getDelay(),
+                                (short) flasherConfig.getMask(),
+                                (short) flasherConfig.getRate()
+                                );
+                    }
+                    latelyRunningFlashers = true;
                 }
                 else
                 {
-                    if (logger.isInfoEnabled()) {
-                        logger.info("Returning to non-flashing state");
-                    }
+                    logger.info("Returning to non-flashing state");
                     configure(config);
                     app.beginRun();
                 }
@@ -1053,16 +1146,16 @@ public class DataCollector
                 break;
 
             case PAUSING:
-                if (logger.isInfoEnabled()) {
-                    logger.info("Got PAUSE RUN signal " + canonicalName());
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Got PAUSE RUN signal " + canonicalName());
                 }
                 app.endRun();
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
 
             case STOPPING:
-                if (logger.isInfoEnabled()) {
-                    logger.info("Got STOP RUN signal " + canonicalName());
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Got STOP RUN signal " + canonicalName());
                 }
                 app.endRun();
                 ByteBuffer eos = MultiChannelMergeSort.eos(numericMBID);
@@ -1070,7 +1163,7 @@ public class DataCollector
                 if (moniConsumer != null) moniConsumer.consume(eos.asReadOnlyBuffer());
                 if (tcalConsumer != null) tcalConsumer.consume(eos.asReadOnlyBuffer());
                 if (supernovaConsumer != null) supernovaConsumer.consume(eos.asReadOnlyBuffer());
-                logger.info("Wrote EOS to streams.");
+                logger.debug("Wrote EOS to streams.");
                 setRunLevel(RunLevel.CONFIGURED);
                 break;
             }
@@ -1137,7 +1230,7 @@ public class DataCollector
 
         public void run()
         {
-            if (!pinged.get()) 
+            if (!pinged.get())
             {
                 logger.error("data collection thread has become non-responsive - aborting.");
                 if (app != null) app.close();
@@ -1180,6 +1273,11 @@ public class DataCollector
     public String getRunState()
     {
         return getRunLevel().toString();
+    }
+
+    public double getHitRateLC()
+    {
+        return rtLCRate.getRate();
     }
 
 }

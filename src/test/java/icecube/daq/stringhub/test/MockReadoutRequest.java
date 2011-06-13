@@ -1,9 +1,10 @@
 package icecube.daq.stringhub.test;
 
+import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.ILoadablePayload;
+import icecube.daq.payload.IReadoutRequest;
+import icecube.daq.payload.IReadoutRequestElement;
 import icecube.daq.payload.ISourceID;
-import icecube.daq.trigger.IReadoutRequest;
-import icecube.daq.trigger.IReadoutRequestElement;
 import icecube.daq.payload.IUTCTime;
 
 import java.io.IOException;
@@ -63,7 +64,19 @@ public class MockReadoutRequest
                                                  domId, srcId));
     }
 
+    public void addElement(int type, int srcId, long firstTime, long lastTime,
+                           long domId)
+    {
+        addElement(new MockReadoutRequestElement(type, firstTime, lastTime,
+                                                 domId, srcId));
+    }
+
     public Object deepCopy()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public int getEmbeddedLength()
     {
         throw new Error("Unimplemented");
     }
@@ -112,15 +125,30 @@ public class MockReadoutRequest
         return uid;
     }
 
+    public int length()
+    {
+        throw new Error("Unimplemented");
+    }
+
     public void loadPayload()
         throws IOException, DataFormatException
     {
         // do nothing
     }
 
+    public int putBody(ByteBuffer buf, int offset)
+    {
+        throw new Error("Unimplemented");
+    }
+
     public void recycle()
     {
         // do nothing
+    }
+
+    public void setCache(IByteBufferCache cache)
+    {
+        throw new Error("Unimplemented");
     }
 
     public String toString()

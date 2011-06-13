@@ -13,6 +13,7 @@ import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
 import icecube.daq.io.DAQComponentOutputProcess;
+import icecube.daq.io.OutputChannel;
 import icecube.daq.io.PayloadReader;
 import icecube.daq.io.SimpleOutputEngine;
 import icecube.daq.juggler.component.DAQCompException;
@@ -20,12 +21,13 @@ import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
+import icecube.daq.oldpayload.impl.MasterPayloadFactory;
 import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.ISourceID;
-import icecube.daq.payload.MasterPayloadFactory;
 import icecube.daq.payload.SourceIdRegistry;
-import icecube.daq.payload.VitreousBufferCache;
+import icecube.daq.payload.impl.ReadoutRequestFactory;
+import icecube.daq.payload.impl.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
 import icecube.daq.trigger.component.GlobalConfiguration;
@@ -36,6 +38,7 @@ import icecube.daq.trigger.control.StringTriggerHandler;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
+import icecube.daq.util.StringHubAlert;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -43,10 +46,12 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.Random;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -67,7 +72,6 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	private Driver driver = Driver.getInstance();
 	private IByteBufferCache cache;
 	private Sender sender;
-	private MasterPayloadFactory payloadFactory;
 	private DOMRegistry domRegistry;
 	private IByteBufferCache moniBufMgr, tcalBufMgr, snBufMgr;
 	private PayloadReader reqIn;
@@ -104,14 +108,14 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
 		addMBean("stringhub", this);
-		
+
         /*
          * Component derives behavioral characteristics from
          * its 'minor ID' which is the low 3 (decimal) digits of
          * the hub component ID:
          *  (1) component x000        : amandaHub
          *  (2) component x001 - x199 : in-ice hub
-		 *      (81 - 86 are deep core but this currently doesn't mean anything)
+		 *      (79 - 86 are deep core but this currently doesn't mean anything)
          *  (3) component x200 - x299 : icetop
          * I
          */
@@ -122,8 +126,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		if (minorHubId == 0) {
 			cacheName = "AM";
 			cacheNum = "";
-		} else if (minorHubId <= 80) {
-			cacheName = "SH#" + minorHubId;
+		} else if (minorHubId <= 78) {
+			cacheName = "SH";
 			cacheNum = "#" + minorHubId;
 		} else if (minorHubId <= 200) {
 			cacheName = "DC";
@@ -162,11 +166,11 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
             sender.setHitCache(cache);
         }
 
-        payloadFactory = new MasterPayloadFactory(cache);
-
+        ReadoutRequestFactory rdoutReqFactory =
+            new ReadoutRequestFactory(cache);
         try
         {
-            reqIn = new RequestReader(COMPONENT_NAME, sender, payloadFactory);
+            reqIn = new RequestReader(COMPONENT_NAME, sender, rdoutReqFactory);
         }
         catch (IOException ioe)
         {
@@ -222,6 +226,22 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			e.printStackTrace();
 			logger.error(e.getMessage());
 		}
+
+		sender.setDOMRegistry(domRegistry);
+	}
+
+    /**
+     * Close all open files, sockets, etc.
+     */
+    public void closeAll()
+        throws IOException
+    {
+		moniOut.destroyProcessor();
+		tcalOut.destroyProcessor();
+		supernovaOut.destroyProcessor();
+		hitOut.destroyProcessor();
+		reqIn.destroyProcessor();
+		dataOut.destroyProcessor();
 	}
 
 	/**
@@ -249,8 +269,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		{
 		    driver.setBlocking(true);
 			activeDOMs = driver.discoverActiveDOMs();
-			if (logger.isInfoEnabled()) {
-				logger.info("Found " + activeDOMs.size() + " active DOMs.");
+			if (logger.isDebugEnabled()) {
+				logger.debug("Found " + activeDOMs.size() + " active DOMs.");
 			}
 		}
 	}
@@ -261,7 +281,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
         sourceId = SourceIdRegistry.getISourceIDFromNameAndId(COMPONENT_NAME, hubId);
         triggerHandler = new StringTriggerHandler(sourceId);
-        triggerHandler.setMasterPayloadFactory(payloadFactory);
+        triggerHandler.setMasterPayloadFactory(new MasterPayloadFactory(cache));
         triggerHandler.setPayloadOutput(hitOut);
 
         // feed sender output through string trigger
@@ -307,9 +327,9 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			 */
 			Node hubNode = doc.selectSingleNode("runConfig/stringHub[@hubId='" + hubId + "']");
 			boolean dcSoftboot = false;
-			
+
 			int tcalPrescale = 10;
-			
+
 			if (hubNode != null)
 			{
 			    if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) enableTriggering();
@@ -320,16 +340,16 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			    String tcalPStxt = hubNode.valueOf("tcalPrescale");
 			    if (tcalPStxt.length() != 0) tcalPrescale = Integer.parseInt(tcalPStxt);
 			}
-			if (logger.isInfoEnabled()) {
-				logger.info("Number of domConfigNodes found: " + configNodeList.size());
+			if (logger.isDebugEnabled()) {
+				logger.debug("Number of domConfigNodes found: " + configNodeList.size());
 			}
 			for (Node configNode : configNodeList) {
 				String tag = configNode.getText();
 				if (!tag.endsWith(".xml"))
 					tag = tag + ".xml";
 				File configFile = new File(domConfigsDirectory, tag);
-				if (logger.isInfoEnabled()) {
-					logger.info("Configuring " + realism
+				if (logger.isDebugEnabled()) {
+					logger.debug("Configuring " + realism
 							+ " - loading config from "
 							+ configFile.getAbsolutePath());
 				}
@@ -340,7 +360,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
             int nch = 0;
 			/***********
-			 * 
+
 			 * Dropped DOM detection logic - WARN if channel on string AND in config
 			 * BUT NOT in the list of active DOMs.  Oh, and count the number of
 			 * channels that are active AND requested in the config while we're looping
@@ -351,18 +371,27 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			    activeDomSet.add(chanInfo.mbid);
 			    if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) nch++;
 			}
-			
+
 	         if (nch == 0)
 	                throw new DAQCompException("No Active DOMs on Hub selected in configuration.");
 
 			for (DeployedDOM deployedDOM : domRegistry.getDomsOnString(getNumber()))
 			{
 			    String mbid = deployedDOM.getMainboardId();
-			    if (!activeDomSet.contains(mbid) && xmlConfig.getDOMConfig(mbid) != null)
+			    if (!activeDomSet.contains(mbid) && xmlConfig.getDOMConfig(mbid) != null) {
 			        logger.warn("DOM " + deployedDOM + " requested in configuration but not found.");
+
+					StringHubAlert.sendDOMAlert(getAlerter(), "Dropped DOM",
+												"Dropped DOM during configure",
+												0, 0, (char) 0,
+												deployedDOM.getMainboardId(),
+												deployedDOM.getName(),
+												deployedDOM.getStringMajor(),
+												deployedDOM.getStringMinor());
+				}
 			}
-			        
-			logger.info("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
+
+			logger.debug("Configuration successfully loaded - Intersection(DISC, CONFIG).size() = " + nch);
 
 			// Must make sure to release file resources associated with the previous
 			// runs since we are throwing away the collectors and starting from scratch
@@ -409,16 +438,19 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 					addMBean("DataCollectorMonitor-" + chanInfo, dc);
 				}
 
+				dc.setDomInfo(domRegistry.getDom(chanInfo.mbid));
+
                 dc.setSoftbootBehavior(dcSoftboot);
 				hitsSort.register(chanInfo.mbid_numerique);
 				moniSort.register(chanInfo.mbid_numerique);
 				scalSort.register(chanInfo.mbid_numerique);
 				tcalSort.register(chanInfo.mbid_numerique);
+				dc.setAlerter(getAlerter());
 				conn.add(dc);
 				if (logger.isDebugEnabled()) logger.debug("Starting new DataCollector thread on (" + cwd + ").");
 			}
 
-			logger.info("Starting up HKN1 sorting trees...");
+			logger.debug("Starting up HKN1 sorting trees...");
 
 			// Still need to get the data collectors to pick up and do something with the config
 			conn.configure();
@@ -426,19 +458,17 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 		catch (FileNotFoundException fnx)
 		{
-			logger.error("Could not find the configuration file.");
+			logger.error("Could not find the configuration file.", fnx);
 			throw new DAQCompException(fnx.getMessage());
 		}
 		catch (IOException iox)
 		{
-			iox.printStackTrace();
-			logger.error("Caught IOException - " + iox.getMessage());
-			throw new DAQCompException(iox.getMessage());
+			logger.error("Caught IOException", iox);
+			throw new DAQCompException("Cannot configure", iox);
 		}
 		catch (Exception e)
 		{
-			e.printStackTrace();
-			throw new DAQCompException(e.getMessage());
+			throw new DAQCompException("Unexpected exception", e);
 		}
 
 
@@ -483,17 +513,35 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	    boolean[] wirePairSemaphore = new boolean[32];
 	    long validXTime = 0L;
 
-	    logger.info("Beginning subrun - turning off any running flashers");
+	    /* Load the configs into a map so that I can search them better */
+	    HashMap<String, FlasherboardConfiguration> fcMap = new HashMap<String, FlasherboardConfiguration>(60);
+	    for (FlasherboardConfiguration fb : flasherConfigs) fcMap.put(fb.getMainboardID(), fb);
 
-	    // STEP #1 - signal all currently running flashers to stop
+	    /*
+	     * Divide the DOMs into 4 categories ...
+	     *     Category 1: Flashing current subrun - not flashing next subrun.  Simply turn
+	     *     these DOMs' flashers off - this must be done over all DOMs in first pass to
+	     *     ensure that DOMs on the same wire pair are never simultaneously on (it blows
+	     *     the DOR card firmware fuse).
+	     *     Category 2: Flashing current subrun - flashing with new config next subrun.
+	     *     These DOMs must get the CHANGE_FLASHER signal (new feature added DOM-MB 437+)
+	     *     Category 3: Not flashing current subrun - flashing next subrun.  These DOMs
+	     *     get a START_FLASHER_RUN signal
+	     *     Category 4: Others
+	     */
+
+	    logger.info("Beginning subrun - turning off requested flashers");
 	    for (AbstractDataCollector adc : conn.getCollectors())
 	    {
-	        if (adc.isRunning() && adc.getFlasherConfig() != null)
+	        if (adc.isRunning()
+	                && adc.getFlasherConfig() != null
+	                && !fcMap.containsKey(adc.getMainboardId()))
 	        {
 	            adc.setFlasherConfig(null);
 	            adc.signalStartSubRun();
 	        }
 	    }
+
 	    for (AbstractDataCollector adc : conn.getCollectors())
 	    {
 	        if (adc.isZombie()) continue;
@@ -506,35 +554,18 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	            logger.warn("Interrupted sleep on ADC subrun start.");
 	        }
 	    }
-	    
-	    // STEP #2 - now activate newly requested flashers
+
+	    logger.info("Turning on / changing flasher configs for next subrun");
         for (AbstractDataCollector adc : conn.getCollectors())
         {
             String mbid = adc.getMainboardId();
-            FlasherboardConfiguration flasherConfig = null;
-
-            // Hunt for this DOM channel in the flasher config list
-            for (FlasherboardConfiguration fbc : flasherConfigs)
-            {
-	            if (fbc.getMainboardID().equals(mbid))
-	            {
-	                flasherConfig = fbc;
-	                break;
-	            }
-            }
-
-            if (flasherConfig != null)
+            if (fcMap.containsKey(mbid))
             {
                 int pairIndex = 4 * adc.getCard() + adc.getPair();
                 if (wirePairSemaphore[pairIndex])
                     throw new DAQCompException("Cannot activate > 1 flasher run per DOR wire pair.");
                 wirePairSemaphore[pairIndex] = true;
-            }
-
-            boolean stateChange = flasherConfig != null;
-            if (stateChange)
-            {
-                adc.setFlasherConfig(flasherConfig);
+                adc.setFlasherConfig(fcMap.get(mbid));
                 adc.signalStartSubRun();
             }
 	    }
@@ -572,6 +603,17 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			// throw new DAQCompException(e.getMessage());
 		}
 
+		SimpleOutputEngine[] eng = new SimpleOutputEngine[] {
+			moniOut, supernovaOut, tcalOut
+		};
+
+		for (int i = 0; i < eng.length; i++) {
+			OutputChannel chan = eng[i].getChannel();
+			if (chan != null) {
+				chan.sendLastAndStop();
+			}
+		}
+
         logger.info("Returning from stop.");
 	}
 
@@ -605,7 +647,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 4270 2009-06-08 22:33:57Z dglo $";
+		return "$Id: StringHubComponent.java 12860 2011-04-12 05:13:48Z mnewcomb $";
     }
 
 	public IByteBufferCache getCache()
@@ -644,6 +686,31 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
         for (AbstractDataCollector adc : conn.getCollectors()) if (adc.isRunning()) nch++;
         return nch;
     }
+
+	public int[] getNumberOfActiveAndTotalChannels() {
+		int nch = 0;
+		int total = 0;
+		for (AbstractDataCollector adc : conn.getCollectors()) {
+			if(adc.isRunning()) nch++;
+			total++;
+		}
+
+		int[] returnVal = new int[2];
+		returnVal[0] = nch;
+		returnVal[1] = total;
+
+		return returnVal;
+	}
+
+	public long getTotalLBMOverflows() {
+		long total = 0;
+		
+		for (AbstractDataCollector adc : conn.getCollectors()) {
+			total += adc.getLBMOverflowCount();
+		}
+
+		return total;
+	}
 
     public long getTimeOfLastHitInputToHKN1()
     {

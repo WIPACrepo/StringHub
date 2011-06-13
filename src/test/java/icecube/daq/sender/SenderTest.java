@@ -1,19 +1,24 @@
 package icecube.daq.sender;
 
+import icecube.daq.common.EventVersion;
 import icecube.daq.io.DAQOutputChannelManager;
 import icecube.daq.io.OutputChannel;
 import icecube.daq.payload.IDOMID;
+import icecube.daq.payload.IReadoutRequest;
+import icecube.daq.payload.IReadoutRequestElement;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.PayloadRegistry;
 import icecube.daq.payload.SourceIdRegistry;
+import icecube.daq.payload.impl.DeltaHitRecord;
+import icecube.daq.payload.impl.EngineeringHitRecord;
 import icecube.daq.stringhub.test.MockAppender;
 import icecube.daq.stringhub.test.MockBufferCache;
 import icecube.daq.stringhub.test.MockReadoutRequest;
 import icecube.daq.stringhub.test.MockUTCTime;
-import icecube.daq.trigger.IReadoutRequest;
-import icecube.daq.trigger.IReadoutRequestElement;
+import icecube.daq.util.DOMRegistry;
 
+import java.io.IOException;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -45,6 +50,12 @@ abstract class ExpectedData
     }
 }
 
+abstract class ExpectedContainer
+    extends ExpectedData
+{
+    abstract void addHit(ExpectedData hit);
+}
+
 abstract class MockOutputChannel
     implements OutputChannel
 {
@@ -59,6 +70,7 @@ abstract class MockOutputChannel
 
     void addExpectedData(ExpectedData data)
     {
+//try{throw new Error("Add "+data);}catch(Error e){e.printStackTrace();}
         expected.add(data);
     }
 
@@ -176,7 +188,7 @@ class ExpectedHit
 
     public String toString()
     {
-        return "ExpHit@" + Long.toHexString(domId) + "[time " + utcTime +
+        return "ExpHit@" + String.format("%012x", domId) + "[time " + utcTime +
             " type " + trigType + " cfg " + cfgId + " src " + srcId +
             " mode " + trigMode + "]";
     }
@@ -203,7 +215,7 @@ class MockHitChannel
     }
 }
 
-class ExpectedDeltaHit
+class ExpectedOldDeltaHit
     extends ExpectedData
 {
     private long domId;
@@ -217,7 +229,7 @@ class ExpectedDeltaHit
     private int peakInfo;
     private byte[] data;
 
-    ExpectedDeltaHit(long domId, long utcTime, short version, short pedestal,
+    ExpectedOldDeltaHit(long domId, long utcTime, short version, short pedestal,
                      long domClock, byte lcMode, short trigMode,
                      short waveformFlags, int peakInfo, byte[] data)
     {
@@ -233,7 +245,7 @@ class ExpectedDeltaHit
         this.data = data;
     }
 
-    ExpectedDeltaHit(ByteBuffer buf, int offset)
+    ExpectedOldDeltaHit(ByteBuffer buf, int offset)
     {
         domId = buf.getLong(offset + 28);
         utcTime = buf.getLong(offset + 8);
@@ -286,14 +298,14 @@ class ExpectedDeltaHit
 
     public int compareTo(Object obj)
     {
-        if (!(obj instanceof ExpectedDeltaHit)) {
+        if (!(obj instanceof ExpectedOldDeltaHit)) {
             return getClass().getName().compareTo(obj.getClass().getName());
         }
 
-        return compareTo((ExpectedDeltaHit) obj);
+        return compareTo((ExpectedOldDeltaHit) obj);
     }
 
-    public int compareTo(ExpectedDeltaHit hit)
+    public int compareTo(ExpectedOldDeltaHit hit)
     {
         int val = compareLong(domId, hit.domId);
         if (val == 0) {
@@ -345,11 +357,11 @@ class ExpectedDeltaHit
 
     public boolean equals(Object obj)
     {
-        if (!(obj instanceof ExpectedDeltaHit)) {
+        if (!(obj instanceof ExpectedOldDeltaHit)) {
             return getClass().getName().equals(obj.getClass().getName());
         }
 
-        return compareTo((ExpectedDeltaHit) obj) == 0;
+        return compareTo((ExpectedOldDeltaHit) obj) == 0;
     }
 
     public String toString()
@@ -372,14 +384,14 @@ class ExpectedDeltaHit
             dataBuf.append(']');
         }
 
-        return "ExpDeltaHit@" + Long.toHexString(domId) + "[time " + utcTime +
-            " vers " + version + " ped " + pedestal + " clock " + domClock +
-            " lc " + lcMode + " trig " + trigMode + " wave " + waveformFlags +
-            " peak " + peakInfo + dataBuf + "]";
+        return "ExpDeltaHit@" + String.format("%012x", domId) +
+            "[time " + utcTime + " vers " + version + " ped " + pedestal +
+            " clock " + domClock + " lc " + lcMode + " trig " + trigMode +
+            " wave " + waveformFlags + " peak " + peakInfo + dataBuf + "]";
     }
 }
 
-class ExpectedEngHit
+class ExpectedOldEngHit
     extends ExpectedData
 {
     private long domId;
@@ -390,7 +402,7 @@ class ExpectedEngHit
     private short[] fadcSamples;
     private Object[] atwdData;
 
-    ExpectedEngHit(long domId, long utcTime, int atwdChip, short trigMode,
+    ExpectedOldEngHit(long domId, long utcTime, int atwdChip, short trigMode,
                    long domClock, short[] fadcSamples, Object atwd0Data,
                    Object atwd1Data, Object atwd2Data, Object atwd3Data)
     {
@@ -404,7 +416,7 @@ class ExpectedEngHit
         atwdData = new Object[] { atwd0Data, atwd1Data, atwd2Data, atwd3Data };
     }
 
-    ExpectedEngHit(ByteBuffer buf, int offset)
+    ExpectedOldEngHit(ByteBuffer buf, int offset)
     {
         domId = buf.getLong(offset + 32);
         utcTime = buf.getLong(offset + 8);
@@ -530,14 +542,14 @@ class ExpectedEngHit
 
     public int compareTo(Object obj)
     {
-        if (!(obj instanceof ExpectedEngHit)) {
+        if (!(obj instanceof ExpectedOldEngHit)) {
             return getClass().getName().compareTo(obj.getClass().getName());
         }
 
-        return compareTo((ExpectedEngHit) obj);
+        return compareTo((ExpectedOldEngHit) obj);
     }
 
-    public int compareTo(ExpectedEngHit hit)
+    public int compareTo(ExpectedOldEngHit hit)
     {
         int val = compareLong(domId, hit.domId);
         if (val == 0) {
@@ -596,11 +608,11 @@ class ExpectedEngHit
 
     public boolean equals(Object obj)
     {
-        if (!(obj instanceof ExpectedEngHit)) {
+        if (!(obj instanceof ExpectedOldEngHit)) {
             return getClass().getName().equals(obj.getClass().getName());
         }
 
-        return compareTo((ExpectedEngHit) obj) == 0;
+        return compareTo((ExpectedOldEngHit) obj) == 0;
     }
 
     private static Object getATWDSamples(ByteBuffer buf, int offset,
@@ -730,14 +742,15 @@ class ExpectedEngHit
             atwdBuf.append(']');
         }
 
-        return "ExpEngHit@" + Long.toHexString(domId) + "[time " + utcTime +
-            " chip " + atwdChip + " mode " + trigMode + " clock " + domClock +
-            fadcBuf.toString() + atwdBuf.toString() + "]";
+        return "ExpEngHit@" + String.format("%012x", domId) +
+            "[time " + utcTime + " chip " + atwdChip + " mode " + trigMode +
+            " clock " + domClock + fadcBuf.toString() + atwdBuf.toString() +
+            "]";
     }
 }
 
 class ExpectedReadout
-    extends ExpectedData
+    extends ExpectedContainer
 {
     private long utcTime;
     private int uid;
@@ -808,10 +821,10 @@ class ExpectedReadout
 
             switch (recType) {
             case PayloadRegistry.PAYLOAD_ID_ENGFORMAT_HIT_DATA:
-                hitList.add(new ExpectedEngHit(buf, offset));
+                hitList.add(new ExpectedOldEngHit(buf, offset));
                 break;
             case PayloadRegistry.PAYLOAD_ID_COMPRESSED_HIT_DATA:
-                hitList.add(new ExpectedDeltaHit(buf, offset));
+                hitList.add(new ExpectedOldDeltaHit(buf, offset));
                 break;
             default:
                 throw new Error("Unknown hit type #" + recType);
@@ -903,14 +916,460 @@ class ExpectedReadout
     }
 }
 
+class ExpectedDeltaHit
+    extends ExpectedData
+{
+    private byte flags;
+    private short chanId;
+    private long utcTime;
+    private int word0;
+    private int word2;
+    private byte[] data;
+
+    ExpectedDeltaHit(byte flags, short chanId, long utcTime,
+                     int word0, int word2, byte[] data)
+    {
+        this.flags = flags;
+        this.chanId = chanId;
+        this.utcTime = utcTime;
+        this.word0 = word0;
+        this.word2 = word2;
+        this.data = data;
+    }
+
+    ExpectedDeltaHit(ByteBuffer buf, int offset, long baseTime, int recLen)
+    {
+        flags = buf.get(offset + 3);
+        chanId = buf.getShort(offset + 4);
+        utcTime = baseTime + buf.getInt(offset + 6);
+        word0 = buf.getInt(offset + 10);
+        word2 = buf.getInt(offset + 14);
+
+        final int origPos = buf.position();
+
+        data = new byte[recLen - 18];
+        buf.position(offset + 18);
+        buf.get(data, 0, data.length);
+
+        buf.position(origPos);
+    }
+
+    public int compareTo(Object obj)
+    {
+        if (!(obj instanceof ExpectedDeltaHit)) {
+            return getClass().getName().compareTo(obj.getClass().getName());
+        }
+
+        return compareTo((ExpectedDeltaHit) obj);
+    }
+
+    public int compareTo(ExpectedDeltaHit hit)
+    {
+        int val = flags - hit.flags;
+        if (val == 0) {
+            val = chanId - hit.chanId;
+            if (val == 0) {
+                val = compareLong(utcTime, hit.utcTime);
+                if (val == 0) {
+                    val = word0 - hit.word0;
+                    if (val == 0) {
+                        val = word2 - hit.word2;
+                    }
+                }
+            }
+        }
+
+        if (val == 0) {
+            if (data == null) {
+                if (hit.data == null) {
+                    val = 0;
+                } else {
+                    val = 1;
+                }
+            } else if (hit.data == null) {
+                val = -1;
+            } else {
+                val = data.length - hit.data.length;
+                if (val == 0) {
+                    for (int i = 0; val == 0 && i < data.length; i++) {
+                        val = data[i] - hit.data[i];
+                    }
+                }
+            }
+        }
+
+        return val;
+    }
+
+    public boolean equals(Object obj)
+    {
+        if (!(obj instanceof ExpectedDeltaHit)) {
+            return getClass().getName().equals(obj.getClass().getName());
+        }
+
+        return compareTo((ExpectedDeltaHit) obj) == 0;
+    }
+
+    public String toString()
+    {
+        StringBuilder dataBuf = new StringBuilder(" data");
+        if (data == null) {
+            dataBuf.append(" NULL");
+        } else if (data.length == 0) {
+            dataBuf.append(" EMPTY");
+        } else {
+            for (int i = 0; i < data.length; i++) {
+                if (i == 0) {
+                    dataBuf.append('[');
+                } else {
+                    dataBuf.append(' ');
+                }
+                dataBuf.append(data[i]);
+            }
+
+            dataBuf.append(']');
+        }
+
+        return "ExpDeltaHit@" + chanId + "[flags " + flags +
+            " time " + utcTime + " w0 " + word0 + " w2 " + word2 +
+            dataBuf + "]";
+    }
+}
+
+class ExpectedEngHit
+    extends ExpectedData
+{
+    private short chanId;
+    private long utcTime;
+    private byte atwdChip;
+    private byte lenFADC;
+    private byte atwdFmt01;
+    private byte atwdFmt23;
+    private byte trigMode;
+    private byte[] domClock;
+    private byte[] waveformData;
+
+    ExpectedEngHit(short chanId, long utcTime, byte atwdChip, byte lenFADC,
+                   byte atwdFmt01, byte atwdFmt23, byte trigMode,
+                   byte[] domClock, byte[] waveformData)
+    {
+        this.chanId = chanId;
+        this.utcTime = utcTime;
+        this.atwdChip = atwdChip;
+        this.lenFADC = lenFADC;
+        this.atwdFmt01 = atwdFmt01;
+        this.atwdFmt23 = atwdFmt23;
+        this.trigMode = trigMode;
+        this.domClock = domClock;
+        this.waveformData = waveformData;
+    }
+
+    ExpectedEngHit(ByteBuffer buf, int offset, long baseTime, int recLen)
+    {
+        chanId = buf.getShort(offset + 4);
+        utcTime = baseTime + buf.getInt(offset + 6);
+
+        atwdChip = buf.get(offset + 10);
+        lenFADC = buf.get(offset + 11);
+        atwdFmt01 = buf.get(offset + 12);
+        atwdFmt23 = buf.get(offset + 13);
+        trigMode = buf.get(offset + 14);
+
+        final int origPos = buf.position();
+
+        domClock = new byte[6];
+        buf.position(offset + 16);
+        buf.get(domClock, 0, domClock.length);
+
+        waveformData = new byte[recLen - 22];
+        buf.position(offset + 22);
+        buf.get(waveformData, 0, waveformData.length);
+
+        buf.position(origPos);
+    }
+
+    private static int compareArrays(byte[] array0, byte[] array1)
+    {
+        if (array0 == null) {
+            if (array1 == null) {
+                return 0;
+            }
+
+            return 1;
+        } else if (array1 == null) {
+            return -1;
+        }
+
+        int val = array0.length - array1.length;
+        if (val != 0) {
+            return val;
+        }
+
+        for (int i = 0; val == 0 && i < array0.length; i++) {
+            val = array0[i] - array1[i];
+        }
+
+        return val;
+    }
+
+    public int compareTo(Object obj)
+    {
+        if (!(obj instanceof ExpectedEngHit)) {
+            return getClass().getName().compareTo(obj.getClass().getName());
+        }
+
+        return compareTo((ExpectedEngHit) obj);
+    }
+
+    public int compareTo(ExpectedEngHit hit)
+    {
+        int val = chanId - hit.chanId;
+        if (val == 0) {
+            val = compareLong(utcTime, hit.utcTime);
+            if (val == 0) {
+                val = atwdChip - hit.atwdChip;
+                if (val == 0) {
+                    val = lenFADC - hit.lenFADC;
+                    if (val == 0) {
+                        val = atwdFmt01 - hit.atwdFmt01;
+                        if (val == 0) {
+                            val = atwdFmt23 - hit.atwdFmt23;
+                            if (val == 0) {
+                                val = trigMode - hit.trigMode;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (val == 0) {
+            val = compareArrays(domClock, hit.domClock);
+            if (val == 0) {
+                val = compareArrays(waveformData, hit.waveformData);
+            }
+        }
+
+        return val;
+    }
+
+    public boolean equals(Object obj)
+    {
+        if (!(obj instanceof ExpectedEngHit)) {
+            return getClass().getName().equals(obj.getClass().getName());
+        }
+
+        return compareTo((ExpectedEngHit) obj) == 0;
+    }
+
+    public String toString()
+    {
+        StringBuilder clockBuf = new StringBuilder(" clk");
+        if (domClock == null) {
+            clockBuf.append(" NULL");
+        } else if (domClock.length == 0) {
+            clockBuf.append(" EMPTY");
+        } else {
+            for (int i = 0; i < domClock.length; i++) {
+                if (i == 0) {
+                    clockBuf.append('[');
+                } else {
+                    clockBuf.append(' ');
+                }
+                clockBuf.append(domClock[i]);
+            }
+
+            clockBuf.append(']');
+        }
+
+        StringBuilder dataBuf = new StringBuilder(" data");
+        if (waveformData == null) {
+            dataBuf.append(" NULL");
+        } else if (waveformData.length == 0) {
+            dataBuf.append(" EMPTY");
+        } else {
+            for (int i = 0; i < waveformData.length; i++) {
+                if (i == 0) {
+                    dataBuf.append('[');
+                } else {
+                    dataBuf.append(' ');
+                }
+                dataBuf.append(waveformData[i]);
+            }
+
+            dataBuf.append(']');
+        }
+
+        return "ExpEngHit@" + chanId + "[time " + utcTime +
+            " chip " + atwdChip + " fadc*" + lenFADC + " fmt01 " + atwdFmt01 +
+            " fmt23 " + atwdFmt23 + " mode " + trigMode +
+            clockBuf.toString() + dataBuf.toString() + "]";
+    }
+}
+
+class ExpectedHitList
+    extends ExpectedContainer
+{
+    private long utcTime;
+    private int uid;
+    private short payNum;
+    private short payLast;
+    private int srcId;
+    private long firstTime;
+    private long lastTime;
+    private int numHits;
+    private List<ExpectedData> hitList;
+
+    ExpectedHitList(long utcTime, int uid, int srcId)
+    {
+        this.utcTime = utcTime;
+        this.uid = uid;
+        this.srcId = srcId;
+
+        hitList = new ArrayList<ExpectedData>();
+    }
+
+    ExpectedHitList(ByteBuffer buf)
+    {
+        final int minBytes = 54;
+
+        final int rdoutLen = buf.getInt(0);
+        if (rdoutLen < minBytes) {
+            throw new Error("Hit record list must contain at least " +
+                            minBytes + " bytes, not " + rdoutLen);
+        }
+
+        final int type = buf.getInt(4);
+        if (type != PayloadRegistry.PAYLOAD_ID_HIT_RECORD_LIST) {
+            throw new Error("Bad hit record list payload type " + type);
+        }
+
+        utcTime = buf.getLong(8);
+
+        uid = buf.getInt(16);
+        srcId = buf.getInt(20);
+        numHits = buf.getInt(24);
+
+        hitList = new ArrayList<ExpectedData>(numHits);
+
+        int offset = 28;
+        for (int i = 0; i < numHits; i++) {
+            int recLen = buf.getShort(offset + 0);
+            int recType = buf.get(offset + 2);
+
+            switch (recType) {
+            case EngineeringHitRecord.HIT_RECORD_TYPE:
+                hitList.add(new ExpectedEngHit(buf, offset, utcTime, recLen));
+                break;
+            case DeltaHitRecord.HIT_RECORD_TYPE:
+                hitList.add(new ExpectedDeltaHit(buf, offset, utcTime, recLen));
+                break;
+            default:
+                throw new Error("Unknown hit type #" + recType);
+            }
+
+            offset += recLen;
+        }
+    }
+
+    void addHit(ExpectedData hit)
+    {
+        hitList.add(hit);
+    }
+
+    public int compareTo(Object obj)
+    {
+        if (obj == null) {
+            return -1;
+        }
+        if (!(obj instanceof ExpectedHitList)) {
+            return getClass().getName().compareTo(obj.getClass().getName());
+        }
+
+        return compareTo((ExpectedHitList) obj);
+    }
+
+    public int compareTo(ExpectedHitList ro)
+    {
+        int val = compareLong(utcTime, ro.utcTime);
+        if (val == 0) {
+            val = compareLong(firstTime, ro.firstTime);
+            if (val == 0) {
+                val = compareLong(lastTime, ro.lastTime);
+                if (val == 0) {
+                    val = uid - ro.uid;
+                    if (val == 0) {
+                        val = payNum - ro.payNum;
+                        if (val == 0) {
+                            val = payLast - ro.payLast;
+                            if (val == 0) {
+                                val = srcId - ro.srcId;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (val == 0) {
+            if (hitList == null) {
+                if (ro.hitList == null) {
+                    val = 0;
+                } else {
+                    val = 1;
+                }
+            } else if (ro.hitList == null) {
+                val = 1;
+            } else {
+                val = hitList.size() - ro.hitList.size();
+                for (int i = 0; val == 0 && i < hitList.size(); i++) {
+                    val = hitList.get(i).compareTo(ro.hitList.get(i));
+                    if (val != 0) {
+                        System.err.println("CMP failed for " + hitList.get(i) +
+                                           " vs. " + ro.hitList.get(i));
+                    }
+                }
+            }
+        }
+
+        return val;
+    }
+
+    public boolean equals(Object obj)
+    {
+        if (obj == null) {
+            return false;
+        }
+        if (!(obj instanceof ExpectedHitList)) {
+            return getClass().getName().equals(obj.getClass().getName());
+        }
+
+        return compareTo((ExpectedHitList) obj) == 0;
+    }
+
+    public String toString()
+    {
+        return "ExpHitLst[#" + uid + " pay " + payNum + "/" + payLast +
+            " src " + srcId + " hits*" + hitList.size() + "]";
+    }
+}
+
 class MockReadoutChannel
     extends MockOutputChannel
 {
-    private ExpectedReadout recent;
+    private ExpectedContainer recent;
 
     MockReadoutChannel()
     {
         super("readout");
+    }
+
+    void addExpectedHitList(long utcTime, int uid, short payNum, short payLast,
+                            int srcId, long firstTime, long lastTime)
+    {
+        recent = new ExpectedHitList(utcTime, uid, srcId);
+
+        addExpectedData(recent);
     }
 
     void addExpectedReadout(long utcTime, int uid, short payNum, short payLast,
@@ -922,35 +1381,63 @@ class MockReadoutChannel
         addExpectedData(recent);
     }
 
-    void addDeltaHit(long domId, long utcTime, short version, short pedestal,
-                     long domClock, byte lcMode, short trigMode,
-                     short waveformFlags, int peakInfo, byte[] data)
+    void addOldDeltaHit(long domId, long utcTime, short version, short pedestal,
+                        long domClock, byte lcMode, short trigMode,
+                        short waveformFlags, int peakInfo, byte[] data)
     {
         if (recent == null) {
             throw new Error("No expected readout has been added");
         }
 
-        recent.addHit(new ExpectedDeltaHit(domId, utcTime, version, pedestal,
-                                           domClock, lcMode, trigMode,
-                                           waveformFlags, peakInfo, data));
+        recent.addHit(new ExpectedOldDeltaHit(domId, utcTime, version, pedestal,
+                                              domClock, lcMode, trigMode,
+                                              waveformFlags, peakInfo, data));
     }
 
-    void addEngHit(long domId, long utcTime, int atwdChip, short trigMode,
-                   long domClock, short[] fadcSamples, Object atwd0Data,
-                   Object atwd1Data, Object atwd2Data, Object atwd3Data)
+    void addDeltaHit(byte flags, short chanId, long utcTime, int word0,
+                     int word2, byte[] data)
     {
         if (recent == null) {
             throw new Error("No expected readout has been added");
         }
 
-        recent.addHit(new ExpectedEngHit(domId, utcTime, atwdChip, trigMode,
-                                         domClock, fadcSamples, atwd0Data,
-                                         atwd1Data, atwd2Data, atwd3Data));
+        recent.addHit(new ExpectedDeltaHit(flags, chanId, utcTime, word0,
+                                           word2, data));
+    }
+
+    void addOldEngHit(long domId, long utcTime, int atwdChip, short trigMode,
+                      long domClock, short[] fadcSamples, Object atwd0Data,
+                      Object atwd1Data, Object atwd2Data, Object atwd3Data)
+    {
+        if (recent == null) {
+            throw new Error("No expected readout has been added");
+        }
+
+        recent.addHit(new ExpectedOldEngHit(domId, utcTime, atwdChip, trigMode,
+                                            domClock, fadcSamples, atwd0Data,
+                                            atwd1Data, atwd2Data, atwd3Data));
+    }
+
+    void addEngHit(short chanId, long utcTime, byte atwdChip, byte lenFADC,
+                   byte atwdFmt01, byte atwdFmt23, byte trigMode,
+                   byte[] domClock, byte[] waveformData)
+    {
+        if (recent == null) {
+            throw new Error("No expected readout has been added");
+        }
+
+        recent.addHit(new ExpectedEngHit(chanId, utcTime, atwdChip, lenFADC,
+                                         atwdFmt01, atwdFmt23, trigMode,
+                                         domClock, waveformData));
     }
 
     ExpectedData getBufferData(ByteBuffer buf)
     {
-        return new ExpectedReadout(buf);
+        if (EventVersion.VERSION < 5) {
+            return new ExpectedReadout(buf);
+        } else {
+            return new ExpectedHitList(buf);
+        }
     }
 }
 
@@ -983,6 +1470,8 @@ public class SenderTest
     private static final MockAppender appender =
         //new MockAppender(org.apache.log4j.Level.ALL).setVerbose(true);
         new MockAppender();
+
+    private static DOMRegistry domRegistry;
 
     public SenderTest()
     {
@@ -1220,6 +1709,15 @@ public class SenderTest
     {
         BasicConfigurator.resetConfiguration();
         BasicConfigurator.configure(appender);
+
+        if (domRegistry == null) {
+            String configDir = getClass().getResource("/config").getPath();
+            try {
+                domRegistry = DOMRegistry.loadRegistry(configDir);
+            } catch (Exception ex) {
+                throw new Error("Couldn't load DOM registry", ex);
+            }
+        }
     }
 
     @After
@@ -1239,9 +1737,11 @@ public class SenderTest
 
     @Test
     public void testConsumeStop()
+        throws IOException
     {
         MockBufferCache cache = new MockBufferCache();
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
+        //sender.setDOMRegistry(domRegistry);
 
         MockHitChannel hitChan = new MockHitChannel();
         sender.setHitOutput(new MockOutputChannelManager(hitChan));
@@ -1256,7 +1756,14 @@ public class SenderTest
 
         waitForDataStop(sender, 1);
 
-        sender.stopThread();
+        sender.addRequestStop();
+
+        waitForRequestStop(sender, 1);
+
+        if (sender.isRunning()) {
+            sender.stopThread();
+            fail("Expected thread to be stopped");
+        }
 
         waitForSenderStop(sender);
 
@@ -1270,9 +1777,11 @@ public class SenderTest
 
     @Test
     public void testConsumeEngHit()
+        throws IOException
     {
         MockBufferCache cache = new MockBufferCache();
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
+        //sender.setDOMRegistry(domRegistry);
 
         MockHitChannel hitChan = new MockHitChannel();
         sender.setHitOutput(new MockOutputChannelManager(hitChan));
@@ -1286,7 +1795,7 @@ public class SenderTest
         long utcTime = 123456789L;
         int atwdChip = 1;
         short trigMode = 4;
-        long domClock = utcTime;
+        long domClock = utcTime / 234L;
         short[] fadcSamples = new short[] { 1, 2, 3 };
         Object atwd0Data = new short[32];
         Object atwd1Data = null;
@@ -1326,9 +1835,11 @@ public class SenderTest
 
     @Test
     public void testConsumeDeltaHit()
+        throws IOException
     {
         MockBufferCache cache = new MockBufferCache();
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
+        //sender.setDOMRegistry(domRegistry);
 
         MockHitChannel hitChan = new MockHitChannel();
         sender.setHitOutput(new MockOutputChannelManager(hitChan));
@@ -1342,9 +1853,9 @@ public class SenderTest
         long utcTime = 123456789L;
         short version = 12;
         short pedestal = 34;
-        long domClock = utcTime;
+        long domClock = utcTime / 234L;
         byte lcMode = 3;
-        short trigMode = 4;
+        short trigMode = 2;
         short waveformFlags = 15;
         int peakInfo = 9876;
         byte[] data = new byte[32];
@@ -1386,9 +1897,11 @@ public class SenderTest
 
     @Test
     public void testConsumeHitsAndRequest()
+        throws IOException
     {
         MockBufferCache cache = new MockBufferCache();
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
+        sender.setDOMRegistry(domRegistry);
 
         MockHitChannel hitChan = new MockHitChannel();
         sender.setHitOutput(new MockOutputChannelManager(hitChan));
@@ -1404,20 +1917,43 @@ public class SenderTest
         ByteBuffer buf;
 
         long baseTime = 123456789L;
-        short trigMode = 4;
+        short trigMode = 3;
 
         long engDomId = 0xfedcba987654L;
+        short engChanId = 123;
         long engTime = baseTime + 100L;
-        int atwdChip = 1;
+        byte atwdChip = 1;
+        long engClock = engTime / 234L;
         short[] fadcSamples = new short[] { 1, 2, 3 };
         Object atwd0Data = new byte[32];
         Object atwd1Data = new byte[16];
         Object atwd2Data = new short[16];
         Object atwd3Data = new short[32];
 
-        buf = createEngHit(engDomId, engTime, atwdChip, trigMode, engTime,
-                           fadcSamples, atwd0Data, atwd1Data, atwd2Data,
-                           atwd3Data);
+        byte lenFADC = 3;
+        byte atwdFmt01 = (byte) -111;
+        byte atwdFmt23 = 59;
+        byte[] domClock = new byte[] {
+            (byte) 0, (byte) 0, (byte) 0,
+            (byte) 8, (byte) 12, (byte) 233,
+        };
+        byte[] waveformData = new byte[150];
+        for (int i = 0; i < waveformData.length; i++) {
+            waveformData[i] = (byte) 0;
+        }
+        waveformData[1] = (byte) 1;
+        waveformData[3] = (byte) 2;
+        waveformData[5] = (byte) 3;
+
+        if (EventVersion.VERSION < 5) {
+            buf = createEngHit(engDomId, engTime, atwdChip, trigMode, engTime,
+                               fadcSamples, atwd0Data, atwd1Data, atwd2Data,
+                               atwd3Data);
+        } else {
+            buf = createEngHit(engDomId, engTime, atwdChip, trigMode, engClock,
+                               fadcSamples, atwd0Data, atwd1Data, atwd2Data,
+                               atwd3Data);
+        }
 
         hitChan.addExpectedHit(engDomId, engTime, trigMode, 0, HUB_SRCID,
                                trigMode);
@@ -1428,21 +1964,32 @@ public class SenderTest
         lastHitTime = engTime;
 
         long deltaDomId = 0xedcba9876543L;
+        short deltaChanId = 124;
         long deltaTime = baseTime + 200L;
         short version = 1;
         short pedestal = 34;
+        long deltaClock = deltaTime / 234L;
         byte lcMode = 3;
         short waveformFlags = 15;
         int peakInfo = 9876;
         byte[] data = new byte[32];
 
+        int word0 = 4421676;
+        int word2 = 9876;
+
         for (int i = 0; i < data.length; i++) {
             data[i] = (byte) i;
         }
 
-        buf = createDeltaHit(deltaDomId, deltaTime, version, pedestal,
-                             deltaTime, lcMode, trigMode, waveformFlags,
-                             peakInfo, data);
+        if (EventVersion.VERSION < 5) {
+            buf = createDeltaHit(deltaDomId, deltaTime, version, pedestal,
+                                 deltaTime, lcMode, trigMode, waveformFlags,
+                                 peakInfo, data);
+        } else {
+            buf = createDeltaHit(deltaDomId, deltaTime, version, pedestal,
+                                 deltaClock, lcMode, trigMode, waveformFlags,
+                                 peakInfo, data);
+        }
 
         hitChan.addExpectedHit(deltaDomId, deltaTime, trigMode, 0, HUB_SRCID,
                                trigMode);
@@ -1462,23 +2009,40 @@ public class SenderTest
 
         sender.addRequest(req);
 
-        rdoutChan.addExpectedReadout(roFirstTime, uid, (short) 0, (short) 1,
-                                     HUB_SRCID, roFirstTime, roLastTime);
-        rdoutChan.addEngHit(engDomId, engTime, atwdChip, trigMode, engTime,
-                            fadcSamples, atwd0Data, atwd1Data, atwd2Data,
-                            atwd3Data);
-        rdoutChan.addDeltaHit(deltaDomId, deltaTime, version, pedestal,
-                              deltaTime, lcMode, trigMode, waveformFlags,
-                              peakInfo, data);
+        if (EventVersion.VERSION < 5) {
+            rdoutChan.addExpectedReadout(roFirstTime, uid, (short) 0, (short) 1,
+                                         HUB_SRCID, roFirstTime, roLastTime);
+            rdoutChan.addOldEngHit(engDomId, engTime, atwdChip, trigMode,
+                                   engTime, fadcSamples, atwd0Data, atwd1Data,
+                                   atwd2Data, atwd3Data);
+            rdoutChan.addOldDeltaHit(deltaDomId, deltaTime, version, pedestal,
+                                     deltaTime, lcMode, trigMode, waveformFlags,
+                                     peakInfo, data);
+        } else {
+            rdoutChan.addExpectedHitList(roFirstTime, uid, (short) 0, (short) 1,
+                                         HUB_SRCID, roFirstTime, roLastTime);
+            rdoutChan.addEngHit(engChanId, engTime, atwdChip, lenFADC, atwdFmt01,
+                                atwdFmt23, (byte) trigMode, domClock,
+                                waveformData);
+            rdoutChan.addDeltaHit((byte) (pedestal & 0x3), deltaChanId,
+                                  deltaTime, word0, word2, data);
+        }
 
         waitForRequestDequeued(sender);
 
         long flushDomId = 0xdcba98765432L;
         long flushTime = baseTime + 10000L;
+        long flushClock = flushTime / 234L;
 
-        buf = createEngHit(flushDomId, flushTime, atwdChip, trigMode, flushTime,
-                           fadcSamples, atwd0Data, atwd1Data, atwd2Data,
-                           atwd3Data);
+        if (EventVersion.VERSION < 5) {
+            buf = createEngHit(flushDomId, flushTime, atwdChip, trigMode,
+                               flushTime, fadcSamples, atwd0Data, atwd1Data,
+                               atwd2Data, atwd3Data);
+        } else {
+            buf = createEngHit(flushDomId, flushTime, atwdChip, trigMode,
+                               flushClock, fadcSamples, atwd0Data, atwd1Data,
+                               atwd2Data, atwd3Data);
+        }
 
         hitChan.addExpectedHit(flushDomId, flushTime, trigMode, 0, HUB_SRCID,
                                trigMode);
@@ -1561,6 +2125,23 @@ public class SenderTest
         }
         assertEquals("Request was not dequeued",
                      0, sender.getNumRequestsQueued());
+    }
+
+    private static final void waitForRequestStop(Sender sender, long numStops)
+    {
+        for (int i = 0; i < 20; i++) {
+            if (sender.getTotalRequestStopsReceived() == numStops) {
+                break;
+            }
+
+            try {
+                Thread.sleep(100);
+            } catch (Exception ex) {
+                // ignore interrupts
+            }
+        }
+        assertEquals("Data stop was not received",
+                     numStops, sender.getTotalDataStopsReceived());
     }
 
     private static final void waitForSenderStop(Sender sender)

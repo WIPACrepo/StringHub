@@ -1,6 +1,5 @@
 package icecube.daq.stringhub;
 
-import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.io.SimpleOutputEngine;
 import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQCompServer;
@@ -10,8 +9,8 @@ import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
 import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.payload.IByteBufferCache;
-import icecube.daq.payload.MasterPayloadFactory;
-import icecube.daq.payload.VitreousBufferCache;
+import icecube.daq.payload.impl.ReadoutRequestFactory;
+import icecube.daq.payload.impl.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
 import icecube.daq.util.FlasherboardConfiguration;
@@ -90,13 +89,13 @@ public class ReplayHubComponent
             sender.setHitOutput(hitOut);
         }
 
-        MasterPayloadFactory payloadFactory =
-            new MasterPayloadFactory(genMgr);
+        ReadoutRequestFactory rdoutReqFactory =
+            new ReadoutRequestFactory(genMgr);
 
         RequestReader reqIn;
         try
         {
-            reqIn = new RequestReader(COMPONENT_NAME, sender, payloadFactory);
+            reqIn = new RequestReader(COMPONENT_NAME, sender, rdoutReqFactory);
         }
         catch (IOException ioe)
         {

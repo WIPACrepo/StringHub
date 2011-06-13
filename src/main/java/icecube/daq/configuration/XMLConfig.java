@@ -235,7 +235,7 @@ public class XMLConfig extends DefaultHandler
 			}
 			else if (localName.equals("source"))
 			{
-			    if (text.equals("spe")) 
+			    if (text.equals("spe"))
 			        currentConfig.getLC().setSource(LocalCoincidenceConfiguration.Source.SPE);
 			    else if (text.equals("mpe"))
 			        currentConfig.getLC().setSource(LocalCoincidenceConfiguration.Source.MPE);
@@ -394,10 +394,10 @@ public class XMLConfig extends DefaultHandler
 		{
 		    long t0 = System.currentTimeMillis();
 			parser.parse(xmlIn, this);
-			if (logger.isInfoEnabled()) {
-				logger.info("XML parsing completed - took " +
-						(System.currentTimeMillis() - t0) +
-						" milliseconds.");
+			if (logger.isDebugEnabled()) {
+				logger.debug("XML parsing completed - took " +
+                                             (System.currentTimeMillis() - t0) +
+                                             " milliseconds.");
 			}
 		}
 		catch (Exception except)

@@ -58,6 +58,9 @@ public enum MessageType {
 	
 	/** Enable (1) or disable (0) transmission of MinBias waveforms (1:8192 prescale) */
 	SELECT_MINBIAS(2,62),
+	
+	GET_DATA_ACCESS_ERROR_ID(2, 2),
+	GET_DATA_ACCESS_ERROR_STR(2, 3),
 	GET_DATA(3, 11),
 	
 	GET_MONI(3, 12),
@@ -104,6 +107,9 @@ public enum MessageType {
 	
 	SELECT_ATWD(3, 35),
 	
+	GET_FAST_MONI_RATE_TYPE(3, 36),
+	SET_FAST_MONI_RATE_TYPE(3, 37),
+	
 	/** Start a data collection run on the DOM */
 	BEGIN_RUN(4, 12),
 	
@@ -119,7 +125,10 @@ public enum MessageType {
 	BEGIN_FB_RUN(4, 27),
 	
 	/** Stop an on-going flasher run */
-	END_FB_RUN(4, 28);
+	END_FB_RUN(4, 28),
+	
+	/** Change FB parameters - akin to the BEGIN_FB_RUN message */
+	CHANGE_FB_SETTINGS(4, 29);
 
 	private byte facility;
 	private byte subtype;

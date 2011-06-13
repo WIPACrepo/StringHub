@@ -34,6 +34,18 @@ public class DOMApp implements IDOMApp
         devIO.close();
     }
 
+    public void changeFlasherSettings(
+            short brightness, 
+            short width, 
+            short delay, 
+            short mask, 
+            short rate) throws MessageException
+    {
+        ByteBuffer buf = ByteBuffer.allocate(10);
+        buf.putShort(brightness).putShort(width).putShort(delay).putShort(mask).putShort(rate).flip();
+        sendMessage(MessageType.CHANGE_FB_SETTINGS, buf);
+    }
+    
     public void beginFlasherRun(short brightness, short width, short delay, short mask, short rate)
             throws MessageException
     {
@@ -372,7 +384,7 @@ public class DOMApp implements IDOMApp
                 msgBufferOut.put(out);
             }
             msgBufferOut.flip();
-            int status = msgBufferOut.get(7);
+            int status = (msgBufferOut.get(7) & 0xff);
             msgBufferOut.position(8);
             if (!(type.equals(msgBufferOut.get(0), msgBufferOut.get(1)) && status == 1))
                 throw new MessageException(type, msgBufferOut.get(0), msgBufferOut.get(1), status);
@@ -464,6 +476,50 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.SET_HV, buf);
     }
 
+    public void setLBMDepth(LBMDepth depth) throws MessageException
+    {
+        ByteBuffer buf = ByteBuffer.allocate(1);
+        buf.put((byte) (depth.ordinal()+8)).flip();
+        try 
+        {
+            sendMessage(MessageType.SET_LBM_DEPTH, buf);
+        } 
+        catch (MessageException mex)
+        {
+            /* 
+             * work-around to ignore messages which fail here - domapp forgot
+             * to set the success to OK on this message!
+             */
+        }
+    }
+    
+    public LBMDepth getLBMDepth() throws MessageException
+    {
+        ByteBuffer buf = sendMessage(MessageType.GET_LBM_DEPTH);
+        int length = buf.getInt();
+        switch (length)
+        {
+        case 0x000100: return LBMDepth.LBM_256;
+        case 0x000200: return LBMDepth.LBM_512;
+        case 0x000400: return LBMDepth.LBM_1K;
+        case 0x000800: return LBMDepth.LBM_2K;
+        case 0x001000: return LBMDepth.LBM_4K;
+        case 0x002000: return LBMDepth.LBM_8K;
+        case 0x004000: return LBMDepth.LBM_16K;
+        case 0x008000: return LBMDepth.LBM_32K;
+        case 0x010000: return LBMDepth.LBM_64K;
+        case 0x020000: return LBMDepth.LBM_128K;
+        case 0x040000: return LBMDepth.LBM_256K;
+        case 0x080000: return LBMDepth.LBM_512K;
+        case 0x100000: return LBMDepth.LBM_1M;
+        case 0x200000: return LBMDepth.LBM_2M;
+        case 0x400000: return LBMDepth.LBM_4M;
+        case 0x800000: return LBMDepth.LBM_8M;
+        default:
+            throw new MessageException(MessageType.GET_LBM_DEPTH, new IllegalArgumentException()); 
+        }
+    }
+    
     /*
      * (non-Javadoc)
      *
@@ -608,13 +664,13 @@ public class DOMApp implements IDOMApp
         ByteBuffer ack = ByteBuffer.allocate(34);
         while (ack.position() < 20) ack.put(devIO.recv());
         // if the 5th byte is an 'E'
-	StringBuffer debugTxt = new StringBuffer("DOMApp detector returns");
-	for (int i = 0; i < 8; i++) {
-	    int b = ack.get(i);
-	    if (b < 0) b += 256;
-	    debugTxt.append(String.format(" %02x", b));
-	}
-	logger.debug(debugTxt);
+        StringBuffer debugTxt = new StringBuffer("DOMApp detector returns");
+        for (int i = 0; i < 8; i++) {
+            int b = ack.get(i);
+            if (b < 0) b += 256;
+            debugTxt.append(String.format(" %02x", b));
+        }
+        logger.debug(debugTxt);
         if (ack.get(4) != (byte) 0x45) return true;
         // finish up reading iceboot response
         while (ack.position() < 34) ack.put(devIO.recv());
@@ -703,6 +759,21 @@ public class DOMApp implements IDOMApp
         ByteBuffer buf = ByteBuffer.allocate(4);
         buf.put((byte) 1).flip();
         sendMessage(MessageType.SELECT_MINBIAS, buf);        
+    }
+
+    public FastMoniRateType getFastMoniRateType() throws MessageException
+    {
+        ByteBuffer buf = sendMessage(MessageType.GET_FAST_MONI_RATE_TYPE);
+        byte type = buf.get();
+        if (type == 0) return FastMoniRateType.F_MONI_RATE_HLC;
+        return FastMoniRateType.F_MONI_RATE_SLC;
+    }
+
+    public void setFastMoniRateType(FastMoniRateType type) throws MessageException
+    {
+        ByteBuffer buf = ByteBuffer.allocate(1);
+        buf.put((byte) type.ordinal()).flip();
+        sendMessage(MessageType.SET_FAST_MONI_RATE_TYPE, buf);
     }
 
 }

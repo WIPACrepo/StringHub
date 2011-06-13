@@ -2,7 +2,12 @@
 
 package icecube.daq.domapp;
 
+import icecube.daq.juggler.alert.AlertException;
+import icecube.daq.juggler.alert.Alerter;
+import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
+
+import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
@@ -27,10 +32,15 @@ public abstract class AbstractDataCollector extends Thread
     protected char dom;
 
     protected String mbid;
+    protected String name;
+    protected int major;
+    protected int minor;
+
     protected RunLevel runLevel;
     protected DOMConfiguration config;
     protected FlasherboardConfiguration flasherConfig;
     protected boolean alwaysSoftboot = false;
+    protected Alerter alerter;
     private static final Logger logger = Logger.getLogger(AbstractDataCollector.class);
 
     public AbstractDataCollector(int card, int pair, char dom)
@@ -213,8 +223,25 @@ public abstract class AbstractDataCollector extends Thread
 	    return 0L;
 	}
 
+    public long getLBMOverflowCount()
+    {
+        return 0L;
+    }
+
     public void setSoftbootBehavior(boolean dcSoftboot)
     {
         alwaysSoftboot = dcSoftboot;
+    }
+
+    public void setAlerter(Alerter alerter)
+    {
+        this.alerter = alerter;
+    }
+
+    public void setDomInfo(DeployedDOM domInfo)
+    {
+        name = domInfo.getName();
+        major = domInfo.getStringMajor();
+        minor = domInfo.getStringMinor();
     }
 }
