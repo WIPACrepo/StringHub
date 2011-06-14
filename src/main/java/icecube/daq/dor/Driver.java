@@ -200,13 +200,8 @@ public final class Driver implements IDriver {
 		throw new IOException("TCAL read failed.");
 	}
 
-	public GPSInfo readGPS(int card) throws GPSException {
-
-		// Try to enforce not reading the GPS procfile more than once per second
-		GPSSynch gps = gpsList[card];
-		long current = System.currentTimeMillis();
-		if (System.currentTimeMillis() - gps.last_read_time < 1001) return gps.cached;
-
+	public GPSInfo readGPS(int card) throws GPSException 
+	{
 		ByteBuffer buf = ByteBuffer.allocate(22);
 		File file = makeProcfile("" + card, "syncgps");
 		try
@@ -227,8 +222,6 @@ public final class Driver implements IDriver {
     			{
     	            buf.flip();
     	            GPSInfo gpsinfo = new GPSInfo(buf);
-    	            gps.cached = gpsinfo;
-    	            gps.last_read_time = current;
     	            if (logger.isDebugEnabled()) logger.debug("GPS read on " + file.getAbsolutePath() + " - " + gpsinfo);
     	            return gpsinfo;
     			}
