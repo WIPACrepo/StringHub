@@ -423,7 +423,7 @@ public class DataCollector
         {
             // WARN - this is done /w/ HV applied - probably need to
             // screen in DOMApp for spurious pulses
-            app.collectPedestals(200, 200, 200);
+            app.collectPedestals(200, 200, 200, config.getAveragePedestals());
         }
 
         // set chargestamp source - again fail with WARNING if cannot get the
@@ -704,8 +704,8 @@ public class DataCollector
         try
         {            
             GPSService gps_serv = GPSService.getInstance();
-            UTC gpsOffset = new UTC(0L);
             GPSInfo gps = gps_serv.getGps(card);
+            UTC gpsOffset = new UTC(0L);
             if (gps != null) gpsOffset = gps.getOffset();
             
             TimeCalib tcal = driver.readTCAL(card, pair, dom);
