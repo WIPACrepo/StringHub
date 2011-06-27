@@ -1943,6 +1943,9 @@ public class SenderTest
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
         sender.setDOMRegistry(domRegistry);
 
+        MockBufferCache teCache = new MockBufferCache();
+        sender.setTrackEngineCache(teCache);
+
         MockHitChannel hitChan = new MockHitChannel();
         sender.setHitOutput(new MockOutputChannelManager(hitChan));
 
