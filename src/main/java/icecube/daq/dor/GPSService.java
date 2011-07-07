@@ -1,6 +1,7 @@
 package icecube.daq.dor;
 
 import java.util.GregorianCalendar;
+import java.util.Calendar;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
@@ -21,9 +22,11 @@ import icecube.daq.util.StringHubAlert;
 public class GPSService
 {
 
-    private Logger logger = Logger.getLogger(GPSService.class);
+    private static Logger logger = Logger.getLogger(GPSService.class);
     private Alerter alerter;
-
+    private static int countFalse = 0;
+    private static final int maxFalse = 0;
+    
     private class GPSCollector extends Thread
     {
         private Driver driver;
@@ -32,7 +35,7 @@ public class GPSService
         private GPSInfo gps;
         private int gps_error_count;
         private AtomicBoolean running;
-        
+	        
         GPSCollector(int card) 
         {
             driver = Driver.getInstance();
@@ -58,32 +61,18 @@ public class GPSService
         {
             while (running.get())
             {
-                try 
+                try
                 {
                     Thread.sleep(240L);
-                    GPSInfo newGPS = driver.readGPS(card);
-                    
-                    GregorianCalendar calendar = new GregorianCalendar(
-                            new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
-                    
-                    cons_gpsx_count = 0;
-                    if (!(gps == null || newGPS.getOffset().equals(gps.getOffset())))
-                    {
-                        logger.error(
-                                "GPS offset mis-alignment detected - old GPS: " +
-                                gps + " new GPS: " + newGPS);
-                        StringHubAlert.sendDOMAlert(
-                                alerter, "GPS Error", "GPS Offset mis-match",
-                                card, 0, '-', "000000000000", "GPS", 0, 0);
-                    }
-                    else
-                    {
-                        synchronized (this) { gps = newGPS; }
-                    }
                 }
                 catch (InterruptedException intx)
                 {
                     return;
+                }
+
+                GPSInfo newGPS;
+                try {
+                    newGPS = driver.readGPS(card);
                 }
                 catch (GPSNotReady gps_not_ready)
                 {
@@ -94,6 +83,7 @@ public class GPSService
                                 alerter, "GPS Error", "SyncGPS procfile not ready",
                                 card, 0, '-', "000000000000", "GPS", 0, 0);
                     }
+                    continue;
                 }
                 catch (GPSException gps_ex)
                 {
@@ -103,11 +93,29 @@ public class GPSService
                             alerter, "GPS Error", "SyncGPS procfile I/O error",
                             card, 0, '-', "000000000000", "GPS", 0, 0);
                     gps_error_count++;
+                    continue;
                 }
+
+                // got GPS info, clear error counter
+                cons_gpsx_count = 0;
+
+                if (!(gps == null || newGPS.getOffset().equals(gps.getOffset())))
+                {
+                    logger.error("GPS offset mis-alignment detected - old GPS: " +
+                                 gps + " new GPS: " + newGPS);
+                    StringHubAlert.sendDOMAlert(
+                            alerter, "GPS Error", "GPS Offset mis-match",
+                            card, 0, '-', "000000000000", "GPS", 0, 0);
+                }
+                else
+                {
+                    synchronized (this) { gps = newGPS; }
+                }
+                    
             }
         }
         
-        synchronized GPSInfo getGps() { return gps; }
+	synchronized GPSInfo getGps() { return gps; }
 
         public boolean isRunning()
         {
@@ -117,6 +125,7 @@ public class GPSService
     
     private GPSCollector[] coll;
     private static final GPSService instance = new GPSService();
+    private static final int maxDiff = 5;
     
     private GPSService()
     {
@@ -150,6 +159,66 @@ public class GPSService
         {
             synchronized (this) { gps = newGPS; }
         }
+    }
+
+    public static void GPSTest(GPSInfo newGPS)    {
+	if(!testGPS(newGPS)) {
+            countFalse++;
+            if(countFalse > maxFalse)
+            {
+            GregorianCalendar calendar = new GregorianCalendar();
+            logger.error("GPS clock " + newGPS +
+                " differs from system clock " + calendar);
+            }
+        }
+	}
+
+    public static boolean testGPS(GPSInfo gps)
+    {
+	final int hourGPS, hourGreg;
+	final int minGPS, minGreg;
+	final int secGPS, secGreg;
+	final int dayGPS, dayGreg;
+
+	GregorianCalendar calendar = new GregorianCalendar(
+            new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
+
+	calendar.add(GregorianCalendar.DAY_OF_YEAR, gps.getDay() - 1);
+	dayGreg = calendar.get(Calendar.DAY_OF_YEAR);
+	dayGPS = gps.getDay();
+	hourGreg = calendar.get(Calendar.HOUR_OF_DAY);
+	hourGPS = gps.getHour();
+	minGreg = calendar.get(Calendar.MINUTE);
+	minGPS = gps.getMin();
+	secGreg = calendar.get(Calendar.SECOND);
+	secGPS = gps.getSecond();
+	if(dayGreg != dayGPS)	{
+	    return false;
+	}
+	else	{
+    	    if(hourGreg != hourGPS)   {
+	        return false;
+            }
+	    else    {
+	        if(minGreg != minGPS)   {
+	            return false;
+                }
+	        else    {
+		    if(secGreg > secGPS)    {
+			if(secGreg - secGPS > maxDiff)
+			    return false;
+		    }
+		    else    {
+			if(secGPS - secGreg > maxDiff)
+			    return false;
+		    }
+		    
+		    
+	        }
+	    }
+	}
+	return true;
+    
     }
     
     public void shutdownAll() 
