@@ -125,6 +125,11 @@ public class MockReadoutRequest
         return uid;
     }
 
+    public long getUTCTime()
+    {
+        throw new Error("Unimplemented");
+    }
+
     public int length()
     {
         throw new Error("Unimplemented");
