@@ -1,6 +1,7 @@
 package icecube.daq.dor;
 
 import java.util.GregorianCalendar;
+import java.util.Calendar;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
@@ -21,39 +22,41 @@ import icecube.daq.util.StringHubAlert;
 public class GPSService
 {
 
-    private Logger logger = Logger.getLogger(GPSService.class);
+    private static Logger logger = Logger.getLogger(GPSService.class);
     private Alerter alerter;
-
+    private static int countFalse = 0;
+    private static final int maxFalse = 0;
+    
     private class GPSCollector extends Thread
     {
-        private IDriver driver;
+        private Driver driver;
         private int card;
         private int cons_gpsx_count;
-        private IGPSInfo gps;
+        private GPSInfo gps;
         private int gps_error_count;
         private AtomicBoolean running;
-
-        GPSCollector(IDriver driver, int card)
+	        
+        GPSCollector(int card) 
         {
-            this.driver = driver;
+            driver = Driver.getInstance();
             this.card = card;
             cons_gpsx_count = 0;
             gps_error_count = 0;
             gps = null;
             running = new AtomicBoolean(false);
         }
-
+        
         void startup()
         {
             running.set(true);
-            start();
+            this.start();
         }
-
+        
         void shutdown()
         {
             running.set(false);
         }
-
+        
         public void run()
         {
             while (running.get())
@@ -67,9 +70,8 @@ public class GPSService
                     return;
                 }
 
-                IGPSInfo newGPS;
-                try
-                {
+                GPSInfo newGPS;
+                try {
                     newGPS = driver.readGPS(card);
                 }
                 catch (GPSNotReady gps_not_ready)
@@ -94,65 +96,136 @@ public class GPSService
                     continue;
                 }
 
-                GregorianCalendar calendar = new GregorianCalendar();
-                int year = calendar.get(GregorianCalendar.YEAR);
-                GregorianCalendar jan1 = new GregorianCalendar(year, 1, 1);
-
+                // got GPS info, clear error counter
                 cons_gpsx_count = 0;
+
                 if (!(gps == null || newGPS.getOffset().equals(gps.getOffset())))
                 {
-                    logger.error("GPS offset mis-alignment detected -" +
-                                 " old GPS: " + gps + " new GPS: " + newGPS);
-                    StringHubAlert.sendDOMAlert(alerter, "GPS Error",
-                                                "GPS Offset mis-match",
-                                                card, 0, '-', "000000000000",
-                                                "GPS", 0, 0);
+                    logger.error("GPS offset mis-alignment detected - old GPS: " +
+                                 gps + " new GPS: " + newGPS);
+                    StringHubAlert.sendDOMAlert(
+                            alerter, "GPS Error", "GPS Offset mis-match",
+                            card, 0, '-', "000000000000", "GPS", 0, 0);
                 }
                 else
                 {
                     synchronized (this) { gps = newGPS; }
                 }
+                    
             }
         }
-
-        synchronized IGPSInfo getGps() { return gps; }
+        
+	synchronized GPSInfo getGps() { return gps; }
 
         public boolean isRunning()
         {
             return running.get();
         }
     }
-
+    
     private GPSCollector[] coll;
     private static final GPSService instance = new GPSService();
-
+    private static final int maxDiff = 5;
+    
     private GPSService()
     {
         coll = new GPSCollector[8];
     }
-
+    
     public static GPSService getInstance() { return instance; }
-
-    public IGPSInfo getGps(int card) { return coll[card].getGps(); }
-
-    public void startService(int card)
+    
+    public GPSInfo getGps(int card) { return coll[card].getGps(); } 
+    
+    public void startService(int card) 
     {
-        startService(Driver.getInstance(), card);
+        if (coll[card] == null) { coll[card] = new GPSCollector(card); }
+        if (!coll[card].isRunning()) coll[card].startup(); 
     }
-
-    public void startService(IDriver driver, int card)
+    public void startService(IDriver driver, int card) throws Exception
     {
-        if (coll[card] == null) {
-            coll[card] = new GPSCollector(driver, card);
+	GPSInfo gps= null;
+	startService(card);
+	GPSInfo newGPS = coll[card].driver.readGPS(card);
+        if (!(gps == null || newGPS.getOffset().equals(gps.getOffset())))
+        {
+            logger.error(
+            "GPS offset mis-alignment detected - old GPS: " +
+            gps + " new GPS: " + newGPS);
+            StringHubAlert.sendDOMAlert(
+            alerter, "GPS Error", "GPS Offset mis-match",
+            card, 0, '-', "000000000000", "GPS", 0, 0);
         }
-        if (!coll[card].isRunning()) coll[card].startup();
+        else
+        {
+            synchronized (this) { gps = newGPS; }
+        }
     }
 
-    public void shutdownAll()
+    public static void GPSTest(GPSInfo newGPS)    {
+	if(!testGPS(newGPS)) {
+            countFalse++;
+            if(countFalse > maxFalse)
+            {
+            GregorianCalendar calendar = new GregorianCalendar();
+            logger.error("GPS clock " + newGPS +
+                " differs from system clock " + calendar);
+            }
+        }
+	}
+
+    public static boolean testGPS(GPSInfo gps)
+    {
+	final int hourGPS, hourGreg;
+	final int minGPS, minGreg;
+	final int secGPS, secGreg;
+	final int dayGPS, dayGreg;
+
+	GregorianCalendar calendar = new GregorianCalendar(
+            new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
+
+	calendar.add(GregorianCalendar.DAY_OF_YEAR, gps.getDay() - 1);
+	dayGreg = calendar.get(Calendar.DAY_OF_YEAR);
+	dayGPS = gps.getDay();
+	hourGreg = calendar.get(Calendar.HOUR_OF_DAY);
+	hourGPS = gps.getHour();
+	minGreg = calendar.get(Calendar.MINUTE);
+	minGPS = gps.getMin();
+	secGreg = calendar.get(Calendar.SECOND);
+	secGPS = gps.getSecond();
+	if(dayGreg != dayGPS)	{
+	    return false;
+	}
+	else	{
+    	    if(hourGreg != hourGPS)   {
+	        return false;
+            }
+	    else    {
+	        if(minGreg != minGPS)   {
+	            return false;
+                }
+	        else    {
+		    if(secGreg > secGPS)    {
+			if(secGreg - secGPS > maxDiff)
+			    return false;
+		    }
+		    else    {
+			if(secGPS - secGreg > maxDiff)
+			    return false;
+		    }
+		    
+		    
+	        }
+	    }
+	}
+	return true;
+    
+    }
+    
+    public void shutdownAll() 
     {
         for (int i = 0; i < 8; i++)
             if (coll[i] != null && coll[i].isRunning()) coll[i].shutdown();
     }
-
+    
     public void setAlerter(Alerter alerter) { this.alerter = alerter; }
 }
