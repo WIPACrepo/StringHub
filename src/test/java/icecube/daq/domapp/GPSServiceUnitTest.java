@@ -25,58 +25,8 @@ import icecube.daq.util.UTC;
 
 import static org.junit.Assert.*;
 
-
-/*class mockBufferConsumer implements BufferConsumer
-{
-    LinkedBlockingQueue<ByteBuffer> q;
-
-    public void consume(ByteBuffer buf) throws IOException
-    {
-        try
-        {
-            q.put(buf);
-        }
-        catch (InterruptedException intx)
-        {
-        
-        }
-    }
-}
-class mockRAPCal implements RAPCal
-{
-    public double clockRatio()
-    {
-	throw  new Error("Unimplemented");
-    }
-
-    public double cableLength()
-    {
-	throw  new Error("Unimplemented");
-    }
-
-    public boolean laterThan(long domclk)
-    {
-	throw new Error("Unimplemented");
-    }
-
-    public UTC domToUTC(long domclk)
-    {
-	throw new Error("Unimplemented");
-    }
-
-    public void update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException
-    {
-	throw new Error("Unimplemented");
-    }
-}
-*/
-
 public class GPSServiceUnitTest implements IGPSService
 {
- 
-    AbstractDataCollector dc;
-    LinkedBlockingQueue<ByteBuffer> q;
-
     public GPSInfo getGps(int card)
     {
 	throw new Error("Unimplemented");
