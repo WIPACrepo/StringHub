@@ -348,9 +348,6 @@ public class DataCollector
                 config.getFastMonitorInterval()
                 );
 
-        // Always want to force the maximum LBM depth
-        app.setLBMDepth(LBMDepth.LBM_8M);
-
         if (config.isDeltaCompressionEnabled())
             app.setDeltaCompressionFormat();
         else
