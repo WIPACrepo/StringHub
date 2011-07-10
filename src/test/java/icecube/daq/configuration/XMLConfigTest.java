@@ -1,4 +1,4 @@
-package icecube.daq.configuration.test;
+package icecube.daq.configuration;
 
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertFalse;
@@ -107,5 +107,17 @@ public class XMLConfigTest
 	    assertTrue(config2.isAtwdChargeStamp());
 	    assertTrue(config2.isAutoRangeChargeStamp());
 	    assertEquals(2, (int) config2.getChargeStampChannel());
+	}
+	@Test public void testPedestalSubtract()
+	{
+	    assertFalse(config.getPedestalSubtraction());
+	    assertTrue(config2.getPedestalSubtraction());
+	    assertEquals(140, config2.getAveragePedestal(0));
+        assertEquals(120, config2.getAveragePedestal(1));
+        assertEquals(130, config2.getAveragePedestal(2));
+        assertEquals(142, config2.getAveragePedestal(3));
+        assertEquals(122, config2.getAveragePedestal(4));
+        assertEquals(132, config2.getAveragePedestal(5));
+	    
 	}
 }
