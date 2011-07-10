@@ -1,14 +1,12 @@
 package icecube.daq.configuration;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-
-import icecube.daq.configuration.XMLConfig;
+import static org.junit.Assert.assertTrue;
 import icecube.daq.domapp.AtwdChipSelect;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.LocalCoincidenceConfiguration;
-import icecube.daq.domapp.TestDeltaMCodec;
 import icecube.daq.domapp.TriggerMode;
 import icecube.daq.stringhub.test.MockAppender;
 
