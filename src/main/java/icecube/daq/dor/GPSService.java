@@ -60,7 +60,7 @@ public class GPSService
             {
                 try 
                 {
-                    Thread.sleep(240L);
+                    Thread.sleep(740L);
                     GPSInfo newGPS = driver.readGPS(card);
                     
                     GregorianCalendar calendar = new GregorianCalendar(
