@@ -33,9 +33,9 @@ public class GPSService
         private int gps_error_count;
         private AtomicBoolean running;
         
-        GPSCollector(int card) 
+        GPSCollector(Driver driver, int card) 
         {
-            driver = Driver.getInstance();
+            this.driver = driver;
             this.card = card;
             cons_gpsx_count = 0;
             gps_error_count = 0;
@@ -127,10 +127,15 @@ public class GPSService
     
     public GPSInfo getGps(int card) { return coll[card].getGps(); } 
     
-    public void startService(int card) 
+    public void startService(Driver drv, int card) 
     {
-        if (coll[card] == null) { coll[card] = new GPSCollector(card); }
+        if (coll[card] == null) { coll[card] = new GPSCollector(drv, card); }
         if (!coll[card].isRunning()) coll[card].startup(); 
+    }
+    
+    public void startService(int card)
+    {
+        startService(Driver.getInstance(), card);
     }
     
     public void shutdownAll() 
