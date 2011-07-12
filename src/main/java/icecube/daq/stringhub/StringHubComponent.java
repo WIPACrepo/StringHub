@@ -93,6 +93,10 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	private ISourceID sourceId;
 	private IStringTriggerHandler triggerHandler;
 	private static final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
+	
+	private boolean hitSpooling = false;
+	private String hitSpoolDir;
+	private long hitSpoolHits;
 
 	public StringHubComponent(int hubId)
 	{
@@ -348,6 +352,12 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			        dcSoftboot = true;
 			    String tcalPStxt = hubNode.valueOf("tcalPrescale");
 			    if (tcalPStxt.length() != 0) tcalPrescale = Integer.parseInt(tcalPStxt);
+			    if (hubNode.valueOf("hitspool/enabled").equalsIgnoreCase("true")) hitSpooling = true;
+			    hitSpoolDir = hubNode.valueOf("hitspool/directory");
+			    if (hitSpoolDir.length() == 0) hitSpoolDir = "/mnt/data/pdaqlocal";
+			    if (hubNode.valueOf("hitspool/hits").length() > 0) 
+			        hitSpoolHits = Long.parseLong(hubNode.valueOf("hitspool/hits")); 
+			       
 			}
 			if (logger.isDebugEnabled()) {
 				logger.debug("Number of domConfigNodes found: " + configNodeList.size());
@@ -411,9 +421,17 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniBufMgr, moniOut.getChannel());
 	        SecondaryStreamConsumer supernovaConsumer = new SecondaryStreamConsumer(hubId, snBufMgr, supernovaOut.getChannel());
 	        SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId, tcalBufMgr, tcalOut.getChannel(), tcalPrescale);
-
-			// Start the merger-sorter objects
-			hitsSort = new MultiChannelMergeSort(nch, sender);
+	        
+            // Start the merger-sorter objects
+	        if (hitSpooling)
+	        {
+    	        // interpose the hit spooler
+    	        FilesHitSpool hitSpooler = new FilesHitSpool(sender, new File(hitSpoolDir), hitSpoolHits);
+    	        hitsSort = new MultiChannelMergeSort(nch, hitSpooler);
+	        }
+	        else
+	            hitsSort = new MultiChannelMergeSort(nch, sender);
+	        
 			moniSort = new MultiChannelMergeSort(nch, monitorConsumer);
 			scalSort = new MultiChannelMergeSort(nch, supernovaConsumer);
 			tcalSort = new MultiChannelMergeSort(nch, tcalConsumer);
@@ -660,7 +678,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 12998 2011-05-27 22:16:47Z dglo $";
+		return "$Id: StringHubComponent.java 13155 2011-07-12 12:36:46Z kael $";
     }
 
 	public IByteBufferCache getCache()
