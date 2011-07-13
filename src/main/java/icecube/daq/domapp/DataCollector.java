@@ -639,7 +639,8 @@ public class DataCollector
         tcal.writeUncompressedRecord(tcalBuffer);
         if (gps == null)
         {
-            tcalBuffer.put("\001 000 00:00:00-\000\000\000\000\000\000\000\000".getBytes());
+            // Set this to the equivalent of 0 time in GPS
+            tcalBuffer.put("\001001:00:00:00 \000\000\000\000\000\000\000\000".getBytes());
         }
         else
         {
