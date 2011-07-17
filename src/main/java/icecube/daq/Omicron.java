@@ -228,5 +228,9 @@ public class Omicron {
 		moniSort.join();
 		scalSort.join();
 		tcalSort.join();
+		
+		// kill GPS services
+		GPSService.getInstance().shutdownAll();
+		
 	}
 }
