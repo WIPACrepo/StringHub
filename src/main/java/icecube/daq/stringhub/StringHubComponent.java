@@ -622,6 +622,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	public void stopping()
             throws DAQCompException
 	{
+	    logger.info("Entering run stop handler");
+	    
 		try
 		{
 			conn.stopProcessing();
@@ -678,7 +680,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13155 2011-07-12 12:36:46Z kael $";
+		return "$Id: StringHubComponent.java 13191 2011-07-17 09:13:33Z kael $";
     }
 
 	public IByteBufferCache getCache()
