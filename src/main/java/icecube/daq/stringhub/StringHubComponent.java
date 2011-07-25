@@ -342,7 +342,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			boolean dcSoftboot = false;
 
 			int tcalPrescale = 10;
-
+			
 			if (hubNode != null)
 			{
 			    if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) enableTriggering();
@@ -359,6 +359,13 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			        hitSpoolHits = Long.parseLong(hubNode.valueOf("hitspool/hits")); 
 			       
 			}
+			double snDistance = Double.NaN;
+
+                        Number snDistNum=doc.numberValueOf("runConfig/setSnDistance");
+                        if (snDistNum != null)
+                        {
+                                snDistance=snDistNum.doubleValue();
+                        }
 			if (logger.isDebugEnabled()) {
 				logger.debug("Number of domConfigNodes found: " + configNodeList.size());
 			}
@@ -448,7 +455,12 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 				if (isSim)
 				{
 					boolean isAmanda = (getNumber() % 1000) == 0;
-
+					if (!Double.isNaN(snDistance))
+					{
+						config.setSnSigEnabled(true);
+						config.setSnDistance(snDistance);
+						logger.debug("SN Distance "+ snDistance);
+					}
 					dc = new SimDataCollector(chanInfo, config,
 					        hitsSort,
 					        moniSort,
@@ -680,7 +692,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13191 2011-07-17 09:13:33Z kael $";
+		return "$Id: StringHubComponent.java 13206 2011-07-25 22:02:46Z benedikt.riedel $";
     }
 
 	public IByteBufferCache getCache()
