@@ -158,6 +158,10 @@ public class XMLConfig extends DefaultHandler
 			else
 				currentConfig.setPedestalSubtraction(false);
 		}
+		else if (localName.equals("averagePedestal"))
+		{
+		    currentConfig.setAveragePedestal(atwdChannel, Integer.parseInt(text));
+		}
 		else if (localName.equals("pulserMode"))
 		{
 			if (text.equals("beacon"))
@@ -375,6 +379,15 @@ public class XMLConfig extends DefaultHandler
 			String mbid = attributes.getValue("mbid");
 			definedDOMConfigs.put(mbid, currentConfig);
 			internalState = ParserState.DOM_CONFIG;
+		}
+		else if (localName.equals("averagePedestal"))
+		{
+		    String atwdChip = attributes.getValue("atwd");
+		    int channel = Integer.parseInt(attributes.getValue("ch"));
+		    if (atwdChip.equalsIgnoreCase("A")) 
+	            atwdChannel = channel;
+		    else if (atwdChip.equalsIgnoreCase("B"))
+		        atwdChannel = channel + 3;
 		}
 	}
 

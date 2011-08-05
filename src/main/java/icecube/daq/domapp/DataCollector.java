@@ -348,9 +348,6 @@ public class DataCollector
                 config.getFastMonitorInterval()
                 );
 
-        // Always want to force the maximum LBM depth
-        app.setLBMDepth(LBMDepth.LBM_8M);
-
         if (config.isDeltaCompressionEnabled())
             app.setDeltaCompressionFormat();
         else
@@ -423,7 +420,7 @@ public class DataCollector
         {
             // WARN - this is done /w/ HV applied - probably need to
             // screen in DOMApp for spurious pulses
-            app.collectPedestals(200, 200, 200);
+            app.collectPedestals(200, 200, 200, config.getAveragePedestals());
         }
 
         // set chargestamp source - again fail with WARNING if cannot get the
@@ -642,7 +639,9 @@ public class DataCollector
         tcal.writeUncompressedRecord(tcalBuffer);
         if (gps == null)
         {
+			// Set this to the equivalent of 0 time in GPS
             tcalBuffer.put("\001 000 00:00:00-\000\000\000\000\000\000\000\000".getBytes());
+			tcalBuffer.put("\001001:00:00:00 \000\000\000\000\000\000\000\000".getBytes());
         }
         else
         {
@@ -699,7 +698,7 @@ public class DataCollector
         return getName();
     }
 
-    private void execRapCal()
+    private GPSService execRapCal()
     {
         try
         {
@@ -718,7 +717,7 @@ public class DataCollector
             {
                 tcalProcess(tcal, gps);
             }
-
+			return gps_serv;
         }
         catch (RAPCalException rcex)
         {
@@ -737,6 +736,7 @@ public class DataCollector
             logger.warn("Got interrupted exception");
         }
 
+		return null;
     }
 
     /**

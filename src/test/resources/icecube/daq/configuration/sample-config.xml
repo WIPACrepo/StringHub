@@ -9,6 +9,13 @@
     <domConfig mbid="9a0744bca158">
         <format><deltaCompressed/></format>
         <chargeStamp type="atwd"/>
+        <pedestalSubtract>true</pedestalSubtract>
+        <averagePedestal atwd="A" ch="0">140</averagePedestal>
+        <averagePedestal atwd="A" ch="1">120</averagePedestal>
+        <averagePedestal atwd="A" ch="2">130</averagePedestal>
+        <averagePedestal atwd="B" ch="0">142</averagePedestal>
+        <averagePedestal atwd="B" ch="1">122</averagePedestal>
+        <averagePedestal atwd="B" ch="2">132</averagePedestal>
     </domConfig>
     
     <domConfig mbid="57bc3f3a220d">

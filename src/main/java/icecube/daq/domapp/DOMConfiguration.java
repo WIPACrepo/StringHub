@@ -36,7 +36,8 @@ public class DOMConfiguration implements Serializable
     private boolean               pedestalSubtract        = false;
     private boolean               simulation              = false;
     private double                simNoiseRate            = 25.0;
-
+    private Integer[]             averagePedestal;
+    
     /** Boolean flag for selection of ICETOP MINBIAS mode */
     private boolean               enableMinBias           = false;
 
@@ -57,7 +58,13 @@ public class DOMConfiguration implements Serializable
 
 	public DOMConfiguration()
 	{
-	    // Do nothing but signal public default constructor
+	    averagePedestal = new Integer[6];
+	    averagePedestal[0] = null;
+        averagePedestal[1] = null;
+        averagePedestal[2] = null;
+        averagePedestal[3] = null;
+        averagePedestal[4] = null;
+        averagePedestal[5] = null;
 	}
 
 	/**
@@ -65,6 +72,7 @@ public class DOMConfiguration implements Serializable
 	 */
 	public DOMConfiguration(DOMConfiguration c)
 	{
+	    this();
 	    this.hardwareMonitorInterval = c.hardwareMonitorInterval;
 	    this.compressionEnabled = c.compressionEnabled;
 	    this.configMonitorInterval = c.configMonitorInterval;
@@ -429,6 +437,28 @@ public class DOMConfiguration implements Serializable
     public void useFadcChargeStamp()
     {
         chargeStampATWD = false;
+    }
+
+    public void setAveragePedestal(int atwdChannel, int val)
+    {
+        averagePedestal[atwdChannel] = val;
+    }
+    
+    public int getAveragePedestal(int atwdChannel)
+    {
+        return averagePedestal[atwdChannel]; 
+    }
+    
+    public Integer[] getAveragePedestals()
+    {
+        // Don't return anything unless all channels have been programmed
+        if (averagePedestal[0] == null 
+                || averagePedestal[1] == null 
+                || averagePedestal[2] == null
+                || averagePedestal[3] == null
+                || averagePedestal[4] == null
+                || averagePedestal[5] == null) return new Integer[0];
+        return averagePedestal;
     }
 
 }

@@ -36,9 +36,9 @@ public class GPSService
         private int gps_error_count;
         private AtomicBoolean running;
 
-        GPSCollector(int card)
+        GPSCollector(Driver driver, int card)
         {
-            driver = Driver.getInstance();
+            this.driver = driver;
             this.card = card;
             cons_gpsx_count = 0;
             gps_error_count = 0;
@@ -63,7 +63,7 @@ public class GPSService
             {
                 try
                 {
-                    Thread.sleep(240L);
+                    Thread.sleep(740L);
                 }
                 catch (InterruptedException intx)
                 {
@@ -136,29 +136,10 @@ public class GPSService
 
     public IGPSInfo getGps(int card) { return coll[card].getGps(); }
 
-    public void startService(int card)
+    public void startService(Driver drv, int card)
     {
-        if (coll[card] == null) { coll[card] = new GPSCollector(card); }
+        if (coll[card] == null) { coll[card] = new GPSCollector(drv, card); }
         if (!coll[card].isRunning()) coll[card].startup();
-    }
-    public void startService(IDriver driver, int card) throws Exception
-    {
-	IGPSInfo gps= null;
-	startService(card);
-	IGPSInfo newGPS = coll[card].driver.readGPS(card);
-        if (!(gps == null || newGPS.getOffset().equals(gps.getOffset())))
-        {
-            logger.error(
-            "GPS offset mis-alignment detected - old GPS: " +
-            gps + " new GPS: " + newGPS);
-            StringHubAlert.sendDOMAlert(
-            alerter, "GPS Error", "GPS Offset mis-match",
-            card, 0, '-', "000000000000", "GPS", 0, 0);
-        }
-        else
-        {
-            synchronized (this) { gps = newGPS; }
-        }
     }
 
     public static void GPSTest(GPSInfo newGPS)    {
@@ -171,7 +152,7 @@ public class GPSService
                 " differs from system clock " + calendar);
             }
         }
-	}
+    }
 
     public static boolean testGPS(GPSInfo gps)
     {

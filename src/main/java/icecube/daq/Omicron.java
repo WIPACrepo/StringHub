@@ -9,6 +9,7 @@ import icecube.daq.domapp.DataCollector;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
+import icecube.daq.dor.GPSService;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -111,6 +112,10 @@ public class Omicron {
 			moniSort.register(chInfo.getMainboardIdAsLong());
 			tcalSort.register(chInfo.getMainboardIdAsLong());
 			scalSort.register(chInfo.getMainboardIdAsLong());
+			
+			// Associate a GPS service to this card, if not already done
+            GPSService.getInstance().startService(chInfo.card);
+            
 			DataCollector dc = new DataCollector(
 					chInfo.card, chInfo.pair, chInfo.dom, config,
 					hitsSort, moniSort, scalSort, tcalSort,
@@ -223,5 +228,9 @@ public class Omicron {
 		moniSort.join();
 		scalSort.join();
 		tcalSort.join();
+		
+		// kill GPS services
+		GPSService.getInstance().shutdownAll();
+		
 	}
 }

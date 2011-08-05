@@ -64,10 +64,20 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.BEGIN_RUN);
     }
 
-    public void collectPedestals(int nAtwd0, int nAtwd1, int nFadc) throws MessageException
+    public void collectPedestals(int nAtwd0, int nAtwd1, int nFadc, Integer... avgPedestals) throws MessageException
     {
-        ByteBuffer buf = ByteBuffer.allocate(12);
-        buf.putInt(nAtwd0).putInt(nAtwd1).putInt(nFadc).flip();
+        ByteBuffer buf = ByteBuffer.allocate(24);
+        buf.putInt(nAtwd0).putInt(nAtwd1).putInt(nFadc);
+        if (avgPedestals.length == 6) 
+        { 
+            buf.putShort(avgPedestals[0].shortValue());
+            buf.putShort(avgPedestals[1].shortValue());
+            buf.putShort(avgPedestals[2].shortValue());
+            buf.putShort(avgPedestals[3].shortValue());
+            buf.putShort(avgPedestals[4].shortValue());
+            buf.putShort(avgPedestals[5].shortValue());
+        }
+        buf.flip();
         sendMessage(MessageType.COLLECT_PEDESTALS, buf);
     }
 
