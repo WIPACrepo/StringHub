@@ -136,12 +136,6 @@ public class GPSService
 
     public IGPSInfo getGps(int card) { return coll[card].getGps(); }
 
-    public void startService(Driver drv, int card)
-    {
-        if (coll[card] == null) { coll[card] = new GPSCollector(drv, card); }
-        if (!coll[card].isRunning()) coll[card].startup();
-    }
-
     public static void GPSTest(GPSInfo newGPS)    {
 	if(!testGPS(newGPS)) {
             countFalse++;
@@ -200,6 +194,17 @@ public class GPSService
 	}
 	return true;
 
+    }
+
+    public void startService(Driver drv, int card)
+    {
+        if (coll[card] == null) { coll[card] = new GPSCollector(drv, card); }
+        if (!coll[card].isRunning()) coll[card].startup();
+    }
+
+    public void startService(int card)
+    {
+        startService(Driver.getInstance(), card);
     }
 
     public void shutdownAll()
