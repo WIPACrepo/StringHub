@@ -32,7 +32,7 @@ public class GPSService
         private Driver driver;
         private int card;
         private int cons_gpsx_count;
-        private GPSInfo gps;
+        private IGPSInfo gps;
         private int gps_error_count;
         private AtomicBoolean running;
 
@@ -70,7 +70,7 @@ public class GPSService
                     return;
                 }
 
-                GPSInfo newGPS;
+                IGPSInfo newGPS;
                 try {
                     newGPS = driver.readGPS(card);
                 }
@@ -115,7 +115,7 @@ public class GPSService
             }
         }
 
-	synchronized GPSInfo getGps() { return gps; }
+	synchronized IGPSInfo getGps() { return gps; }
 
         public boolean isRunning()
         {
@@ -134,7 +134,7 @@ public class GPSService
 
     public static GPSService getInstance() { return instance; }
 
-    public GPSInfo getGps(int card) { return coll[card].getGps(); }
+    public IGPSInfo getGps(int card) { return coll[card].getGps(); }
 
     public void startService(int card)
     {
@@ -143,9 +143,9 @@ public class GPSService
     }
     public void startService(IDriver driver, int card) throws Exception
     {
-	GPSInfo gps= null;
+	IGPSInfo gps= null;
 	startService(card);
-	GPSInfo newGPS = coll[card].driver.readGPS(card);
+	IGPSInfo newGPS = coll[card].driver.readGPS(card);
         if (!(gps == null || newGPS.getOffset().equals(gps.getOffset())))
         {
             logger.error(
