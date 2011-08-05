@@ -26,7 +26,7 @@ public class GPSService
     private Alerter alerter;
     private static int countFalse = 0;
     private static final int maxFalse = 0;
-    
+
     private class GPSCollector extends Thread
     {
         private Driver driver;
@@ -35,8 +35,8 @@ public class GPSService
         private GPSInfo gps;
         private int gps_error_count;
         private AtomicBoolean running;
-	        
-        GPSCollector(int card) 
+
+        GPSCollector(int card)
         {
             driver = Driver.getInstance();
             this.card = card;
@@ -45,18 +45,18 @@ public class GPSService
             gps = null;
             running = new AtomicBoolean(false);
         }
-        
+
         void startup()
         {
             running.set(true);
             this.start();
         }
-        
+
         void shutdown()
         {
             running.set(false);
         }
-        
+
         public void run()
         {
             while (running.get())
@@ -111,10 +111,10 @@ public class GPSService
                 {
                     synchronized (this) { gps = newGPS; }
                 }
-                    
+
             }
         }
-        
+
 	synchronized GPSInfo getGps() { return gps; }
 
         public boolean isRunning()
@@ -122,24 +122,24 @@ public class GPSService
             return running.get();
         }
     }
-    
+
     private GPSCollector[] coll;
     private static final GPSService instance = new GPSService();
     private static final int maxDiff = 5;
-    
+
     private GPSService()
     {
         coll = new GPSCollector[8];
     }
-    
+
     public static GPSService getInstance() { return instance; }
-    
-    public GPSInfo getGps(int card) { return coll[card].getGps(); } 
-    
-    public void startService(int card) 
+
+    public GPSInfo getGps(int card) { return coll[card].getGps(); }
+
+    public void startService(int card)
     {
         if (coll[card] == null) { coll[card] = new GPSCollector(card); }
-        if (!coll[card].isRunning()) coll[card].startup(); 
+        if (!coll[card].isRunning()) coll[card].startup();
     }
     public void startService(IDriver driver, int card) throws Exception
     {
@@ -212,20 +212,20 @@ public class GPSService
 			if(secGPS - secGreg > maxDiff)
 			    return false;
 		    }
-		    
-		    
+
+
 	        }
 	    }
 	}
 	return true;
-    
+
     }
-    
-    public void shutdownAll() 
+
+    public void shutdownAll()
     {
         for (int i = 0; i < 8; i++)
             if (coll[i] != null && coll[i].isRunning()) coll[i].shutdown();
     }
-    
+
     public void setAlerter(Alerter alerter) { this.alerter = alerter; }
 }
