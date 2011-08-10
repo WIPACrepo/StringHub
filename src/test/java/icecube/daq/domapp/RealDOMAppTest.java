@@ -8,6 +8,7 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 
 import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.junit.Before;
 import org.junit.Test;
@@ -32,6 +33,7 @@ public class RealDOMAppTest
     public RealDOMAppTest()
     {
         BasicConfigurator.configure();
+        Logger.getRootLogger().setLevel(Level.INFO);
     }
     
     private ArrayList<DeltaCompressedHit> decodeHits(ByteBuffer buf)
@@ -80,7 +82,7 @@ public class RealDOMAppTest
                     int chip = hit.getChip();
                     int val  = atwd[ch][smp];
                     int ped  = peds[chip * 3 + ch];
-                    assertTrue(Math.abs(val - ped) < 4);
+                    assertTrue(Math.abs(val - ped) < 5);
                 }
         }
     }
