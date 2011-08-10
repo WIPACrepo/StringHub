@@ -71,7 +71,6 @@ public class RealDOMAppTest
         Thread.sleep(2500);
         ByteBuffer buf = dom.getData();
         dom.endRun();
-        buf.flip();
         for (DeltaCompressedHit hit : decodeHits(buf)) {
             short atwd[][] = hit.getATWD();
             for (short[] w : atwd) 
