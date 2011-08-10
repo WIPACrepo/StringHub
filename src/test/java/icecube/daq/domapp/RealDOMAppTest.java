@@ -37,9 +37,9 @@ public class RealDOMAppTest
     private ArrayList<DeltaCompressedHit> decodeHits(ByteBuffer buf)
     {
         ArrayList<DeltaCompressedHit> hitList = new ArrayList<DeltaCompressedHit>();
-        int len = buf.getShort();
-        int fmt = buf.getShort();
+        buf.position(4);
         int clkMSB = buf.getShort();
+        buf.position(8);
         buf.order(ByteOrder.LITTLE_ENDIAN);
         while (buf.remaining() > 0) hitList.add(DeltaCompressedHit.decodeBuffer(buf, clkMSB));
         return hitList;
