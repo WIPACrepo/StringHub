@@ -70,21 +70,30 @@ public class RealDOMAppTest
     {
         if (dom == null) return;
         Integer peds[] = new Integer[] { 200, 220, 240, 210, 230, 250 };
-        dom.collectPedestals(250, 250, 250, peds);
+        int     win[] = new int[] { 10, 5, 2 };
+	dom.collectPedestals(250, 250, 250, peds);
         dom.beginRun();
         Thread.sleep(2500);
         ByteBuffer buf = dom.getData();
         dom.endRun();
         for (DeltaCompressedHit hit : decodeHits(buf)) {
             short atwd[][] = hit.getATWD();
-            for (int ch = 0; ch < 3; ch++) 
+	    int chip = hit.getChip();
+            for (int ch = 0; ch < 3; ch++) {
+		int ped  = peds[chip * 3 + ch];
+		double avg = 0.0;
                 for (int smp = 127; smp >= 0; smp--) {
-                    int chip = hit.getChip();
                     int val  = atwd[ch][smp];
-                    int ped  = peds[chip * 3 + ch];
-                    if (Math.abs(val - ped) > 5)  
+		    avg += val;
+                    if (Math.abs(val - ped) > win[ch])  
                         fail("atwd[" + ch + "][" + smp + "] = " + val + ".  Expected " + ped);
                 }
+		avg /= 128.0;
+		if (Math.abs(avg - ped) > 1.5)
+		    fail("<atwd[" + ch + "]> = " + 
+			 String.format("%.2f", avg) + 
+			 ".  Expected " + ped);
+	    }
         }
     }
 
