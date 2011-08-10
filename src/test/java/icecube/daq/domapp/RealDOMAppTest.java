@@ -82,7 +82,8 @@ public class RealDOMAppTest
                     int chip = hit.getChip();
                     int val  = atwd[ch][smp];
                     int ped  = peds[chip * 3 + ch];
-                    assertTrue(Math.abs(val - ped) < 5);
+                    if (Math.abs(val - ped) > 5)  
+                        fail("atwd[" + ch + "][" + smp + "] = " + val + ".  Expected " + ped);
                 }
         }
     }
