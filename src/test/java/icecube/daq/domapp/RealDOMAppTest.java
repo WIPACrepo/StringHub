@@ -67,15 +67,21 @@ public class RealDOMAppTest
     public void testCollectPedestals() throws Exception
     {
         if (dom == null) return;
+        Integer peds[] = new Integer[] { 200, 220, 240, 210, 230, 250 };
+        dom.collectPedestals(250, 250, 250, peds);
         dom.beginRun();
         Thread.sleep(2500);
         ByteBuffer buf = dom.getData();
         dom.endRun();
         for (DeltaCompressedHit hit : decodeHits(buf)) {
             short atwd[][] = hit.getATWD();
-            for (short[] w : atwd) 
-                for (short x : w)
-                    assertTrue(x > 197 && x < 203); 
+            for (int ch = 0; ch < 3; ch++) 
+                for (int smp = 127; smp >= 0; smp--) {
+                    int chip = hit.getChip();
+                    int val  = atwd[ch][smp];
+                    int ped  = peds[chip * 3 + ch];
+                    assertTrue(Math.abs(val - ped) < 4);
+                }
         }
     }
 
