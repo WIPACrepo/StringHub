@@ -33,7 +33,8 @@ import org.apache.log4j.Logger;
  * BufferConsumer.  The typical use pattern for this class is
  * <pre>
  * Sender sender = new Sender(...);
- * MultiChannelMergeSort hitsSorter = MultiChannelMergeSort(NDOM, sender, "hitsSort");
+ * MultiChannelMergeSort hitsSorter = MultiChannelMergeSort(NDOM, sender, 
+ *     "hitsSort");
  * MultiChannelMergeSort moniSorter = ...
  * collectors.add(new DataCollector(0, 0, 'A', hitsSorter, moniSorter, ...))
  * collectors.add(new DataCollector(0, 0, 'B', hitsSorter, moniSorter, ...))
@@ -58,7 +59,8 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     private Node<DAQBuffer> terminalNode;
     private final DAQBufferComparator bufferCmp = new DAQBufferComparator();
     private boolean running;
-    private static final Logger logger = Logger.getLogger(MultiChannelMergeSort.class);
+    private static final Logger logger = 
+        Logger.getLogger(MultiChannelMergeSort.class);
     private volatile long lastInputUT;
     private volatile long lastUT;
     private int inputCounter;
@@ -69,7 +71,8 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
         this(nch, out, "g");
     }
     
-    public MultiChannelMergeSort(int nch, BufferConsumer out, String channelType, int maxQueue)
+    public MultiChannelMergeSort(int nch, BufferConsumer out, 
+        String channelType, int maxQueue)
     {
         super("MultiChannelMergeSort-" + channelType);
         this.out = out;
@@ -82,7 +85,8 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
         outputCounter = 0;
     }
     
-    public MultiChannelMergeSort(int nch, BufferConsumer out, String channelType)
+    public MultiChannelMergeSort(int nch, 
+        BufferConsumer out, String channelType)
     {
         this(nch, out, channelType, 100000);
     }
@@ -96,19 +100,26 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
      */
     public void consume(ByteBuffer buf) throws IOException
     {
-        try
-        {
-            q.put(buf);
-        }
-        catch (Exception ex)
-        {
+        try {
+            q.put(buf); 
+        } catch (Exception ex) {
             logger.error("Skipped buffer", ex);
         }
     }
 
-    public synchronized int getNumberOfInputs() { return inputCounter; }
-    public synchronized int getNumberOfOutputs() { return outputCounter; }
-    public synchronized int getQueueSize() { return q.size(); }
+    public synchronized int getNumberOfInputs() 
+    { 
+        return inputCounter; 
+    }
+
+    public synchronized int getNumberOfOutputs() 
+    { 
+        return outputCounter; 
+    }
+    public synchronized int getQueueSize() 
+    { 
+        return q.size(); 
+    }
     
     /**
      * Register a channel with the sort.
@@ -124,49 +135,42 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
         terminalNode = Node.makeTree(inputMap.values());
         running = true;
         
-        while (running)
-        {
-            try
-            {
+        while (running) {
+            try {
                 ByteBuffer buf = q.take();
                 DAQBuffer daqBuffer = new DAQBuffer(buf);
                 lastInputUT = daqBuffer.timestamp;
-                if (logger.isDebugEnabled())
-                {
+                if (logger.isDebugEnabled()) {
                     logger.debug(
-                            String.format("took buffer from MBID %012x at UT %d", 
-                            daqBuffer.mbid, daqBuffer.timestamp
-                            )
-                        );
+                        String.format("took buffer from MBID %012x at UT %d", 
+                            daqBuffer.mbid, daqBuffer.timestamp));
                 }
-                if (inputMap.containsKey(daqBuffer.mbid))
-                {
+                if (inputMap.containsKey(daqBuffer.mbid)) {
                     inputCounter++;
-                    if (logger.isDebugEnabled() && inputCounter % 1000 == 0)
-                    {
-                        logger.debug("Inputs: " + inputCounter + " Outputs: " + outputCounter);
+                    if (logger.isDebugEnabled() && inputCounter % 1000 == 0) {
+                        logger.debug("Inputs: " + inputCounter + 
+                            " Outputs: " + outputCounter);
                     }
                     inputMap.get(daqBuffer.mbid).push(daqBuffer);
-                    while (!terminalNode.isEmpty())
-                    {
+                    while (!terminalNode.isEmpty()) {
                         outputCounter++;
                         DAQBuffer sorted = terminalNode.pop();
-                        if (lastUT > sorted.timestamp) 
+                        if (lastUT > sorted.timestamp) {
                             logger.warn(
                                 "Out-of-order sorted value: " + lastUT + 
                                 ", " + sorted.timestamp);
+                        }
                         lastUT = sorted.timestamp;
-                        if (sorted.timestamp == Long.MAX_VALUE)
-                        {
+                  
+                        if (sorted.timestamp == Long.MAX_VALUE) {
                             running = false;
-                            logger.info("Found STOP symbol in stream - shutting down.");
+                            logger.info(
+                                "Found STOP symbol in stream - shutting down.");
                         }
                         out.consume(sorted.buf);
                     }
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 logger.error("Aborting sort thread", ex);
                 running = false;
             }
@@ -176,13 +180,20 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     public static ByteBuffer eos(long mbid)
     {
         ByteBuffer eos = ByteBuffer.allocate(32);
-        eos.putInt(0, 32).putInt(4, 0).putLong(8, mbid).putLong(24, Long.MAX_VALUE);
+        eos.putInt(0, 32).putInt(4, 0).putLong(8, mbid).putLong(24, 
+            Long.MAX_VALUE);
         eos.clear();
         return eos.asReadOnlyBuffer();
     }
     
-    public long getLastInputTime() { return lastInputUT; }
-    public long getLastOutputTime() { return lastUT; }
+    public long getLastInputTime() 
+    {
+        return lastInputUT; 
+    }
+    public long getLastOutputTime() 
+    {
+        return lastUT; 
+    }
     
 }
 
@@ -205,12 +216,13 @@ class DAQBufferComparator implements Comparator<DAQBuffer>
 
     public int compare(DAQBuffer left, DAQBuffer right)
     {
-        if (left.timestamp < right.timestamp) 
+        if (left.timestamp < right.timestamp) {
             return -1;
-        else if (left.timestamp > right.timestamp)
+        } else if (left.timestamp > right.timestamp) {
             return 1;
-        else
+        } else {
             return 0;
+        }
     }
     
 }

@@ -24,38 +24,38 @@ public interface DataCollectorMBean
      */
     double getHitRateLC();
     
-	/**
-	 * Get the number of acquired hits.
-	 */
-	long getNumHits();
-	
-	/**
-	 * Get the number of monitor records
-	 */
-	long getNumMoni();
+    /**
+     * Get the number of acquired hits.
+     */
+    long getNumHits();
 
-	/**
-	 * Get the number of successful tcals
-	 */
-	long getNumTcal();
+    /**
+     * Get the number of monitor records
+     */
+    long getNumMoni();
 
-	/**
-	 * Get the number of supernova packets
-	 */
-	long getNumSupernova();
+    /**
+     * Get the number of successful tcals
+     */
+    long getNumTcal();
 
-	/**
-	 * Get the run state
-	 */
-	String getRunState();
+    /**
+     * Get the number of supernova packets
+     */
+    long getNumSupernova();
 
-	/**
-	 * Get the current acquisition loop count
-	 */
-	long getAcquisitionLoopCount();
+    /**
+     * Get the run state
+     */
+    String getRunState();
 
-	/**
-	 * Get the number of DOM buffer overflows.
-	 */
-	long getLBMOverflowCount();
+    /**
+     * Get the current acquisition loop count
+     */
+    long getAcquisitionLoopCount();
+
+    /**
+     * Get the number of DOM buffer overflows.
+     */
+    long getLBMOverflowCount();
 }

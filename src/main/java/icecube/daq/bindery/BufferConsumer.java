@@ -12,6 +12,7 @@ public interface BufferConsumer
      * Consume a single DOM message.
      *
      * @param buf DOM message
+     * @throws IOException if anything goes wrong
      */
     void consume(ByteBuffer buf)
         throws IOException;

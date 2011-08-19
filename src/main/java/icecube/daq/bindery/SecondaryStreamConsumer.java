@@ -18,10 +18,11 @@ import org.apache.log4j.Logger;
  */
 public class SecondaryStreamConsumer implements BufferConsumer
 {
-    private HashMap<Integer, Integer> idMap     = new HashMap<Integer, Integer>();
-    private OutputChannel outputChannel= null;
-    private IByteBufferCache cacheMgr           = null;
-    private static final Logger logger          = Logger.getLogger(SecondaryStreamConsumer.class);
+    private HashMap<Integer, Integer> idMap = new HashMap<Integer, Integer>();
+    private OutputChannel outputChannel = null;
+    private IByteBufferCache cacheMgr = null;
+    private static final Logger logger = 
+        Logger.getLogger(SecondaryStreamConsumer.class);
     private WritableByteChannel dbgChan = null;
     /** 
      * Set a prescale of N on the output
@@ -29,12 +30,14 @@ public class SecondaryStreamConsumer implements BufferConsumer
     private int prescale;
     private int prescaleCounter = 0;
 
-    public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, OutputChannel outputChannel)
+    public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, 
+        OutputChannel outputChannel)
     {
         this(hubId, cacheMgr, outputChannel, 1);
     }
     
-	public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, OutputChannel outputChannel, int prescale)
+    public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, 
+        OutputChannel outputChannel, int prescale)
     {
         this.outputChannel = outputChannel;
         this.cacheMgr = cacheMgr;
@@ -42,43 +45,41 @@ public class SecondaryStreamConsumer implements BufferConsumer
         idMap.put(102, 5);
         idMap.put(202, 4);
         idMap.put(302, 16);
-	}
+    }
 
-	public void setDebugChannel(WritableByteChannel ch) { dbgChan = ch; }
+    public void setDebugChannel(WritableByteChannel ch) 
+    { 
+        dbgChan = ch; 
+    }
 
-	/**
-	 * We are assuming that this consumes buffers which adhaere to
-	 * the TestDAQ standard 32-byte 'iiq8xq' header.
-	 */
-	public void consume(ByteBuffer buf) throws IOException
-	{
-		int recl  = buf.getInt();
-		int	fmtid = buf.getInt();
-		long mbid = buf.getLong();
-		buf.position(buf.position() + 8);
-		long utc  = buf.getLong();
+    /**
+     * We are assuming that this consumes buffers which adhaere to
+     * the TestDAQ standard 32-byte 'iiq8xq' header.
+     */
+    public void consume(ByteBuffer buf) throws IOException
+    {
+        int recl  = buf.getInt();
+        int fmtid = buf.getInt();
+        long mbid = buf.getLong();
+        buf.position(buf.position() + 8);
+        long utc  = buf.getLong();
 
-        if (recl == 32 && utc == Long.MAX_VALUE)
-        {
+        if (recl == 32 && utc == Long.MAX_VALUE) {
             logger.info("Stopping payload destinations");
             outputChannel.sendLastAndStop();
-        }
-        else
-        {
-    		ByteBuffer payloadBuffer = cacheMgr.acquireBuffer(recl-8);
-            payloadBuffer.putInt(recl-8);
+        } else {
+            ByteBuffer payloadBuffer = cacheMgr.acquireBuffer(recl - 8);
+            payloadBuffer.putInt(recl - 8);
             payloadBuffer.putInt(idMap.get(fmtid));
             payloadBuffer.putLong(utc);
             payloadBuffer.putLong(mbid);
             payloadBuffer.put(buf);
             payloadBuffer.flip();
-            if (dbgChan != null)
-            {
+            if (dbgChan != null) {
                 dbgChan.write(payloadBuffer);
                 payloadBuffer.rewind();
             }
-            if (prescale <=0 || ++prescaleCounter == prescale)
-            {
+            if (prescale <= 0 || ++prescaleCounter == prescale) {
                 outputChannel.receiveByteBuffer(payloadBuffer);
                 prescaleCounter = 0;
             }

@@ -19,39 +19,44 @@ public class StreamBinder extends Thread
 {
 
     private ArrayList<Node<DAQRecord>> inputs;
-    private Selector                   selector;
-    private int                        nreg;
-    private BufferConsumer             out;
-    private Node<DAQRecord>            terminal;
-    private static final Logger        logger   = Logger.getLogger(StreamBinder.class);
-    private boolean                    running;
-    private static final ByteBuffer    eos;
-    private volatile long       counter;
-    private volatile long       counterMax;
-    private volatile long       inputCounter;
-    private volatile long       outputCounter;
-    private volatile UTC        lastUT;
+    private Selector selector;
+    private int nreg;
+    private BufferConsumer out;
+    private Node<DAQRecord> terminal;
+    private static final Logger logger = Logger.getLogger(StreamBinder.class);
+    private boolean running;
+    private static final ByteBuffer eos;
+    private volatile long counter;
+    private volatile long counterMax;
+    private volatile long inputCounter;
+    private volatile long outputCounter;
+    private volatile UTC lastUT;
 
     static
     {
         eos = ByteBuffer.allocate(32);
-        eos.putInt(32).putInt(0).putLong(0).putInt(0).putInt(0).putLong(Long.MAX_VALUE);
+        eos.putInt(32).putInt(0).putLong(0).putInt(0).putInt(0).putLong
+        (Long.MAX_VALUE);
         eos.flip();
     }
 
-    public StreamBinder(int n, BufferConsumer out) throws IOException
+    public StreamBinder(int n, BufferConsumer out) 
+        throws IOException
     {
         this(n, out, "hits");
     }
 
-    public StreamBinder(int n, BufferConsumer out, String bindType) throws IOException
+    public StreamBinder(int n, BufferConsumer out, String bindType) 
+        throws IOException
     {
         super("StreamBinder" + "-" + bindType);
 
         inputs = new ArrayList<Node<DAQRecord>>();
 
         Comparator<DAQRecord> cmp = DAQRecordComparator.instance;
-        for (int i = 0; i < n; i++) inputs.add(new Node<DAQRecord>(cmp));
+        for (int i = 0; i < n; i++) {
+            inputs.add(new Node<DAQRecord>(cmp));
+        }
         nreg = 0;
         terminal = Node.makeTree(inputs, cmp);
         this.out = out;
@@ -60,7 +65,8 @@ public class StreamBinder extends Thread
         counter = 0;
         inputCounter = 0;
         outputCounter = 0;
-        counterMax = Integer.getInteger("icecube.daq.bindery.StreamBinder.populationLimit", 100000);
+        counterMax = Integer.getInteger
+        ("icecube.daq.bindery.StreamBinder.populationLimit", 100000);
         lastUT = null;
     }
 
@@ -81,7 +87,9 @@ public class StreamBinder extends Thread
 
     public synchronized long getLastUT()
     {
-        if (lastUT != null) return lastUT.in_0_1ns();
+        if (lastUT != null) {
+            return lastUT.in_0_1ns();
+        }
         return 0L;
     }
 
@@ -90,11 +98,16 @@ public class StreamBinder extends Thread
         register(ch, null);
     }
 
-    public void register(SelectableChannel ch, String streamName) throws IOException
+    public void register(SelectableChannel ch, String streamName) 
+        throws IOException
     {
-        if (logger.isDebugEnabled())
+        if (logger.isDebugEnabled()) {
             logger.debug("Registering channel " + streamName);
-        if (nreg == inputs.size()) throw new IllegalStateException("Too many input channels registered");
+        }
+        if (nreg == inputs.size()) {
+            throw new IllegalStateException
+            ("Too many input channels registered");
+        }
         Node<DAQRecord> node = inputs.get(nreg++);
         node.setName(streamName);
         StreamInputNode sin = new StreamInputNode(node);
@@ -111,56 +124,64 @@ public class StreamBinder extends Thread
     public void run()
     {
         running = true;
-        while (running)
-        {
-            try
-            {
+        while (running) {
+            try {
                 int n = selector.select(500);
-                if (logger.isDebugEnabled())
-                    logger.debug("Selector returned " + n + " interests; counter = " + counter);
-                for (Iterator<SelectionKey> it = selector.selectedKeys().iterator(); it.hasNext();)
+                if (logger.isDebugEnabled()) {
+                    logger.debug
+                    ("Selector returned " + n + " interests; counter = " + 
+                    counter);
+                }
+                for (Iterator<SelectionKey> it = 
+                        selector.selectedKeys().iterator(); it.hasNext();) 
                 {
                     SelectionKey key = it.next();
                     it.remove();
-                    if (logger.isDebugEnabled())
-                        logger.debug("Sort tree object count = " + counter);
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Sort tree object count = " + counter); 
+                    }
                     // overflow handling - check whether the counter is too
                     // large
-                    if (counter > counterMax)
-                    {
+                    if (counter > counterMax) {
                         // TODO stop incoming data or do something
                     }
                     StreamInputNode node = (StreamInputNode) key.attachment();
-                    ReadableByteChannel ch = (ReadableByteChannel) key.channel();
+                    ReadableByteChannel ch = 
+                        (ReadableByteChannel) key.channel();
                     node.readRecords(ch);
-                    while (!terminal.isEmpty())
-                    {
+                    while (!terminal.isEmpty()) {
                         DAQRecord rec = terminal.pop();
                         ByteBuffer buf = rec.getBuffer();
                         UTC currentUT = rec.time();
                         outputCounter++;
-                        if (lastUT != null && currentUT.compareTo(lastUT) < 0)
-                            logger.warn(getName() + " out-of-order record detected");
+                        if (lastUT != null && 
+                            currentUT.compareTo(lastUT) < 0) 
+                        {
+                            logger.warn(getName() + 
+                                " out-of-order record detected");
+                        }
                         // A single end-of-stream is sufficient to shut down
                         // this binder.
-                        if (logger.isDebugEnabled())
-                            logger.debug(getName() + "sending buffer to sender RECL = " + buf.getInt(0)
-                                    + " - TYPE = " + buf.getInt(4) + " - UTC = " + currentUT.toString());
+                        if (logger.isDebugEnabled()) {
+                            logger.debug(getName() + 
+                                "sending buffer to sender RECL = " + 
+                                buf.getInt(0) + " - TYPE = " + buf.getInt(4) +
+                                " - UTC = " + currentUT.toString());
+                        }
                         if (buf.getInt(0) == 32 && buf.getLong(8) == 0L &&
-                                buf.getLong(24) == Long.MAX_VALUE)
+                                buf.getLong(24) == Long.MAX_VALUE) 
                         {
                             // Saw the EOS token
                             running = false;
                         }
-                        while (buf.remaining() > 0)
+                        while (buf.remaining() > 0) {
                             out.consume(buf);
+                        }
                         // Update the lastUT
                         lastUT = currentUT;
                     }
                 }
-            }
-            catch (IOException iox)
-            {
+            } catch (IOException iox) {
                 iox.printStackTrace();
                 logger.error(iox);
                 break;
@@ -169,12 +190,9 @@ public class StreamBinder extends Thread
 
         logger.info("Binder processing thread exiting.");
 
-        try
-        {
+        try {
             selector.close();
-        }
-        catch (IOException iox)
-        {
+        } catch (IOException iox) {
             iox.printStackTrace();
             logger.error(iox);
         }
@@ -182,8 +200,8 @@ public class StreamBinder extends Thread
     }
 
     /**
-     * This static method will return the end-of-stream token (a special 32-byte
-     * ByteBuffer).
+     * This static method will return the end-of-stream token (a special 
+     * 32-byte ByteBuffer).
      *
      * @return
      */
@@ -214,7 +232,9 @@ public class StreamBinder extends Thread
     public void reset()
     {
         counter = 0;
-        for (Node<DAQRecord> node : inputs) node.clear();
+        for (Node<DAQRecord> node : inputs) {
+            node.clear();
+        }
         terminal = Node.makeTree(inputs, DAQRecordComparator.instance);
     }
 
@@ -243,24 +263,24 @@ public class StreamBinder extends Thread
         }
 
         /**
-         * This method reads bytes from the input channel. It will push into the
-         * associated node the byte buffer holding a complete record if such is
-         * available.
+         * This method reads bytes from the input channel. It will push into 
+         * the associated node the byte buffer holding a complete record if 
+         * such is available.
          *
-         * @param ch -
-         *            input channel
+         * @param ch - input channel
          * @throws IOException
          */
         public void readRecords(ReadableByteChannel ch) throws IOException
         {
             ch.read(iobuf);
             iobuf.flip();
-            while (iobuf.remaining() >= 4)
-            {
+            while (iobuf.remaining() >= 4) {
                 int pos = iobuf.position();
                 int recl = iobuf.getInt(pos);
                 assert recl >= 32;
-                if (iobuf.remaining() < recl) break;
+                if (iobuf.remaining() < recl) {
+                    break;
+                }
                 ByteBuffer buf = ByteBuffer.allocate(recl);
                 int limit = iobuf.limit();
                 iobuf.limit(pos + recl);

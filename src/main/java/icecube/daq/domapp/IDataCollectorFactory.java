@@ -22,7 +22,8 @@ public interface IDataCollectorFactory
      * @throws IOException if there was a problem initializing I/O
      * @throws MessageException if DataCollector could not be created
      */
-    AbstractDataCollector create(DOMChannelInfo chInfo, WritableByteChannel chan)
+    AbstractDataCollector create(DOMChannelInfo chInfo, 
+        WritableByteChannel chan)
         throws IOException, MessageException;
 
     /**
@@ -36,9 +37,10 @@ public interface IDataCollectorFactory
      * @param tcalChannel
      * @return
      */
-    AbstractDataCollector create(DOMChannelInfo chInfo, WritableByteChannel hitChannel,
-    		WritableByteChannel moniChannel, WritableByteChannel snChannel,
-    		WritableByteChannel tcalChannel) throws IOException, MessageException;
+    AbstractDataCollector create(DOMChannelInfo chInfo, 
+        WritableByteChannel hitChannel, WritableByteChannel moniChannel,
+        WritableByteChannel snChannel, WritableByteChannel tcalChannel)
+        throws IOException, MessageException;
     /**
      * Reset the factory.
      */

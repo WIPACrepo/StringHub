@@ -18,7 +18,6 @@ import icecube.daq.util.FlasherboardConfiguration;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -36,64 +35,68 @@ import org.apache.log4j.PropertyConfigurator;
  */
 public class CollectorShell
 {
-	private AbstractDataCollector collector;
-	private DOMConfiguration config;
-	private FlasherboardConfiguration flasherConfig;
-	private static final Logger logger = Logger.getLogger(CollectorShell.class);
+    private AbstractDataCollector collector;
+    private DOMConfiguration config;
+    private FlasherboardConfiguration flasherConfig;
+    private static final Logger logger = Logger.getLogger(CollectorShell.class);
 
-	public CollectorShell()
+    public CollectorShell()
+    {
+        this(null);
+    }
+
+    public CollectorShell(Properties props)
+    {
+        config = new DOMConfiguration();
+        flasherConfig = null;
+
+	if (props == null) return;
+
+	if (props.containsKey("icecube.daq.collectorshell.lc.type")) {
+	    String lcType = props.getProperty("icecube.daq.collectorshell.lc.type");
+	    if (lcType.equalsIgnoreCase("hard")) {
+	        config.getLC().setType(Type.HARD);
+            }
+	    else if (lcType.equalsIgnoreCase("soft")) {
+	        config.getLC().setType(Type.SOFT);
+            }
+	}
+	if (props.containsKey("icecube.daq.collectorshell.lc.rxmode"))
 	{
-	    this(null);
+	    String rxMode = props.getProperty("icecube.daq.collectorshell.lc.rxmode");
+	    if (rxMode.equalsIgnoreCase("none")) {
+	        config.getLC().setRxMode(RxMode.RXNONE);
+            }
+	    else if (rxMode.equalsIgnoreCase("up")) {
+	        config.getLC().setRxMode(RxMode.RXUP);
+            }
+	    else if (rxMode.equalsIgnoreCase("down")) {
+	        config.getLC().setRxMode(RxMode.RXDOWN);
+            }
+	    else if (rxMode.equalsIgnoreCase("both")) {
+	        config.getLC().setRxMode(RxMode.RXBOTH);
+            }
 	}
 
-	public CollectorShell(Properties props)
+	if (props.containsKey("icecube.daq.collectorshell.lc.span"))
 	{
-		config = new DOMConfiguration();
-		flasherConfig = null;
-
-		if (props == null) return;
-
-		if (props.containsKey("icecube.daq.collectorshell.lc.type"))
-		{
-		    String lcType = props.getProperty("icecube.daq.collectorshell.lc.type");
-		    if (lcType.equalsIgnoreCase("hard"))
-		        config.getLC().setType(Type.HARD);
-		    else if (lcType.equalsIgnoreCase("soft"))
-		        config.getLC().setType(Type.SOFT);
-		}
-
-		if (props.containsKey("icecube.daq.collectorshell.lc.rxmode"))
-		{
-		    String rxMode = props.getProperty("icecube.daq.collectorshell.lc.rxmode");
-		    if (rxMode.equalsIgnoreCase("none"))
-		        config.getLC().setRxMode(RxMode.RXNONE);
-		    else if (rxMode.equalsIgnoreCase("up"))
-		        config.getLC().setRxMode(RxMode.RXUP);
-		    else if (rxMode.equalsIgnoreCase("down"))
-		        config.getLC().setRxMode(RxMode.RXDOWN);
-		    else if (rxMode.equalsIgnoreCase("both"))
-		        config.getLC().setRxMode(RxMode.RXBOTH);
-		}
-
-		if (props.containsKey("icecube.daq.collectorshell.lc.span"))
-		{
-		    config.getLC().setSpan((byte) Integer.parseInt(
-		            props.getProperty("icecube.daq.collectorshell.lc.span")
-		            ));
-		}
+	    config.getLC().setSpan((byte) Integer.parseInt(
+                props.getProperty("icecube.daq.collectorshell.lc.span")
+                ));
+	}
 
         if (props.containsKey("icecube.daq.collectorshell.lc.pretrig"))
         {
             config.getLC().setPreTrigger(Integer.parseInt(
-                    props.getProperty("icecube.daq.collectorshell.lc.pretrig")
-                    ));
+                props.getProperty("icecube.daq.collectorshell.lc.pretrig")
+                ));
         }
 
         if (props.containsKey("icecube.daq.collectorshell.lc.posttrig"))
         {
             config.getLC().setPostTrigger(Integer.parseInt(
-                    props.getProperty("icecube.daq.collectorshell.lc.posttrig")
-                    ));
+                props.getProperty("icecube.daq.collectorshell.lc.posttrig")
+                ));
         }
 
 	}

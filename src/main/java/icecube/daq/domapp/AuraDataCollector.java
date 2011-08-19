@@ -41,15 +41,16 @@ public class AuraDataCollector extends AbstractDataCollector
     private static final int    EVT_TRACR_MATCH_CLK = 40;
     private static final int    EVT_TRACR_CLK       = 106;
 
-    private short[][]           radioDACs           = { 
-            { 2000, 3000, 3200, 3250 },
-            { 2000, 3000, 3200, 3250 }, 
-            { 2000, 3000, 3200, 3250 }, 
-            { 2000, 3000, 3200, 3250 } };
+    private short[][]           radioDACs = { 
+        {2000, 3000, 3200, 3250 },
+        {2000, 3000, 3200, 3250 }, 
+        {2000, 3000, 3200, 3250 }, 
+        {2000, 3000, 3200, 3250 } };
 
     // This is the default : 3/4 ch and 3/4 bands
     private int                 triggerSetting      = 68;   
-    private static final Logger logger              = Logger.getLogger(AuraDataCollector.class);
+    private static final Logger logger = 
+        Logger.getLogger(AuraDataCollector.class);
 
     public AuraDataCollector(int card, int pair, char dom, BufferConsumer hits)
     {
@@ -76,14 +77,15 @@ public class AuraDataCollector extends AbstractDataCollector
     {
         Timer t3 = new Timer();
 
-        try
-        {
+        try {
             driver.softboot(card, pair, dom);
             drm = new AuraDRM(card, pair, dom);
             mbid = drm.getMainboardId();
             mbid_numerique = Long.parseLong(mbid, 16);
 
-            if (useDOMApp) drm.loadDOMAppSBI();
+            if (useDOMApp) {
+                drm.loadDOMAppSBI();
+            }
 
             // Now flag this process as IDLE
             setRunLevel(RunLevel.IDLE);
@@ -91,10 +93,8 @@ public class AuraDataCollector extends AbstractDataCollector
             t3.schedule(new TCALTask(), 1000L, 1000L);
 
             running.set(true);
-            while (running.get() && !interrupted())
-            {
-                switch (getRunLevel())
-                {
+            while (running.get() && !interrupted()) {
+                switch (getRunLevel()) {
                 case CONFIGURING:
                     // Turn on TRACR
                     Thread.sleep(1000);
@@ -105,9 +105,11 @@ public class AuraDataCollector extends AbstractDataCollector
                      * trigger by setting all DACs to 0
                      */
 
-                    for (int ant = 0; ant < 4; ant++)
-                        for (int band = 0; band < 4; band++)
+                    for (int ant = 0; ant < 4; ant++) {
+                        for (int band = 0; band < 4; band++) {
                             drm.setRadioDAC(ant, band, 0);
+                        }
+                    }
                     drm.writeRadioDACs();
                     drm.resetTRACRFifo();
                     tracr_clock_offset = drm.getTRACRClockOffset(10000);
@@ -117,32 +119,27 @@ public class AuraDataCollector extends AbstractDataCollector
                      * Turn on power There is a little black-magic here --
                      * amplifier bits and then SHORTS are turned on one by one.
                      */
-                    if (!(drm.writePowerBits(powerControlBits)))
-                    {
+                    if (!(drm.writePowerBits(powerControlBits))) {
                         setRunLevel(RunLevel.STOPPING);
-                    }
-                    else
-                    {
-                        if (radioTrigger.get()) // Write dacs only if not forced
-                                                // trigger
-                        {
-                            for (int ant = 0; ant < 4; ant++)
-                                for (int band = 0; band < 4; band++)
-                                    drm.setRadioDAC(ant, band, radioDACs[ant][band]);
-                            drm.writeRadioDACs();
+                    } else {
+                        if (radioTrigger.get()) {
+                            for (int ant = 0; ant < 4; ant++) {
+                                for (int band = 0; band < 4; band++) {
+                                    drm.setRadioDAC(ant, band, 
+                                        radioDACs[ant][band]);
+                                }
+                                drm.writeRadioDACs();
+                            }
                         }
-                        if (changeTriggerSetting.get())
-                        {
+                        if (changeTriggerSetting.get()) {
                             drm.setTriggerLogic(triggerSetting);
-                            logger.info(mbid + " Trigger Setting changed to"
-                                    + drm.getTriggerLogic());
+                            logger.info(mbid + " Trigger Setting changed to" +
+                                drm.getTriggerLogic());
+                        } else {
+                            logger.info(mbid + 
+                                " Default trigger Setting used" +
+                                drm.getTriggerLogic());
                         }
-                        else
-                        {
-                            logger.info(mbid + " Default trigger Setting used"
-                                    + drm.getTriggerLogic());
-                        }
-
                         setRunLevel(RunLevel.CONFIGURED);
                     }
 
@@ -153,8 +150,12 @@ public class AuraDataCollector extends AbstractDataCollector
                     setRunLevel(RunLevel.RUNNING);
                     break;
                 case RUNNING:
-                    if (forcedTrigger.get()) sendRadioBuffer(drm.forcedTrig(1));
-                    if (radioTrigger.get()) sendRadioBuffer(drm.radioTrig(1));
+                    if (forcedTrigger.get()) {
+                        sendRadioBuffer(drm.forcedTrig(1));
+                    }
+                    if (radioTrigger.get()) {
+                        sendRadioBuffer(drm.radioTrig(1));
+                    }
                     break;
                 case STOPPING:
                     drm.powerOffFlasherboard();
@@ -163,17 +164,12 @@ public class AuraDataCollector extends AbstractDataCollector
                 }
             }
 
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ex.printStackTrace();
         }
-        try
-        {
+        try {
             hits.consume(MultiChannelMergeSort.eos(mbid_numerique));
-        }
-        catch (IOException iox)
-        {
+        } catch (IOException iox) {
             iox.printStackTrace();
         }
         t3.cancel();
@@ -187,28 +183,32 @@ public class AuraDataCollector extends AbstractDataCollector
         long utc;
         buf.order(ByteOrder.LITTLE_ENDIAN);
         long domclk = buf.getLong(EVT_DOM_CLK);
-        if (buf.limit() > EVT_TRACR_CLK + 6)
-        {
-            long tracr_match_clk = buf.getLong(EVT_TRACR_MATCH_CLK) & 0xffffffffffL;
+        if (buf.limit() > EVT_TRACR_CLK + 6) {
+            long tracr_match_clk = 
+                buf.getLong(EVT_TRACR_MATCH_CLK) & 0xffffffffffL;
             long tracr_clk = 0;
             buf.order(ByteOrder.BIG_ENDIAN);
-            for (int i = 0; i < 6; i++)
-                tracr_clk = (tracr_clk << 8) | ((int) buf.get(EVT_TRACR_CLK + i) & 0xff);
+            for (int i = 0; i < 6; i++) {
+                tracr_clk = (tracr_clk << 8) | 
+                    ((int) buf.get(EVT_TRACR_CLK + i) & 0xff);
+            }
             tracr_clk = tracr_clk & 0xffffffffffL;
             buf.order(ByteOrder.LITTLE_ENDIAN);
-            utc = rapcal.domToUTC(2 * tracr_clk + tracr_clock_offset).in_0_1ns();
-            if (logger.isDebugEnabled())
-            {
-                logger.debug("DOMClk: " + domclk + " TracrMatchClk: " + tracr_match_clk
-                        + " TracrClk: " + tracr_clk + " - UTC: " + utc);
-                logger.debug("Offset (.1ns): " + (rapcal.domToUTC(domclk).in_0_1ns() - utc));
+            utc = rapcal.domToUTC(2 * tracr_clk + 
+                tracr_clock_offset).in_0_1ns();
+            if (logger.isDebugEnabled()) {
+                logger.debug("DOMClk: " + domclk + " TracrMatchClk: " + 
+                    tracr_match_clk + " TracrClk: " + tracr_clk + " - UTC: " + 
+                    utc);
+                logger.debug("Offset (.1ns): " + 
+                    (rapcal.domToUTC(domclk).in_0_1ns() - utc));
             }
-        }
-        else
-        {
+        } else {
             utc = rapcal.domToUTC(domclk).in_0_1ns();
-            if (logger.isDebugEnabled())
-                logger.debug("No tracr clock (beacon?): DOMClk: " + domclk + " - UTC: " + utc);
+            if (logger.isDebugEnabled()) {
+                logger.debug("No tracr clock (beacon?): DOMClk: " + 
+                    domclk + " - UTC: " + utc);
+            }
         }
         ByteBuffer xtb = ByteBuffer.allocate(xtbSize);
         xtb.putInt(xtbSize);
@@ -218,14 +218,12 @@ public class AuraDataCollector extends AbstractDataCollector
         xtb.putLong(utc);
         xtb.put(buf);
         xtb.rewind();
-        try
-        {
-            if (logger.isDebugEnabled())
+        try {
+            if (logger.isDebugEnabled()) {
                 logger.debug("Sending buffer of size " + xtb.remaining());
+            }
             hits.consume(xtb);
-        }
-        catch (IOException iox)
-        {
+        } catch (IOException iox) {
             logger.error("Caught IOException: " + iox.getLocalizedMessage());
         }
     }
@@ -316,33 +314,22 @@ public class AuraDataCollector extends AbstractDataCollector
         @Override
         public void run()
         {
-            try
-            {
-                try
-                {
+            try {
+                try {
                     IGPSInfo gps = driver.readGPS(card);
                     gpsOffset = gps.getOffset();
-                }
-                catch (GPSException gpsx)
-                {
+                } catch (GPSException gpsx) {
                     logger.warn("GPS exception");
                 }
                 TimeCalib tcal = driver.readTCAL(card, pair, dom);
-                synchronized (rapcal)
-                {
+                synchronized (rapcal) {
                     rapcal.update(tcal, gpsOffset);
                 }
-            }
-            catch (IOException e)
-            {
+            } catch (IOException e) {
                 e.printStackTrace();
-            }
-            catch (InterruptedException e)
-            {
+            } catch (InterruptedException e) {
                 e.printStackTrace();
-            }
-            catch (RAPCalException rcx)
-            {
+            } catch (RAPCalException rcx) {
                 rcx.printStackTrace();
             }
 
