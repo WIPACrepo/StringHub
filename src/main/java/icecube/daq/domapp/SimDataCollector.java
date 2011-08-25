@@ -9,6 +9,7 @@ import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.StreamBinder;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.util.StringHubAlert;
+import icecube.daq.util.RealTimeRateMeter;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,6 +40,8 @@ import org.apache.log4j.Logger;
  */
 public class SimDataCollector extends AbstractDataCollector
 {
+    private RealTimeRateMeter rtHitRate, rtLCRate;
+
     private BufferConsumer  hitsConsumer;
     private BufferConsumer  moniConsumer;
     private BufferConsumer  tcalConsumer;
@@ -114,6 +117,11 @@ public class SimDataCollector extends AbstractDataCollector
             snDistance = config.getSnDistance();
             effVolumeEnabled = config.isEffVolumeEnabled();
         }
+
+	// Calculate 10-sec averages of the hit rate
+	rtHitRate = new RealTimeRateMeter(100000000000L);
+	rtLCRate  = new RealTimeRateMeter(100000000000L);
+	
 	lbmOverflowRandom = new Random();
         thread = new Thread(this, "SimDataCollector-" + card + "" + pair + dom);
         thread.start();
@@ -450,7 +458,16 @@ public class SimDataCollector extends AbstractDataCollector
             buf.putLong(clock);
             // simulation of the lcBits happens here
             int lcBits = 0;
-            if (rand.nextDouble() < hlcFrac) lcBits = 0x30000;
+
+	    // keep track of the overall hit rate
+	    rtHitRate.recordEvent(utc);
+            if (rand.nextDouble() < hlcFrac) {
+		lcBits = 0x30000;
+		// local coincidence bits set.  According to john j. that means that
+		// the dom is running in HLC mode
+		rtLCRate.recordEvent(utc);
+	    } 
+
             int word1 = 0x9004c00c | lcBits;
             int word3 = 0x00000000;
             buf.putInt(word1).putInt(word3);
@@ -489,6 +506,18 @@ public class SimDataCollector extends AbstractDataCollector
         if (moniConsumer != null) moniConsumer.consume(moniBuf);
         lastMoni = currTime;
         return 1;
+    }
+
+
+    public double getHitRate() {
+	// total hit rate ( both slc and hlc ) in hertz 
+	return rtHitRate.getRate();
+    }
+
+    public double getHitRateLC() {
+	// total HLC hit rate in hertz
+	// to get slc rate use 'getHitRate() - getHitRateLC()'
+	return rtLCRate.getRate();
     }
 
     public long getNumHits() {

@@ -692,7 +692,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13206 2011-07-25 22:02:46Z benedikt.riedel $";
+		return "$Id: StringHubComponent.java 13288 2011-08-25 05:25:36Z mnewcomb $";
     }
 
 	public IByteBufferCache getCache()
@@ -745,6 +745,27 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		returnVal[1] = total;
 
 		return returnVal;
+	}
+
+
+    public double getHitRate() {
+		double total = 0.;
+
+		for (AbstractDataCollector adc : conn.getCollectors()) {
+			total += adc.getHitRate();
+		}
+
+		return total;
+	}
+
+    public double getHitRateLC() {
+		double total = 0.;
+		
+		for (AbstractDataCollector adc : conn.getCollectors()) {
+			total += adc.getHitRateLC();
+		}
+
+		return total;
 	}
 
 	public long getTotalLBMOverflows() {
