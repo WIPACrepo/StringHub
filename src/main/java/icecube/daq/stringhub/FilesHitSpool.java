@@ -1,7 +1,6 @@
 package icecube.daq.stringhub;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -37,13 +36,15 @@ public class FilesHitSpool implements BufferConsumer
     
     /**
      * Constructor with full options.
-     * @param out   BufferConsumer object that will receive forwarded hits.  Can be null.
+     * @param out   BufferConsumer object that will receive forwarded hits.  
+     * Can be null.
      * @param targetDir output directory on filesystem 
      * @param hitsPerFile number of hits per file
      * @param fileCount number of files in the spooling ensemble
      * @see BufferConsumer
      */
-    public FilesHitSpool(BufferConsumer out, File targetDir, long hitsPerFile, int fileCount) 
+    public FilesHitSpool(BufferConsumer out, File targetDir, 
+        long hitsPerFile, int fileCount) 
     {
         this.out = out;
         this.hitsPerFile = hitsPerFile;
@@ -63,31 +64,33 @@ public class FilesHitSpool implements BufferConsumer
     
     public void consume(ByteBuffer buf) throws IOException
     {
-        if (currentNumberOfHits++ == hitsPerFile)
-        {
+        if (currentNumberOfHits++ == hitsPerFile) {
             ch.close();
             openNewFile();
         }
-        while (buf.remaining() > 0) ch.write(buf);
+        while (buf.remaining() > 0) {
+            ch.write(buf);
+        }
         buf.rewind();
-        if (null != out) out.consume(buf);
+        if (null != out) {
+            out.consume(buf);
+        }
     }
 
     private void openNewFile()
     {
         String fileName = "HitSpool-" + currentFileIndex + ".dat";
         File newFile = new File(targetDirectory, fileName);
-        try 
-        {
+        try {
             RandomAccessFile raFile = new RandomAccessFile(newFile, "rw");
             raFile.seek(0L);
             ch = raFile.getChannel();
             currentFileIndex++;
-            if (currentFileIndex == maxNumberOfFiles) currentFileIndex = 0;
+            if (currentFileIndex == maxNumberOfFiles) {
+                currentFileIndex = 0;
+            }
             currentNumberOfHits = 0;
-        }
-        catch (IOException iox)
-        {
+        } catch (IOException iox) {
             logger.warn(iox);
         }
     }

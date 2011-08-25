@@ -20,7 +20,8 @@ public final class TCALTest
     private Driver driver = Driver.getInstance();
     private RAPCal rapcal;
 
-    private TCALTest(int card, int pair, char dom, String classname) throws Exception
+    private TCALTest(int card, int pair, char dom, String classname) 
+        throws Exception
     {
         this.card = card;
         this.pair = pair;
@@ -33,8 +34,7 @@ public final class TCALTest
         ArrayList<Double> cableLengthList = new ArrayList<Double>();
         UTC u0 = new UTC();
         rapcal.update(driver.readTCAL(card, pair, dom), u0);
-        for (int iter = 0; iter < n; iter++)
-        {
+        for (int iter = 0; iter < n; iter++) {
             TimeCalib tcal = driver.readTCAL(card, pair, dom);
             rapcal.update(tcal, u0);
             System.out.println(
@@ -44,16 +44,18 @@ public final class TCALTest
             Thread.sleep(500L);
         }
         double mean = 0.0;
-        for (double x : cableLengthList) mean += x;
+        for (double x : cableLengthList) {
+            mean += x;
+        }
         mean /= cableLengthList.size();
         double var  = 0.0;
-        for (double x : cableLengthList)
-        {
+        for (double x : cableLengthList) {
             double svar = x - mean;
             var += svar * svar;
         }
         var /= cableLengthList.size();
-        System.out.format("CLEN: %.1f +/- %.1f\n", mean * 1.0E+09, Math.sqrt(var) * 1.0E+09);
+        System.out.format("CLEN: %.1f +/- %.1f\n", 
+            mean * 1.0E + 09, Math.sqrt(var) * 1.0E + 09);
     }
 
     public static void main(String[] args) throws Exception
@@ -61,19 +63,22 @@ public final class TCALTest
         BasicConfigurator.configure();
         Logger.getRootLogger().setLevel(Level.INFO);
 
-        if (args.length < 2)
-        {
-            System.err.println("usage - java icecube.daq.dor.TCALTest <cwd> <# iter>");
+        if (args.length < 2) {
+            System.err.println(
+                "usage - java icecube.daq.dor.TCALTest <cwd> <# iter>");
             System.exit(1);
         }
 
         int iarg = 0;
         String classname = "icecube.daq.rapcal.LeadingEdgeRAPCal";
-        while (iarg < args.length && args[iarg].charAt(0) == '-')
-        {
+        while (iarg < args.length && args[iarg].charAt(0) == '-') {
             String opt = args[iarg++].substring(1);
-            if (opt.equals("debug")) Logger.getRootLogger().setLevel(Level.DEBUG);
-            if (opt.equals("classname")) classname = args[iarg++];
+            if (opt.equals("debug")) {
+                Logger.getRootLogger().setLevel(Level.DEBUG);
+            }
+            if (opt.equals("classname")) {
+                classname = args[iarg++];
+            }
         }
 
         int card = Integer.parseInt(args[iarg].substring(0, 1));

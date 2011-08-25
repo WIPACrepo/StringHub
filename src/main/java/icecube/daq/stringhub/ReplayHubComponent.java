@@ -82,23 +82,21 @@ public class ReplayHubComponent
             hitOut = null;
         } else {
             hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "hitOut");
-            if (minorHubId > 80)
+            if (minorHubId > 80) {
                 addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
-            else
+            } else {
                 addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
             sender.setHitOutput(hitOut);
+            }
         }
 
         ReadoutRequestFactory rdoutReqFactory =
             new ReadoutRequestFactory(genMgr);
 
         RequestReader reqIn;
-        try
-        {
+        try {
             reqIn = new RequestReader(COMPONENT_NAME, sender, rdoutReqFactory);
-        }
-        catch (IOException ioe)
-        {
+        } catch (IOException ioe) {
             throw new Error("Couldn't create RequestReader", ioe);
         }
         addMonitoredEngine(DAQConnector.TYPE_READOUT_REQUEST, reqIn);
@@ -561,8 +559,7 @@ public class ReplayHubComponent
         throws Exception
     {
         int hubId = 0;
-        try
-        {
+        try {
             hubId = Integer.getInteger("icecube.daq.stringhub.componentId");
         } catch (Exception ex) {
             System.err.println("Hub ID not set, specify with" +
@@ -576,7 +573,7 @@ public class ReplayHubComponent
         } catch (IllegalArgumentException ex) {
             System.err.println(ex.getMessage());
             System.exit(1);
-            return; // without this, compiler whines about uninitialized 'srvr'
+            return; 
         }
         srvr.startServing();
     }

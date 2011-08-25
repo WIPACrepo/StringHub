@@ -31,6 +31,7 @@ public class RequestReader
      * @param server MBean server
      * @param sender readout request filler
      * @param factory payload factory
+     * @throws IOException when something goes wrong
      */
     public RequestReader(String name, Sender sender,
                          ReadoutRequestFactory factory)

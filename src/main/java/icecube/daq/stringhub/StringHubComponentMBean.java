@@ -11,7 +11,8 @@ public interface StringHubComponentMBean
 
     /**
      * Return an array of the number of active doms and the number of total doms
-     * Packed into an integer array to avoid 2 xmlrpc calls from the ActiveDOMsTask
+     * Packed into an integer array to avoid 2 xmlrpc calls from the 
+     * ActiveDOMsTask
      * @return [0] = number of active doms, [1] = total number of doms
      */
     int[] getNumberOfActiveAndTotalChannels();
