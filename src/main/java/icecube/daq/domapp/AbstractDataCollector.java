@@ -225,9 +225,8 @@ public abstract class AbstractDataCollector extends Thread
 
 	public double getHitRate() {
 		// The naming convention is a bit obtuse here, but it is assumed this
-		// means the rate in Hz of TOTAL hits ( both SLC and HLC ).  To get HLC
-		// hit rate use 'getHitRateLC()'.  To get SLC hit rate use 'getHitRate() - 
-		// getHitRateLC()'.
+		// means the rate in Hz of TOTAL hits. To get HLC hit rate use 
+		// 'getHitRateLC()'.  
 		return 0.0;
 	}
 
@@ -235,7 +234,7 @@ public abstract class AbstractDataCollector extends Thread
 		// The naming convention is a bit obtuse here, but it is assumed this
 		// means rate in Hz of hits with the local coincidence bits set.
 		// According to john j, in an email aug 17, that means the dom is in
-		// HLC mode.  To get SLC hits use 'getHitRate() - getHitRateLC()'
+		// HLC mode.  To get SLC hits use 'getHitRate()'
 		return 0.0;
 	}
 

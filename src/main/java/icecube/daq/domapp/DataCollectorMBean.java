@@ -13,13 +13,13 @@ public interface DataCollectorMBean
     String getMainboardId();
     
     /**
-     * Get the rate of the hits
+     * Get the SLC hit rate
      * @return hit rate in Hz
      */
     double getHitRate();
     
     /**
-     * Get the rate of LC-flagged hits
+     * Get the HLC hitrate 
      * @return hit rate in Hz
      */
     double getHitRateLC();

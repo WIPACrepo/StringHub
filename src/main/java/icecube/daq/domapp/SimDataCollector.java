@@ -510,13 +510,13 @@ public class SimDataCollector extends AbstractDataCollector
 
 
     public double getHitRate() {
-	// total hit rate ( both slc and hlc ) in hertz 
+	// total hit rate in hertz 
 	return rtHitRate.getRate();
     }
 
     public double getHitRateLC() {
 	// total HLC hit rate in hertz
-	// to get slc rate use 'getHitRate() - getHitRateLC()'
+	// to get slc rate use 'getHitRate()'
 	return rtLCRate.getRate();
     }
 
