@@ -508,9 +508,14 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			logger.error("Caught IOException", iox);
 			throw new DAQCompException("Cannot configure", iox);
 		}
+		catch (DAQCompException dcx)
+		{
+			logger.error("Caught DAQ exception", dcx);
+			throw dcx;
+		}
 		catch (Exception e)
 		{
-			throw new DAQCompException("Unexpected exception", e);
+			throw new DAQCompException("Unexpected exception " + e, e);
 		}
 
 
@@ -692,7 +697,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13316 2011-09-01 18:04:31Z dglo $";
+		return "$Id: StringHubComponent.java 13317 2011-09-01 18:06:11Z dglo $";
     }
 
 	public IByteBufferCache getCache()
