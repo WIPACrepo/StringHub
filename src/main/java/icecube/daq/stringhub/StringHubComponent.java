@@ -93,7 +93,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	private ISourceID sourceId;
 	private IStringTriggerHandler triggerHandler;
 	private static final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
-	
+
 	private boolean hitSpooling = false;
 	private String hitSpoolDir;
 	private long hitSpoolHits;
@@ -342,7 +342,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			boolean dcSoftboot = false;
 
 			int tcalPrescale = 10;
-			
+
 			if (hubNode != null)
 			{
 			    if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) enableTriggering();
@@ -355,9 +355,9 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			    if (hubNode.valueOf("hitspool/enabled").equalsIgnoreCase("true")) hitSpooling = true;
 			    hitSpoolDir = hubNode.valueOf("hitspool/directory");
 			    if (hitSpoolDir.length() == 0) hitSpoolDir = "/mnt/data/pdaqlocal";
-			    if (hubNode.valueOf("hitspool/hits").length() > 0) 
-			        hitSpoolHits = Long.parseLong(hubNode.valueOf("hitspool/hits")); 
-			       
+			    if (hubNode.valueOf("hitspool/hits").length() > 0)
+			        hitSpoolHits = Long.parseLong(hubNode.valueOf("hitspool/hits"));
+
 			}
 			double snDistance = Double.NaN;
 
@@ -428,7 +428,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniBufMgr, moniOut.getChannel());
 	        SecondaryStreamConsumer supernovaConsumer = new SecondaryStreamConsumer(hubId, snBufMgr, supernovaOut.getChannel());
 	        SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId, tcalBufMgr, tcalOut.getChannel(), tcalPrescale);
-	        
+
             // Start the merger-sorter objects
 	        if (hitSpooling)
 	        {
@@ -438,7 +438,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	        }
 	        else
 	            hitsSort = new MultiChannelMergeSort(nch, sender);
-	        
+
 			moniSort = new MultiChannelMergeSort(nch, monitorConsumer);
 			scalSort = new MultiChannelMergeSort(nch, supernovaConsumer);
 			tcalSort = new MultiChannelMergeSort(nch, tcalConsumer);
@@ -479,7 +479,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 				// Associate a GPS service to this card, if not already done
 				GPSService.getInstance().startService(chanInfo.card);
-				
+
 				dc.setDomInfo(domRegistry.getDom(chanInfo.mbid));
 
                 dc.setSoftbootBehavior(dcSoftboot);
@@ -635,7 +635,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
             throws DAQCompException
 	{
 	    logger.info("Entering run stop handler");
-	    
+
 		try
 		{
 			conn.stopProcessing();
@@ -692,7 +692,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13288 2011-08-25 05:25:36Z mnewcomb $";
+		return "$Id: StringHubComponent.java 13316 2011-09-01 18:04:31Z dglo $";
     }
 
 	public IByteBufferCache getCache()
@@ -760,7 +760,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
     public double getHitRateLC() {
 		double total = 0.;
-		
+
 		for (AbstractDataCollector adc : conn.getCollectors()) {
 			total += adc.getHitRateLC();
 		}
