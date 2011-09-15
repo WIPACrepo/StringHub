@@ -1,6 +1,6 @@
 package icecube.daq.domapp;
 
-public class MessageException extends Exception 
+public class MessageException extends Exception
 {
 
     private static final long serialVersionUID = 1L;
@@ -9,7 +9,7 @@ public class MessageException extends Exception
     private final int returnedType, returnedSubType;
     private final int status;
 
-    public MessageException(MessageType type, Exception e) 
+    public MessageException(MessageType type, Exception e)
     {
         super(e);
         this.type = type;
@@ -32,10 +32,11 @@ public class MessageException extends Exception
             return "DOM Message exception: sent type = " + type.toString() +
                 " wrapped exception is " + getCause().toString();
         } else {
-            return "DOM Message exception: sent type = " + 
+            return "DOM Message exception: sent type = " +
                 type.toString() + ", returned type = " + returnedType +
                 ", returned subtype = " + returnedSubType +
                 ", status = " + Integer.toBinaryString(status) + "b";
         }
 
+    }
 }

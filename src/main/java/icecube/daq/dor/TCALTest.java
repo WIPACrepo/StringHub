@@ -20,7 +20,7 @@ public final class TCALTest
     private Driver driver = Driver.getInstance();
     private RAPCal rapcal;
 
-    private TCALTest(int card, int pair, char dom, String classname) 
+    private TCALTest(int card, int pair, char dom, String classname)
         throws Exception
     {
         this.card = card;
@@ -54,8 +54,8 @@ public final class TCALTest
             var += svar * svar;
         }
         var /= cableLengthList.size();
-        System.out.format("CLEN: %.1f +/- %.1f\n", 
-            mean * 1.0E + 09, Math.sqrt(var) * 1.0E + 09);
+        System.out.format("CLEN: %.1f +/- %.1f\n",
+            mean * 1.0E9, Math.sqrt(var) * 1.0E9);
     }
 
     public static void main(String[] args) throws Exception

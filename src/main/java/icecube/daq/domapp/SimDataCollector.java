@@ -259,7 +259,8 @@ public class SimDataCollector extends AbstractDataCollector
                     lastBeacon = t;
                     lastMoni   = t;
                     lastTcal   = t;
-                    lastSupernova = t*10000L;         detection
+                    // strange units to get precision
+                    lastSupernova = t*10000L;
                     break;
                 case STARTING_SUBRUN:
                     // go to start run
@@ -473,7 +474,7 @@ public class SimDataCollector extends AbstractDataCollector
         ArrayList<Long> eventTimes = new ArrayList<Long>(n);
         // generate n random times in the interval
         for (int i = 0; i < n; i++) {
-            long rclk = 10000000L * (lastGenHit - t0) + (long) (1.0E + 10 *
+            long rclk = 10000000L * (lastGenHit - t0) + (long) (1.0E10 *
                 rand.nextDouble() * dt);
             eventTimes.add(rclk);
         }

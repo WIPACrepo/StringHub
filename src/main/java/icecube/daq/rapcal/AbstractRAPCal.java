@@ -17,7 +17,7 @@ public abstract class AbstractRAPCal implements RAPCal
         private double ratio;
         private double epsilon;
 
-        Isochron(TimeCalib tcal0, TimeCalib tcal1, UTC gpsOffset) 
+        Isochron(TimeCalib tcal0, TimeCalib tcal1, UTC gpsOffset)
             throws RAPCalException
         {
             t0 = setupVierling(tcal0);
@@ -26,7 +26,7 @@ public abstract class AbstractRAPCal implements RAPCal
             this.gpsOffset = gpsOffset;
         }
 
-        Isochron(Isochron prev, TimeCalib tcal, UTC gpsOffset) 
+        Isochron(Isochron prev, TimeCalib tcal, UTC gpsOffset)
             throws RAPCalException
         {
             t0 = prev.t1;
@@ -56,7 +56,7 @@ public abstract class AbstractRAPCal implements RAPCal
         {
             // convert domclk to 0.1 ns units
             UTC domclkUtc = new UTC(domclk * 250L);
-            return (domclkUtc.compareTo(t0[2]) > 0) && 
+            return (domclkUtc.compareTo(t0[2]) > 0) &&
                 (domclkUtc.compareTo(t1[2]) <= 0);
         }
 
@@ -67,9 +67,9 @@ public abstract class AbstractRAPCal implements RAPCal
             long dom_dt = UTC.add(t1[1], t1[2]).subtractAsUTC(
                 UTC.add(t0[1], t0[2])).in_0_1ns() / 2L;
             epsilon = (double) (dor_dt - dom_dt) / dom_dt;
-            // Note that using double precision here but DOM internal 
+            // Note that using double precision here but DOM internal
             // delay is small number so OK
-            double clen  = 0.5 * (UTC.subtract(t1[3], t1[0]) - 
+            double clen  = 0.5 * (UTC.subtract(t1[3], t1[0]) -
                 (1.0+epsilon) * UTC.subtract(t1[2], t1[1]));
             if (Double.isNaN(clenAvg))
                 clenAvg = clen;
@@ -80,17 +80,17 @@ public abstract class AbstractRAPCal implements RAPCal
             else
             {
                 // wild TCAL!
-                logger.warn("Wild TCAL - clen: " + clen + " clenAvg: " + 
+                logger.warn("Wild TCAL - clen: " + clen + " clenAvg: " +
                     clenAvg);
             }
             if (logger.isDebugEnabled())
             {
                 logger.debug("\n" +
-                        " t0: " + t0[0] + ", " + t0[1] + ", " + t0[2] + 
-                        ", " + t0[3] + "\n" + " t1: " + t1[0] + ", " + 
+                        " t0: " + t0[0] + ", " + t0[1] + ", " + t0[2] +
+                        ", " + t0[3] + "\n" + " t1: " + t1[0] + ", " +
                         t1[1] + ", " + t1[2] + ", " + t1[3] + "\n" +
                         String.format(" Epsilon: %.3f ppb cable dT: %.1f ns",
-                                1.0E + 09 * epsilon, 1.0E + 09 * clen)
+                                1.0E9 * epsilon, 1.0E9 * clen)
                         );
             }
         }
@@ -103,7 +103,7 @@ public abstract class AbstractRAPCal implements RAPCal
             // Correct for DOM frequency variation
             dt += (long) (epsilon * dt);
             if (logger.isDebugEnabled()) {
-                logger.debug("Translating DOM time " + domclk + 
+                logger.debug("Translating DOM time " + domclk +
                     " at distance " + dt / 10L + " ns from isomark.");
             }
             return UTC.add(gpsOffset, new UTC(dorMid + dt));
@@ -118,7 +118,7 @@ public abstract class AbstractRAPCal implements RAPCal
     private final double         expWt;
     private final int            MAX_HISTORY;
     private final int            BASELINE_SAMPLES;
-    private static final Logger  logger = 
+    private static final Logger  logger =
         Logger.getLogger(AbstractRAPCal.class);
 
 
@@ -206,7 +206,7 @@ public abstract class AbstractRAPCal implements RAPCal
      * relevant transformation to be applied if the TimeCalibs are not up
      * to date.
      *
-     * @return UTC global time or null if the transformation could not be 
+     * @return UTC global time or null if the transformation could not be
      * applied.
      *
      */
@@ -226,7 +226,7 @@ public abstract class AbstractRAPCal implements RAPCal
     public UTC domToUTC(long domclk, long atclk)
     {
         /*
-         * Iterate thru list until you find (A) bracketing Isochron, or (B) 
+         * Iterate thru list until you find (A) bracketing Isochron, or (B)
          * end of list. Since hits are coming in time-ordered you know it is
          * safe to delete old elements in the list -hence the it.remove() line.
          */

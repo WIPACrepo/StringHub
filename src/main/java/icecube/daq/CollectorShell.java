@@ -123,7 +123,7 @@ public class CollectorShell
         public void parseOption(String option) throws BadEngineeringFormat
         {
             if (option.startsWith("engformat=")) {
-                // Parse out a string like (nfadc, natwd0[:size], 
+                // Parse out a string like (nfadc, natwd0[:size],
                 // natwd1[:size], natwd2[:size], natwd3[:size])
                 Pattern pat = Pattern.compile(
                     "\\((\\d+),(\\d+(?::[12])?),(\\d+(?::[12])?),(\\d+(?::[12])?),(\\d+(?::[12])?)\\)");
@@ -140,84 +140,85 @@ public class CollectorShell
                     if (sep < 0) {
                         sep = x.length();
                     } else {
-                        atwdSize[i] = Short.parseShort(x.substring(sep+1, 
+                        atwdSize[i] = Short.parseShort(x.substring(sep+1,
                             x.length()));
                         atwdSamp[i] = Short.parseShort(x.substring(0, sep));
                     }
                     config.setEngineeringFormat(
                         new EngineeringRecordFormat(nfadc, atwdSamp, atwdSize));
-                } else if (option.equals("delta")) {
-                    config.enableDeltaCompression();
-                } else if (option.startsWith("hv=")) {
-                    config.setHV(Short.parseShort(option.substring(3)));
-                } else if (option.startsWith("spe=")) {
-                    config.setDAC(9, Short.parseShort(option.substring(4)));
-                } else if (option.startsWith("mpe=")) {
-                    config.setDAC(8, Short.parseShort(option.substring(4)));
-                } else if (option.startsWith("trigger=")) {
-                    String trig = option.substring(8);
-                    if (trig.equals("forced")) {
-                        config.setTriggerMode(TriggerMode.FORCED);
-                    } else if (trig.equals("spe"))  {
-                        config.setTriggerMode(TriggerMode.SPE);
-                    } else if (trig.equals("mpe")) {
-                        config.setTriggerMode(TriggerMode.MPE);
-                    } else if (trig.equals("flasher")) {
-                        config.setTriggerMode(TriggerMode.FB);
+                }
+            } else if (option.equals("delta")) {
+                config.enableDeltaCompression();
+            } else if (option.startsWith("hv=")) {
+                config.setHV(Short.parseShort(option.substring(3)));
+            } else if (option.startsWith("spe=")) {
+                config.setDAC(9, Short.parseShort(option.substring(4)));
+            } else if (option.startsWith("mpe=")) {
+                config.setDAC(8, Short.parseShort(option.substring(4)));
+            } else if (option.startsWith("trigger=")) {
+                String trig = option.substring(8);
+                if (trig.equals("forced")) {
+                    config.setTriggerMode(TriggerMode.FORCED);
+                } else if (trig.equals("spe"))  {
+                    config.setTriggerMode(TriggerMode.SPE);
+                } else if (trig.equals("mpe")) {
+                    config.setTriggerMode(TriggerMode.MPE);
+                } else if (trig.equals("flasher")) {
+                    config.setTriggerMode(TriggerMode.FB);
+                }
+            } else if (option.startsWith("pulser-rate=")) {
+                config.setPulserRate(Short.parseShort(option.substring(12)));
+            } else if (option.startsWith("mux=")) {
+                String muxOpt = option.substring(4);
+                for (MuxState m : MuxState.values()) {
+                    if (muxOpt.equalsIgnoreCase(m.toString())) {
+                        config.setMux(m);
+                        break;
                     }
-                } else if (option.startsWith("pulser-rate=")) {
-                    config.setPulserRate(Short.parseShort(option.substring(12)));
-                } else if (option.startsWith("mux=")) {
-                    String muxOpt = option.substring(4);
-                    for (MuxState m : MuxState.values()) {
-                        if (muxOpt.equalsIgnoreCase(m.toString())) {
-                            config.setMux(m);
-                            break;
-                        }
-                    }
-                } else if (option.equals("slc")) {
-                    config.getLC().setType(Type.SOFT);
-                } else if (option.equals("pedsub")) {
-                    config.setPedestalSubtraction(true);
-                } else if (option.startsWith("flasher")) {
-                    flasherConfig = new FlasherboardConfiguration();
-                    if (option.length() > 8 && option.charAt(7) == ':') {
-                        Pattern p = Pattern.compile("(\\w+)=(\\w+)");
-                        String[] flOpts = option.substring(8).split(",");
-                        for (String flop : flOpts) {
-                            Matcher m = p.matcher(flop);
-                            if (m.matches()) {
-                                String arg = m.group(1);
-                                String val = m.group(2);
-                                if (arg.equalsIgnoreCase("brightness")) {
-                                    flasherConfig.setBrightness(Integer.parseInt(val));
-                                } else if (arg.equalsIgnoreCase("width")) {
-                                    flasherConfig.setWidth(Integer.parseInt(val));
-                                } else if (arg.equalsIgnoreCase("delay")) {
-                                    flasherConfig.setDelay(Integer.parseInt(val));
-                                } else if (arg.equalsIgnoreCase("rate")) {
-                                    flasherConfig.setRate(Integer.parseInt(val));
-                                } else if (arg.equalsIgnoreCase("mask")) {
-                                    flasherConfig.setMask(Integer.parseInt(val, 16));
-                                }
+                }
+            } else if (option.equals("slc")) {
+                config.getLC().setType(Type.SOFT);
+            } else if (option.equals("pedsub")) {
+                config.setPedestalSubtraction(true);
+            } else if (option.startsWith("flasher")) {
+                flasherConfig = new FlasherboardConfiguration();
+                if (option.length() > 8 && option.charAt(7) == ':') {
+                    Pattern p = Pattern.compile("(\\w+)=(\\w+)");
+                    String[] flOpts = option.substring(8).split(",");
+                    for (String flop : flOpts) {
+                        Matcher m = p.matcher(flop);
+                        if (m.matches()) {
+                            String arg = m.group(1);
+                            String val = m.group(2);
+                            if (arg.equalsIgnoreCase("brightness")) {
+                                flasherConfig.setBrightness(Integer.parseInt(val));
+                            } else if (arg.equalsIgnoreCase("width")) {
+                                flasherConfig.setWidth(Integer.parseInt(val));
+                            } else if (arg.equalsIgnoreCase("delay")) {
+                                flasherConfig.setDelay(Integer.parseInt(val));
+                            } else if (arg.equalsIgnoreCase("rate")) {
+                                flasherConfig.setRate(Integer.parseInt(val));
+                            } else if (arg.equalsIgnoreCase("mask")) {
+                                flasherConfig.setMask(Integer.parseInt(val, 16));
                             }
                         }
                     }
-                } else if (option.startsWith("dac")) {
-                    int dac = Integer.parseInt(option.substring(3, 5));
-                    int val = Integer.parseInt(option.substring(6));
-                    config.setDAC(dac, val);
-                } else if (option.startsWith("debug")) {
-                    int c = option.indexOf(':');
-                    if (c >= 0) {
-                        String classname = option.substring(c+1);
-                        Logger.getLogger(classname).setLevel(Level.DEBUG);
-                    } else {
-                        Logger.getRootLogger().setLevel(Level.DEBUG);
-                    }
-                } else if (option.equals("info")) {
-                    Logger.getRootLogger().setLevel(Level.INFO);
                 }
+            } else if (option.startsWith("dac")) {
+                int dac = Integer.parseInt(option.substring(3, 5));
+                int val = Integer.parseInt(option.substring(6));
+                config.setDAC(dac, val);
+            } else if (option.startsWith("debug")) {
+                int c = option.indexOf(':');
+                if (c >= 0) {
+                    String classname = option.substring(c+1);
+                    Logger.getLogger(classname).setLevel(Level.DEBUG);
+                } else {
+                    Logger.getRootLogger().setLevel(Level.DEBUG);
+                }
+            } else if (option.equals("info")) {
+                Logger.getRootLogger().setLevel(Level.INFO);
+            }
         }
 
         public FlasherboardConfiguration getFlasherConfig()

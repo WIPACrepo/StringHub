@@ -41,10 +41,10 @@ public class XMLConfig extends DefaultHandler
     private static final Logger logger = Logger.getLogger(XMLConfig.class);
     private static final String[] dacNames = {
         "atwd0TriggerBias", "atwd0RampTop", "atwd0RampRate", "atwdAnalogRef",
-        "atwd1TriggerBias", "atwd1RampTop", "atwd1RampRate", 
-        "frontEndPedestal", "mpeTriggerDiscriminator", 
+        "atwd1TriggerBias", "atwd1RampTop", "atwd1RampRate",
+        "frontEndPedestal", "mpeTriggerDiscriminator",
         "speTriggerDiscriminator", "fastAdcRef", "internalPulser",
-        "ledBrightness", "frontEndAmpLowerClamp", "flasherDelay", 
+        "ledBrightness", "frontEndAmpLowerClamp", "flasherDelay",
         "muxBias", "flasherRef"
     };
     private static final int[] dacChannels = {
@@ -67,14 +67,14 @@ public class XMLConfig extends DefaultHandler
         return definedDOMConfigs.keySet();
     }
 
-    public void characters(char[] ch, int start, int length) 
+    public void characters(char[] ch, int start, int length)
         throws SAXException
     {
         xmlChars.append(ch, start, length);
     }
 
     @Override
-    public void endElement(String uri, String localName, String qName) 
+    public void endElement(String uri, String localName, String qName)
         throws SAXException
     {
         String text = xmlChars.toString().trim();
@@ -133,7 +133,7 @@ public class XMLConfig extends DefaultHandler
         } else if (localName.equals("engineeringFormat")) {
             try {
                 currentConfig.setEngineeringFormat(
-                    new EngineeringRecordFormat(fadcSamples, atwdSamples, 
+                    new EngineeringRecordFormat(fadcSamples, atwdSamples,
                         atwdWidth));
             } catch (BadEngineeringFormat bex) {
                 logger.error("Bad engineering format.");
@@ -144,11 +144,11 @@ public class XMLConfig extends DefaultHandler
         } else if (localName.equals("pedestalSubtract")) {
             if (text.equals("true")) {
                 currentConfig.setPedestalSubtraction(true);
-            } else
+            } else {
                 currentConfig.setPedestalSubtraction(false);
             }
         } else if (localName.equals("averagePedestal")) {
-            currentConfig.setAveragePedestal(atwdChannel, 
+            currentConfig.setAveragePedestal(atwdChannel,
                 Integer.parseInt(text));
         } else if (localName.equals("pulserMode")) {
             if (text.equals("beacon")) {
@@ -230,7 +230,7 @@ public class XMLConfig extends DefaultHandler
                     currentConfig.getLC().setSource(
                         LocalCoincidenceConfiguration.Source.MPE);
                 } else {
-                    throw new IllegalArgumentException("LC source specifier " 
+                    throw new IllegalArgumentException("LC source specifier "
                         + text + " invalid.");
                 }
             } else if (localName.equals("span")) {
@@ -241,7 +241,7 @@ public class XMLConfig extends DefaultHandler
                 currentConfig.getLC().setPostTrigger(Integer.parseInt(text));
             } else if (localName.equals("cableLength")) {
                 if (direction == Direction.DOWN) {
-                    currentConfig.getLC().setCableLengthDn(delayDistance - 1, 
+                    currentConfig.getLC().setCableLengthDn(delayDistance - 1,
                         Short.parseShort(text));
                } else {
                     currentConfig.getLC().setCableLengthUp(delayDistance - 1,
@@ -351,14 +351,14 @@ public class XMLConfig extends DefaultHandler
     {
         // final String schemaPath = "domconfig.xsd";
         SAXParserFactory saxFactory = SAXParserFactory.newInstance();
-        // SchemaFactory schemaFactory = 
+        // SchemaFactory schemaFactory =
         //     SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
         // ClassLoader cl = Thread.currentThread().getContextClassLoader();
-        // InputStream schemaStream = 
+        // InputStream schemaStream =
         //     XMLConfig.class.getResourceAsStream(schemaPath);
-        // if (schemaStream == null) 
+        // if (schemaStream == null)
         //     throw new FileNotFoundException(schemaPath);
-        // Schema schema = 
+        // Schema schema =
         //     schemaFactory.newSchema(new StreamSource(schemaStream));
         // saxFactory.setSchema(schema);
         saxFactory.setNamespaceAware(true);

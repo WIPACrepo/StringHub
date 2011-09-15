@@ -8,12 +8,12 @@ import java.nio.ByteBuffer;
  * @author kael
  *
  */
-public class UTC implements Comparable<UTC> 
+public class UTC implements Comparable<UTC>
 {
 
     private long tick10;
 
-    public UTC() 
+    public UTC()
     {
         tick10 = 0L;
     }
@@ -28,22 +28,22 @@ public class UTC implements Comparable<UTC>
      * construct the UTC object.
      * @param time
      */
-    public UTC(long time) 
+    public UTC(long time)
     {
         tick10 = time;
     }
 
-    public UTC(ByteBuffer buf) 
+    public UTC(ByteBuffer buf)
     {
         tick10 = buf.getLong();
     }
 
-    public String toString() 
+    public String toString()
     {
         return String.valueOf(tick10);
     }
 
-    public long in_0_1ns() 
+    public long in_0_1ns()
     {
         return tick10;
     }
@@ -71,22 +71,22 @@ public class UTC implements Comparable<UTC>
      * @param utc - the other UTC
      * @return difference in seconds
      */
-    public static double subtract(UTC utc1, UTC utc0) 
+    public static double subtract(UTC utc1, UTC utc0)
     {
         return 1.0e-10 * (utc1.tick10 - utc0.tick10);
     }
 
-    public static UTC subtractAsUTC(UTC utc1, UTC utc0) 
+    public static UTC subtractAsUTC(UTC utc1, UTC utc0)
     {
         return new UTC(utc1.tick10 - utc0.tick10);
     }
 
-    public static UTC add(UTC utc, double t) 
+    public static UTC add(UTC utc, double t)
     {
-        return new UTC(utc.tick10 + (long) (1.0e + 10 * t));
+        return new UTC(utc.tick10 + (long) (1.0e10 * t));
     }
 
-    public static UTC add(UTC utc0, UTC utc1) 
+    public static UTC add(UTC utc0, UTC utc1)
     {
         return new UTC(utc0.tick10 + utc1.tick10);
     }
@@ -95,12 +95,12 @@ public class UTC implements Comparable<UTC>
      * Write to a byte buffer.
      * @param buf
      */
-    public void toBuf(ByteBuffer buf) 
+    public void toBuf(ByteBuffer buf)
     {
         buf.putLong(tick10);
     }
 
-    public int compareTo(UTC o) 
+    public int compareTo(UTC o)
     {
         if (this.tick10 < o.tick10) {
             return -1;
