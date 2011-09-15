@@ -9,6 +9,7 @@ import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.StreamBinder;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.util.StringHubAlert;
+import icecube.daq.util.RealTimeRateMeter;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,11 +28,11 @@ import org.apache.log4j.Logger;
 /**
  *
  * Simulator for StringHub DataCollector.  This simulation is fairly basic
- * at the moment but is nevertheless useful as a generator to provide 
- * bona-fide inputs to the downstream DAQ which is quite oblivious of the 
+ * at the moment but is nevertheless useful as a generator to provide
+ * bona-fide inputs to the downstream DAQ which is quite oblivious of the
  * sham going on under its nose.
  * The SimDataCollector produces Poissonian generated hits at a rate specified
- * in the supplied configuration by the simNoiseRate parameter - typically 
+ * in the supplied configuration by the simNoiseRate parameter - typically
  * this will come from an XML config with tag of same name.
  *
  * @author krokodil
@@ -39,17 +40,19 @@ import org.apache.log4j.Logger;
  */
 public class SimDataCollector extends AbstractDataCollector
 {
+    private RealTimeRateMeter rtHitRate, rtLCRate;
+
     private BufferConsumer  hitsConsumer;
     private BufferConsumer  moniConsumer;
     private BufferConsumer  tcalConsumer;
     private BufferConsumer  scalConsumer;
     private long            clock;
     private long            t0;
-    private long            lastGenHit;           
-    private long            lastMoni;             
-    private long            lastTcal;             
-    private long            lastSupernova;        
-    private long            lastBeacon;           
+    private long            lastGenHit;
+    private long            lastMoni;
+    private long            lastTcal;
+    private long            lastSupernova;
+    private long            lastBeacon;
     private long            numericMBID;
     private RandomEngine    rand = new MersenneTwister(new java.util.Date());
     private Poisson         poissonRandom = new Poisson(1.0, rand);
@@ -72,18 +75,18 @@ public class SimDataCollector extends AbstractDataCollector
     private long lbmOverflowCount=0L;
     private Random lbmOverflowRandom;
 
-    private static final Logger logger = 
+    private static final Logger logger =
         Logger.getLogger(SimDataCollector.class);
 
     public SimDataCollector(int card, int pair, char dom, double[] avgSnSignal,
-        double[] effVolumeScaling) 
+        double[] effVolumeScaling)
     {
         super(card, pair, dom);
         this.avgSnSignal = avgSnSignal;
         this.effVolumeScaling = effVolumeScaling;
     }
 
-    public SimDataCollector(DOMChannelInfo chanInfo, 
+    public SimDataCollector(DOMChannelInfo chanInfo,
         BufferConsumer hitsConsumer)
     {
         this(chanInfo, null, hitsConsumer, null, null, null, false);
@@ -117,6 +120,11 @@ public class SimDataCollector extends AbstractDataCollector
             snDistance = config.getSnDistance();
             effVolumeEnabled = config.isEffVolumeEnabled();
         }
+
+	// Calculate 10-sec averages of the hit rate
+	rtHitRate = new RealTimeRateMeter(100000000000L);
+	rtLCRate  = new RealTimeRateMeter(100000000000L);
+
         lbmOverflowRandom = new Random();
         thread = new Thread(this, "SimDataCollector-" + card + "" + pair +
             dom);
@@ -128,16 +136,16 @@ public class SimDataCollector extends AbstractDataCollector
         // do nothing
     }
 
-    public long getLBMOverflowCount() 
+    public long getLBMOverflowCount()
     {
-        // randomly add a number from 0 to 20 to 
-        // the overflow count 
+        // randomly add a number from 0 to 20 to
+        // the overflow count
         lbmOverflowCount += lbmOverflowRandom.nextInt(20);
-       
+
         return lbmOverflowCount;
     }
 
-        
+
     public void signalShutdown()
     {
         if (logger.isInfoEnabled()) {
@@ -364,7 +372,7 @@ public class SimDataCollector extends AbstractDataCollector
         return 1;
     }
 
-    private int generateSupernova(long currTime) throws IOException 
+    private int generateSupernova(long currTime) throws IOException
     {
         if (currTime - lastSupernova/10000L < 1000L) {
             return 0;
@@ -375,29 +383,29 @@ public class SimDataCollector extends AbstractDataCollector
             logger.warn("Buffer overflow in SN record channel: " + mbid);
         }
         int dtms = (int) (currTime - lastSupernova/10000L);
-        int nsn = dtms * 10000 / 16384 /4*4;      
+        int nsn = dtms * 10000 / 16384 /4*4;
         // sn Data Challenge
         long runStartMilli = getRunStartTime()/10000000L + t0;
         long hundredSec = 100000L;
         long tenMinutes = 6*hundredSec;
-        //long snStartTime = ((runStartMilli/hundredSec)+1)*hundredSec;       
+        //long snStartTime = ((runStartMilli/hundredSec)+1)*hundredSec;
         // start sn within the next 100 sec (in ms)
         long snStartTime = ((runStartMilli/hundredSec)+1)*hundredSec +
-            tenMinutes;        
+            tenMinutes;
         double effVol = 1.;
         if (effVolumeEnabled) {
-            int domZNum = 8*card + 2*pair + (2-(dom-'A'));      
+            int domZNum = 8*card + 2*pair + (2-(dom-'A'));
             effVol = effVolumeScaling(domZNum);
         }
-        
+
         short recl = (short) (10 + nsn);
         ByteBuffer buf = ByteBuffer.allocate(recl+32);
-        long utc = lastSupernova*1000L - t0 * 10000000L; 
+        long utc = lastSupernova*1000L - t0 * 10000000L;
         long clk = utc / 250L;
 
         //        if (logger.isDebugEnabled())
         //        {
-        //            logger.debug("runStartMilli: " + runStartMilli + 
+        //            logger.debug("runStartMilli: " + runStartMilli +
         //                " MBID: " + mbid + " lastSupernova: " + lastSupernova
         //                + " UTC: " + utc + " # SN: " + nsn);
         //        }
@@ -421,18 +429,18 @@ public class SimDataCollector extends AbstractDataCollector
             //if ((nsnSig+i+1 > 0) && (nsnSig+i < maxnsnSig)) {
             if (snSigEnabled) {
                 if (binTime > snStartTime) {
-                     if (binTime < snStartTime + 16.384*916) {      
-                          int snBin = (int) ((binTime - snStartTime) * 
+                     if (binTime < snStartTime + 16.384*916) {
+                          int snBin = (int) ((binTime - snStartTime) *
                               10000 / 16384);
                           // if (logger.isDebugEnabled()) {
                           // logger.debug("snBin: " + snBin);
                           // }
-                          snRate = snSignalPerDom(snBin) * effVol * (10. / 
+                          snRate = snSignalPerDom(snBin) * effVol * (10. /
                               snDistance) * (10. / snDistance);
                      }
                 }
             }
-            int scaler = poissonRandom.nextInt(300 * 0.0016384) +  
+            int scaler = poissonRandom.nextInt(300 * 0.0016384) +
                 poissonRandom.nextInt(snRate);
             if (scaler > 15) {
                 scaler = 15;
@@ -460,12 +468,12 @@ public class SimDataCollector extends AbstractDataCollector
         int n = poissonRandom.nextInt(mu);
         numHits += n;
         // if (logger.isDebugEnabled())
-        // logger.debug("Generated " + n + " events in interval " + 
+        // logger.debug("Generated " + n + " events in interval " +
         // lastGenHit + ":" + currTime);
         ArrayList<Long> eventTimes = new ArrayList<Long>(n);
         // generate n random times in the interval
         for (int i = 0; i < n; i++) {
-            long rclk = 10000000L * (lastGenHit - t0) + (long) (1.0E + 10 * 
+            long rclk = 10000000L * (lastGenHit - t0) + (long) (1.0E + 10 *
                 rand.nextDouble() * dt);
             eventTimes.add(rclk);
         }
@@ -497,15 +505,22 @@ public class SimDataCollector extends AbstractDataCollector
             buf.putLong(clock);
             // simulation of the lcBits happens here
             int lcBits = 0;
+
+	    // keep track of the overall hit rate
+	    rtHitRate.recordEvent(utc);
             if (rand.nextDouble() < hlcFrac) {
-                lcBits = 0x30000;
-            }
+		lcBits = 0x30000;
+		// local coincidence bits set.  According to john j. that means
+                // that the dom is running in HLC mode
+		rtLCRate.recordEvent(utc);
+	    }
+
             int word1 = 0x9004c00c | lcBits;
             int word3 = 0x00000000;
             buf.putInt(word1).putInt(word3);
             buf.flip();
             //if (logger.isDebugEnabled())
-            //logger.debug("Writing " + buf.remaining() + 
+            //logger.debug("Writing " + buf.remaining() +
             //" byte hit at UTC = " + utc);
             if (hitsConsumer != null) {
                 hitsConsumer.consume(buf);
@@ -524,7 +539,7 @@ public class SimDataCollector extends AbstractDataCollector
         String txt = "Hi Artur - I am a DOM monitoring record.";
         int recl = 42 + txt.length();
         moniBuf.putInt(recl);
-        moniBuf.putInt(102); 
+        moniBuf.putInt(102);
         moniBuf.putLong(numericMBID);
         moniBuf.putLong(0L);
         long utc = (currTime - t0) * 10000000L;
@@ -545,6 +560,18 @@ public class SimDataCollector extends AbstractDataCollector
         }
         lastMoni = currTime;
         return 1;
+    }
+
+
+    public double getHitRate() {
+	// total hit rate in hertz
+	return rtHitRate.getRate();
+    }
+
+    public double getHitRateLC() {
+	// total HLC hit rate in hertz
+	// to get slc rate use 'getHitRate()'
+	return rtLCRate.getRate();
     }
 
     public long getNumHits() {
@@ -573,8 +600,8 @@ public class SimDataCollector extends AbstractDataCollector
     }
 
     /**
-     * Contains effective volume scaling factor per DOM for single photon 
-     * detection at 60 DOM locations starting at +500m going down by 17m, 
+     * Contains effective volume scaling factor per DOM for single photon
+     * detection at 60 DOM locations starting at +500m going down by 17m,
      * down to -503m.
      * @param domZNum (0 to 59)
      * @return effective volume scaling factor for each DOM depth
@@ -595,61 +622,61 @@ public class SimDataCollector extends AbstractDataCollector
 
     /**
      * Contains supernova signal extracted from Livermore paper in 10*1.
-     * 6384ms bins for a 10 kpc supernova.(we only have luminosity in 0.1sec 
+     * 6384ms bins for a 10 kpc supernova.(we only have luminosity in 0.1sec
      * resolution).  The entire signal has 916 entries, lasting 15 seconds.
      * @param nsnSigBin: the 1.6384ms time bin to set
      * @return expected supernova signal per DOM in the 1.6384ms bin
      */
-    public double snSignalPerDom(int nsnSigBin) 
+    public double snSignalPerDom(int nsnSigBin)
     {
         double[] avgSnSignalPerDom = {
-             0.555415, 0.555415, 0.555415, 0.555415, 0.555415, 0.555415, 
+             0.555415, 0.555415, 0.555415, 0.555415, 0.555415, 0.555415,
              0.555415, 1.97197, 1.97197, 1.97197, 1.97197, 1.97197, 1.97197,
-             2.05904, 2.05904, 2.05904, 2.05904, 2.05904, 2.05904, 1.42308, 
+             2.05904, 2.05904, 2.05904, 2.05904, 2.05904, 2.05904, 1.42308,
              1.42308, 1.42308, 1.42308, 1.42308, 1.42308, 0.812823, 0.812823,
-             0.812823, 0.812823, 0.812823,0.812823, 0.687798, 0.687798, 
-             0.687798, 0.687798, 0.687798, 0.687798,0.644868, 0.644868, 
-             0.644868, 0.644868, 0.644868, 0.644868, 0.599942,0.599942, 
+             0.812823, 0.812823, 0.812823,0.812823, 0.687798, 0.687798,
+             0.687798, 0.687798, 0.687798, 0.687798,0.644868, 0.644868,
+             0.644868, 0.644868, 0.644868, 0.644868, 0.599942,0.599942,
              0.599942, 0.599942, 0.599942, 0.599942, 0.561448, 0.561448,
-             0.561448, 0.561448, 0.561448, 0.561448, 0.532783, 0.532783, 
-             0.532783, 0.532783, 0.532783, 0.532783, 0.532783, 0.509226, 
-             0.509226, 0.509226, 0.509226, 0.509226, 0.509226, 0.485543, 
-             0.485543, 0.485543, 0.485543, 0.485543, 0.485543, 0.460075, 
-             0.460075, 0.460075, 0.460075, 0.460075, 0.460075, 0.436051, 
-             0.436051, 0.436051, 0.436051, 0.436051, 0.436051, 0.385165, 
+             0.561448, 0.561448, 0.561448, 0.561448, 0.532783, 0.532783,
+             0.532783, 0.532783, 0.532783, 0.532783, 0.532783, 0.509226,
+             0.509226, 0.509226, 0.509226, 0.509226, 0.509226, 0.485543,
+             0.485543, 0.485543, 0.485543, 0.485543, 0.485543, 0.460075,
+             0.460075, 0.460075, 0.460075, 0.460075, 0.460075, 0.436051,
+             0.436051, 0.436051, 0.436051, 0.436051, 0.436051, 0.385165,
              0.385165, 0.385165, 0.385165, 0.385165, 0.385165, 0.325286,
-             0.325286, 0.325286, 0.325286, 0.325286, 0.325286, 0.285579, 
-             0.285579, 0.285579, 0.285579, 0.285579, 0.285579, 0.257917, 
-             0.257917, 0.257917, 0.257917, 0.257917, 0.257917, 0.236709, 
-             0.236709, 0.236709, 0.236709, 0.236709, 0.236709, 0.223189, 
-             0.223189, 0.223189, 0.223189, 0.223189, 0.223189, 0.223189, 
+             0.325286, 0.325286, 0.325286, 0.325286, 0.325286, 0.285579,
+             0.285579, 0.285579, 0.285579, 0.285579, 0.285579, 0.257917,
+             0.257917, 0.257917, 0.257917, 0.257917, 0.257917, 0.236709,
+             0.236709, 0.236709, 0.236709, 0.236709, 0.236709, 0.223189,
+             0.223189, 0.223189, 0.223189, 0.223189, 0.223189, 0.223189,
              0.21087, 0.21087, 0.21087, 0.21087, 0.21087, 0.21087, 0.204817,
              0.204817, 0.204817, 0.204817, 0.204817, 0.204817, 0.200394,
              0.200394, 0.200394, 0.200394, 0.200394, 0.200394, 0.196936,
-             0.196936, 0.196936, 0.196936, 0.196936, 0.196936, 0.194064, 
-             0.194064, 0.194064, 0.194064, 0.194064, 0.194064, 0.188852, 
-             0.188852, 0.188852, 0.188852, 0.188852, 0.188852, 0.178895, 
-             0.178895, 0.178895, 0.178895, 0.178895, 0.178895, 0.166188, 
-             0.166188, 0.166188, 0.166188, 0.166188, 0.166188, 0.155612, 
-             0.155612, 0.155612, 0.155612, 0.155612, 0.155612, 0.155612, 
+             0.196936, 0.196936, 0.196936, 0.196936, 0.196936, 0.194064,
+             0.194064, 0.194064, 0.194064, 0.194064, 0.194064, 0.188852,
+             0.188852, 0.188852, 0.188852, 0.188852, 0.188852, 0.178895,
+             0.178895, 0.178895, 0.178895, 0.178895, 0.178895, 0.166188,
+             0.166188, 0.166188, 0.166188, 0.166188, 0.166188, 0.155612,
+             0.155612, 0.155612, 0.155612, 0.155612, 0.155612, 0.155612,
              0.142742, 0.142742, 0.142742, 0.142742, 0.142742, 0.142742,
-             0.129152, 0.129152, 0.129152, 0.129152, 0.129152, 0.129152, 
-             0.117211, 0.117211, 0.117211, 0.117211, 0.117211, 0.117211, 
-             0.103214, 0.103214, 0.103214, 0.103214, 0.103214, 0.103214, 
+             0.129152, 0.129152, 0.129152, 0.129152, 0.129152, 0.129152,
+             0.117211, 0.117211, 0.117211, 0.117211, 0.117211, 0.117211,
+             0.103214, 0.103214, 0.103214, 0.103214, 0.103214, 0.103214,
              0.0800614, 0.0800614, 0.0800614, 0.0800614, 0.0800614, 0.0800614,
-             0.0935177, 0.0935177, 0.0935177, 0.0935177, 0.0935177, 0.0935177, 
-             0.0894246, 0.0894246, 0.0894246, 0.0894246, 0.0894246, 0.0894246, 
-             0.086065, 0.086065, 0.086065, 0.086065, 0.086065, 0.086065, 
-             0.0823025, 0.0823025, 0.0823025, 0.0823025, 0.0823025, 0.0823025, 
-             0.0800976, 0.0800976, 0.0800976, 0.0800976, 0.0800976, 0.0800976, 
-             0.0800976, 0.0785381, 0.0785381, 0.0785381, 0.0785381, 0.0785381, 
-             0.0785381, 0.0773815, 0.0773815, 0.0773815, 0.0773815, 0.0773815, 
-             0.0773815, 0.0761179, 0.0761179, 0.0761179, 0.0761179, 0.0761179, 
+             0.0935177, 0.0935177, 0.0935177, 0.0935177, 0.0935177, 0.0935177,
+             0.0894246, 0.0894246, 0.0894246, 0.0894246, 0.0894246, 0.0894246,
+             0.086065, 0.086065, 0.086065, 0.086065, 0.086065, 0.086065,
+             0.0823025, 0.0823025, 0.0823025, 0.0823025, 0.0823025, 0.0823025,
+             0.0800976, 0.0800976, 0.0800976, 0.0800976, 0.0800976, 0.0800976,
+             0.0800976, 0.0785381, 0.0785381, 0.0785381, 0.0785381, 0.0785381,
+             0.0785381, 0.0773815, 0.0773815, 0.0773815, 0.0773815, 0.0773815,
+             0.0773815, 0.0761179, 0.0761179, 0.0761179, 0.0761179, 0.0761179,
              0.0761179, 0.0744786, 0.0744786, 0.0744786, 0.0744786, 0.0744786,
-             0.0744786, 0.0735148, 0.0735148, 0.0735148,0.0735148, 0.0735148, 
-             0.0735148, 0.072854, 0.072854, 0.072854, 0.072854, 0.072854, 
+             0.0744786, 0.0735148, 0.0735148, 0.0735148,0.0735148, 0.0735148,
+             0.0735148, 0.072854, 0.072854, 0.072854, 0.072854, 0.072854,
              0.072854, 0.0721623, 0.0721623, 0.0721623, 0.0721623, 0.0721623,
-             0.0721623, 0.0711182, 0.0711182, 0.0711182, 0.0711182, 0.0711182, 
+             0.0721623, 0.0711182, 0.0711182, 0.0711182, 0.0711182, 0.0711182,
              0.0711182, 0.0706666, 0.0706666, 0.0706666, 0.0706666,
              0.0706666, 0.0706666, 0.0710069, 0.0710069, 0.0710069, 0.0710069,
              0.0710069, 0.0710069, 0.0710069, 0.0709269, 0.0709269, 0.0709269,
@@ -658,50 +685,50 @@ public class SimDataCollector extends AbstractDataCollector
              0.0722537, 0.0722537, 0.0722537, 0.0719262, 0.0719262, 0.0719262,
              0.0719262, 0.0719262, 0.0719262, 0.0698165, 0.0698165, 0.0698165,
              0.0698165, 0.0698165, 0.0698165, 0.0682488, 0.0682488, 0.0682488,
-             0.0682488, 0.0682488, 0.0682488, 0.066171, 0.066171, 0.066171, 
-             0.066171, 0.066171, 0.066171, 0.0640206, 0.0640206, 0.0640206, 
-             0.0640206, 0.0640206, 0.0640206, 0.0627915, 0.0627915, 0.0627915, 
-             0.0627915, 0.0627915, 0.0627915, 0.0627915, 0.061848, 0.061848, 
-             0.061848, 0.061848, 0.061848, 0.061848, 0.0609487, 0.0609487, 
-             0.0609487, 0.0609487, 0.0609487, 0.0609487, 0.0601714, 0.0601714, 
-             0.0601714, 0.0601714, 0.0601714, 0.0601714, 0.0588215, 0.0588215, 
-             0.0588215, 0.0588215, 0.0588215, 0.0588215, 0.058298, 0.058298, 
-             0.058298, 0.058298, 0.058298, 0.058298, 0.0575611, 0.0575611, 
-             0.0575611, 0.0575611, 0.0575611, 0.0575611, 0.0572319, 0.0572319, 
-             0.0572319, 0.0572319, 0.0572319, 0.0572319, 0.0564886, 0.0564886, 
-             0.0564886, 0.0564886, 0.0564886, 0.0564886, 0.0562373, 0.0562373, 
-             0.0562373, 0.0562373, 0.0562373, 0.0562373, 0.0553513, 0.0553513, 
+             0.0682488, 0.0682488, 0.0682488, 0.066171, 0.066171, 0.066171,
+             0.066171, 0.066171, 0.066171, 0.0640206, 0.0640206, 0.0640206,
+             0.0640206, 0.0640206, 0.0640206, 0.0627915, 0.0627915, 0.0627915,
+             0.0627915, 0.0627915, 0.0627915, 0.0627915, 0.061848, 0.061848,
+             0.061848, 0.061848, 0.061848, 0.061848, 0.0609487, 0.0609487,
+             0.0609487, 0.0609487, 0.0609487, 0.0609487, 0.0601714, 0.0601714,
+             0.0601714, 0.0601714, 0.0601714, 0.0601714, 0.0588215, 0.0588215,
+             0.0588215, 0.0588215, 0.0588215, 0.0588215, 0.058298, 0.058298,
+             0.058298, 0.058298, 0.058298, 0.058298, 0.0575611, 0.0575611,
+             0.0575611, 0.0575611, 0.0575611, 0.0575611, 0.0572319, 0.0572319,
+             0.0572319, 0.0572319, 0.0572319, 0.0572319, 0.0564886, 0.0564886,
+             0.0564886, 0.0564886, 0.0564886, 0.0564886, 0.0562373, 0.0562373,
+             0.0562373, 0.0562373, 0.0562373, 0.0562373, 0.0553513, 0.0553513,
              0.0553513, 0.0553513, 0.0553513, 0.0553513, 0.0553513, 0.0536138,
-             0.0536138, 0.0536138, 0.0536138, 0.0536138, 0.0536138, 0.0519352, 
-             0.0519352, 0.0519352, 0.0519352, 0.0519352, 0.0519352, 0.0507732, 
-             0.0507732, 0.0507732, 0.0507732, 0.0507732, 0.0507732, 0.0490238, 
-             0.0490238, 0.0490238, 0.0490238, 0.0490238, 0.0490238, 0.0480949, 
-             0.0480949, 0.0480949, 0.0480949, 0.0480949, 0.0480949, 0.0474869, 
-             0.0474869, 0.0474869, 0.0474869, 0.0474869, 0.0474869, 0.0468252, 
-             0.0468252, 0.0468252, 0.0468252, 0.0468252, 0.0468252, 0.0457643, 
-             0.0457643, 0.0457643, 0.0457643, 0.0457643, 0.0457643, 0.0450419, 
-             0.0450419, 0.0450419, 0.0450419, 0.0450419, 0.0450419, 0.0443859, 
-             0.0443859, 0.0443859, 0.0443859, 0.0443859, 0.0443859, 0.0443859, 
-             0.0433807, 0.0433807, 0.0433807, 0.0433807, 0.0433807, 0.0433807, 
-             0.0423555, 0.0423555, 0.0423555, 0.0423555, 0.0423555, 0.0423555, 
-             0.0416483, 0.0416483, 0.0416483, 0.0416483, 0.0416483, 0.0416483, 
-             0.040534, 0.040534, 0.040534, 0.040534, 0.040534, 0.040534, 
-             0.0400467, 0.0400467, 0.0400467, 0.0400467, 0.0400467, 0.0400467, 
-             0.0397545, 0.0397545, 0.0397545, 0.0397545, 0.0397545, 0.0397545, 
-             0.0395149, 0.0395149, 0.0395149, 0.0395149, 0.0395149, 0.0395149, 
-             0.0393485, 0.0393485, 0.0393485, 0.0393485, 0.0393485, 0.0393485, 
-             0.0390964, 0.0390964, 0.0390964, 0.0390964, 0.0390964, 0.0390964, 
-             0.0390964, 0.0391911, 0.0391911, 0.0391911, 0.0391911, 0.0391911, 
-             0.0391911, 0.0394126, 0.0394126, 0.0394126, 0.0394126, 0.0394126, 
-             0.0394126, 0.0397086, 0.0397086, 0.0397086, 0.0397086, 0.0397086, 
-             0.0397086, 0.0401501, 0.0401501, 0.0401501, 0.0401501, 0.0401501, 
-             0.0401501, 0.0404126, 0.0404126, 0.0404126, 0.0404126, 0.0404126, 
-             0.0404126, 0.0404878, 0.0404878, 0.0404878, 0.0404878, 0.0404878, 
-             0.0404878, 0.041104, 0.041104, 0.041104, 0.041104, 0.041104, 
-             0.041104, 0.0413326, 0.0413326, 0.0413326, 0.0413326, 0.0413326, 
-             0.0413326, 0.0414852, 0.0414852, 0.0414852, 0.0414852, 0.0414852, 
-             0.0414852, 0.0416381, 0.0416381, 0.0416381, 0.0416381, 0.0416381, 
-             0.0416381, 0.0416381, 0.0417708, 0.0417708, 0.0417708, 0.0417708, 
+             0.0536138, 0.0536138, 0.0536138, 0.0536138, 0.0536138, 0.0519352,
+             0.0519352, 0.0519352, 0.0519352, 0.0519352, 0.0519352, 0.0507732,
+             0.0507732, 0.0507732, 0.0507732, 0.0507732, 0.0507732, 0.0490238,
+             0.0490238, 0.0490238, 0.0490238, 0.0490238, 0.0490238, 0.0480949,
+             0.0480949, 0.0480949, 0.0480949, 0.0480949, 0.0480949, 0.0474869,
+             0.0474869, 0.0474869, 0.0474869, 0.0474869, 0.0474869, 0.0468252,
+             0.0468252, 0.0468252, 0.0468252, 0.0468252, 0.0468252, 0.0457643,
+             0.0457643, 0.0457643, 0.0457643, 0.0457643, 0.0457643, 0.0450419,
+             0.0450419, 0.0450419, 0.0450419, 0.0450419, 0.0450419, 0.0443859,
+             0.0443859, 0.0443859, 0.0443859, 0.0443859, 0.0443859, 0.0443859,
+             0.0433807, 0.0433807, 0.0433807, 0.0433807, 0.0433807, 0.0433807,
+             0.0423555, 0.0423555, 0.0423555, 0.0423555, 0.0423555, 0.0423555,
+             0.0416483, 0.0416483, 0.0416483, 0.0416483, 0.0416483, 0.0416483,
+             0.040534, 0.040534, 0.040534, 0.040534, 0.040534, 0.040534,
+             0.0400467, 0.0400467, 0.0400467, 0.0400467, 0.0400467, 0.0400467,
+             0.0397545, 0.0397545, 0.0397545, 0.0397545, 0.0397545, 0.0397545,
+             0.0395149, 0.0395149, 0.0395149, 0.0395149, 0.0395149, 0.0395149,
+             0.0393485, 0.0393485, 0.0393485, 0.0393485, 0.0393485, 0.0393485,
+             0.0390964, 0.0390964, 0.0390964, 0.0390964, 0.0390964, 0.0390964,
+             0.0390964, 0.0391911, 0.0391911, 0.0391911, 0.0391911, 0.0391911,
+             0.0391911, 0.0394126, 0.0394126, 0.0394126, 0.0394126, 0.0394126,
+             0.0394126, 0.0397086, 0.0397086, 0.0397086, 0.0397086, 0.0397086,
+             0.0397086, 0.0401501, 0.0401501, 0.0401501, 0.0401501, 0.0401501,
+             0.0401501, 0.0404126, 0.0404126, 0.0404126, 0.0404126, 0.0404126,
+             0.0404126, 0.0404878, 0.0404878, 0.0404878, 0.0404878, 0.0404878,
+             0.0404878, 0.041104, 0.041104, 0.041104, 0.041104, 0.041104,
+             0.041104, 0.0413326, 0.0413326, 0.0413326, 0.0413326, 0.0413326,
+             0.0413326, 0.0414852, 0.0414852, 0.0414852, 0.0414852, 0.0414852,
+             0.0414852, 0.0416381, 0.0416381, 0.0416381, 0.0416381, 0.0416381,
+             0.0416381, 0.0416381, 0.0417708, 0.0417708, 0.0417708, 0.0417708,
              0.0417708, 0.0417708, 0.0412428, 0.0412428, 0.0412428, 0.0412428,
              0.0412428, 0.0412428, 0.0407199, 0.0407199, 0.0407199, 0.0407199,
              0.0407199, 0.0407199, 0.0403126, 0.0403126, 0.0403126, 0.0403126,
@@ -762,20 +789,20 @@ public class SimDataCollector extends AbstractDataCollector
         return s;
         }
 
-    public double[] getEffVolumeScaling() 
+    public double[] getEffVolumeScaling()
     {
         return effVolumeScaling;
     }
 
-    public void setEffVolumeScaling(double[] effVolumeScaling) 
+    public void setEffVolumeScaling(double[] effVolumeScaling)
     {
         this.effVolumeScaling = effVolumeScaling;
     }
-    public double[] getAvgSnSignal() 
+    public double[] getAvgSnSignal()
     {
         return avgSnSignal;
     }
-    public void setAvgSnSignal(double[] avgSnSignal) 
+    public void setAvgSnSignal(double[] avgSnSignal)
     {
         this.avgSnSignal = avgSnSignal;
     }

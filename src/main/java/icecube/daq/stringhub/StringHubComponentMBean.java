@@ -4,6 +4,19 @@ public interface StringHubComponentMBean
 {
 
     /**
+     * Report the total hit rate ( in Hz )
+     * @return total hit rate in Hz
+     */
+    double getHitRate();
+
+    /**
+     * Report the lc hit rate ( in Hz )
+     * @return lc hit rate in Hz
+     */
+    double getHitRateLC();
+
+
+    /**
      * Report number of functioning DOM channels under control of stringHub.
      * @return number of DOMs
      */

@@ -11,19 +11,19 @@ public interface DataCollectorMBean
      * @return 12-char hex string
      */
     String getMainboardId();
-    
+
     /**
-     * Get the rate of the hits
+     * Get the SLC hit rate
      * @return hit rate in Hz
      */
     double getHitRate();
-    
+
     /**
-     * Get the rate of LC-flagged hits
+     * Get the HLC hitrate
      * @return hit rate in Hz
      */
     double getHitRateLC();
-    
+
     /**
      * Get the number of acquired hits.
      */
