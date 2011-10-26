@@ -46,4 +46,16 @@ public interface StringHubComponentMBean
      * @return  a long value representing the total lbm overflows in this string
      */
     long getTotalLBMOverflows();
+    
+    /**
+     * Return the time when the last of the channels to report hits has finally reported 
+     * @return the DAQ time (1E10 ticks/sec) of the hit which fulfills this condition
+     */
+    long getLatestFirstChannelHitTime();
+    
+    /**
+     * Return the time when the first of the channels to stop has stopped.
+     * @return the DAQ time (1E10 ticks/sec) of the hit which fulfills this condition.
+     */
+    long getEarliestLastChannelHitTime();
 }

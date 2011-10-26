@@ -697,7 +697,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13317 2011-09-01 18:06:11Z dglo $";
+		return "$Id: StringHubComponent.java 13384 2011-10-26 23:09:44Z kael $";
     }
 
 	public IByteBufferCache getCache()
@@ -799,4 +799,22 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	{
 		return teOut;
 	}
+
+    public long getLatestFirstChannelHitTime()
+    {
+        long latestFirst = 0L;
+        
+        for (AbstractDataCollector adc : conn.getCollectors())
+            if (!adc.isZombie() && adc.getLastHitTime() > latestFirst) latestFirst = adc.getLastHitTime();
+        return latestFirst;
+    }
+
+    public long getEarliestLastChannelHitTime()
+    {
+        long earliestLast = Long.MAX_VALUE;
+        
+        for (AbstractDataCollector adc : conn.getCollectors())
+            if (!adc.isZombie() && adc.getFirstHitTime() < earliestLast) earliestLast = adc.getFirstHitTime();
+        return earliestLast;
+    }
 }

@@ -469,6 +469,8 @@ public class DataCollector
         case MAGIC_COMPRESSED_HIT_FMTID:
             int flagsLC = (buf.getInt(46) & 0x30000) >> 16;
             if (flagsLC != 0) rtLCRate.recordEvent(utc);
+            lastHitTime = utc;
+            if (firstHitTime == 0L) firstHitTime = utc;
             // intentional fall-through
         case MAGIC_ENGINEERING_HIT_FMTID:
             rtHitRate.recordEvent(utc);
@@ -1234,6 +1236,20 @@ public class DataCollector
     public double getHitRateLC()
     {
         return rtLCRate.getRate();
+    }
+
+    @Override
+    public long getFirstHitTime()
+    {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+    @Override
+    public long getLastHitTime()
+    {
+        // TODO Auto-generated method stub
+        return 0;
     }
 
 }

@@ -41,6 +41,9 @@ public abstract class AbstractDataCollector extends Thread
     protected FlasherboardConfiguration flasherConfig;
     protected boolean alwaysSoftboot = false;
     protected Alerter alerter;
+    protected long firstHitTime;
+    protected long lastHitTime;
+    
     private static final Logger logger = Logger.getLogger(AbstractDataCollector.class);
 
     public AbstractDataCollector(int card, int pair, char dom)
@@ -52,6 +55,9 @@ public abstract class AbstractDataCollector extends Thread
         runLevel  = RunLevel.INITIALIZING;
         config    = null;
         flasherConfig = null;
+        firstHitTime  = 0L;
+        lastHitTime   = 0L;
+
         setName(card + "" + pair + dom);
     }
 
@@ -237,6 +243,10 @@ public abstract class AbstractDataCollector extends Thread
 		// HLC mode.  To get SLC hits use 'getHitRate()'
 		return 0.0;
 	}
+	
+	public long getFirstHitTime() { return firstHitTime; }
+	
+	public long getLastHitTime() { return lastHitTime; }
 
     public long getLBMOverflowCount()
     {
