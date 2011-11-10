@@ -478,7 +478,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 				}
 
 				// Associate a GPS service to this card, if not already done
-				GPSService.getInstance().startService(chanInfo.card);
+				if (!isSim) GPSService.getInstance().startService(chanInfo.card);
 
 				dc.setDomInfo(domRegistry.getDom(chanInfo.mbid));
 
@@ -697,7 +697,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13384 2011-10-26 23:09:44Z kael $";
+		return "$Id: StringHubComponent.java 13392 2011-11-10 20:32:52Z kael $";
     }
 
 	public IByteBufferCache getCache()
