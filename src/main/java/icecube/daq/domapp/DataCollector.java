@@ -469,11 +469,11 @@ public class DataCollector
         case MAGIC_COMPRESSED_HIT_FMTID:
             int flagsLC = (buf.getInt(46) & 0x30000) >> 16;
             if (flagsLC != 0) rtLCRate.recordEvent(utc);
-            lastHitTime = utc;
-            if (firstHitTime == 0L) firstHitTime = utc;
             // intentional fall-through
         case MAGIC_ENGINEERING_HIT_FMTID:
             rtHitRate.recordEvent(utc);
+            lastHitTime = utc;
+            if (firstHitTime == 0L) firstHitTime = utc;
         }
         return utc;
     }
