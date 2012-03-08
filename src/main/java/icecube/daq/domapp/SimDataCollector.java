@@ -440,6 +440,12 @@ public class SimDataCollector extends AbstractDataCollector
             eventTimes.add(10000000L * (nextBeacon - t0));
             lastBeacon = nextBeacon;
         }
+
+        // save first and last hit times (used for finding good run bounds)
+        long currUTC = (currTime - t0) * 10000000L;
+        if (firstHitTime <= 0L) firstHitTime = currUTC;
+        lastHitTime = currUTC;
+
         // Order the event times
         Collections.sort(eventTimes);
         lastGenHit = currTime;
