@@ -246,7 +246,13 @@ public abstract class AbstractDataCollector extends Thread
 
 	public long getFirstHitTime() { return firstHitTime; }
 
-	public long getLastHitTime() { return lastHitTime; }
+	public long getLastHitTime()
+	{
+		if (runLevel == RunLevel.CONFIGURED) {
+			return lastHitTime;
+		}
+		return -1L;
+	}
 
     public long getLBMOverflowCount()
     {
