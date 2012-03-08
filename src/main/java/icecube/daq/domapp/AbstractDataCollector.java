@@ -43,7 +43,7 @@ public abstract class AbstractDataCollector extends Thread
     protected Alerter alerter;
     protected long firstHitTime;
     protected long lastHitTime;
-    
+
     private static final Logger logger = Logger.getLogger(AbstractDataCollector.class);
 
     public AbstractDataCollector(int card, int pair, char dom)
@@ -168,32 +168,32 @@ public abstract class AbstractDataCollector extends Thread
 	{
 	    return runLevel;
 	}
-	
+
 	public synchronized boolean isInitializing()
 	{
 	    return runLevel == RunLevel.INITIALIZING;
 	}
-	
+
 	public synchronized boolean isConfiguring()
 	{
 	    return runLevel == RunLevel.CONFIGURING;
 	}
-	
+
 	public synchronized boolean isConfigured()
 	{
 	    return runLevel == RunLevel.CONFIGURED;
 	}
-	
+
 	public synchronized boolean isRunning()
 	{
 	    return runLevel == RunLevel.RUNNING;
 	}
-	
+
 	public synchronized boolean isStopping()
 	{
 	    return runLevel == RunLevel.STOPPING;
 	}
-	
+
 	public synchronized boolean isZombie()
 	{
 	    return runLevel == RunLevel.ZOMBIE;
@@ -231,8 +231,8 @@ public abstract class AbstractDataCollector extends Thread
 
 	public double getHitRate() {
 		// The naming convention is a bit obtuse here, but it is assumed this
-		// means the rate in Hz of TOTAL hits. To get HLC hit rate use 
-		// 'getHitRateLC()'.  
+		// means the rate in Hz of TOTAL hits. To get HLC hit rate use
+		// 'getHitRateLC()'.
 		return 0.0;
 	}
 
@@ -243,9 +243,9 @@ public abstract class AbstractDataCollector extends Thread
 		// HLC mode.  To get SLC hits use 'getHitRate()'
 		return 0.0;
 	}
-	
+
 	public long getFirstHitTime() { return firstHitTime; }
-	
+
 	public long getLastHitTime() { return lastHitTime; }
 
     public long getLBMOverflowCount()
