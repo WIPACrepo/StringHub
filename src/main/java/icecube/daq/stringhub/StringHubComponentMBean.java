@@ -48,6 +48,13 @@ public interface StringHubComponentMBean
     long getTotalLBMOverflows();
 
     /**
+     * Return the number of non-zombie DOMs for this hub
+     *
+     * @return number of non-zombies
+     */
+    public int getNumberOfNonZombies();
+
+    /**
      * Return the time when the last of the channels to report hits has finally reported
      * @return the DAQ time (1E10 ticks/sec) of the hit which fulfills this condition
      */

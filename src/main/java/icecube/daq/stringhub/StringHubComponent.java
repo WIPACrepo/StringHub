@@ -697,7 +697,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13392 2011-11-10 20:32:52Z kael $";
+		return "$Id: StringHubComponent.java 13546 2012-03-08 21:47:51Z dglo $";
     }
 
 	public IByteBufferCache getCache()
@@ -800,21 +800,62 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		return teOut;
 	}
 
-    public long getLatestFirstChannelHitTime()
-    {
-        long latestFirst = 0L;
-        
-        for (AbstractDataCollector adc : conn.getCollectors())
-            if (!adc.isZombie() && adc.getLastHitTime() > latestFirst) latestFirst = adc.getLastHitTime();
-        return latestFirst;
-    }
+	public int getNumberOfNonZombies()
+	{
+		int num = 0;
+		for (AbstractDataCollector adc : conn.getCollectors()) {
+			if (!adc.isZombie()) {
+				num++;
+			}
+		}
+		return num;
+	}
 
-    public long getEarliestLastChannelHitTime()
-    {
-        long earliestLast = Long.MAX_VALUE;
-        
-        for (AbstractDataCollector adc : conn.getCollectors())
-            if (!adc.isZombie() && adc.getFirstHitTime() < earliestLast) earliestLast = adc.getFirstHitTime();
-        return earliestLast;
-    }
+	public long getLatestFirstChannelHitTime()
+	{
+		long latestFirst = 0L;
+		boolean found = true;
+
+		for (AbstractDataCollector adc : conn.getCollectors()) {
+			if (!adc.isZombie()) {
+				long val = adc.getFirstHitTime();
+				if (val <= 0L) {
+					found = false;
+					break;
+				} else if (val > latestFirst) {
+					latestFirst = val;
+				}
+			}
+		}
+
+		if (!found) {
+			return 0L;
+		}
+
+		return latestFirst;
+	}
+
+	public long getEarliestLastChannelHitTime()
+	{
+		long earliestLast = Long.MAX_VALUE;
+		boolean found = true;
+
+		for (AbstractDataCollector adc : conn.getCollectors()) {
+			if (!adc.isZombie()) {
+				long val = adc.getLastHitTime();
+				if (val <= 0L) {
+					found = false;
+					break;
+				} else if (val < earliestLast) {
+					earliestLast = val;
+				}
+			}
+		}
+
+		if (!found) {
+			return 0L;
+		}
+
+		return earliestLast;
+	}
 }
