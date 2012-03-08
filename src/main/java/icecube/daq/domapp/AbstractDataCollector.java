@@ -55,8 +55,8 @@ public abstract class AbstractDataCollector extends Thread
         runLevel  = RunLevel.INITIALIZING;
         config    = null;
         flasherConfig = null;
-        firstHitTime  = 0L;
-        lastHitTime   = 0L;
+        firstHitTime  = -1L;
+        lastHitTime   = -1L;
 
         setName(card + "" + pair + dom);
     }

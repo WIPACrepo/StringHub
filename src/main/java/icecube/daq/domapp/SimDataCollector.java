@@ -443,7 +443,7 @@ public class SimDataCollector extends AbstractDataCollector
 
         // save first and last hit times (used for finding good run bounds)
         long currUTC = (currTime - t0) * 10000000L;
-        if (firstHitTime <= 0L) firstHitTime = currUTC;
+        if (firstHitTime < 0L) firstHitTime = currUTC;
         lastHitTime = currUTC;
 
         // Order the event times

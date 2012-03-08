@@ -473,7 +473,7 @@ public class DataCollector
         case MAGIC_ENGINEERING_HIT_FMTID:
             rtHitRate.recordEvent(utc);
             lastHitTime = utc;
-            if (firstHitTime == 0L) firstHitTime = utc;
+            if (firstHitTime < 0L) firstHitTime = utc;
         }
         return utc;
     }
