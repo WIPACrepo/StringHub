@@ -1237,19 +1237,4 @@ public class DataCollector
     {
         return rtLCRate.getRate();
     }
-
-    @Override
-    public long getFirstHitTime()
-    {
-        // TODO Auto-generated method stub
-        return 0;
-    }
-
-    @Override
-    public long getLastHitTime()
-    {
-        // TODO Auto-generated method stub
-        return 0;
-    }
-
 }
