@@ -121,7 +121,7 @@ public class SimDataCollector extends AbstractDataCollector
 	// Calculate 10-sec averages of the hit rate
 	rtHitRate = new RealTimeRateMeter(100000000000L);
 	rtLCRate  = new RealTimeRateMeter(100000000000L);
-	
+
 	lbmOverflowRandom = new Random();
         thread = new Thread(this, "SimDataCollector-" + card + "" + pair + dom);
         thread.start();
@@ -133,14 +133,14 @@ public class SimDataCollector extends AbstractDataCollector
     }
 
     public long getLBMOverflowCount() {
-	// randomly add a number from 0 to 20 to 
-	// the overflow count 
+	// randomly add a number from 0 to 20 to
+	// the overflow count
 	lbmOverflowCount += lbmOverflowRandom.nextInt(20);
-	
+
 	return lbmOverflowCount;
     }
 
-	
+
     public void signalShutdown()
     {
         if (logger.isInfoEnabled()) {
@@ -472,7 +472,7 @@ public class SimDataCollector extends AbstractDataCollector
 		// local coincidence bits set.  According to john j. that means that
 		// the dom is running in HLC mode
 		rtLCRate.recordEvent(utc);
-	    } 
+	    }
 
             int word1 = 0x9004c00c | lcBits;
             int word3 = 0x00000000;
@@ -516,7 +516,7 @@ public class SimDataCollector extends AbstractDataCollector
 
 
     public double getHitRate() {
-	// total hit rate in hertz 
+	// total hit rate in hertz
 	return rtHitRate.getRate();
     }
 
