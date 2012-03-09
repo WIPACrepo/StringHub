@@ -31,11 +31,11 @@ import icecube.daq.payload.impl.ReadoutRequestFactory;
 import icecube.daq.payload.impl.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
-import icecube.daq.trigger.component.GlobalConfiguration;
+import icecube.daq.trigger.algorithm.ITrigger;
 import icecube.daq.trigger.config.TriggerBuilder;
 import icecube.daq.trigger.control.IStringTriggerHandler;
-import icecube.daq.trigger.control.ITriggerControl;
 import icecube.daq.trigger.control.StringTriggerHandler;
+import icecube.daq.trigger.exceptions.TriggerException;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
@@ -220,7 +220,6 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	@Override
 	public void setGlobalConfigurationDir(String dirName)
 	{
-		super.setGlobalConfigurationDir(dirName);
 		configurationPath = dirName;
 		if (logger.isInfoEnabled()) {
 			logger.info("Setting the ueber configuration directory to " + configurationPath);
@@ -669,22 +668,55 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
     @SuppressWarnings("unchecked")
     private void configureTrigger(String configName) throws DAQCompException {
+        // Build the trigger configuration directory
+        File cfgFile = new File(configurationPath, configName);
+        if (!cfgFile.isFile()) {
+            if (!configName.endsWith(".xml")) {
+                cfgFile = new File(configurationPath, configName + ".xml");
+            }
+
+            if (!cfgFile.isFile()) {
+                throw new DAQCompException("Configuration file \"" + cfgFile +
+                                           "\" does not exist");
+            }
+        }
+
         // Lookup the trigger configuration
         String triggerConfiguration;
-        String globalConfigurationFileName = configurationPath + "/" + configName + ".xml";
         try {
-            triggerConfiguration = GlobalConfiguration.getTriggerConfig(globalConfigurationFileName);
+            triggerConfiguration = TriggerBuilder.getTriggerConfig(cfgFile);
         } catch (Exception e) {
             logger.error("Error extracting trigger configuration name from global configuraion file.", e);
             throw new DAQCompException("Cannot get trigger configuration name.", e);
         }
-        String triggerConfigFileName = configurationPath + "/trigger/" + triggerConfiguration + ".xml";
+        File triggerConfigDir = new File(configurationPath, "trigger");
+        File triggerConfigFile =
+            new File(triggerConfigDir, triggerConfiguration);
+        if (!triggerConfigFile.isFile()) {
+            if (!triggerConfiguration.endsWith(".xml")) {
+                triggerConfigFile =
+                    new File(triggerConfigDir, triggerConfiguration + ".xml");
+            }
+
+            if (!triggerConfigFile.isFile()) {
+                throw new DAQCompException("Trigger configuration file \"" +
+                                           triggerConfigFile +
+                                           "\" (from \"" + configName +
+                                           "\") does not exist");
+            }
+        }
 
         // Add triggers to the trigger manager
-        List currentTriggers = TriggerBuilder.buildTriggers(triggerConfigFileName, sourceId);
-        Iterator triggerIter = currentTriggers.iterator();
-        while (triggerIter.hasNext()) {
-            ITriggerControl trigger = (ITriggerControl) triggerIter.next();
+        List<ITrigger> currentTriggers;
+        try {
+            currentTriggers =
+                TriggerBuilder.buildTriggers(triggerConfigFile, sourceId);
+        } catch (TriggerException te) {
+            throw new DAQCompException("Cannot build triggers from \"" +
+                                       triggerConfigFile + "\" for " +
+                                       sourceId, te);
+        }
+        for (ITrigger trigger : currentTriggers) {
             trigger.setTriggerHandler(triggerHandler);
         }
         triggerHandler.addTriggers(currentTriggers);
@@ -697,7 +729,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13546 2012-03-08 21:47:51Z dglo $";
+		return "$Id: StringHubComponent.java 13553 2012-03-09 20:49:47Z dglo $";
     }
 
 	public IByteBufferCache getCache()
