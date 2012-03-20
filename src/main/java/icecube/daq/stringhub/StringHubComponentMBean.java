@@ -15,7 +15,6 @@ public interface StringHubComponentMBean
      */
     double getHitRateLC();
 
-
     /**
      * Report number of functioning DOM channels under control of stringHub.
      * @return number of DOMs
