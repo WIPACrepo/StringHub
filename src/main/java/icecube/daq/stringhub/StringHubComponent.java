@@ -222,7 +222,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	{
 		configurationPath = dirName;
 		if (logger.isInfoEnabled()) {
-			logger.info("Setting the ueber configuration directory to " + configurationPath);
+			logger.info("Setting the ueber configuration directory to " +
+						configurationPath);
 		}
         // get a reference to the DOM registry - useful later
         try {
@@ -729,7 +730,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13553 2012-03-09 20:49:47Z dglo $";
+		return "$Id: StringHubComponent.java 13582 2012-03-20 02:15:23Z dglo $";
     }
 
 	public IByteBufferCache getCache()
