@@ -541,7 +541,8 @@ public class DataCollector
                 break;
 
             case 0x90: /* SLC or other compressed hit format */
-                int clkMSB = in.getShort(pos+4);
+                // get unsigned MSB for clock
+                int clkMSB = in.getShort(pos+4) & 0xffff;
                 ByteOrder lastOrder = in.order();
                 in.order(ByteOrder.LITTLE_ENDIAN);
                 in.position(pos + 8);
