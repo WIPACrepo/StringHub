@@ -80,19 +80,24 @@ public class ReplayHubComponent
             LOG.info("starting up ReplayHub component " + hubId);
         }
 
-        // Component derives behavioral characteristics from
-        // its 'minor ID' - they are ...
-        // (1) component xx81 - xx99 : icetop
-        // (2) component xx01 - xx80 : in-ice
-        // (3) component xx00        : amandaHub
-        int minorHubId = hubId % 100;
+        /*
+         * Component derives behavioral characteristics from
+         * its 'minor ID' which is the low 3 (decimal) digits of
+         * the hub component ID:
+         *  (1) component x000        : amandaHub
+         *  (2) component x001 - x199 : in-ice hub
+         *      (79 - 86 are deep core but this currently doesn't
+         *      mean anything)
+         *  (3) component x200 - x299 : icetop
+         */
+        int minorHubId = hubId % 1000;
 
         SimpleOutputEngine hitOut;
         if (minorHubId == 0) {
             hitOut = null;
         } else {
             hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "hitOut");
-            if (minorHubId > 80)
+            if (minorHubId > 199)
                 addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
             else
                 addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
@@ -625,13 +630,13 @@ public class ReplayHubComponent
             }
         }
 
-        void processFile(File dataFile)
+        void processFile(File payFile)
         {
             FileInputStream in;
             try {
-                in = new FileInputStream(dataFile);
+                in = new FileInputStream(payFile);
             } catch (IOException ioe) {
-                LOG.error("Couldn't open " + dataFile, ioe);
+                LOG.error("Couldn't open " + payFile, ioe);
                 return;
             }
 
@@ -643,82 +648,9 @@ public class ReplayHubComponent
 
             int numPayloads = 0;
             while (!stopped) {
-                lenBuf.rewind();
-                int numBytes;
-                try {
-                    numBytes = chan.read(lenBuf);
-                } catch (IOException ioe) {
-                    LOG.error("Couldn't read length of payload #" +
-                              numPayloads + " from " + dataFile, ioe);
+                ByteBuffer buf = readPayload(payFile, chan, numPayloads);
+                if (buf == null) {
                     break;
-                }
-
-                // end of file
-                if (numBytes < 0) {
-                    LOG.error("Saw end-of-file at payload #" + numPayloads +
-                              " in " + dataFile);
-                    break;
-                }
-
-                if (numBytes < 4) {
-                    LOG.error("Only got " + numBytes +
-                              " of length for payload #" + numPayloads +
-                              " in " + dataFile);
-                    break;
-                }
-
-                // get payload length
-                int len = lenBuf.getInt(0);
-                if (len < 4 || len > MAX_PAYLOAD_LEN) {
-                    LOG.error("Bad length " + len + " for payload #" +
-                              numPayloads + " in " + dataFile);
-                    break;
-                }
-
-                // Sender expects a separate buffer for each payload
-                ByteBuffer buf = ByteBuffer.allocate(len);
-                buf.limit(len);
-                buf.putInt(len);
-
-                // read the rest of the payload
-                for (int i = 0; i < 10; i++) {
-                    int rtnval;
-                    try {
-                        rtnval = chan.read(buf);
-                    } catch (IOException ioe) {
-                        LOG.error("Couldn't read " + len +
-                                  " data bytes for payload #" + numPayloads +
-                                  " from " + dataFile, ioe);
-                        break;
-                    }
-
-                    if (rtnval < 0) {
-                        break;
-                    }
-
-                    if (buf.position() == buf.capacity()) {
-                        break;
-                    }
-
-                    LOG.error(dataFile.toString() + " payload #" +
-                              numPayloads + " partial read = " + rtnval);
-                }
-
-                if (buf.position() != len) {
-                    LOG.error("Expected to read " + len + " bytes, not " +
-                              buf.position() + " for payload #" + numPayloads +
-                              " from " + dataFile);
-                }
-
-                if (len < 32) {
-                    LOG.error("Got short payload #" + numPayloads + " (" +
-                              len + " bytes) from " + dataFile);
-                    continue;
-                }
-
-                if (buf.getInt(0) == 32 && buf.getLong(24) == Long.MAX_VALUE) {
-                    LOG.error("Found unexpected STOP message in " + dataFile);
-                    continue;
                 }
 
                 // try to deliver payloads at the rate they were created
@@ -740,7 +672,7 @@ public class ReplayHubComponent
                     if (sleepTime > 5000L) {
                         LOG.error("Huge time gap (" + (sleepTime / 1000L) +
                                   ") for payload #" + numPayloads +
-                                  " from " + dataFile);
+                                  " from " + payFile);
                         break;
                     }
 
@@ -759,7 +691,7 @@ public class ReplayHubComponent
                     write(buf);
                 } catch (IOException ioe) {
                     throw new Error("Sender did not consume payload #" +
-                                    numPayloads + " from " + dataFile, ioe);
+                                    numPayloads + " from " + payFile, ioe);
                 }
 
                 // don't overwhelm other threads
@@ -774,6 +706,92 @@ public class ReplayHubComponent
             } catch (IOException ioe) {
                 // ignore errors on close
             }
+        }
+
+        private ByteBuffer readPayload(File payFile,
+                                       ReadableByteChannel chan,
+                                       int payloadNum)
+        {
+            lenBuf.rewind();
+            int numBytes;
+            try {
+                numBytes = chan.read(lenBuf);
+            } catch (IOException ioe) {
+                LOG.error("Couldn't read length of payload #" +
+                          payloadNum + " from " + payFile, ioe);
+                return null;
+            }
+
+            if (numBytes < 0) {
+                LOG.error("Saw end-of-file at payload #" + payloadNum +
+                          " in " + payFile);
+                return null;
+            }
+
+            if (numBytes < 4) {
+                LOG.error("Only got " + numBytes +
+                          " of length for payload #" + payloadNum +
+                          " in " + payFile);
+                return null;
+            }
+
+            // get payload length
+            int len = lenBuf.getInt(0);
+            if (len < 4 || len > MAX_PAYLOAD_LEN) {
+                LOG.error("Bad length " + len + " for payload #" +
+                          payloadNum + " in " + payFile);
+                return null;
+            }
+
+            // Sender expects a separate buffer for each payload
+            ByteBuffer buf = ByteBuffer.allocate(len);
+            buf.limit(len);
+            buf.putInt(len);
+
+            // read the rest of the payload
+            for (int i = 0; i < 10 && buf.position() < buf.capacity(); i++) {
+                int rtnval;
+                try {
+                    rtnval = chan.read(buf);
+                } catch (IOException ioe) {
+                    LOG.error("Couldn't read " + len +
+                              " data bytes for payload #" + payloadNum +
+                              " from " + payFile, ioe);
+                    return null;
+                }
+
+                if (rtnval < 0) {
+                    LOG.error("Reached end of file while reading " + len +
+                              " data bytes for payload #" + payloadNum +
+                              " from " + payFile);
+                    return null;
+                }
+
+                if (buf.position() < buf.capacity()) {
+                    LOG.error(payFile.toString() + " payload #" +
+                              payloadNum + " partial read = " + rtnval);
+                }
+            }
+
+            if (buf.position() != len) {
+                LOG.error("Expected to read " + len + " bytes, not " +
+                          buf.position() + " for payload #" + payloadNum +
+                          " from " + payFile);
+                return null;
+            }
+
+            if (len < 32) {
+                LOG.error("Got short payload #" + payloadNum + " (" +
+                          len + " bytes) from " + payFile);
+                return null;
+            }
+
+            if (buf.getInt(0) == 32 && buf.getLong(24) == Long.MAX_VALUE) {
+                LOG.error("Found unexpected STOP message in " + payFile);
+                return null;
+            }
+
+            return buf;
         }
 
         /**
