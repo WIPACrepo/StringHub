@@ -1,10 +1,7 @@
 package icecube.daq;
 
-import icecube.daq.bindery.BufferConsumerMemMap;
 import icecube.daq.bindery.BufferConsumerBuffered;
-
 import icecube.daq.bindery.MultiChannelMergeSort;
-import icecube.daq.bindery.StreamBinder;
 import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.DataCollector;
@@ -13,10 +10,9 @@ import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
 import icecube.daq.dor.GPSService;
 
+import java.io.BufferedOutputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.BufferedOutputStream;
-import java.nio.channels.Pipe;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
