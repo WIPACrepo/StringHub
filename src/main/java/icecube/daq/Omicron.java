@@ -1,6 +1,8 @@
 package icecube.daq;
 
-import icecube.daq.bindery.BufferConsumerChannel;
+import icecube.daq.bindery.BufferConsumerMemMap;
+import icecube.daq.bindery.BufferConsumerBuffered;
+
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.StreamBinder;
 import icecube.daq.configuration.XMLConfig;
@@ -13,6 +15,7 @@ import icecube.daq.dor.GPSService;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.BufferedOutputStream;
 import java.nio.channels.Pipe;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -28,6 +31,9 @@ public class Omicron {
 	private static ArrayList<DataCollector> collectors;
 	//private static ByteBuffer drain;
 	private static final Logger logger = Logger.getLogger(Omicron.class);
+
+    // ext-3 on scube has a block size of 4K.  Buffer 10 blocks
+    private static final int BUFFER_SIZE = 40960;
 
 	public static void main(String[] args) throws Exception
 	{
@@ -88,20 +94,22 @@ public class Omicron {
 		for (DOMChannelInfo chInfo : activeDOMs)
 			if (xmlConfig.getDOMConfig(chInfo.mbid) != null) nDOM++;
 
-        FileOutputStream fOutHits = new FileOutputStream(outputBaseName + ".hits");
-        FileOutputStream fOutMoni = new FileOutputStream(outputBaseName + ".moni");
-        FileOutputStream fOutTcal = new FileOutputStream(outputBaseName + ".tcal");
-        FileOutputStream fOutScal = new FileOutputStream(outputBaseName + ".scal");
+		//FileOutputStream fOutHits = new FileOutputStream(outputBaseName + ".hits");
 
-        BufferConsumerChannel hitsChan = new BufferConsumerChannel(fOutHits.getChannel());
-        BufferConsumerChannel moniChan = new BufferConsumerChannel(fOutMoni.getChannel());
-        BufferConsumerChannel tcalChan = new BufferConsumerChannel(fOutTcal.getChannel());
-        BufferConsumerChannel scalChan = new BufferConsumerChannel(fOutScal.getChannel());
+		BufferedOutputStream fOutHits = new BufferedOutputStream(new FileOutputStream(outputBaseName+".hits"), BUFFER_SIZE);
+		BufferedOutputStream fOutMoni = new BufferedOutputStream(new FileOutputStream(outputBaseName+".moni"), BUFFER_SIZE);
+		BufferedOutputStream fOutTcal = new BufferedOutputStream(new FileOutputStream(outputBaseName+".tcal"), BUFFER_SIZE);
+		BufferedOutputStream fOutScal = new BufferedOutputStream(new FileOutputStream(outputBaseName+".scal"), BUFFER_SIZE);
+
+		BufferConsumerBuffered hitsChan = new BufferConsumerBuffered(fOutHits);
+		BufferConsumerBuffered moniChan = new BufferConsumerBuffered(fOutMoni);
+		BufferConsumerBuffered tcalChan = new BufferConsumerBuffered(fOutTcal);
+		BufferConsumerBuffered scalChan = new BufferConsumerBuffered(fOutScal);
         
-        MultiChannelMergeSort hitsSort = new MultiChannelMergeSort(nDOM, hitsChan, "hits");
-        MultiChannelMergeSort moniSort = new MultiChannelMergeSort(nDOM, moniChan, "moni");
-        MultiChannelMergeSort tcalSort = new MultiChannelMergeSort(nDOM, tcalChan, "tcal");
-        MultiChannelMergeSort scalSort = new MultiChannelMergeSort(nDOM, scalChan, "supernova");
+		MultiChannelMergeSort hitsSort = new MultiChannelMergeSort(nDOM, hitsChan, "hits");
+		MultiChannelMergeSort moniSort = new MultiChannelMergeSort(nDOM, moniChan, "moni");
+		MultiChannelMergeSort tcalSort = new MultiChannelMergeSort(nDOM, tcalChan, "tcal");
+		MultiChannelMergeSort scalSort = new MultiChannelMergeSort(nDOM, scalChan, "supernova");
 
 		for (DOMChannelInfo chInfo : activeDOMs)
 		{
@@ -231,6 +239,11 @@ public class Omicron {
 		
 		// kill GPS services
 		GPSService.getInstance().shutdownAll();
-		
+
+		// not sure if this is needed, but close the output file
+		fOutHits.close();
+		fOutMoni.close();
+		fOutTcal.close();
+		fOutScal.close();
 	}
 }
