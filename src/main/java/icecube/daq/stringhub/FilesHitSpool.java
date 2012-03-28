@@ -2,10 +2,14 @@ package icecube.daq.stringhub;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.PrintStream;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 
 import org.apache.log4j.Logger;
 
@@ -27,12 +31,16 @@ import icecube.daq.bindery.BufferConsumer;
 public class FilesHitSpool implements BufferConsumer
 {
     private BufferConsumer out;
-    private long hitsPerFile;
-    private long currentNumberOfHits;
+    private ByteBuffer iobuf;
+    private int bufferSize = 16384;
     private int  maxNumberOfFiles = 100;
     private int  currentFileIndex = 0;
     private File targetDirectory;
     private FileChannel ch;
+    private long t;
+    private long t0;
+    private long fileInterval;
+    
     private final static Logger logger = Logger.getLogger(FilesHitSpool.class);
     
     /**
@@ -43,52 +51,96 @@ public class FilesHitSpool implements BufferConsumer
      * @param fileCount number of files in the spooling ensemble
      * @see BufferConsumer
      */
-    public FilesHitSpool(BufferConsumer out, File targetDir, long hitsPerFile, int fileCount) 
+    public FilesHitSpool(BufferConsumer out, File targetDir, long fileInterval, int fileCount) throws IOException
     {
         this.out = out;
-        this.hitsPerFile = hitsPerFile;
+        this.iobuf = ByteBuffer.allocateDirect(bufferSize);
+        this.t0  = 0L;
+        this.fileInterval = fileInterval;
         this.targetDirectory = targetDir;
+        this.maxNumberOfFiles = fileCount;
+        this.ch = null;
         openNewFile();
     }
     
-    public FilesHitSpool(BufferConsumer out, File targetDir, long hitsPerFile)
+    public FilesHitSpool(BufferConsumer out, File targetDir, long hitsPerFile) throws IOException
     {
         this(out, targetDir, hitsPerFile, 100);
     }
     
-    public FilesHitSpool(BufferConsumer out, File targetDir)
+    public FilesHitSpool(BufferConsumer out, File targetDir) throws IOException
     {
         this(out, targetDir, 100000L);
     }
     
     public void consume(ByteBuffer buf) throws IOException
     {
-        if (currentNumberOfHits++ == hitsPerFile)
+        // bytes 24 .. 31 hold the 64-bit UTC clock value
+        t = buf.getLong(24);
+        long deltaT = t - t0;
+        int fileNo = ((int) (deltaT / fileInterval)) % maxNumberOfFiles; 
+        
+        if (fileNo != currentFileIndex)
         {
-            ch.close();
+            currentFileIndex = fileNo;
             openNewFile();
         }
-        while (buf.remaining() > 0) ch.write(buf);
-        buf.rewind();
+        
+        int prev_limit = buf.limit();
+        
+        do
+        {
+            // transfer buf into iobuf
+            int x = iobuf.remaining();
+            int n = buf.remaining();
+            if (x < n) buf.limit(x); 
+            iobuf.put(buf);
+            buf.limit(prev_limit);
+            if (iobuf.remaining() == 0)
+            {
+                iobuf.flip();
+                while (iobuf.remaining() > 0) ch.write(iobuf);
+                iobuf.clear();
+            }
+        } 
+        while (buf.remaining() > 0);
+        
         if (null != out) out.consume(buf);
     }
 
-    private void openNewFile()
+    private void openNewFile() throws IOException
     {
         String fileName = "HitSpool-" + currentFileIndex + ".dat";
         File newFile = new File(targetDirectory, fileName);
+        File infFile = new File(targetDirectory, "info.txt");
+        
+        // flush the current iobuf, if non-empty
+        if (ch != null)
+        {
+            iobuf.flip();
+            while (iobuf.remaining() > 0) ch.write(iobuf);
+            iobuf.clear();
+            ch.close();
+        }
+        
+        FileOutputStream ostr = new FileOutputStream(infFile);
+        FileLock lock = ostr.getChannel().lock();
+        PrintStream info = new PrintStream(ostr);
         try 
         {
-            RandomAccessFile raFile = new RandomAccessFile(newFile, "rw");
-            raFile.seek(0L);
-            ch = raFile.getChannel();
-            currentFileIndex++;
-            if (currentFileIndex == maxNumberOfFiles) currentFileIndex = 0;
-            currentNumberOfHits = 0;
+            info.println(String.format("T0   %20d", t0));
+            info.println(String.format("CURT %20d", t));
+            info.println(String.format("IVAL %20d", fileInterval));
+            info.println(String.format("CURF %4d", currentFileIndex));
+            info.println(String.format("MAXF %4d", maxNumberOfFiles));
         }
-        catch (IOException iox)
+        finally
         {
-            logger.warn(iox);
+            lock.release();
+            info.close();
         }
+        RandomAccessFile raFile = new RandomAccessFile(newFile, "rw");
+        raFile.seek(0L);
+        ch = raFile.getChannel();
     }
 }
