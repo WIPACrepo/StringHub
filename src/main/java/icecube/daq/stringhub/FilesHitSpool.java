@@ -1,10 +1,10 @@
 package icecube.daq.stringhub;
 
+import icecube.daq.bindery.BufferConsumer;
+
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -12,8 +12,6 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 
 import org.apache.log4j.Logger;
-
-import icecube.daq.bindery.BufferConsumer;
 
 /**
  * This class will accept ByteBuffers from whatever is feeding it
