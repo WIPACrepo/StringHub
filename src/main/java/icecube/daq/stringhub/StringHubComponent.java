@@ -267,7 +267,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	{
 		if (isSim)
 		{
-			Collection<DeployedDOM> attachedDOMs = domRegistry.getDomsOnString(getNumber());
+			Collection<DeployedDOM> attachedDOMs = domRegistry.getDomsOnHub(getNumber());
 			activeDOMs = new ArrayList<DOMChannelInfo>(attachedDOMs.size());
 			for (DeployedDOM dom : attachedDOMs)
 			{
@@ -401,7 +401,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	         if (nch == 0)
 	                throw new DAQCompException("No Active DOMs on Hub selected in configuration.");
 
-			for (DeployedDOM deployedDOM : domRegistry.getDomsOnString(getNumber()))
+			for (DeployedDOM deployedDOM : domRegistry.getDomsOnHub(getNumber()))
 			{
 			    String mbid = deployedDOM.getMainboardId();
 			    if (!activeDomSet.contains(mbid) && xmlConfig.getDOMConfig(mbid) != null) {
@@ -730,7 +730,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13582 2012-03-20 02:15:23Z dglo $";
+		return "$Id: StringHubComponent.java 13613 2012-04-02 23:10:22Z dglo $";
     }
 
 	public IByteBufferCache getCache()
