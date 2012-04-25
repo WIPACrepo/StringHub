@@ -32,7 +32,7 @@ public class FilesHitSpool implements BufferConsumer
     private ByteBuffer iobuf;
     private int bufferSize = 16384;
     private int  maxNumberOfFiles = 100;
-    private int  currentFileIndex = 0;
+    private int  currentFileIndex = -1;
     private File targetDirectory;
     private FileChannel ch;
     private long t;
@@ -58,7 +58,6 @@ public class FilesHitSpool implements BufferConsumer
         this.targetDirectory = targetDir;
         this.maxNumberOfFiles = fileCount;
         this.ch = null;
-        openNewFile();
     }
     
     public FilesHitSpool(BufferConsumer out, File targetDir, long hitsPerFile) throws IOException
@@ -75,6 +74,7 @@ public class FilesHitSpool implements BufferConsumer
     {
         // bytes 24 .. 31 hold the 64-bit UTC clock value
         t = buf.getLong(24);
+        if (t0 == 0L) t0 = t;
         long deltaT = t - t0;
         int fileNo = ((int) (deltaT / fileInterval)) % maxNumberOfFiles; 
         
