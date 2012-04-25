@@ -74,6 +74,15 @@ public class FilesHitSpool implements BufferConsumer
     {
         // bytes 24 .. 31 hold the 64-bit UTC clock value
         t = buf.getLong(24);
+        
+        if (t == Long.MAX_VALUE) 
+        {
+            // this is the END-OF-DATA marker - close file and quit
+            // note there could be multiple EODs
+            if (ch != null) ch.close();
+            return;
+        }
+        
         if (t0 == 0L) t0 = t;
         long deltaT = t - t0;
         int fileNo = ((int) (deltaT / fileInterval)) % maxNumberOfFiles; 
