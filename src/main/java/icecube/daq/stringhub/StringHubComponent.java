@@ -96,7 +96,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 	private boolean hitSpooling = false;
 	private String hitSpoolDir;
-	private long hitSpoolHits;
+	private long hitSpoolIval;
 
 	public StringHubComponent(int hubId)
 	{
@@ -215,6 +215,9 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		addCache(DAQConnector.TYPE_SN_DATA, snBufMgr);
         supernovaOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
         addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaOut);
+        
+        // Default 10s hit spool interval
+        hitSpoolIval = 100000000000L;
     }
 
 	@Override
@@ -355,8 +358,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			    if (hubNode.valueOf("hitspool/enabled").equalsIgnoreCase("true")) hitSpooling = true;
 			    hitSpoolDir = hubNode.valueOf("hitspool/directory");
 			    if (hitSpoolDir.length() == 0) hitSpoolDir = "/mnt/data/pdaqlocal";
-			    if (hubNode.valueOf("hitspool/hits").length() > 0)
-			        hitSpoolHits = Long.parseLong(hubNode.valueOf("hitspool/hits"));
+			    if (hubNode.valueOf("hitspool/interval").length() > 0)
+			        hitSpoolIval = (long) (1E10 * Double.parseDouble(hubNode.valueOf("hitspool/interval")));
 
 			}
 			double snDistance = Double.NaN;
@@ -433,7 +436,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	        if (hitSpooling)
 	        {
     	        // interpose the hit spooler
-    	        FilesHitSpool hitSpooler = new FilesHitSpool(sender, new File(hitSpoolDir), hitSpoolHits);
+    	        FilesHitSpool hitSpooler = new FilesHitSpool(sender, new File(hitSpoolDir), hitSpoolIval);
     	        hitsSort = new MultiChannelMergeSort(nch, hitSpooler);
 	        }
 	        else
@@ -730,7 +733,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13613 2012-04-02 23:10:22Z dglo $";
+		return "$Id: StringHubComponent.java 13673 2012-05-01 14:38:26Z kael $";
     }
 
 	public IByteBufferCache getCache()
