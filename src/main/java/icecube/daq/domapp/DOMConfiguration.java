@@ -6,55 +6,55 @@ public class DOMConfiguration implements Serializable
 {
 	private static final long serialVersionUID = 2L;
 
-	private int                   hardwareMonitorInterval = 30 * 40000000;
-    private int                   configMonitorInterval   = 2000000000;
-    private int                   fastMonitorInterval     = 40000000;
-    private TriggerMode           triggerMode             = TriggerMode.SPE;
-    private boolean               compressionEnabled      = false;
+	private int   hardwareMonitorInterval  = 30 * 40000000;
+    private int   configMonitorInterval    = 2000000000;
+    private int   fastMonitorInterval      = 40000000;
+    private TriggerMode   triggerMode      = TriggerMode.SPE;
+    private boolean       compressionEnabled   = false;
     
-    private EngineeringRecordFormat engFormat             = new EngineeringRecordFormat();
+    private EngineeringRecordFormat engFormat = new EngineeringRecordFormat();
     
-    private short[]               dacs = new short[] { 
+    private short[] dacs = new short[] { 
             850, 2300, 350, 2250, 
             850, 2300, 350, 2130, 
             600,  560, 800,    0, 
             1023, 800, 450, 1023 
             };
-    private MuxState              mux                     = MuxState.OFF;
-    private short                 pmt_hv                  = -1;
-    private PulserMode            pulserMode              = PulserMode.BEACON;
-    private short                 pulserRate              = 5;
+    private MuxState      mux                     = MuxState.OFF;
+    private short         pmt_hv                  = -1;
+    private PulserMode    pulserMode              = PulserMode.BEACON;
+    private short         pulserRate              = 5;
     
     
-    private LocalCoincidenceConfiguration lc                      = new LocalCoincidenceConfiguration();
+    private LocalCoincidenceConfiguration lc      = new LocalCoincidenceConfiguration();
     
     
-    private boolean               supernovaEnabled        = false;
-    private boolean               supernovaSpe            = true;
-    private int                   supernovaDeadtime       = 51200;
-    private int                   scalerDeadtime          = 51200;
-    private boolean               pedestalSubtract        = false;
-    private boolean               simulation              = false;
-    private double                simNoiseRate            = 25.0;
-    private Integer[]             averagePedestal;
+    private boolean       supernovaEnabled        = false;
+    private boolean       supernovaSpe            = true;
+    private int           supernovaDeadtime       = 51200;
+    private int           scalerDeadtime          = 51200;
+    private boolean       pedestalSubtract        = false;
+    private boolean       simulation              = false;
+    private double        simNoiseRate            = 25.0;
+    private Integer[]     averagePedestal;
     
     /** Boolean flag for selection of ICETOP MINBIAS mode */
-    private boolean               enableMinBias           = false;
+    private boolean       enableMinBias           = false;
 
     /** Switch selecting which ATWD is used (or both) */
     private AtwdChipSelect        atwdSelect              = AtwdChipSelect.PING_PONG;
 
     /** The fraction of hits that have HLC bit set (simulation only) */
-    private double                simHLCFrac              = 1.0;
-    private int                   histoInterval           = 10;
-    private short                 histoPrescale           = (short) 8;
-    private boolean               chargeStampATWD         = false;
-    private byte                  chargeStampAtwdChannel  = -2;
+    private double        simHLCFrac              = 1.0;
+    private int           histoInterval           = 10;
+    private short         histoPrescale           = (short) 8;
+    private boolean       chargeStampATWD         = false;
+    private byte          chargeStampAtwdChannel  = -2;
 	
 	/** Set for injecting supernova simulation signal */
-	private	boolean               snSigEnabled = false;					
-	private double                snDistance = 10.;				
-	private boolean               effVolumeEnabled = true;		
+	private	boolean       snSigEnabled = false;					
+	private double        snDistance = 10.;				
+	private boolean       effVolumeEnabled = true;		
 
 	public DOMConfiguration()
 	{
