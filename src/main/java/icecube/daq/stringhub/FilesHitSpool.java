@@ -2,16 +2,14 @@ package icecube.daq.stringhub;
 
 import icecube.daq.bindery.BufferConsumer;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
-import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
-
-import org.apache.log4j.Logger;
 
 /**
  * This class will accept ByteBuffers from whatever is feeding it
@@ -29,17 +27,13 @@ import org.apache.log4j.Logger;
 public class FilesHitSpool implements BufferConsumer
 {
     private BufferConsumer out;
-    private ByteBuffer iobuf;
-    private int bufferSize = 16384;
-    private int  maxNumberOfFiles = 100;
-    private int  currentFileIndex = -1;
+    private int  maxNumberOfFiles;
+    private int  currentFileIndex;
     private File targetDirectory;
-    private FileChannel ch;
+    private OutputStream dataOut;
     private long t;
     private long t0;
     private long fileInterval;
-    
-    private final static Logger logger = Logger.getLogger(FilesHitSpool.class);
     
     /**
      * Constructor with full options.
@@ -52,12 +46,12 @@ public class FilesHitSpool implements BufferConsumer
     public FilesHitSpool(BufferConsumer out, File targetDir, long fileInterval, int fileCount) throws IOException
     {
         this.out = out;
-        this.iobuf = ByteBuffer.allocateDirect(bufferSize);
         this.t0  = 0L;
-        this.fileInterval = fileInterval;
-        this.targetDirectory = targetDir;
-        this.maxNumberOfFiles = fileCount;
-        this.ch = null;
+        this.dataOut            = null;
+        this.currentFileIndex   = -1;
+        this.fileInterval       = fileInterval;
+        this.targetDirectory    = targetDir;
+        this.maxNumberOfFiles   = fileCount;
     }
     
     public FilesHitSpool(BufferConsumer out, File targetDir, long hitsPerFile) throws IOException
@@ -79,7 +73,10 @@ public class FilesHitSpool implements BufferConsumer
         {
             // this is the END-OF-DATA marker - close file and quit
             // note there could be multiple EODs
-            if (ch != null) ch.close();
+            if (dataOut != null) {
+                dataOut.close();
+                dataOut = null;
+            }
             return;
         }
         
@@ -92,25 +89,10 @@ public class FilesHitSpool implements BufferConsumer
             currentFileIndex = fileNo;
             openNewFile();
         }
-        
-        int prev_limit = buf.limit();
-        
-        do
-        {
-            // transfer buf into iobuf
-            int x = iobuf.remaining();
-            int n = buf.remaining();
-            if (x < n) buf.limit(x); 
-            iobuf.put(buf);
-            buf.limit(prev_limit);
-            if (iobuf.remaining() == 0)
-            {
-                iobuf.flip();
-                while (iobuf.remaining() > 0) ch.write(iobuf);
-                iobuf.clear();
-            }
-        } 
-        while (buf.remaining() > 0);
+                
+        byte[] tmpArray = new byte[buf.remaining()];
+        buf.get(tmpArray);
+        dataOut.write(tmpArray);
         
         if (null != out) out.consume(buf);
     }
@@ -120,15 +102,6 @@ public class FilesHitSpool implements BufferConsumer
         String fileName = "HitSpool-" + currentFileIndex + ".dat";
         File newFile = new File(targetDirectory, fileName);
         File infFile = new File(targetDirectory, "info.txt");
-        
-        // flush the current iobuf, if non-empty
-        if (ch != null)
-        {
-            iobuf.flip();
-            while (iobuf.remaining() > 0) ch.write(iobuf);
-            iobuf.clear();
-            ch.close();
-        }
         
         FileOutputStream ostr = new FileOutputStream(infFile);
         FileLock lock = ostr.getChannel().lock();
@@ -146,8 +119,6 @@ public class FilesHitSpool implements BufferConsumer
             lock.release();
             info.close();
         }
-        RandomAccessFile raFile = new RandomAccessFile(newFile, "rw");
-        raFile.seek(0L);
-        ch = raFile.getChannel();
+        dataOut = new BufferedOutputStream(new FileOutputStream(newFile), 32768); 
     }
 }
