@@ -98,6 +98,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	private String hitSpoolDir;
 	private long hitSpoolIval;
 
+    private int hitSpoolNumFiles = 100;
+
 	public StringHubComponent(int hubId)
 	{
 		this(hubId, (hubId >= 1000 && hubId < 2000));
@@ -360,7 +362,9 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			    if (hitSpoolDir.length() == 0) hitSpoolDir = "/mnt/data/pdaqlocal";
 			    if (hubNode.valueOf("hitspool/interval").length() > 0)
 			        hitSpoolIval = (long) (1E10 * Double.parseDouble(hubNode.valueOf("hitspool/interval")));
-
+			    if (hubNode.valueOf("hitpool/numFiles").length() > 0)
+			        hitSpoolNumFiles  = Integer.parseInt(hubNode.valueOf("hitspool/numFiles"))
+;
 			}
 			double snDistance = Double.NaN;
 
@@ -436,7 +440,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	        if (hitSpooling)
 	        {
     	        // interpose the hit spooler
-    	        FilesHitSpool hitSpooler = new FilesHitSpool(sender, new File(hitSpoolDir), hitSpoolIval);
+    	        FilesHitSpool hitSpooler = new FilesHitSpool(sender, new File(hitSpoolDir), hitSpoolIval, hitSpoolNumFiles);
     	        hitsSort = new MultiChannelMergeSort(nch, hitSpooler);
 	        }
 	        else
@@ -733,7 +737,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13673 2012-05-01 14:38:26Z kael $";
+		return "$Id: StringHubComponent.java 13692 2012-05-10 09:18:01Z kael $";
     }
 
 	public IByteBufferCache getCache()

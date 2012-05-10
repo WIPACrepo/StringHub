@@ -106,6 +106,8 @@ public class FilesHitSpool implements BufferConsumer
         FileOutputStream ostr = new FileOutputStream(infFile);
         FileLock lock = ostr.getChannel().lock();
         PrintStream info = new PrintStream(ostr);
+        
+        if (dataOut != null) { dataOut.flush(); dataOut.close(); }
         try 
         {
             info.println(String.format("T0   %20d", t0));
