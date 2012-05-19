@@ -1,6 +1,7 @@
 /* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
 package icecube.daq.stringhub;
 
+import icecube.daq.bindery.OutputStreamBufferConsumer;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.SecondaryStreamConsumer;
 import icecube.daq.common.DAQCmdInterface;
@@ -41,9 +42,11 @@ import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
 import icecube.daq.util.StringHubAlert;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -52,6 +55,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.zip.GZIPOutputStream;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -347,7 +351,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			boolean dcSoftboot = false;
 
 			int tcalPrescale = 10;
-
+			boolean chargeHistos = false;
+			
 			if (hubNode != null)
 			{
 			    if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) enableTriggering();
@@ -363,8 +368,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			    if (hubNode.valueOf("hitspool/interval").length() > 0)
 			        hitSpoolIval = (long) (1E10 * Double.parseDouble(hubNode.valueOf("hitspool/interval")));
 			    if (hubNode.valueOf("hitpool/numFiles").length() > 0)
-			        hitSpoolNumFiles  = Integer.parseInt(hubNode.valueOf("hitspool/numFiles"))
-;
+			        hitSpoolNumFiles  = Integer.parseInt(hubNode.valueOf("hitspool/numFiles"));
 			}
 			double snDistance = Double.NaN;
 
@@ -402,7 +406,13 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			for (DOMChannelInfo chanInfo : activeDOMs)
 			{
 			    activeDomSet.add(chanInfo.mbid);
-			    if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) nch++;
+			    if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) 
+			        {
+			            // Determine, additionally, if we need to enable charge histogramming
+			            if (xmlConfig.getDOMConfig(chanInfo.mbid).getHistoInterval() > 0.0)
+			                chargeHistos = true;
+			            nch++;
+			        }
 			}
 
 	         if (nch == 0)
@@ -432,14 +442,25 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 			conn = new DOMConnector(nch);
 
-			SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(hubId, moniBufMgr, moniOut.getChannel());
-	        SecondaryStreamConsumer supernovaConsumer = new SecondaryStreamConsumer(hubId, snBufMgr, supernovaOut.getChannel());
-	        SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(hubId, tcalBufMgr, tcalOut.getChannel(), tcalPrescale);
-
-            // Start the merger-sorter objects
+			SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(
+			        hubId, moniBufMgr, moniOut.getChannel());
+	        SecondaryStreamConsumer supernovaConsumer = new SecondaryStreamConsumer(
+	                hubId, snBufMgr, supernovaOut.getChannel());
+	        SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(
+	                hubId, tcalBufMgr, tcalOut.getChannel(), tcalPrescale);
+	        
+	        OutputStreamBufferConsumer histoConsumer = null;
+	        if (chargeHistos)
+	            // Use now a local file - clean this up later
+	            histoConsumer = new OutputStreamBufferConsumer(
+	                new GZIPOutputStream(new BufferedOutputStream(
+	                        new FileOutputStream(new File(
+	                                "/mnt/data/pdaqlocal", 
+	                                "chargehistos-"+getRunNumber()+".dat.gz")))));
+            
+            // Start the merger-sorter objects -- possibly inserting a hit spooler
 	        if (hitSpooling)
 	        {
-    	        // interpose the hit spooler
     	        FilesHitSpool hitSpooler = new FilesHitSpool(sender, new File(hitSpoolDir), hitSpoolIval, hitSpoolNumFiles);
     	        hitsSort = new MultiChannelMergeSort(nch, hitSpooler);
 	        }
@@ -469,17 +490,14 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 						logger.debug("SN Distance "+ snDistance);
 					}
 					dc = new SimDataCollector(chanInfo, config,
-					        hitsSort,
-					        moniSort,
-					        scalSort,
-					        tcalSort,
+					        hitsSort, moniSort, scalSort, tcalSort,
 					        isAmanda);
 				}
 				else
 				{
 					dc = new DataCollector(
 							chanInfo.card, chanInfo.pair, chanInfo.dom, config,
-							hitsSort, moniSort, scalSort, tcalSort,
+							hitsSort, moniSort, scalSort, tcalSort, histoConsumer,
 							null,null);
 					addMBean("DataCollectorMonitor-" + chanInfo, dc);
 				}
@@ -737,7 +755,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13692 2012-05-10 09:18:01Z kael $";
+		return "$Id: StringHubComponent.java 13704 2012-05-19 09:06:51Z kael $";
     }
 
 	public IByteBufferCache getCache()

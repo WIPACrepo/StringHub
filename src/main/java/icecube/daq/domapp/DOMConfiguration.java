@@ -46,7 +46,7 @@ public class DOMConfiguration implements Serializable
 
     /** The fraction of hits that have HLC bit set (simulation only) */
     private double        simHLCFrac              = 1.0;
-    private int           histoInterval           = 10;
+    private double        histoInterval           = 0.0;
     private short         histoPrescale           = (short) 8;
     private boolean       chargeStampATWD         = false;
     private byte          chargeStampAtwdChannel  = -2;
@@ -160,7 +160,7 @@ public class DOMConfiguration implements Serializable
 		return hardwareMonitorInterval;
 	}
 
-	public int getHistoInterval()
+	public double getHistoInterval()
     {
         return histoInterval;
     }
@@ -327,7 +327,7 @@ public class DOMConfiguration implements Serializable
 		this.hardwareMonitorInterval = hardwareMonitorInterval;
 	}
     
-    public void setHistoInterval(int interval) { histoInterval = interval; }
+    public void setHistoInterval(double interval) { histoInterval = interval; }
     
     public void setHistoPrescale(short prescale) { histoPrescale = prescale; }
     
@@ -428,16 +428,6 @@ public class DOMConfiguration implements Serializable
 	{
 		triggerMode = mode;
 	}
-
-    public void useAtwdChargeStamp() 
-    {
-        chargeStampATWD = true;
-    }
-
-    public void useFadcChargeStamp()
-    {
-        chargeStampATWD = false;
-    }
 
     public void setAveragePedestal(int atwdChannel, int val)
     {

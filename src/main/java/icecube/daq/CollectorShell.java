@@ -337,7 +337,7 @@ public class CollectorShell
         else
         {
     		csh.collector = new DataCollector(card, pair, dom, csh.config,
-    		        hitsConsumer, moniConsumer, scalConsumer, tcalConsumer,
+    		        hitsConsumer, moniConsumer, scalConsumer, tcalConsumer, null,
     		        null, null);
         }
 

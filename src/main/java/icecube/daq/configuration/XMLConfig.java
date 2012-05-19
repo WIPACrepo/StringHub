@@ -175,14 +175,7 @@ public class XMLConfig extends DefaultHandler
 		}
 		else if (internalState == ParserState.CHARGE_HISTOGRAM)
 		{
-		    if (localName.equals("source"))
-		    {
-		        if (text.equals("atwd"))
-		            currentConfig.useAtwdChargeStamp();
-		        else if (text.equals("fadc"))
-		            currentConfig.useFadcChargeStamp();
-		    }
-		    else if (localName.equals("prescale"))
+		    if (localName.equals("prescale"))
 		    {
 		        currentConfig.setHistoPrescale(Short.parseShort(text));
 		    }

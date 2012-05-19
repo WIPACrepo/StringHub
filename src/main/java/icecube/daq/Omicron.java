@@ -1,6 +1,6 @@
 package icecube.daq;
 
-import icecube.daq.bindery.BufferConsumerBuffered;
+import icecube.daq.bindery.OutputStreamBufferConsumer;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.DOMConfiguration;
@@ -97,10 +97,10 @@ public class Omicron {
 		BufferedOutputStream fOutTcal = new BufferedOutputStream(new FileOutputStream(outputBaseName+".tcal"), BUFFER_SIZE);
 		BufferedOutputStream fOutScal = new BufferedOutputStream(new FileOutputStream(outputBaseName+".scal"), BUFFER_SIZE);
 
-		BufferConsumerBuffered hitsChan = new BufferConsumerBuffered(fOutHits);
-		BufferConsumerBuffered moniChan = new BufferConsumerBuffered(fOutMoni);
-		BufferConsumerBuffered tcalChan = new BufferConsumerBuffered(fOutTcal);
-		BufferConsumerBuffered scalChan = new BufferConsumerBuffered(fOutScal);
+		OutputStreamBufferConsumer hitsChan = new OutputStreamBufferConsumer(fOutHits);
+		OutputStreamBufferConsumer moniChan = new OutputStreamBufferConsumer(fOutMoni);
+		OutputStreamBufferConsumer tcalChan = new OutputStreamBufferConsumer(fOutTcal);
+		OutputStreamBufferConsumer scalChan = new OutputStreamBufferConsumer(fOutScal);
         
 		MultiChannelMergeSort hitsSort = new MultiChannelMergeSort(nDOM, hitsChan, "hits");
 		MultiChannelMergeSort moniSort = new MultiChannelMergeSort(nDOM, moniChan, "moni");
@@ -122,7 +122,7 @@ public class Omicron {
             
 			DataCollector dc = new DataCollector(
 					chInfo.card, chInfo.pair, chInfo.dom, config,
-					hitsSort, moniSort, scalSort, tcalSort,
+					hitsSort, moniSort, scalSort, tcalSort, null,
 					null, null
 					);
 			collectors.add(dc);
