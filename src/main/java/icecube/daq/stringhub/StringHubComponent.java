@@ -52,7 +52,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.zip.GZIPOutputStream;
@@ -461,7 +460,14 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
             // Start the merger-sorter objects -- possibly inserting a hit spooler
 	        if (hitSpooling)
 	        {
-    	        FilesHitSpool hitSpooler = new FilesHitSpool(sender, new File(hitSpoolDir), hitSpoolIval, hitSpoolNumFiles);
+	            // Rotate hit spooling directories : current <==> last
+	            File hitSpoolCurrent = new File(hitSpoolDir, "currentRun");
+	            File hitSpoolLast = new File(hitSpoolDir, "lastRun");
+	            File hitSpoolTemp = new File(hitSpoolDir, "HitSpool"+getRunNumber()+".tmp");
+	            hitSpoolLast.renameTo(hitSpoolTemp);
+	            hitSpoolCurrent.renameTo(hitSpoolLast);
+	            hitSpoolTemp.renameTo(hitSpoolCurrent);
+    	        FilesHitSpool hitSpooler = new FilesHitSpool(sender, hitSpoolCurrent, hitSpoolIval, hitSpoolNumFiles);
     	        hitsSort = new MultiChannelMergeSort(nch, hitSpooler);
 	        }
 	        else
@@ -692,7 +698,6 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
         logger.info("Returning from stop.");
 	}
 
-    @SuppressWarnings("unchecked")
     private void configureTrigger(String configName) throws DAQCompException {
         // Build the trigger configuration directory
         File cfgFile = new File(configurationPath, configName);
@@ -755,7 +760,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13704 2012-05-19 09:06:51Z kael $";
+		return "$Id: StringHubComponent.java 13705 2012-05-27 08:19:07Z kael $";
     }
 
 	public IByteBufferCache getCache()
