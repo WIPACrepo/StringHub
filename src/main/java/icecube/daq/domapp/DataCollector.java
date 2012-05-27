@@ -228,8 +228,8 @@ public class DataCollector
                 return popB();
             }
             if (alist.isEmpty() || blist.isEmpty()) return null;
-            long aclk = alist.getFirst().getLong(24);
-            long bclk = blist.getFirst().getLong(24);
+            long aclk = alist.getFirst().getLong(16);
+            long bclk = blist.getFirst().getLong(16);
             if (aclk < bclk)
             {
                 if (!waitForRAPCal || rapcal.laterThan(aclk))
@@ -515,7 +515,7 @@ public class DataCollector
                 outputBuffer.putInt(len + 32);
                 outputBuffer.putInt(MAGIC_ENGINEERING_HIT_FMTID);
                 outputBuffer.putLong(numericMBID);
-                outputBuffer.putLong(0L);
+                outputBuffer.putLong(domClock);
                 outputBuffer.putLong(utc);
                 outputBuffer.put(in).flip();
                 in.limit(buffer_limit);
@@ -575,8 +575,8 @@ public class DataCollector
                     outputBuffer.putInt(hitSize + 42);
                     outputBuffer.putInt(MAGIC_COMPRESSED_HIT_FMTID);
                     outputBuffer.putLong(numericMBID); // +8
-                    outputBuffer.putLong(0L);          // +16
-                    outputBuffer.putLong(utc);    // +24
+                    outputBuffer.putLong(domClock);    // +16
+                    outputBuffer.putLong(utc);         // +24
                     // Compressed hit extra info
                     // This is the 'byte order' word
                     outputBuffer.putShort((short) 1);  // +32
