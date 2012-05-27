@@ -641,7 +641,7 @@ public class DataCollector
         int atwd_chip = (cw1 & 0x800) == 0 ? 1 : 0;
         int atwd_chan = (qenc >> 17) & 3;
         int chargestamp = qenc & 0x1ffff;
-        iceTopChargeHists[atwd_chip*2 + atwd_chan].fill(chargestamp); 
+        if (atwd_chan < 2) iceTopChargeHists[atwd_chip*2 + atwd_chan].fill(chargestamp); 
     }
 
     private void moniProcess(ByteBuffer in) throws IOException
