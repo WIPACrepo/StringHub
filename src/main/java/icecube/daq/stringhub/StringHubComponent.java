@@ -49,11 +49,13 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.zip.GZIPOutputStream;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -449,13 +451,23 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	                hubId, tcalBufMgr, tcalOut.getChannel(), tcalPrescale);
 	        
 	        OutputStreamBufferConsumer histoConsumer = null;
-	        if (chargeHistos)
+	        if (chargeHistos) 
+	        {
+	            Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+	            int year = cal.get(Calendar.YEAR);
+	            int month = cal.get(Calendar.MONTH) + 1;
+	            int day = cal.get(Calendar.DAY_OF_MONTH);
+	            int hour = cal.get(Calendar.HOUR_OF_DAY);
+	            int minute = cal.get(Calendar.MINUTE);
+	            int sec = cal.get(Calendar.SECOND);
+	            String datetxt = String.format("%04d%02d%02d%02d%02d%02d", year, month, day, hour, minute, sec);
 	            // Use now a local file - clean this up later
 	            histoConsumer = new OutputStreamBufferConsumer(
 	                new GZIPOutputStream(new BufferedOutputStream(
 	                        new FileOutputStream(new File(
 	                                "/mnt/data/pdaqlocal", 
-	                                "chargehistos-"+getRunNumber()+".dat.gz")))));
+	                                "chargehistos-"+datetxt+".dat.gz")))));
+	        }
             
             // Start the merger-sorter objects -- possibly inserting a hit spooler
 	        if (hitSpooling)
@@ -762,7 +774,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13707 2012-05-27 09:02:49Z kael $";
+		return "$Id: StringHubComponent.java 13712 2012-05-27 14:12:39Z kael $";
     }
 
 	public IByteBufferCache getCache()

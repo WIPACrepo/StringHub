@@ -455,11 +455,13 @@ public class DataCollector
         }
 
         iceTopChargeHists = new Histogram[4];
-        iceTopChargeHists[0] = new Histogram(100, 15000.0, 25000.0);
-        iceTopChargeHists[1] = new Histogram(100, 15000.0, 25000.0);
-        iceTopChargeHists[2] = new Histogram(100, 15000.0, 25000.0);
-        iceTopChargeHists[3] = new Histogram(100, 15000.0, 25000.0);
         
+        for (int ich = 0; ich < 4; ich++)
+        {
+            iceTopChargeHists[ich] = new Histogram(config.getChargeStampHistoBins(ich), 
+                    config.getChargeStampHistoXmin(ich),
+                    config.getChargeStampHistoXmax(ich));
+        }
         long configT1 = System.currentTimeMillis();
         if (logger.isDebugEnabled()) {
             logger.debug("Finished DOM configuration - " + canonicalName() +

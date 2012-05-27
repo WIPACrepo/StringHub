@@ -32,6 +32,7 @@ public class XMLConfig extends DefaultHandler
 	private final short[] defaultAtwdWidth = { 2, 2, 2, 2 };
 	private short[] atwdWidth;
 	private int atwdChannel;
+	private int chargeHistoChannel;
 
 	private enum Direction { UP, DOWN };
 	private Direction direction;

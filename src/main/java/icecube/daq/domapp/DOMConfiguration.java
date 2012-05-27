@@ -46,10 +46,15 @@ public class DOMConfiguration implements Serializable
 
     /** The fraction of hits that have HLC bit set (simulation only) */
     private double        simHLCFrac              = 1.0;
-    private double        histoInterval           = 0.0;
-    private short         histoPrescale           = (short) 8;
-    private boolean       chargeStampATWD         = false;
-    private byte          chargeStampAtwdChannel  = -2;
+    
+    /** (IceTop) chargestamp histogramming */
+    private double     histoInterval           = 0.0;
+    private short      histoPrescale           = (short) 8;
+    private boolean    chargeStampATWD         = false;
+    private byte       chargeStampAtwdChannel  = -2;
+	private int[]      chargeStampBins = new int[] { 100, 100, 100, 100 };
+	private double[]   chargeStampXmin = new double[] { 15000, 15000, 15000, 15000 };
+	private double[]   chargeStampXmax = new double[] { 25000, 25000, 25000, 25000 };
 	
 	/** Set for injecting supernova simulation signal */
 	private	boolean       snSigEnabled = false;					
@@ -450,7 +455,15 @@ public class DOMConfiguration implements Serializable
                 || averagePedestal[5] == null) return new Integer[0];
         return averagePedestal;
     }
+    
+    public double getChargeStampHistoXmin(int ch) { return chargeStampXmin[ch]; }
+    public void setChargeStampHistoXmin(int ch, double x0) { chargeStampXmin[ch] = x0; }
 
+    public double getChargeStampHistoXmax(int ch) { return chargeStampXmax[ch]; }
+    public void setChargeStampHistoXmax(int ch, double x1) { chargeStampXmax[ch] = x1; }
+    
+    public int getChargeStampHistoBins(int ch) { return chargeStampBins[ch]; }
+    public void setChargeStampHistoBins(int ch, int bins) { chargeStampBins[ch] = bins; }
 }
 
 
