@@ -636,7 +636,7 @@ public class DataCollector
             {
                 histoConsumer = null;
             }
-            lastITChargeStampT0 += config.getHistoInterval();            
+            lastITChargeStampT0 += ((long) config.getHistoInterval() * 1E10);            
         }
         int atwd_chip = (cw1 & 0x800) == 0 ? 1 : 0;
         int atwd_chan = (qenc >> 17) & 3;

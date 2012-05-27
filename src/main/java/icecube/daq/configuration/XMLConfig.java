@@ -181,7 +181,7 @@ public class XMLConfig extends DefaultHandler
 		    }
 		    else if (localName.equals("interval"))
 		    {
-		        currentConfig.setHistoInterval(Integer.parseInt(text));
+		        currentConfig.setHistoInterval(Double.parseDouble(text));
 		    }
 		    else if (localName.equals("channel"))
 		    {
