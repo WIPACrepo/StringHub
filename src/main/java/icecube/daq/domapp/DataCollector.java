@@ -228,8 +228,8 @@ public class DataCollector
                 return popB();
             }
             if (alist.isEmpty() || blist.isEmpty()) return null;
-            long aclk = alist.getFirst().getLong(16);
-            long bclk = blist.getFirst().getLong(16);
+            long aclk = alist.getFirst().getLong(24);
+            long bclk = blist.getFirst().getLong(24);
             if (aclk < bclk)
             {
                 if (!waitForRAPCal || rapcal.laterThan(aclk))
@@ -480,7 +480,25 @@ public class DataCollector
         {
             ByteBuffer buffer = abBuffer.pop();
             if (buffer == null) return;
+            long domClock = hitBuf.getLong(24);
+            long utc = rapcal.domToUTC(domClock).in_0_1ns();
+            hitBuf.putLong(24, utc);
             hitsConsumer.consume(hitBuf);
+            rtHitRate.recordEvent(utc);
+            lastHitTime = utc;
+            if (firstHitTime < 0L) firstHitTime = utc;
+            if (hitBuf.getInt(4) == MAGIC_COMPRESSED_HIT_FMTID)
+            {
+                int word1 = hitBuf.getInt(46);
+                int word3 = hitBuf.getInt(50);
+                    
+                // Do IceTop chargestamp histogramming stuff
+                icetopChargeStampHistogram(utc, word1, word3);
+    
+                // Do hit rate statistics gathering
+                int flagsLC = (word1 & 0x30000) >> 16;
+                if (flagsLC != 0) rtLCRate.recordEvent(utc);
+            }
         }
     }
 
@@ -499,7 +517,6 @@ public class DataCollector
 
             int atwdChip;
             long domClock;
-            long utc;
             ByteBuffer outputBuffer;
 
             switch (fmt)
@@ -509,22 +526,16 @@ public class DataCollector
                 numHits++;
                 atwdChip = in.get(pos+4) & 1;
                 domClock = DOMAppUtil.decodeClock6B(in, pos+10);
-                utc = rapcal.domToUTC(domClock).in_0_1ns();
                 in.limit(pos + len);
                 outputBuffer = ByteBuffer.allocate(len + 32);
                 outputBuffer.putInt(len + 32);
                 outputBuffer.putInt(MAGIC_ENGINEERING_HIT_FMTID);
                 outputBuffer.putLong(numericMBID);
+                outputBuffer.putLong(0L);
                 outputBuffer.putLong(domClock);
-                outputBuffer.putLong(utc);
                 outputBuffer.put(in).flip();
                 in.limit(buffer_limit);
                 
-                // Hit rate stats + first hit time recording
-                rtHitRate.recordEvent(utc);
-                lastHitTime = utc;
-                if (firstHitTime < 0L) firstHitTime = utc;
-
                 ////////
                 //
                 // DO the A/B stuff
@@ -550,15 +561,6 @@ public class DataCollector
                     int hitSize = word1 & 0x7ff;
                     atwdChip = (word1 >> 11) & 1;
                     domClock = (((long) clkMSB) << 32) | (((long) word2) & 0xffffffffL);
-                    utc = rapcal.domToUTC(domClock).in_0_1ns();
-                    
-                    // Do hit rate statistics gathering
-                    int flagsLC = (word1 & 0x30000) >> 16;
-                    if (flagsLC != 0) rtLCRate.recordEvent(utc);
-                    rtHitRate.recordEvent(utc);
-                    lastHitTime = utc;
-                    if (firstHitTime < 0L) firstHitTime = utc;
-                    
                     if (logger.isDebugEnabled())
                     {
                         int trigMask = (word1 >> 18) & 0x1fff;
@@ -575,8 +577,8 @@ public class DataCollector
                     outputBuffer.putInt(hitSize + 42);
                     outputBuffer.putInt(MAGIC_COMPRESSED_HIT_FMTID);
                     outputBuffer.putLong(numericMBID); // +8
-                    outputBuffer.putLong(domClock);    // +16
-                    outputBuffer.putLong(utc);         // +24
+                    outputBuffer.putLong(0L);    // +16
+                    outputBuffer.putLong(domClock);         // +24
                     // Compressed hit extra info
                     // This is the 'byte order' word
                     outputBuffer.putShort((short) 1);  // +32
@@ -589,8 +591,6 @@ public class DataCollector
                     in.limit(buffer_limit);
                     // DO the A/B stuff
                     dispatchHitBuffer(atwdChip, outputBuffer);
-                    // Do IceTop chargestamp histogramming stuff
-                    icetopChargeStampHistogram(utc, word1, word3);
                 }
                 // Restore previous byte order
                 in.order(lastOrder);
