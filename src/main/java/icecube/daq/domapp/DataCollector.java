@@ -454,6 +454,7 @@ public class DataCollector
             logger.warn("Unable to configure chargestamp histogramming");
         }
 
+        iceTopChargeHists = new Histogram[4];
         iceTopChargeHists[0] = new Histogram(100, 15000.0, 25000.0);
         iceTopChargeHists[1] = new Histogram(100, 15000.0, 25000.0);
         iceTopChargeHists[2] = new Histogram(100, 15000.0, 25000.0);
