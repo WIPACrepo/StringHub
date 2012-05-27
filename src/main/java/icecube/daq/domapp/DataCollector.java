@@ -574,7 +574,7 @@ public class DataCollector
                     outputBuffer.putInt(MAGIC_COMPRESSED_HIT_FMTID);
                     outputBuffer.putLong(numericMBID); // +8
                     outputBuffer.putLong(0L);          // +16
-                    outputBuffer.putLong(domClock);    // +24
+                    outputBuffer.putLong(utc);    // +24
                     // Compressed hit extra info
                     // This is the 'byte order' word
                     outputBuffer.putShort((short) 1);  // +32
