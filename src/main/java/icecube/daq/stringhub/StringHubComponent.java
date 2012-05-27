@@ -463,10 +463,12 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	            // Rotate hit spooling directories : current <==> last
 	            File hitSpoolCurrent = new File(hitSpoolDir, "currentRun");
 	            File hitSpoolLast = new File(hitSpoolDir, "lastRun");
-	            File hitSpoolTemp = new File(hitSpoolDir, "HitSpool"+getRunNumber()+".tmp");
-	            hitSpoolLast.renameTo(hitSpoolTemp);
-	            hitSpoolCurrent.renameTo(hitSpoolLast);
-	            hitSpoolTemp.renameTo(hitSpoolCurrent);
+                File hitSpoolTemp = new File(hitSpoolDir, "HitSpool"+getRunNumber()+".tmp");
+
+	            if (hitSpoolLast.exists()) hitSpoolLast.renameTo(hitSpoolTemp);
+	            if (hitSpoolCurrent.exists()) hitSpoolCurrent.renameTo(hitSpoolLast);
+	            if (hitSpoolTemp.exists()) hitSpoolTemp.renameTo(hitSpoolCurrent);
+	            if (!hitSpoolCurrent.exists()) hitSpoolCurrent.mkdir();
     	        FilesHitSpool hitSpooler = new FilesHitSpool(sender, hitSpoolCurrent, hitSpoolIval, hitSpoolNumFiles);
     	        hitsSort = new MultiChannelMergeSort(nch, hitSpooler);
 	        }
@@ -760,7 +762,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13705 2012-05-27 08:19:07Z kael $";
+		return "$Id: StringHubComponent.java 13707 2012-05-27 09:02:49Z kael $";
     }
 
 	public IByteBufferCache getCache()
