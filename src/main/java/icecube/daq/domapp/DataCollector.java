@@ -606,7 +606,8 @@ public class DataCollector
     private void icetopChargeStampHistogram(long utc, int cw1, int qenc)
     {
         if (histoConsumer == null) return;
-        if (1.0E-10*(utc - lastITChargeStampT0) > config.getHistoInterval()) 
+        double dt = 1.0E-10*(utc - lastITChargeStampT0);
+        if (dt > config.getHistoInterval()) 
         {
             int len = 36;
             for (int i = 0; i < 4; i++) 
@@ -638,7 +639,9 @@ public class DataCollector
             {
                 histoConsumer = null;
             }
-            lastITChargeStampT0 += ((long) config.getHistoInterval() * 1E10);            
+            lastITChargeStampT0 += (long) (
+                    Math.floor(dt / config.getHistoInterval()) * 
+                    config.getHistoInterval() * 1.0E10);            
         }
         int atwd_chip = (cw1 & 0x800) == 0 ? 1 : 0;
         int atwd_chan = (qenc >> 17) & 3;
@@ -687,7 +690,7 @@ public class DataCollector
         tcalBuffer.putInt(0).putInt(MAGIC_TCAL_FMTID);
         tcalBuffer.putLong(numericMBID);
         tcalBuffer.putLong(0L);
-        tcalBuffer.putLong(tcal.getDorTx().in_0_1ns());
+        tcalBuffer.putLong(rapcal.domToUTC(tcal.getDomTx().in_0_1ns()/250L).in_0_1ns());
         tcal.writeUncompressedRecord(tcalBuffer);
         if (gps == null)
         {
@@ -1085,6 +1088,7 @@ public class DataCollector
                 }
                 app.beginRun();
                 storeRunStartTime();
+                lastITChargeStampT0 = runStartUT;
                 logger.debug("DOM is running.");
                 setRunLevel(RunLevel.RUNNING);
                 break;
