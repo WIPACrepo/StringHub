@@ -629,6 +629,7 @@ public class DataCollector
                 hbuf.putInt(iceTopChargeHists[i].getUnderflow());
                 for (int k = 0; k < n; k++) hbuf.putInt(a[k]);
                 hbuf.putInt(iceTopChargeHists[i].getOverflow());
+                iceTopChargeHists[i].reset();
             }
             hbuf.flip();
             try 
@@ -639,9 +640,7 @@ public class DataCollector
             {
                 histoConsumer = null;
             }
-            lastITChargeStampT0 += (long) (
-                    Math.floor(dt / config.getHistoInterval()) * 
-                    config.getHistoInterval() * 1.0E10);            
+            lastITChargeStampT0 = getHistoIntervalT0(utc);            
         }
         int atwd_chip = (cw1 & 0x800) == 0 ? 1 : 0;
         int atwd_chan = (qenc >> 17) & 3;
@@ -649,6 +648,17 @@ public class DataCollector
         if (atwd_chan < 2) iceTopChargeHists[atwd_chip*2 + atwd_chan].fill(chargestamp); 
     }
 
+    /**
+     * This function will return the relevant chargeHisto T0
+     * @param utc
+     * @return
+     */
+    private long getHistoIntervalT0(long utc)
+    {
+        long interval = ((long) (1.0E10*config.getHistoInterval()));
+        return utc / interval * interval;
+    }
+    
     private void moniProcess(ByteBuffer in) throws IOException
     {
         if (moniConsumer == null) return;
@@ -1088,7 +1098,7 @@ public class DataCollector
                 }
                 app.beginRun();
                 storeRunStartTime();
-                lastITChargeStampT0 = runStartUT;
+                lastITChargeStampT0 = getHistoIntervalT0(runStartUT);
                 logger.debug("DOM is running.");
                 setRunLevel(RunLevel.RUNNING);
                 break;
@@ -1319,6 +1329,13 @@ class Histogram
             int i = (int) (bins.length * (x - x0) / (x1 - x0));
             bins[i]++;
         }
+    }
+    
+    void reset()
+    {
+        of = 0;
+        uf = 0;
+        for (int i = 0; i < bins.length; i++) bins[i] = 0;
     }
     
     int[] getBins() { return bins; }
