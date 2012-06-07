@@ -73,7 +73,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	private static final Logger logger = Logger.getLogger(StringHubComponent.class);
 
     private int hubId;
-	private boolean isSim = false;
+	private boolean isSim;
 	private Driver driver = Driver.getInstance();
 	private IByteBufferCache cache;
 	private Sender sender;
@@ -771,7 +771,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13726 2012-06-07 20:03:58Z dglo $";
+		return "$Id: StringHubComponent.java 13727 2012-06-07 20:05:35Z dglo $";
     }
 
 	public IByteBufferCache getCache()
