@@ -409,14 +409,11 @@ public class ReplayHubComponent
         try {
             domRegistry = DOMRegistry.loadRegistry(configurationPath);
         } catch (ParserConfigurationException e) {
-            e.printStackTrace();
-            LOG.error(e.getMessage());
+            LOG.error("Cannot load DOM registry", e);
         } catch (SAXException e) {
-            e.printStackTrace();
-            LOG.error(e.getMessage());
+            LOG.error("Cannot load DOM registry", e);
         } catch (IOException e) {
-            e.printStackTrace();
-            LOG.error(e.getMessage());
+            LOG.error("Cannot load DOM registry", e);
         }
 
         sender.setDOMRegistry(domRegistry);

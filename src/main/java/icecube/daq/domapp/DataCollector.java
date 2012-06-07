@@ -787,18 +787,15 @@ public class DataCollector
         catch (RAPCalException rcex)
         {
             rapcalExceptionCount++;
-            rcex.printStackTrace();
-            logger.warn("Got RAPCal exception");
+            logger.warn("Got RAPCal exception", rcex);
         }
         catch (IOException iox)
         {
-            iox.printStackTrace();
-            logger.warn(iox);
+            logger.warn("Got IO exception", iox);
         }
         catch (InterruptedException intx)
         {
-            intx.printStackTrace();
-            logger.warn("Got interrupted exception");
+            logger.warn("Got interrupted exception", intx);
         }
 	    return null;
     }
@@ -839,9 +836,7 @@ public class DataCollector
         }
         catch (Exception x)
         {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream(1024);
-            x.printStackTrace(new PrintStream(baos));
-            logger.error("Intercepted error in DataCollector runcore: " + x + "\n" + baos.toString());
+            logger.error("Intercepted error in DataCollector runcore", x);
             /*
              * TODO cleanup needed set run level to ZOMBIE so that controller knows
              * that this channel has expired and does not wait.

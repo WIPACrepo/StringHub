@@ -43,8 +43,7 @@ public class DOMIO {
 			if (logger.isDebugEnabled())
 				logger.debug("Closed file/channel for [" + card + "" + pair + dom + "]");
 		} catch (IOException iox) {
-			iox.printStackTrace();
-			logger.error("Error on close of DOMIO: " + iox.getMessage());
+			logger.error("Error on close of DOMIO", iox.getMessage());
 		}
 	}
 

@@ -161,8 +161,7 @@ public class StreamBinder extends Thread
             }
             catch (IOException iox)
             {
-                iox.printStackTrace();
-                logger.error(iox);
+                logger.error("Binder processing thread failed", iox);
                 break;
             }
         }
@@ -175,8 +174,7 @@ public class StreamBinder extends Thread
         }
         catch (IOException iox)
         {
-            iox.printStackTrace();
-            logger.error(iox);
+            logger.error("Binder selector close failed", iox);
         }
 
     }

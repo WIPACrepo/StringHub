@@ -953,7 +953,6 @@ public class Sender
         try {
             ((IWriteablePayload) payload).writePayload(false, 0, buf);
         } catch (Exception ex) {
-ex.printStackTrace();
             log.error("Couldn't create payload", ex);
             buf = null;
         }

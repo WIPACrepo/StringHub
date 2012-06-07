@@ -178,8 +178,7 @@ public class SimDataCollector extends AbstractDataCollector
             if (tcalConsumer != null) tcalConsumer.consume(otrava.asReadOnlyBuffer());
             if (scalConsumer != null && !isAmanda) scalConsumer.consume(otrava.asReadOnlyBuffer());
         } catch (IOException iox) {
-            iox.printStackTrace();
-            logger.error(iox.getMessage());
+            logger.error("Run loop failed", iox);
         }
     }
 
@@ -267,7 +266,6 @@ public class SimDataCollector extends AbstractDataCollector
                             if (scalConsumer != null)
                                 scalConsumer.consume(otrava.asReadOnlyBuffer());
                         } catch (IOException iox) {
-                            iox.printStackTrace();
                             logger.error("Couldn't stop supernova channel",
                                          iox);
                         }
@@ -290,13 +288,9 @@ public class SimDataCollector extends AbstractDataCollector
                 if (needSomeSleep) Thread.sleep(100);
             }
         } catch (InterruptedException intx) {
-            intx.printStackTrace();
-            logger.error(intx.getMessage());
-            return;
+            logger.error("Simulated DOM failure", intx);
         } catch (IOException iox) {
-            iox.printStackTrace();
-            logger.error(iox.getMessage());
-            return;
+            logger.error("Simulated DOM failure", iox);
         }
     }
 

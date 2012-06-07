@@ -11,25 +11,25 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.log4j.Logger;
 
 /**
- * A processor which merges DOM buffer inputs from multiple sources and 
+ * A processor which merges DOM buffer inputs from multiple sources and
  * outputs a chronologically ordered sequence of these buffers.  The buffers
  * may be hits, time calibration records, monitor records, or supernova records.
  * The contract on the input is that the ByteBuffer contains a 32-byte header
- * with a long integer channel identifier (e.g., mainboard ID) beginnig at 
+ * with a long integer channel identifier (e.g., mainboard ID) beginnig at
  * the 8th byte position and a long integer timestamp beginning at the 24th
  * byte.
  * <p>
  * The class exposes a {@link BufferConsumer} interface to the producers of
  * the input data.  The interface is thread safe so that multiple threads may
  * concurrently request consumption of data buffers.  The output is also
- * via a BufferConsumer interface supplied at construction time.  
+ * via a BufferConsumer interface supplied at construction time.
  * <p>
  * Callers must know <i>a priori</i> the number of input channels and, prior
  * to startup of the HNK1 sorting thread, the channel IDs must have been
  * registered by calling the <code>register</code> method before
  * <code>Thread.start()</code>.
  * <p>
- * The sorted buffers on output are passed to the caller-supplied output 
+ * The sorted buffers on output are passed to the caller-supplied output
  * BufferConsumer.  The typical use pattern for this class is
  * <pre>
  * Sender sender = new Sender(...);
@@ -40,13 +40,13 @@ import org.apache.log4j.Logger;
  * ...
  * collectors.add(new DataCollector(7, 3, 'B', hitsSorter, moniSorter, ...))
  * </pre>
- * 
+ *
  * @see #register
  * @see BufferConsumer
  * @see Thread
  * @see DataCollector
- *   
- * 
+ *
+ *
  * @author kael
  *
  */
@@ -63,12 +63,12 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     private volatile long lastUT;
     private int inputCounter;
     private int outputCounter;
-    
+
     public MultiChannelMergeSort(int nch, BufferConsumer out)
     {
         this(nch, out, "g");
     }
-    
+
     public MultiChannelMergeSort(int nch, BufferConsumer out, String channelType, int maxQueue)
     {
         super("MultiChannelMergeSort-" + channelType);
@@ -81,7 +81,7 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
         inputCounter = 0;
         outputCounter = 0;
     }
-    
+
     public MultiChannelMergeSort(int nch, BufferConsumer out, String channelType)
     {
         this(nch, out, channelType, 100000);
@@ -90,9 +90,9 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     /**
      * This method will take the ByteBuffer supplied as argument
      * and insert into the queue of buffers to process.
-     * 
-     * @throws InterruptedException 
-     * 
+     *
+     * @throws InterruptedException
+     *
      */
     public void consume(ByteBuffer buf) throws IOException
     {
@@ -109,7 +109,7 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     public synchronized int getNumberOfInputs() { return inputCounter; }
     public synchronized int getNumberOfOutputs() { return outputCounter; }
     public synchronized int getQueueSize() { return q.size(); }
-    
+
     /**
      * Register a channel with the sort.
      * @param mbid
@@ -118,12 +118,12 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     {
         inputMap.put(mbid, new Node<DAQBuffer>(bufferCmp));
     }
-    
+
     public void run()
     {
         terminalNode = Node.makeTree(inputMap.values());
         running = true;
-        
+
         while (running)
         {
             try
@@ -134,7 +134,7 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
                 if (logger.isDebugEnabled())
                 {
                     logger.debug(
-                            String.format("took buffer from MBID %012x at UT %d", 
+                            String.format("took buffer from MBID %012x at UT %d",
                             daqBuffer.mbid, daqBuffer.timestamp
                             )
                         );
@@ -151,9 +151,9 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
                     {
                         outputCounter++;
                         DAQBuffer sorted = terminalNode.pop();
-                        if (lastUT > sorted.timestamp) 
+                        if (lastUT > sorted.timestamp)
                             logger.warn(
-                                "Out-of-order sorted value: " + lastUT + 
+                                "Out-of-order sorted value: " + lastUT +
                                 ", " + sorted.timestamp);
                         lastUT = sorted.timestamp;
                         if (sorted.timestamp == Long.MAX_VALUE)
@@ -172,7 +172,7 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
             }
         }
     }
-    
+
     public static ByteBuffer eos(long mbid)
     {
         ByteBuffer eos = ByteBuffer.allocate(32);
@@ -180,10 +180,10 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
         eos.clear();
         return eos.asReadOnlyBuffer();
     }
-    
+
     public long getLastInputTime() { return lastInputUT; }
     public long getLastOutputTime() { return lastUT; }
-    
+
 }
 
 class DAQBuffer
@@ -191,7 +191,7 @@ class DAQBuffer
     ByteBuffer buf;
     long mbid;
     long timestamp;
-    
+
     DAQBuffer(ByteBuffer buf)
     {
         this.buf = buf;
@@ -205,12 +205,12 @@ class DAQBufferComparator implements Comparator<DAQBuffer>
 
     public int compare(DAQBuffer left, DAQBuffer right)
     {
-        if (left.timestamp < right.timestamp) 
+        if (left.timestamp < right.timestamp)
             return -1;
         else if (left.timestamp > right.timestamp)
             return 1;
         else
             return 0;
     }
-    
+
 }

@@ -222,7 +222,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		addCache(DAQConnector.TYPE_SN_DATA, snBufMgr);
         supernovaOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
         addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaOut);
-        
+
         // Default 10s hit spool interval
         hitSpoolIval = 100000000000L;
     }
@@ -239,14 +239,11 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
         try {
 			domRegistry = DOMRegistry.loadRegistry(configurationPath);
 		} catch (ParserConfigurationException e) {
-			e.printStackTrace();
-			logger.error(e.getMessage());
+			logger.error("Could not load DOMRegistry", e);
 		} catch (SAXException e) {
-			e.printStackTrace();
-			logger.error(e.getMessage());
+			logger.error("Could not load DOMRegistry", e);
 		} catch (IOException e) {
-			e.printStackTrace();
-			logger.error(e.getMessage());
+			logger.error("Could not load DOMRegistry", e);
 		}
 
 		sender.setDOMRegistry(domRegistry);
@@ -353,7 +350,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 			int tcalPrescale = 10;
 			boolean chargeHistos = false;
-			
+
 			if (hubNode != null)
 			{
 			    if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) enableTriggering();
@@ -407,7 +404,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			for (DOMChannelInfo chanInfo : activeDOMs)
 			{
 			    activeDomSet.add(chanInfo.mbid);
-			    if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) 
+			    if (xmlConfig.getDOMConfig(chanInfo.mbid) != null)
 			        {
 			            // Determine, additionally, if we need to enable charge histogramming
 			            if (xmlConfig.getDOMConfig(chanInfo.mbid).getHistoInterval() > 0.0)
@@ -449,9 +446,9 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	                hubId, snBufMgr, supernovaOut.getChannel());
 	        SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(
 	                hubId, tcalBufMgr, tcalOut.getChannel(), tcalPrescale);
-	        
+
 	        OutputStreamBufferConsumer histoConsumer = null;
-	        if (chargeHistos) 
+	        if (chargeHistos)
 	        {
 	            Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
 	            int year = cal.get(Calendar.YEAR);
@@ -465,10 +462,10 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	            histoConsumer = new OutputStreamBufferConsumer(
 	                new GZIPOutputStream(new BufferedOutputStream(
 	                        new FileOutputStream(new File(
-	                                "/mnt/data/pdaqlocal", 
+	                                "/mnt/data/pdaqlocal",
 	                                "chargehistos-"+datetxt+".dat.gz")))));
 	        }
-            
+
             // Start the merger-sorter objects -- possibly inserting a hit spooler
 	        if (hitSpooling)
 	        {
@@ -591,7 +588,6 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		}
 		catch (Exception e)
 		{
-			e.printStackTrace();
 			throw new DAQCompException("Couldn't start DOMs", e);
 		}
 	}
@@ -692,7 +688,6 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		}
 		catch (Exception e)
 		{
-			e.printStackTrace();
 			throw new DAQCompException("Error killing connectors", e);
 			// throw new DAQCompException(e.getMessage());
 		}
@@ -774,7 +769,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13712 2012-05-27 14:12:39Z kael $";
+		return "$Id: StringHubComponent.java 13725 2012-06-07 19:58:03Z dglo $";
     }
 
 	public IByteBufferCache getCache()
