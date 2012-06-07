@@ -103,7 +103,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	private String hitSpoolDir;
 	private long hitSpoolIval;
 
-    private int hitSpoolNumFiles = 100;
+	private int hitSpoolNumFiles = 100;
 
 	public StringHubComponent(int hubId)
 	{
@@ -114,8 +114,11 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	{
 		super(COMPONENT_NAME, hubId);
 
-        this.hubId = hubId;
+		this.hubId = hubId;
 		this.isSim = isSim;
+
+		sourceId =
+			SourceIdRegistry.getISourceIDFromNameAndId(COMPONENT_NAME, hubId);
 
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
@@ -299,7 +302,6 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	{
 	    if (hitOut == null) return;
 
-        sourceId = SourceIdRegistry.getISourceIDFromNameAndId(COMPONENT_NAME, hubId);
         triggerHandler = new StringTriggerHandler(sourceId);
         triggerHandler.setMasterPayloadFactory(new MasterPayloadFactory(cache));
         triggerHandler.setPayloadOutput(hitOut);
@@ -769,7 +771,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13725 2012-06-07 19:58:03Z dglo $";
+		return "$Id: StringHubComponent.java 13726 2012-06-07 20:03:58Z dglo $";
     }
 
 	public IByteBufferCache getCache()
