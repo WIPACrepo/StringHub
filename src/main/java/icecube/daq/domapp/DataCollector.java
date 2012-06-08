@@ -656,6 +656,10 @@ public class DataCollector
     private long getHistoIntervalT0(long utc)
     {
         long interval = ((long) (1.0E10*config.getHistoInterval()));
+		if (interval == 0L) {
+			return 0L;
+		}
+
         return utc / interval * interval;
     }
 
