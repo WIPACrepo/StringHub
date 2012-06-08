@@ -143,7 +143,7 @@ public class DataCollector
     private int         numSupernovaGaps;
 
     private Histogram[] iceTopChargeHists;
-    
+
     /**
      * The waitForRAPCal flag if true will force the time synchronizer
      * to only output DOM timestamped objects when a RAPCal before and
@@ -167,7 +167,7 @@ public class DataCollector
     private final int MAGIC_TCAL_FMTID            = 202;
     private final int MAGIC_SUPERNOVA_FMTID       = 302;
     private final int MAGIC_HISTO_FMTID           = 1001;
-    
+
     private boolean   latelyRunningFlashers;
     private long      lastITChargeStampT0;
 
@@ -263,7 +263,7 @@ public class DataCollector
     {
         this(chInfo.card, chInfo.pair, chInfo.dom, null, hitsTo, null, null, null, null, null, null);
     }
-    
+
     public DataCollector(
             int card, int pair, char dom,
             DOMConfiguration config,
@@ -455,10 +455,10 @@ public class DataCollector
         }
 
         iceTopChargeHists = new Histogram[4];
-        
+
         for (int ich = 0; ich < 4; ich++)
         {
-            iceTopChargeHists[ich] = new Histogram(config.getChargeStampHistoBins(ich), 
+            iceTopChargeHists[ich] = new Histogram(config.getChargeStampHistoBins(ich),
                     config.getChargeStampHistoXmin(ich),
                     config.getChargeStampHistoXmax(ich));
         }
@@ -491,10 +491,10 @@ public class DataCollector
             {
                 int word1 = hitBuf.getInt(46);
                 int word3 = hitBuf.getInt(50);
-                    
+
                 // Do IceTop chargestamp histogramming stuff
                 icetopChargeStampHistogram(utc, word1, word3);
-    
+
                 // Do hit rate statistics gathering
                 int flagsLC = (word1 & 0x30000) >> 16;
                 if (flagsLC != 0) rtLCRate.recordEvent(utc);
@@ -535,7 +535,7 @@ public class DataCollector
                 outputBuffer.putLong(domClock);
                 outputBuffer.put(in).flip();
                 in.limit(buffer_limit);
-                
+
                 ////////
                 //
                 // DO the A/B stuff
@@ -602,15 +602,15 @@ public class DataCollector
             }
         }
     }
-    
+
     private void icetopChargeStampHistogram(long utc, int cw1, int qenc)
     {
         if (histoConsumer == null) return;
         double dt = 1.0E-10*(utc - lastITChargeStampT0);
-        if (dt > config.getHistoInterval()) 
+        if (dt > config.getHistoInterval())
         {
             int len = 36;
-            for (int i = 0; i < 4; i++) 
+            for (int i = 0; i < 4; i++)
                 len += 28 + 4*iceTopChargeHists[i].getBins().length;
             ByteBuffer hbuf = ByteBuffer.allocate(len);
             hbuf.putInt(len);
@@ -632,7 +632,7 @@ public class DataCollector
                 iceTopChargeHists[i].reset();
             }
             hbuf.flip();
-            try 
+            try
             {
                 histoConsumer.consume(hbuf);
             }
@@ -640,12 +640,12 @@ public class DataCollector
             {
                 histoConsumer = null;
             }
-            lastITChargeStampT0 = getHistoIntervalT0(utc);            
+            lastITChargeStampT0 = getHistoIntervalT0(utc);
         }
         int atwd_chip = (cw1 & 0x800) == 0 ? 1 : 0;
         int atwd_chan = (qenc >> 17) & 3;
         int chargestamp = qenc & 0x1ffff;
-        if (atwd_chan < 2) iceTopChargeHists[atwd_chip*2 + atwd_chan].fill(chargestamp); 
+        if (atwd_chan < 2) iceTopChargeHists[atwd_chip*2 + atwd_chan].fill(chargestamp);
     }
 
     /**
@@ -658,7 +658,7 @@ public class DataCollector
         long interval = ((long) (1.0E10*config.getHistoInterval()));
         return utc / interval * interval;
     }
-    
+
     private void moniProcess(ByteBuffer in) throws IOException
     {
         if (moniConsumer == null) return;
@@ -1303,7 +1303,7 @@ class Histogram
     private int of, uf;
     private int[] bins;
     private double x0, x1;
-    
+
     Histogram(int nBins, double x0, double x1)
     {
         this.bins = new int[nBins];
@@ -1312,7 +1312,7 @@ class Histogram
         this.of   = 0;
         this.uf   = 0;
     }
-    
+
     void fill(double x)
     {
         if (x < x0)
@@ -1325,14 +1325,14 @@ class Histogram
             bins[i]++;
         }
     }
-    
+
     void reset()
     {
         of = 0;
         uf = 0;
         for (int i = 0; i < bins.length; i++) bins[i] = 0;
     }
-    
+
     int[] getBins() { return bins; }
     int getOverflow() { return of; }
     int getUnderflow() { return uf; }
