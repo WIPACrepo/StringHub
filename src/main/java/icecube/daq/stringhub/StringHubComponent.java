@@ -72,7 +72,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 	private static final Logger logger = Logger.getLogger(StringHubComponent.class);
 
-    private int hubId;
+	private int hubId;
 	private boolean isSim;
 	private Driver driver = Driver.getInstance();
 	private IByteBufferCache cache;
@@ -89,9 +89,9 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	private DOMConnector conn = null;
 	private List<DOMChannelInfo> activeDOMs;
 	private MultiChannelMergeSort hitsSort;
-    private MultiChannelMergeSort moniSort;
-    private MultiChannelMergeSort tcalSort;
-    private MultiChannelMergeSort scalSort;
+	private MultiChannelMergeSort moniSort;
+	private MultiChannelMergeSort tcalSort;
+	private MultiChannelMergeSort scalSort;
 	private String configurationPath;
 
 	private boolean enableTriggering = false;
@@ -124,17 +124,17 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		addMBean("system", new SystemStatistics());
 		addMBean("stringhub", this);
 
-        /*
-         * Component derives behavioral characteristics from
-         * its 'minor ID' which is the low 3 (decimal) digits of
-         * the hub component ID:
-         *  (1) component x000        : amandaHub
-         *  (2) component x001 - x199 : in-ice hub
+		/*
+		 * Component derives behavioral characteristics from
+		 * its 'minor ID' which is the low 3 (decimal) digits of
+		 * the hub component ID:
+		 *  (1) component x000        : amandaHub
+		 *  (2) component x001 - x199 : in-ice hub
 		 *      (79 - 86 are deep core but this currently doesn't mean anything)
-         *  (3) component x200 - x299 : icetop
-         * I
-         */
-        int minorHubId = hubId % 1000;
+		 *  (3) component x200 - x299 : icetop
+		 * I
+		 */
+		int minorHubId = hubId % 1000;
 
 		String cacheName;
 		String cacheNum;
@@ -168,67 +168,67 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			logger.info("starting up StringHub component " + hubId);
 		}
 
-        hitOut = null;
-        teOut = null;
+		hitOut = null;
+		teOut = null;
 
-        if (minorHubId > 0)
-        {
-            hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "hitOut");
-            teOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "teOut",
-                                           true);
-            if (minorHubId >= 200) {
-                addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
-            } else {
-                addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
-                addOptionalEngine(DAQConnector.TYPE_TRACKENG_HIT, teOut);
-            }
-            sender.setHitOutput(hitOut);
-            sender.setHitCache(cache);
-            sender.setTrackEngineOutput(teOut);
-            sender.setTrackEngineCache(cache);
-        }
+		if (minorHubId > 0)
+		{
+			hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "hitOut");
+			teOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "teOut",
+										   true);
+			if (minorHubId >= 200) {
+				addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
+			} else {
+				addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
+				addOptionalEngine(DAQConnector.TYPE_TRACKENG_HIT, teOut);
+			}
+			sender.setHitOutput(hitOut);
+			sender.setHitCache(cache);
+			sender.setTrackEngineOutput(teOut);
+			sender.setTrackEngineCache(cache);
+		}
 
-        ReadoutRequestFactory rdoutReqFactory =
-            new ReadoutRequestFactory(cache);
-        try
-        {
-            reqIn = new RequestReader(COMPONENT_NAME, sender, rdoutReqFactory);
-        }
-        catch (IOException ioe)
-        {
-            throw new Error("Couldn't create RequestReader", ioe);
-        }
-        addMonitoredEngine(DAQConnector.TYPE_READOUT_REQUEST, reqIn);
+		ReadoutRequestFactory rdoutReqFactory =
+			new ReadoutRequestFactory(cache);
+		try
+		{
+			reqIn = new RequestReader(COMPONENT_NAME, sender, rdoutReqFactory);
+		}
+		catch (IOException ioe)
+		{
+			throw new Error("Couldn't create RequestReader", ioe);
+		}
+		addMonitoredEngine(DAQConnector.TYPE_READOUT_REQUEST, reqIn);
 
 		dataOut =
-            new SimpleOutputEngine(COMPONENT_NAME, hubId, "dataOut");
-        addMonitoredEngine(DAQConnector.TYPE_READOUT_DATA, dataOut);
+			new SimpleOutputEngine(COMPONENT_NAME, hubId, "dataOut");
+		addMonitoredEngine(DAQConnector.TYPE_READOUT_DATA, dataOut);
 
-        sender.setDataOutput(dataOut);
+		sender.setDataOutput(dataOut);
 
-        MonitoringData monData = new MonitoringData();
-        monData.setSenderMonitor(sender);
-        addMBean("sender", monData);
+		MonitoringData monData = new MonitoringData();
+		monData.setSenderMonitor(sender);
+		addMBean("sender", monData);
 
-        // Following are the payload output engines for the secondary streams
+		// Following are the payload output engines for the secondary streams
 		moniBufMgr  = new VitreousBufferCache(cacheName + "Moni" + cacheNum);
 		addCache(DAQConnector.TYPE_MONI_DATA, moniBufMgr);
-        moniOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "moniOut");
-        addMonitoredEngine(DAQConnector.TYPE_MONI_DATA, moniOut);
+		moniOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "moniOut");
+		addMonitoredEngine(DAQConnector.TYPE_MONI_DATA, moniOut);
 
 		tcalBufMgr  = new VitreousBufferCache(cacheName + "TCal" + cacheNum);
 		addCache(DAQConnector.TYPE_TCAL_DATA, tcalBufMgr);
-        tcalOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "tcalOut");
-        addMonitoredEngine(DAQConnector.TYPE_TCAL_DATA, tcalOut);
+		tcalOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "tcalOut");
+		addMonitoredEngine(DAQConnector.TYPE_TCAL_DATA, tcalOut);
 
 		snBufMgr  = new VitreousBufferCache(cacheName + "SN" + cacheNum);
 		addCache(DAQConnector.TYPE_SN_DATA, snBufMgr);
-        supernovaOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
-        addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaOut);
+		supernovaOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
+		addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaOut);
 
-        // Default 10s hit spool interval
-        hitSpoolIval = 100000000000L;
-    }
+		// Default 10s hit spool interval
+		hitSpoolIval = 100000000000L;
+	}
 
 	@Override
 	public void setGlobalConfigurationDir(String dirName)
@@ -238,8 +238,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			logger.info("Setting the ueber configuration directory to " +
 						configurationPath);
 		}
-        // get a reference to the DOM registry - useful later
-        try {
+		// get a reference to the DOM registry - useful later
+		try {
 			domRegistry = DOMRegistry.loadRegistry(configurationPath);
 		} catch (ParserConfigurationException e) {
 			logger.error("Could not load DOMRegistry", e);
@@ -252,12 +252,12 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		sender.setDOMRegistry(domRegistry);
 	}
 
-    /**
-     * Close all open files, sockets, etc.
-     */
-    public void closeAll()
-        throws IOException
-    {
+	/**
+	 * Close all open files, sockets, etc.
+	 */
+	public void closeAll()
+		throws IOException
+	{
 		moniOut.destroyProcessor();
 		tcalOut.destroyProcessor();
 		supernovaOut.destroyProcessor();
@@ -290,7 +290,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		}
 		else
 		{
-		    driver.setBlocking(true);
+			driver.setBlocking(true);
 			activeDOMs = driver.discoverActiveDOMs();
 			if (logger.isDebugEnabled()) {
 				logger.debug("Found " + activeDOMs.size() + " active DOMs.");
@@ -300,22 +300,22 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 	private void enableTriggering()
 	{
-	    if (hitOut == null) return;
+		if (hitOut == null) return;
 
-        triggerHandler = new StringTriggerHandler(sourceId);
-        triggerHandler.setMasterPayloadFactory(new MasterPayloadFactory(cache));
-        triggerHandler.setPayloadOutput(hitOut);
+		triggerHandler = new StringTriggerHandler(sourceId);
+		triggerHandler.setMasterPayloadFactory(new MasterPayloadFactory(cache));
+		triggerHandler.setPayloadOutput(hitOut);
 
-        // feed sender output through string trigger
-        sender.setHitOutput(triggerHandler);
-        logger.info("triggering enabled");
+		// feed sender output through string trigger
+		sender.setHitOutput(triggerHandler);
+		logger.info("triggering enabled");
 	}
 
 	/**
 	 * StringHub responds to a configure request from the controller
 	 */
 	@SuppressWarnings("unchecked")
-    public void configuring(String configName) throws DAQCompException
+	public void configuring(String configName) throws DAQCompException
 	{
 
 		String realism;
@@ -330,17 +330,17 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 			// check and see if the driver is using an expired leapseconds file
 			if (driver.daysTillLeapExpiry()<0) {
-					StringHubAlert.sendLeapsecondExpired(getAlerter(), "Config File Expired",
-														 "Nist Configuration file past expiration date",
-														 -1 * driver.daysTillLeapExpiry());
+				StringHubAlert.sendLeapsecondExpired(getAlerter(), "Config File Expired",
+													 "Nist Configuration file past expiration date",
+													 -1 * driver.daysTillLeapExpiry());
 			}
 
-			
+
 			// Lookup the connected DOMs
 			discover();
 
 			if (activeDOMs.size() == 0)
-			    throw new DAQCompException("No Active DOMs on hub.");
+				throw new DAQCompException("No Active DOMs on hub.");
 
 			// Parse out tags from 'master configuration' file
 			File domConfigsDirectory = new File(configurationPath, "domconfigs");
@@ -364,28 +364,28 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 			if (hubNode != null)
 			{
-			    if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) enableTriggering();
-			    if (hubNode.valueOf("sender/forwardIsolatedHitsToTrigger").equalsIgnoreCase("true"))
-			        sender.forwardIsolatedHitsToTrigger();
-			    if (hubNode.valueOf("dataCollector/softboot").equalsIgnoreCase("true"))
-			        dcSoftboot = true;
-			    String tcalPStxt = hubNode.valueOf("tcalPrescale");
-			    if (tcalPStxt.length() != 0) tcalPrescale = Integer.parseInt(tcalPStxt);
-			    if (hubNode.valueOf("hitspool/enabled").equalsIgnoreCase("true")) hitSpooling = true;
-			    hitSpoolDir = hubNode.valueOf("hitspool/directory");
-			    if (hitSpoolDir.length() == 0) hitSpoolDir = "/mnt/data/pdaqlocal";
-			    if (hubNode.valueOf("hitspool/interval").length() > 0)
-			        hitSpoolIval = (long) (1E10 * Double.parseDouble(hubNode.valueOf("hitspool/interval")));
-			    if (hubNode.valueOf("hitpool/numFiles").length() > 0)
-			        hitSpoolNumFiles  = Integer.parseInt(hubNode.valueOf("hitspool/numFiles"));
+				if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) enableTriggering();
+				if (hubNode.valueOf("sender/forwardIsolatedHitsToTrigger").equalsIgnoreCase("true"))
+					sender.forwardIsolatedHitsToTrigger();
+				if (hubNode.valueOf("dataCollector/softboot").equalsIgnoreCase("true"))
+					dcSoftboot = true;
+				String tcalPStxt = hubNode.valueOf("tcalPrescale");
+				if (tcalPStxt.length() != 0) tcalPrescale = Integer.parseInt(tcalPStxt);
+				if (hubNode.valueOf("hitspool/enabled").equalsIgnoreCase("true")) hitSpooling = true;
+				hitSpoolDir = hubNode.valueOf("hitspool/directory");
+				if (hitSpoolDir.length() == 0) hitSpoolDir = "/mnt/data/pdaqlocal";
+				if (hubNode.valueOf("hitspool/interval").length() > 0)
+					hitSpoolIval = (long) (1E10 * Double.parseDouble(hubNode.valueOf("hitspool/interval")));
+				if (hubNode.valueOf("hitpool/numFiles").length() > 0)
+					hitSpoolNumFiles  = Integer.parseInt(hubNode.valueOf("hitspool/numFiles"));
 			}
 			double snDistance = Double.NaN;
 
-                        Number snDistNum=doc.numberValueOf("runConfig/setSnDistance");
-                        if (snDistNum != null)
-                        {
-                                snDistance=snDistNum.doubleValue();
-                        }
+			Number snDistNum=doc.numberValueOf("runConfig/setSnDistance");
+			if (snDistNum != null)
+			{
+				snDistance=snDistNum.doubleValue();
+			}
 			if (logger.isDebugEnabled()) {
 				logger.debug("Number of domConfigNodes found: " + configNodeList.size());
 			}
@@ -396,15 +396,15 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 				File configFile = new File(domConfigsDirectory, tag);
 				if (logger.isDebugEnabled()) {
 					logger.debug("Configuring " + realism
-							+ " - loading config from "
-							+ configFile.getAbsolutePath());
+								 + " - loading config from "
+								 + configFile.getAbsolutePath());
 				}
 				xmlConfig.parseXMLConfig(new FileInputStream(configFile));
 			}
 
 			fis.close();
 
-            int nch = 0;
+			int nch = 0;
 			/***********
 
 			 * Dropped DOM detection logic - WARN if channel on string AND in config
@@ -414,24 +414,24 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			Set<String> activeDomSet = new HashSet<String>();
 			for (DOMChannelInfo chanInfo : activeDOMs)
 			{
-			    activeDomSet.add(chanInfo.mbid);
-			    if (xmlConfig.getDOMConfig(chanInfo.mbid) != null)
-			        {
-			            // Determine, additionally, if we need to enable charge histogramming
-			            if (xmlConfig.getDOMConfig(chanInfo.mbid).getHistoInterval() > 0.0)
-			                chargeHistos = true;
-			            nch++;
-			        }
+				activeDomSet.add(chanInfo.mbid);
+				if (xmlConfig.getDOMConfig(chanInfo.mbid) != null)
+				{
+					// Determine, additionally, if we need to enable charge histogramming
+					if (xmlConfig.getDOMConfig(chanInfo.mbid).getHistoInterval() > 0.0)
+						chargeHistos = true;
+					nch++;
+				}
 			}
 
-	         if (nch == 0)
-	                throw new DAQCompException("No Active DOMs on Hub selected in configuration.");
+			if (nch == 0)
+				throw new DAQCompException("No Active DOMs on Hub selected in configuration.");
 
 			for (DeployedDOM deployedDOM : domRegistry.getDomsOnHub(getNumber()))
 			{
-			    String mbid = deployedDOM.getMainboardId();
-			    if (!activeDomSet.contains(mbid) && xmlConfig.getDOMConfig(mbid) != null) {
-			        logger.warn("DOM " + deployedDOM + " requested in configuration but not found.");
+				String mbid = deployedDOM.getMainboardId();
+				if (!activeDomSet.contains(mbid) && xmlConfig.getDOMConfig(mbid) != null) {
+					logger.warn("DOM " + deployedDOM + " requested in configuration but not found.");
 
 					StringHubAlert.sendDOMAlert(getAlerter(), "Dropped DOM",
 												"Dropped DOM during configure",
@@ -452,48 +452,48 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			conn = new DOMConnector(nch);
 
 			SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(
-			        hubId, moniBufMgr, moniOut.getChannel());
-	        SecondaryStreamConsumer supernovaConsumer = new SecondaryStreamConsumer(
-	                hubId, snBufMgr, supernovaOut.getChannel());
-	        SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(
-	                hubId, tcalBufMgr, tcalOut.getChannel(), tcalPrescale);
+																					hubId, moniBufMgr, moniOut.getChannel());
+			SecondaryStreamConsumer supernovaConsumer = new SecondaryStreamConsumer(
+																					hubId, snBufMgr, supernovaOut.getChannel());
+			SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(
+																					hubId, tcalBufMgr, tcalOut.getChannel(), tcalPrescale);
 
-	        OutputStreamBufferConsumer histoConsumer = null;
-	        if (chargeHistos)
-	        {
-	            Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-	            int year = cal.get(Calendar.YEAR);
-	            int month = cal.get(Calendar.MONTH) + 1;
-	            int day = cal.get(Calendar.DAY_OF_MONTH);
-	            int hour = cal.get(Calendar.HOUR_OF_DAY);
-	            int minute = cal.get(Calendar.MINUTE);
-	            int sec = cal.get(Calendar.SECOND);
-	            String datetxt = String.format("%04d%02d%02d%02d%02d%02d", year, month, day, hour, minute, sec);
-	            // Use now a local file - clean this up later
-	            histoConsumer = new OutputStreamBufferConsumer(
-	                new GZIPOutputStream(new BufferedOutputStream(
-	                        new FileOutputStream(new File(
-	                                "/mnt/data/pdaqlocal",
-	                                "chargehistos-"+datetxt+".dat.gz")))));
-	        }
+			OutputStreamBufferConsumer histoConsumer = null;
+			if (chargeHistos)
+			{
+				Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+				int year = cal.get(Calendar.YEAR);
+				int month = cal.get(Calendar.MONTH) + 1;
+				int day = cal.get(Calendar.DAY_OF_MONTH);
+				int hour = cal.get(Calendar.HOUR_OF_DAY);
+				int minute = cal.get(Calendar.MINUTE);
+				int sec = cal.get(Calendar.SECOND);
+				String datetxt = String.format("%04d%02d%02d%02d%02d%02d", year, month, day, hour, minute, sec);
+				// Use now a local file - clean this up later
+				histoConsumer = new OutputStreamBufferConsumer(
+															   new GZIPOutputStream(new BufferedOutputStream(
+																											 new FileOutputStream(new File(
+																																		   "/mnt/data/pdaqlocal",
+																																		   "chargehistos-"+datetxt+".dat.gz")))));
+			}
 
-            // Start the merger-sorter objects -- possibly inserting a hit spooler
-	        if (hitSpooling)
-	        {
-	            // Rotate hit spooling directories : current <==> last
-	            File hitSpoolCurrent = new File(hitSpoolDir, "currentRun");
-	            File hitSpoolLast = new File(hitSpoolDir, "lastRun");
-                File hitSpoolTemp = new File(hitSpoolDir, "HitSpool"+getRunNumber()+".tmp");
+			// Start the merger-sorter objects -- possibly inserting a hit spooler
+			if (hitSpooling)
+			{
+				// Rotate hit spooling directories : current <==> last
+				File hitSpoolCurrent = new File(hitSpoolDir, "currentRun");
+				File hitSpoolLast = new File(hitSpoolDir, "lastRun");
+				File hitSpoolTemp = new File(hitSpoolDir, "HitSpool"+getRunNumber()+".tmp");
 
-	            if (hitSpoolLast.exists()) hitSpoolLast.renameTo(hitSpoolTemp);
-	            if (hitSpoolCurrent.exists()) hitSpoolCurrent.renameTo(hitSpoolLast);
-	            if (hitSpoolTemp.exists()) hitSpoolTemp.renameTo(hitSpoolCurrent);
-	            if (!hitSpoolCurrent.exists()) hitSpoolCurrent.mkdir();
-    	        FilesHitSpool hitSpooler = new FilesHitSpool(sender, hitSpoolCurrent, hitSpoolIval, hitSpoolNumFiles);
-    	        hitsSort = new MultiChannelMergeSort(nch, hitSpooler);
-	        }
-	        else
-	            hitsSort = new MultiChannelMergeSort(nch, sender);
+				if (hitSpoolLast.exists()) hitSpoolLast.renameTo(hitSpoolTemp);
+				if (hitSpoolCurrent.exists()) hitSpoolCurrent.renameTo(hitSpoolLast);
+				if (hitSpoolTemp.exists()) hitSpoolTemp.renameTo(hitSpoolCurrent);
+				if (!hitSpoolCurrent.exists()) hitSpoolCurrent.mkdir();
+				FilesHitSpool hitSpooler = new FilesHitSpool(sender, hitSpoolCurrent, hitSpoolIval, hitSpoolNumFiles);
+				hitsSort = new MultiChannelMergeSort(nch, hitSpooler);
+			}
+			else
+				hitsSort = new MultiChannelMergeSort(nch, sender);
 
 			moniSort = new MultiChannelMergeSort(nch, monitorConsumer);
 			scalSort = new MultiChannelMergeSort(nch, supernovaConsumer);
@@ -518,15 +518,15 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 						logger.debug("SN Distance "+ snDistance);
 					}
 					dc = new SimDataCollector(chanInfo, config,
-					        hitsSort, moniSort, scalSort, tcalSort,
-					        isAmanda);
+											  hitsSort, moniSort, scalSort, tcalSort,
+											  isAmanda);
 				}
 				else
 				{
 					dc = new DataCollector(
-							chanInfo.card, chanInfo.pair, chanInfo.dom, config,
-							hitsSort, moniSort, scalSort, tcalSort, histoConsumer,
-							null,null);
+										   chanInfo.card, chanInfo.pair, chanInfo.dom, config,
+										   hitsSort, moniSort, scalSort, tcalSort, histoConsumer,
+										   null,null);
 					addMBean("DataCollectorMonitor-" + chanInfo, dc);
 				}
 
@@ -535,7 +535,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 				dc.setDomInfo(domRegistry.getDom(chanInfo.mbid));
 
-                dc.setSoftbootBehavior(dcSoftboot);
+				dc.setSoftbootBehavior(dcSoftboot);
 				hitsSort.register(chanInfo.mbid_numerique);
 				moniSort.register(chanInfo.mbid_numerique);
 				scalSort.register(chanInfo.mbid_numerique);
@@ -572,26 +572,26 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		}
 
 
-        // If triggers are enabled, configure them
-        if (enableTriggering) {
-            configureTrigger(configName);
-        }
+		// If triggers are enabled, configure them
+		if (enableTriggering) {
+			configureTrigger(configName);
+		}
 
-    }
+	}
 
 	/**
 	 * Controller wants StringHub to start sending data.  Tell DOMs to start up.
 	 */
 	public void starting() throws DAQCompException
 	{
-	    logger.info("StringHub is starting the run.");
+		logger.info("StringHub is starting the run.");
 
-	    sender.reset();
+		sender.reset();
 
-	    hitsSort.start();
-	    moniSort.start();
-	    scalSort.start();
-	    tcalSort.start();
+		hitsSort.start();
+		moniSort.start();
+		scalSort.start();
+		tcalSort.start();
 
 		try
 		{
@@ -605,93 +605,93 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 	public long startSubrun(List<FlasherboardConfiguration> flasherConfigs) throws DAQCompException
 	{
-	    /*
-	     * Useful to keep operators from accidentally powering up two
-	     * flasherboards simultaneously.
-	     */
-	    boolean[] wirePairSemaphore = new boolean[32];
-	    long validXTime = 0L;
+		/*
+		 * Useful to keep operators from accidentally powering up two
+		 * flasherboards simultaneously.
+		 */
+		boolean[] wirePairSemaphore = new boolean[32];
+		long validXTime = 0L;
 
-	    /* Load the configs into a map so that I can search them better */
-	    HashMap<String, FlasherboardConfiguration> fcMap = new HashMap<String, FlasherboardConfiguration>(60);
-	    for (FlasherboardConfiguration fb : flasherConfigs) fcMap.put(fb.getMainboardID(), fb);
+		/* Load the configs into a map so that I can search them better */
+		HashMap<String, FlasherboardConfiguration> fcMap = new HashMap<String, FlasherboardConfiguration>(60);
+		for (FlasherboardConfiguration fb : flasherConfigs) fcMap.put(fb.getMainboardID(), fb);
 
-	    /*
-	     * Divide the DOMs into 4 categories ...
-	     *     Category 1: Flashing current subrun - not flashing next subrun.  Simply turn
-	     *     these DOMs' flashers off - this must be done over all DOMs in first pass to
-	     *     ensure that DOMs on the same wire pair are never simultaneously on (it blows
-	     *     the DOR card firmware fuse).
-	     *     Category 2: Flashing current subrun - flashing with new config next subrun.
-	     *     These DOMs must get the CHANGE_FLASHER signal (new feature added DOM-MB 437+)
-	     *     Category 3: Not flashing current subrun - flashing next subrun.  These DOMs
-	     *     get a START_FLASHER_RUN signal
-	     *     Category 4: Others
-	     */
+		/*
+		 * Divide the DOMs into 4 categories ...
+		 *     Category 1: Flashing current subrun - not flashing next subrun.  Simply turn
+		 *     these DOMs' flashers off - this must be done over all DOMs in first pass to
+		 *     ensure that DOMs on the same wire pair are never simultaneously on (it blows
+		 *     the DOR card firmware fuse).
+		 *     Category 2: Flashing current subrun - flashing with new config next subrun.
+		 *     These DOMs must get the CHANGE_FLASHER signal (new feature added DOM-MB 437+)
+		 *     Category 3: Not flashing current subrun - flashing next subrun.  These DOMs
+		 *     get a START_FLASHER_RUN signal
+		 *     Category 4: Others
+		 */
 
-	    logger.info("Beginning subrun - turning off requested flashers");
-	    for (AbstractDataCollector adc : conn.getCollectors())
-	    {
-	        if (adc.isRunning()
-	                && adc.getFlasherConfig() != null
-	                && !fcMap.containsKey(adc.getMainboardId()))
-	        {
-	            adc.setFlasherConfig(null);
-	            adc.signalStartSubRun();
-	        }
-	    }
+		logger.info("Beginning subrun - turning off requested flashers");
+		for (AbstractDataCollector adc : conn.getCollectors())
+		{
+			if (adc.isRunning()
+				&& adc.getFlasherConfig() != null
+				&& !fcMap.containsKey(adc.getMainboardId()))
+			{
+				adc.setFlasherConfig(null);
+				adc.signalStartSubRun();
+			}
+		}
 
-	    for (AbstractDataCollector adc : conn.getCollectors())
-	    {
-	        if (adc.isZombie()) continue;
-	        try
-	        {
-	            while (!adc.isRunning()) Thread.sleep(100);
-	        }
-	        catch (InterruptedException intx)
-	        {
-	            logger.warn("Interrupted sleep on ADC subrun start.");
-	        }
-	    }
+		for (AbstractDataCollector adc : conn.getCollectors())
+		{
+			if (adc.isZombie()) continue;
+			try
+			{
+				while (!adc.isRunning()) Thread.sleep(100);
+			}
+			catch (InterruptedException intx)
+			{
+				logger.warn("Interrupted sleep on ADC subrun start.");
+			}
+		}
 
-	    logger.info("Turning on / changing flasher configs for next subrun");
-        for (AbstractDataCollector adc : conn.getCollectors())
-        {
-            String mbid = adc.getMainboardId();
-            if (fcMap.containsKey(mbid))
-            {
-                int pairIndex = 4 * adc.getCard() + adc.getPair();
-                if (wirePairSemaphore[pairIndex])
-                    throw new DAQCompException("Cannot activate > 1 flasher run per DOR wire pair.");
-                wirePairSemaphore[pairIndex] = true;
-                adc.setFlasherConfig(fcMap.get(mbid));
-                adc.signalStartSubRun();
-            }
-	    }
+		logger.info("Turning on / changing flasher configs for next subrun");
+		for (AbstractDataCollector adc : conn.getCollectors())
+		{
+			String mbid = adc.getMainboardId();
+			if (fcMap.containsKey(mbid))
+			{
+				int pairIndex = 4 * adc.getCard() + adc.getPair();
+				if (wirePairSemaphore[pairIndex])
+					throw new DAQCompException("Cannot activate > 1 flasher run per DOR wire pair.");
+				wirePairSemaphore[pairIndex] = true;
+				adc.setFlasherConfig(fcMap.get(mbid));
+				adc.signalStartSubRun();
+			}
+		}
 
-        for (AbstractDataCollector adc : conn.getCollectors())
-        {
-            if (adc.getRunLevel() == RunLevel.ZOMBIE) continue;
-            try
-            {
-                while (adc.getRunLevel() != RunLevel.RUNNING) Thread.sleep(100);
-                long t = adc.getRunStartTime();
-                if (t > validXTime) validXTime = t;
-            }
-            catch (InterruptedException intx)
-            {
-                logger.warn("Interrupted sleep on ADC subrun start.");
-            }
-        }
+		for (AbstractDataCollector adc : conn.getCollectors())
+		{
+			if (adc.getRunLevel() == RunLevel.ZOMBIE) continue;
+			try
+			{
+				while (adc.getRunLevel() != RunLevel.RUNNING) Thread.sleep(100);
+				long t = adc.getRunStartTime();
+				if (t > validXTime) validXTime = t;
+			}
+			catch (InterruptedException intx)
+			{
+				logger.warn("Interrupted sleep on ADC subrun start.");
+			}
+		}
 
-        logger.info("Subrun time is " + validXTime);
-	    return validXTime;
+		logger.info("Subrun time is " + validXTime);
+		return validXTime;
 	}
 
 	public void stopping()
-            throws DAQCompException
+		throws DAQCompException
 	{
-	    logger.info("Entering run stop handler");
+		logger.info("Entering run stop handler");
 
 		try
 		{
@@ -715,73 +715,73 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		}
 
 		GPSService.getInstance().shutdownAll();
-        logger.info("Returning from stop.");
+		logger.info("Returning from stop.");
 	}
 
-    private void configureTrigger(String configName) throws DAQCompException {
-        // Build the trigger configuration directory
-        File cfgFile = new File(configurationPath, configName);
-        if (!cfgFile.isFile()) {
-            if (!configName.endsWith(".xml")) {
-                cfgFile = new File(configurationPath, configName + ".xml");
-            }
+	private void configureTrigger(String configName) throws DAQCompException {
+		// Build the trigger configuration directory
+		File cfgFile = new File(configurationPath, configName);
+		if (!cfgFile.isFile()) {
+			if (!configName.endsWith(".xml")) {
+				cfgFile = new File(configurationPath, configName + ".xml");
+			}
 
-            if (!cfgFile.isFile()) {
-                throw new DAQCompException("Configuration file \"" + cfgFile +
-                                           "\" does not exist");
-            }
-        }
+			if (!cfgFile.isFile()) {
+				throw new DAQCompException("Configuration file \"" + cfgFile +
+										   "\" does not exist");
+			}
+		}
 
-        // Lookup the trigger configuration
-        String triggerConfiguration;
-        try {
-            triggerConfiguration = TriggerBuilder.getTriggerConfig(cfgFile);
-        } catch (Exception e) {
-            logger.error("Error extracting trigger configuration name from global configuraion file.", e);
-            throw new DAQCompException("Cannot get trigger configuration name.", e);
-        }
-        File triggerConfigDir = new File(configurationPath, "trigger");
-        File triggerConfigFile =
-            new File(triggerConfigDir, triggerConfiguration);
-        if (!triggerConfigFile.isFile()) {
-            if (!triggerConfiguration.endsWith(".xml")) {
-                triggerConfigFile =
-                    new File(triggerConfigDir, triggerConfiguration + ".xml");
-            }
+		// Lookup the trigger configuration
+		String triggerConfiguration;
+		try {
+			triggerConfiguration = TriggerBuilder.getTriggerConfig(cfgFile);
+		} catch (Exception e) {
+			logger.error("Error extracting trigger configuration name from global configuraion file.", e);
+			throw new DAQCompException("Cannot get trigger configuration name.", e);
+		}
+		File triggerConfigDir = new File(configurationPath, "trigger");
+		File triggerConfigFile =
+			new File(triggerConfigDir, triggerConfiguration);
+		if (!triggerConfigFile.isFile()) {
+			if (!triggerConfiguration.endsWith(".xml")) {
+				triggerConfigFile =
+					new File(triggerConfigDir, triggerConfiguration + ".xml");
+			}
 
-            if (!triggerConfigFile.isFile()) {
-                throw new DAQCompException("Trigger configuration file \"" +
-                                           triggerConfigFile +
-                                           "\" (from \"" + configName +
-                                           "\") does not exist");
-            }
-        }
+			if (!triggerConfigFile.isFile()) {
+				throw new DAQCompException("Trigger configuration file \"" +
+										   triggerConfigFile +
+										   "\" (from \"" + configName +
+										   "\") does not exist");
+			}
+		}
 
-        // Add triggers to the trigger manager
-        List<ITrigger> currentTriggers;
-        try {
-            currentTriggers =
-                TriggerBuilder.buildTriggers(triggerConfigFile, sourceId);
-        } catch (TriggerException te) {
-            throw new DAQCompException("Cannot build triggers from \"" +
-                                       triggerConfigFile + "\" for " +
-                                       sourceId, te);
-        }
-        for (ITrigger trigger : currentTriggers) {
-            trigger.setTriggerHandler(triggerHandler);
-        }
-        triggerHandler.addTriggers(currentTriggers);
-    }
+		// Add triggers to the trigger manager
+		List<ITrigger> currentTriggers;
+		try {
+			currentTriggers =
+				TriggerBuilder.buildTriggers(triggerConfigFile, sourceId);
+		} catch (TriggerException te) {
+			throw new DAQCompException("Cannot build triggers from \"" +
+									   triggerConfigFile + "\" for " +
+									   sourceId, te);
+		}
+		for (ITrigger trigger : currentTriggers) {
+			trigger.setTriggerHandler(triggerHandler);
+		}
+		triggerHandler.addTriggers(currentTriggers);
+	}
 
-    /**
-     * Return this component's svn version id as a String.
-     *
-     * @return svn version id as a String
-     */
-    public String getVersionInfo()
-    {
-		return "$Id: StringHubComponent.java 13738 2012-06-08 21:07:26Z mnewcomb $";
-    }
+	/**
+	 * Return this component's svn version id as a String.
+	 *
+	 * @return svn version id as a String
+	 */
+	public String getVersionInfo()
+	{
+		return "$Id: StringHubComponent.java 13743 2012-06-08 21:54:42Z dglo $";
+	}
 
 	public IByteBufferCache getCache()
 	{
@@ -813,12 +813,12 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		return sender;
 	}
 
-    public int getNumberOfActiveChannels()
-    {
-        int nch = 0;
-        for (AbstractDataCollector adc : conn.getCollectors()) if (adc.isRunning()) nch++;
-        return nch;
-    }
+	public int getNumberOfActiveChannels()
+	{
+		int nch = 0;
+		for (AbstractDataCollector adc : conn.getCollectors()) if (adc.isRunning()) nch++;
+		return nch;
+	}
 
 	public int[] getNumberOfActiveAndTotalChannels() {
 		int nch = 0;
@@ -836,7 +836,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	}
 
 
-    public double getHitRate() {
+	public double getHitRate() {
 		double total = 0.;
 
 		for (AbstractDataCollector adc : conn.getCollectors()) {
@@ -846,7 +846,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		return total;
 	}
 
-    public double getHitRateLC() {
+	public double getHitRateLC() {
 		double total = 0.;
 
 		for (AbstractDataCollector adc : conn.getCollectors()) {
@@ -866,17 +866,17 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		return total;
 	}
 
-    public long getTimeOfLastHitInputToHKN1()
-    {
-        if (hitsSort == null) return 0L;
-        return hitsSort.getLastInputTime();
-    }
+	public long getTimeOfLastHitInputToHKN1()
+	{
+		if (hitsSort == null) return 0L;
+		return hitsSort.getLastInputTime();
+	}
 
-    public long getTimeOfLastHitOutputFromHKN1()
-    {
-        if (hitsSort == null) return 0L;
-        return hitsSort.getLastOutputTime();
-    }
+	public long getTimeOfLastHitOutputFromHKN1()
+	{
+		if (hitsSort == null) return 0L;
+		return hitsSort.getLastOutputTime();
+	}
 
 	public DAQComponentOutputProcess getTrackEngineWriter()
 	{
