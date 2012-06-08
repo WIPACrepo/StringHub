@@ -327,6 +327,15 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 
 		try
 		{
+
+			// check and see if the driver is using an expired leapseconds file
+			if (driver.daysTillLeapExpiry()<0) {
+					StringHubAlert.sendLeapsecondExpired(getAlerter(), "Config File Expired",
+														 "Nist Configuration file past expiration date",
+														 -1 * driver.daysTillLeapExpiry());
+			}
+
+			
 			// Lookup the connected DOMs
 			discover();
 
@@ -771,7 +780,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
      */
     public String getVersionInfo()
     {
-		return "$Id: StringHubComponent.java 13727 2012-06-07 20:05:35Z dglo $";
+		return "$Id: StringHubComponent.java 13738 2012-06-08 21:07:26Z mnewcomb $";
     }
 
 	public IByteBufferCache getCache()

@@ -63,9 +63,6 @@ public class GPSService
                     Thread.sleep(740L);
                     GPSInfo newGPS = driver.readGPS(card);
                     
-                    GregorianCalendar calendar = new GregorianCalendar(
-                            new GregorianCalendar().get(GregorianCalendar.YEAR), 1, 1);
-                    
                     cons_gpsx_count = 0;
                     if (!(gps == null || newGPS.getOffset().equals(gps.getOffset())))
                     {
