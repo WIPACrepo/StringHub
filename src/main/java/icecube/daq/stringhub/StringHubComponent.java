@@ -1,8 +1,8 @@
 /* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
 package icecube.daq.stringhub;
 
-import icecube.daq.bindery.OutputStreamBufferConsumer;
 import icecube.daq.bindery.MultiChannelMergeSort;
+import icecube.daq.bindery.OutputStreamBufferConsumer;
 import icecube.daq.bindery.SecondaryStreamConsumer;
 import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.configuration.XMLConfig;
@@ -67,10 +67,13 @@ import org.dom4j.Node;
 import org.dom4j.io.SAXReader;
 import org.xml.sax.SAXException;
 
-public class StringHubComponent extends DAQComponent implements StringHubComponentMBean
+public class StringHubComponent
+	extends DAQComponent
+	implements StringHubComponentMBean
 {
 
-	private static final Logger logger = Logger.getLogger(StringHubComponent.class);
+	private static final Logger logger =
+		Logger.getLogger(StringHubComponent.class);
 
 	private int hubId;
 	private boolean isSim;
@@ -86,7 +89,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	private SimpleOutputEngine hitOut;
 	private SimpleOutputEngine teOut;
 	private SimpleOutputEngine dataOut;
-	private DOMConnector conn = null;
+	private DOMConnector conn;
 	private List<DOMChannelInfo> activeDOMs;
 	private MultiChannelMergeSort hitsSort;
 	private MultiChannelMergeSort moniSort;
@@ -94,12 +97,13 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	private MultiChannelMergeSort scalSort;
 	private String configurationPath;
 
-	private boolean enableTriggering = false;
+	private boolean enableTriggering;
 	private ISourceID sourceId;
 	private IStringTriggerHandler triggerHandler;
-	private static final String COMPONENT_NAME = DAQCmdInterface.DAQ_STRING_HUB;
+	private static final String COMPONENT_NAME =
+		DAQCmdInterface.DAQ_STRING_HUB;
 
-	private boolean hitSpooling = false;
+	private boolean hitSpooling;
 	private String hitSpoolDir;
 	private long hitSpoolIval;
 
@@ -130,9 +134,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		 * the hub component ID:
 		 *  (1) component x000        : amandaHub
 		 *  (2) component x001 - x199 : in-ice hub
-		 *      (79 - 86 are deep core but this currently doesn't mean anything)
+		 *      (79 - 86 are deep core - currently doesn't mean anything)
 		 *  (3) component x200 - x299 : icetop
-		 * I
 		 */
 		int minorHubId = hubId % 1000;
 
@@ -162,7 +165,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		IByteBufferCache rdoutDataCache  =
 			new VitreousBufferCache(cacheName + "RdOut" + cacheNum);
 		addCache(DAQConnector.TYPE_READOUT_DATA, rdoutDataCache);
-		sender         = new Sender(hubId, rdoutDataCache);
+
+		sender = new Sender(hubId, rdoutDataCache);
 
 		if (logger.isInfoEnabled()) {
 			logger.info("starting up StringHub component " + hubId);
@@ -268,9 +272,9 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	}
 
 	/**
-	 * This method will force the string hub to query the driver for a list of DOMs.
-	 * For a DOM to be detected its cardX/pairY/domZ/id procfile must report a valid
-	 * non-zero DOM mainboard ID.
+	 * This method will force the string hub to query the driver for a list of
+	 * DOMs. For a DOM to be detected its cardX/pairY/domZ/id procfile must
+	 * report a valid non-zero DOM mainboard ID.
 	 * @throws IOException
 	 */
 	private void discover() throws IOException, DocumentException
@@ -334,7 +338,6 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 													 "Nist Configuration file past expiration date",
 													 -1 * driver.daysTillLeapExpiry());
 			}
-
 
 			// Lookup the connected DOMs
 			discover();
@@ -483,7 +486,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 				// Rotate hit spooling directories : current <==> last
 				File hitSpoolCurrent = new File(hitSpoolDir, "currentRun");
 				File hitSpoolLast = new File(hitSpoolDir, "lastRun");
-				File hitSpoolTemp = new File(hitSpoolDir, "HitSpool"+getRunNumber()+".tmp");
+				File hitSpoolTemp = new File(hitSpoolDir, "HitSpool" +
+											 getRunNumber() + ".tmp");
 
 				if (hitSpoolLast.exists()) hitSpoolLast.renameTo(hitSpoolTemp);
 				if (hitSpoolCurrent.exists()) hitSpoolCurrent.renameTo(hitSpoolLast);
@@ -580,9 +584,11 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	}
 
 	/**
-	 * Controller wants StringHub to start sending data.  Tell DOMs to start up.
+	 * Controller wants StringHub to start sending data.
+	 * Tell DOMs to start up.
 	 */
-	public void starting() throws DAQCompException
+	public void starting()
+		throws DAQCompException
 	{
 		logger.info("StringHub is starting the run.");
 
@@ -603,7 +609,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		}
 	}
 
-	public long startSubrun(List<FlasherboardConfiguration> flasherConfigs) throws DAQCompException
+	public long startSubrun(List<FlasherboardConfiguration> flasherConfigs)
+		throws DAQCompException
 	{
 		/*
 		 * Useful to keep operators from accidentally powering up two
@@ -613,19 +620,23 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		long validXTime = 0L;
 
 		/* Load the configs into a map so that I can search them better */
-		HashMap<String, FlasherboardConfiguration> fcMap = new HashMap<String, FlasherboardConfiguration>(60);
-		for (FlasherboardConfiguration fb : flasherConfigs) fcMap.put(fb.getMainboardID(), fb);
+		HashMap<String, FlasherboardConfiguration> fcMap =
+			new HashMap<String, FlasherboardConfiguration>(60);
+		for (FlasherboardConfiguration fb : flasherConfigs)
+			fcMap.put(fb.getMainboardID(), fb);
 
 		/*
 		 * Divide the DOMs into 4 categories ...
-		 *     Category 1: Flashing current subrun - not flashing next subrun.  Simply turn
-		 *     these DOMs' flashers off - this must be done over all DOMs in first pass to
-		 *     ensure that DOMs on the same wire pair are never simultaneously on (it blows
-		 *     the DOR card firmware fuse).
-		 *     Category 2: Flashing current subrun - flashing with new config next subrun.
-		 *     These DOMs must get the CHANGE_FLASHER signal (new feature added DOM-MB 437+)
-		 *     Category 3: Not flashing current subrun - flashing next subrun.  These DOMs
-		 *     get a START_FLASHER_RUN signal
+		 *     Category 1: Flashing current subrun - not flashing next subrun.
+		 *                 Simply turn these DOMs' flashers off - this must
+		 *                 be done over all DOMs in first pass to ensure that
+		 *                 DOMs on the same wire pair are never simultaneously
+		 *                 on (it blows the DOR card firmware fuse).
+		 *     Category 2: Flashing current subrun - flashing with new config
+		 *                 next subrun. These DOMs must get the CHANGE_FLASHER
+		 *                 signal (new feature added DOM-MB 437+)
+		 *     Category 3: Not flashing current subrun - flashing next subrun.
+		 *                 These DOMs get a START_FLASHER_RUN signal
 		 *     Category 4: Others
 		 */
 
@@ -662,7 +673,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			{
 				int pairIndex = 4 * adc.getCard() + adc.getPair();
 				if (wirePairSemaphore[pairIndex])
-					throw new DAQCompException("Cannot activate > 1 flasher run per DOR wire pair.");
+					throw new DAQCompException("Cannot activate > 1 flasher" +
+											   " run per DOR wire pair.");
 				wirePairSemaphore[pairIndex] = true;
 				adc.setFlasherConfig(fcMap.get(mbid));
 				adc.signalStartSubRun();
@@ -674,7 +686,8 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 			if (adc.getRunLevel() == RunLevel.ZOMBIE) continue;
 			try
 			{
-				while (adc.getRunLevel() != RunLevel.RUNNING) Thread.sleep(100);
+				while (adc.getRunLevel() != RunLevel.RUNNING)
+					Thread.sleep(100);
 				long t = adc.getRunStartTime();
 				if (t > validXTime) validXTime = t;
 			}
@@ -737,8 +750,10 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 		try {
 			triggerConfiguration = TriggerBuilder.getTriggerConfig(cfgFile);
 		} catch (Exception e) {
-			logger.error("Error extracting trigger configuration name from global configuraion file.", e);
-			throw new DAQCompException("Cannot get trigger configuration name.", e);
+			logger.error("Error extracting trigger configuration name from" +
+						 " global configuraion file.", e);
+			throw new DAQCompException("Cannot get trigger configuration" +
+									   " name.", e);
 		}
 		File triggerConfigDir = new File(configurationPath, "trigger");
 		File triggerConfigFile =
@@ -780,7 +795,7 @@ public class StringHubComponent extends DAQComponent implements StringHubCompone
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 13743 2012-06-08 21:54:42Z dglo $";
+		return "$Id: StringHubComponent.java 13744 2012-06-08 22:10:01Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
