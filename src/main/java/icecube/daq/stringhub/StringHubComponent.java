@@ -116,6 +116,14 @@ public class StringHubComponent
 
 	public StringHubComponent(int hubId, boolean isSim)
 	{
+		this(hubId, isSim, true, true, true, true, true, true, true);
+	}
+
+	public StringHubComponent(int hubId, boolean isSim, boolean includeHitOut,
+							  boolean includeTEOut, boolean includeReqIn,
+							  boolean includeDataOut, boolean includeMoniOut,
+							  boolean includeTCalOut, boolean includeSNOut)
+	{
 		super(COMPONENT_NAME, hubId);
 
 		this.hubId = hubId;
@@ -136,6 +144,7 @@ public class StringHubComponent
 		 *  (2) component x001 - x199 : in-ice hub
 		 *      (79 - 86 are deep core - currently doesn't mean anything)
 		 *  (3) component x200 - x299 : icetop
+		 * I
 		 */
 		int minorHubId = hubId % 1000;
 
@@ -162,9 +171,14 @@ public class StringHubComponent
 		addCache(cache);
 		addMBean("PyrateBufferManager", cache);
 
-		IByteBufferCache rdoutDataCache  =
-			new VitreousBufferCache(cacheName + "RdOut" + cacheNum);
-		addCache(DAQConnector.TYPE_READOUT_DATA, rdoutDataCache);
+		IByteBufferCache rdoutDataCache;
+		if (!includeDataOut) {
+			rdoutDataCache = null;
+		} else {
+			rdoutDataCache =
+				new VitreousBufferCache(cacheName + "RdOut" + cacheNum);
+			addCache(DAQConnector.TYPE_READOUT_DATA, rdoutDataCache);
+		}
 
 		sender = new Sender(hubId, rdoutDataCache);
 
@@ -175,60 +189,83 @@ public class StringHubComponent
 		hitOut = null;
 		teOut = null;
 
-		if (minorHubId > 0)
-		{
-			hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "hitOut");
-			teOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "teOut",
-										   true);
-			if (minorHubId >= 200) {
-				addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
-			} else {
-				addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
-				addOptionalEngine(DAQConnector.TYPE_TRACKENG_HIT, teOut);
+		if (minorHubId > 0) {
+			if (includeHitOut) {
+				hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId,
+												"hitOut");
 			}
-			sender.setHitOutput(hitOut);
-			sender.setHitCache(cache);
-			sender.setTrackEngineOutput(teOut);
-			sender.setTrackEngineCache(cache);
+			if (includeTEOut) {
+				teOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "teOut",
+											   true);
+			}
+			if (minorHubId >= 200) {
+				if (hitOut != null) {
+					addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
+				}
+			} else {
+				if (hitOut != null) {
+					addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
+				}
+				if (teOut != null) {
+					addOptionalEngine(DAQConnector.TYPE_TRACKENG_HIT, teOut);
+				}
+			}
+			if (hitOut != null) {
+				sender.setHitOutput(hitOut);
+				sender.setHitCache(cache);
+			}
+			if (teOut != null) {
+				sender.setTrackEngineOutput(teOut);
+				sender.setTrackEngineCache(cache);
+			}
 		}
 
-		ReadoutRequestFactory rdoutReqFactory =
-			new ReadoutRequestFactory(cache);
-		try
-		{
-			reqIn = new RequestReader(COMPONENT_NAME, sender, rdoutReqFactory);
+		if (includeReqIn) {
+			ReadoutRequestFactory factory =
+				new ReadoutRequestFactory(cache);
+			try {
+				reqIn = new RequestReader(COMPONENT_NAME, sender, factory);
+			} catch (IOException ioe) {
+				throw new Error("Couldn't create RequestReader", ioe);
+			}
+			addMonitoredEngine(DAQConnector.TYPE_READOUT_REQUEST, reqIn);
 		}
-		catch (IOException ioe)
-		{
-			throw new Error("Couldn't create RequestReader", ioe);
+
+		if (includeDataOut) {
+			dataOut =
+				new SimpleOutputEngine(COMPONENT_NAME, hubId, "dataOut");
+			addMonitoredEngine(DAQConnector.TYPE_READOUT_DATA, dataOut);
+			sender.setDataOutput(dataOut);
 		}
-		addMonitoredEngine(DAQConnector.TYPE_READOUT_REQUEST, reqIn);
-
-		dataOut =
-			new SimpleOutputEngine(COMPONENT_NAME, hubId, "dataOut");
-		addMonitoredEngine(DAQConnector.TYPE_READOUT_DATA, dataOut);
-
-		sender.setDataOutput(dataOut);
 
 		MonitoringData monData = new MonitoringData();
 		monData.setSenderMonitor(sender);
 		addMBean("sender", monData);
 
 		// Following are the payload output engines for the secondary streams
-		moniBufMgr  = new VitreousBufferCache(cacheName + "Moni" + cacheNum);
-		addCache(DAQConnector.TYPE_MONI_DATA, moniBufMgr);
-		moniOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "moniOut");
-		addMonitoredEngine(DAQConnector.TYPE_MONI_DATA, moniOut);
+		if (includeMoniOut) {
+			moniBufMgr  = new VitreousBufferCache(cacheName + "Moni" +
+												  cacheNum);
+			addCache(DAQConnector.TYPE_MONI_DATA, moniBufMgr);
+			moniOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "moniOut");
+			addMonitoredEngine(DAQConnector.TYPE_MONI_DATA, moniOut);
+		}
 
-		tcalBufMgr  = new VitreousBufferCache(cacheName + "TCal" + cacheNum);
-		addCache(DAQConnector.TYPE_TCAL_DATA, tcalBufMgr);
-		tcalOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "tcalOut");
-		addMonitoredEngine(DAQConnector.TYPE_TCAL_DATA, tcalOut);
+		if (includeTCalOut) {
+			tcalBufMgr  = new VitreousBufferCache(cacheName + "TCal" +
+												  cacheNum);
+			addCache(DAQConnector.TYPE_TCAL_DATA, tcalBufMgr);
+			tcalOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "tcalOut");
+			addMonitoredEngine(DAQConnector.TYPE_TCAL_DATA, tcalOut);
+		}
 
-		snBufMgr  = new VitreousBufferCache(cacheName + "SN" + cacheNum);
-		addCache(DAQConnector.TYPE_SN_DATA, snBufMgr);
-		supernovaOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "supernovaOut");
-		addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaOut);
+		if (includeSNOut) {
+			snBufMgr  = new VitreousBufferCache(cacheName + "SN" + cacheNum);
+			addCache(DAQConnector.TYPE_SN_DATA, snBufMgr);
+			supernovaOut = new SimpleOutputEngine(COMPONENT_NAME, hubId,
+												  "supernovaOut");
+			addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaOut);
+		}
 
 		// Default 10s hit spool interval
 		hitSpoolIval = 100000000000L;
@@ -321,7 +358,12 @@ public class StringHubComponent
 	@SuppressWarnings("unchecked")
 	public void configuring(String configName) throws DAQCompException
 	{
+		configure(configName, true);
+	}
 
+	public void configure(String configName, boolean openSecondary)
+		throws DAQCompException
+	{
 		String realism;
 
 		if (isSim)
@@ -454,12 +496,25 @@ public class StringHubComponent
 
 			conn = new DOMConnector(nch);
 
-			SecondaryStreamConsumer monitorConsumer   = new SecondaryStreamConsumer(
-																					hubId, moniBufMgr, moniOut.getChannel());
-			SecondaryStreamConsumer supernovaConsumer = new SecondaryStreamConsumer(
-																					hubId, snBufMgr, supernovaOut.getChannel());
-			SecondaryStreamConsumer tcalConsumer      = new SecondaryStreamConsumer(
-																					hubId, tcalBufMgr, tcalOut.getChannel(), tcalPrescale);
+			SecondaryStreamConsumer monitorConsumer;
+			SecondaryStreamConsumer supernovaConsumer;
+			SecondaryStreamConsumer tcalConsumer;
+			if (!openSecondary) {
+				monitorConsumer = null;
+				supernovaConsumer = null;
+				tcalConsumer = null;
+			} else {
+				monitorConsumer =
+					new SecondaryStreamConsumer(hubId, moniBufMgr,
+												moniOut.getChannel());
+				supernovaConsumer =
+					new SecondaryStreamConsumer(hubId, snBufMgr,
+												supernovaOut.getChannel());
+				tcalConsumer =
+					new SecondaryStreamConsumer(hubId, tcalBufMgr,
+												tcalOut.getChannel(),
+												tcalPrescale);
+			}
 
 			OutputStreamBufferConsumer histoConsumer = null;
 			if (chargeHistos)
@@ -795,7 +850,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 13744 2012-06-08 22:10:01Z dglo $";
+		return "$Id: StringHubComponent.java 13751 2012-06-12 17:14:51Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
