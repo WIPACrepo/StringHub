@@ -2,7 +2,6 @@
 package icecube.daq.stringhub;
 
 import icecube.daq.bindery.MultiChannelMergeSort;
-import icecube.daq.bindery.OutputStreamBufferConsumer;
 import icecube.daq.bindery.SecondaryStreamConsumer;
 import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.configuration.XMLConfig;
@@ -42,21 +41,16 @@ import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
 import icecube.daq.util.StringHubAlert;
 
-import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.TimeZone;
-import java.util.zip.GZIPOutputStream;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -405,7 +399,6 @@ public class StringHubComponent
 			boolean dcSoftboot = false;
 
 			int tcalPrescale = 10;
-			boolean chargeHistos = false;
 
 			if (hubNode != null)
 			{
@@ -460,13 +453,7 @@ public class StringHubComponent
 			for (DOMChannelInfo chanInfo : activeDOMs)
 			{
 				activeDomSet.add(chanInfo.mbid);
-				if (xmlConfig.getDOMConfig(chanInfo.mbid) != null)
-				{
-					// Determine, additionally, if we need to enable charge histogramming
-					if (xmlConfig.getDOMConfig(chanInfo.mbid).getHistoInterval() > 0.0)
-						chargeHistos = true;
-					nch++;
-				}
+                          if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) nch++;
 			}
 
 			if (nch == 0)
@@ -516,38 +503,18 @@ public class StringHubComponent
 												tcalPrescale);
 			}
 
-			OutputStreamBufferConsumer histoConsumer = null;
-			if (chargeHistos)
-			{
-				Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-				int year = cal.get(Calendar.YEAR);
-				int month = cal.get(Calendar.MONTH) + 1;
-				int day = cal.get(Calendar.DAY_OF_MONTH);
-				int hour = cal.get(Calendar.HOUR_OF_DAY);
-				int minute = cal.get(Calendar.MINUTE);
-				int sec = cal.get(Calendar.SECOND);
-				String datetxt = String.format("%04d%02d%02d%02d%02d%02d", year, month, day, hour, minute, sec);
-				// Use now a local file - clean this up later
-				histoConsumer = new OutputStreamBufferConsumer(
-															   new GZIPOutputStream(new BufferedOutputStream(
-																											 new FileOutputStream(new File(
-																																		   "/mnt/data/pdaqlocal",
-																																		   "chargehistos-"+datetxt+".dat.gz")))));
-			}
-
 			// Start the merger-sorter objects -- possibly inserting a hit spooler
 			if (hitSpooling)
 			{
 				// Rotate hit spooling directories : current <==> last
 				File hitSpoolCurrent = new File(hitSpoolDir, "currentRun");
 				File hitSpoolLast = new File(hitSpoolDir, "lastRun");
-				File hitSpoolTemp = new File(hitSpoolDir, "HitSpool" +
-											 getRunNumber() + ".tmp");
+                File hitSpoolTemp = new File(hitSpoolDir, "HitSpool"+getRunNumber()+".tmp");
 
-				if (hitSpoolLast.exists()) hitSpoolLast.renameTo(hitSpoolTemp);
-				if (hitSpoolCurrent.exists()) hitSpoolCurrent.renameTo(hitSpoolLast);
-				if (hitSpoolTemp.exists()) hitSpoolTemp.renameTo(hitSpoolCurrent);
-				if (!hitSpoolCurrent.exists()) hitSpoolCurrent.mkdir();
+                  if (hitSpoolLast.exists()) hitSpoolLast.renameTo(hitSpoolTemp);
+                  if (hitSpoolCurrent.exists()) hitSpoolCurrent.renameTo(hitSpoolLast);
+                  if (hitSpoolTemp.exists()) hitSpoolTemp.renameTo(hitSpoolCurrent);
+                  if (!hitSpoolCurrent.exists()) hitSpoolCurrent.mkdir();
 				FilesHitSpool hitSpooler = new FilesHitSpool(sender, hitSpoolCurrent, hitSpoolIval, hitSpoolNumFiles);
 				hitsSort = new MultiChannelMergeSort(nch, hitSpooler);
 			}
@@ -577,14 +544,17 @@ public class StringHubComponent
 						logger.debug("SN Distance "+ snDistance);
 					}
 					dc = new SimDataCollector(chanInfo, config,
-											  hitsSort, moniSort, scalSort, tcalSort,
+                                              hitsSort,
+                                              moniSort,
+                                              scalSort,
+                                              tcalSort,
 											  isAmanda);
 				}
 				else
 				{
 					dc = new DataCollector(
 										   chanInfo.card, chanInfo.pair, chanInfo.dom, config,
-										   hitsSort, moniSort, scalSort, tcalSort, histoConsumer,
+										   hitsSort, moniSort, scalSort, tcalSort,
 										   null,null);
 					addMBean("DataCollectorMonitor-" + chanInfo, dc);
 				}
@@ -850,7 +820,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 13751 2012-06-12 17:14:51Z dglo $";
+		return "$Id: StringHubComponent.java 13770 2012-06-20 04:11:10Z dglo $";
 	}
 
 	public IByteBufferCache getCache()

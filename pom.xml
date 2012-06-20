@@ -76,22 +76,6 @@
               </archive>
             </configuration>
           </execution>
-          <execution>
-            <id>StringHub-te</id>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-            <configuration>
-              <classifier>te</classifier>
-              <archive>
-                <manifest>
-                  <mainClass>icecube.daq.stringhub.TEHub</mainClass>
-                  <addClasspath>true</addClasspath>
-                  <classpathPrefix>../lib</classpathPrefix>
-                </manifest>
-              </archive>
-            </configuration>
-          </execution>
         </executions>
       </plugin>
      <plugin>

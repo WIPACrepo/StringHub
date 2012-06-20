@@ -32,7 +32,6 @@ public class XMLConfig extends DefaultHandler
 	private final short[] defaultAtwdWidth = { 2, 2, 2, 2 };
 	private short[] atwdWidth;
 	private int atwdChannel;
-	private int chargeHistoChannel;
 
 	private enum Direction { UP, DOWN };
 	private Direction direction;
@@ -176,13 +175,20 @@ public class XMLConfig extends DefaultHandler
 		}
 		else if (internalState == ParserState.CHARGE_HISTOGRAM)
 		{
-		    if (localName.equals("prescale"))
+		    if (localName.equals("source"))
+		    {
+		        if (text.equals("atwd"))
+		            currentConfig.useAtwdChargeStamp();
+		        else if (text.equals("fadc"))
+		            currentConfig.useFadcChargeStamp();
+		    }
+		    else if (localName.equals("prescale"))
 		    {
 		        currentConfig.setHistoPrescale(Short.parseShort(text));
 		    }
 		    else if (localName.equals("interval"))
 		    {
-		        currentConfig.setHistoInterval(Double.parseDouble(text));
+		        currentConfig.setHistoInterval(Integer.parseInt(text));
 		    }
 		    else if (localName.equals("channel"))
 		    {
