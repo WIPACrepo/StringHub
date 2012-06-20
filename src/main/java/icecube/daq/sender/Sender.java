@@ -90,8 +90,7 @@ class HitSorter
             return 1;
         }
 
-        int cmp = h1.getSourceID().getSourceID() - 
-            h2.getSourceID().getSourceID();
+        int cmp = h1.getSourceID().getSourceID() - h2.getSourceID().getSourceID();
         if (cmp == 0) {
             if (h1.getDomId() < h2.getDomId()) {
                 return -1;
@@ -188,6 +187,11 @@ public class Sender
     private long numTEHits;
 
     /**
+     * 'true' if we've logged an error about missing TE output engine or cache
+     */
+    private boolean warnedTE;
+
+    /**
      * Create a readout request filler.
      *
      * @param stringHubId this stringHub's ID
@@ -246,7 +250,8 @@ public class Sender
      */
     public void consume(ByteBuffer buf)
     {
-        if (buf.getInt(0) == 32 && buf.getLong(24) == Long.MAX_VALUE) {
+        if (buf.getInt(0) == 32 && buf.getLong(24) == Long.MAX_VALUE)
+        {
             // process stop message
             if (hitChan != null) {
                 try {
@@ -371,11 +376,13 @@ public class Sender
      */
     public void finishThreadCleanup()
     {
-        try {
-            dataChan.sendLastAndStop();
-        } catch (Exception ex) {
-            if (log.isErrorEnabled()) {
-                log.error("Couldn't stop readout data destinations", ex);
+        if (dataChan != null) {
+            try {
+                dataChan.sendLastAndStop();
+            } catch (Exception ex) {
+                if (log.isErrorEnabled()) {
+                    log.error("Couldn't stop readout data destinations", ex);
+                }
             }
         }
         totStopsSent++;
@@ -428,7 +435,7 @@ public class Sender
      */
     public long[] getLatestReadoutTimes()
     {
-        return new long[] {latestReadoutStartTime, latestReadoutEndTime };
+        return new long[] { latestReadoutStartTime, latestReadoutEndTime };
     }
 
     /**
@@ -739,8 +746,7 @@ public class Sender
                 daqName = null;
             } else {
                 daqName =
-                    SourceIdRegistry.getDAQNameFromISourceID(
-                        elem.getSourceID());
+                    SourceIdRegistry.getDAQNameFromISourceID(elem.getSourceID());
             }
 
             switch (elem.getReadoutType()) {
@@ -748,16 +754,14 @@ public class Sender
                 return true;
             case IReadoutRequestElement.READOUT_TYPE_II_GLOBAL:
                 if (daqName.equals(DAQCmdInterface.DAQ_STRINGPROCESSOR) ||
-                    daqName.equals(
-                        DAQCmdInterface.DAQ_PAYLOAD_INVALID_SOURCE_ID))
+                    daqName.equals(DAQCmdInterface.DAQ_PAYLOAD_INVALID_SOURCE_ID))
                 {
                     return true;
                 }
                 break;
             case IReadoutRequestElement.READOUT_TYPE_IT_GLOBAL:
                 if (daqName.equals(DAQCmdInterface.DAQ_ICETOP_DATA_HANDLER) ||
-                    daqName.equals(
-                        DAQCmdInterface.DAQ_PAYLOAD_INVALID_SOURCE_ID))
+                    daqName.equals(DAQCmdInterface.DAQ_PAYLOAD_INVALID_SOURCE_ID))
                 {
                     return true;
                 }
@@ -956,12 +960,11 @@ public class Sender
         try {
             ((IWriteablePayload) payload).writePayload(false, 0, buf);
         } catch (Exception ex) {
-            ex.printStackTrace();
             log.error("Couldn't create payload", ex);
             buf = null;
         }
 
-        if (buf != null) {
+        if (buf != null && dataChan != null) {
             dataChan.receiveByteBuffer(buf);
             sent = true;
         }
@@ -1089,7 +1092,7 @@ public class Sender
 
         if (dataOut == null) {
             if (log.isErrorEnabled()) {
-                throw new Error("Data destination has not been set");
+                log.error("Data destination has not been set");
             }
         } else {
             dataChan = dataOut.getChannel();
@@ -1109,19 +1112,33 @@ public class Sender
      */
     private void writeTrackEngineHit(DOMHit tinyHit, DeployedDOM domData)
     {
-        ByteBuffer teHit = teCache.acquireBuffer(11);
-        teHit.clear();
+        if (teCache == null) {
+            if (!warnedTE) {
+                log.error("Cannot write hit to Track Engine:" +
+                          " missing buffer cache");
+                warnedTE = true;
+            }
+        } else if (teChan == null) {
+            if (!warnedTE) {
+                log.error("Cannot write hit to Track Engine:" +
+                          " missing output channel");
+                warnedTE = true;
+            }
+        } else {
+            ByteBuffer teHit = teCache.acquireBuffer(11);
+            teHit.clear();
 
-        teHit.put((byte) (domData.getStringMajor() % Byte.MAX_VALUE));
-        teHit.put((byte) (domData.getStringMinor() % Byte.MAX_VALUE));
-        teHit.putLong(tinyHit.getTimestamp());
-        teHit.put((byte) (tinyHit.getLocalCoincidenceMode() % 0xff));
+            teHit.put((byte) (domData.getStringMajor() % Byte.MAX_VALUE));
+            teHit.put((byte) (domData.getStringMinor() % Byte.MAX_VALUE));
+            teHit.putLong(tinyHit.getTimestamp());
+            teHit.put((byte) (tinyHit.getLocalCoincidenceMode() % 0xff));
 
-        teHit.flip();
+            teHit.flip();
 
-        teChan.receiveByteBuffer(teHit);
+            teChan.receiveByteBuffer(teHit);
 
-        numTEHits++;
+            numTEHits++;
+        }
     }
 
     public String toString()

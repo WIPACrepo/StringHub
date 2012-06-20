@@ -11,24 +11,24 @@ public interface DataCollectorMBean
      * @return 12-char hex string
      */
     String getMainboardId();
-
+    
     /**
      * Get the SLC hit rate
      * @return hit rate in Hz
      */
     double getHitRate();
-
+    
     /**
-     * Get the HLC hitrate
+     * Get the HLC hitrate 
      * @return hit rate in Hz
      */
     double getHitRateLC();
-
+    
     /**
      * Get the number of acquired hits.
      */
     long getNumHits();
-
+    
     /**
      * Get the number of monitor records
      */

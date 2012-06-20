@@ -32,7 +32,7 @@ public class BufferConsumerChannel
      */
     public void consume(ByteBuffer buf)
         throws IOException
-    {
-        out.write(buf);
-    }
+   {
+       out.write(buf);
+   }
 }

@@ -14,28 +14,31 @@ import org.apache.log4j.Logger;
 public class TestShell
 {
 
-    public static void main(String[] args) throws Exception
-    {
-        BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.DEBUG);
-        int hubId = 0;
-        try {
-            hubId = Integer.getInteger("icecube.daq.stringhub.componentId");
-        } catch (Exception ex) {
-            System.err.println("Component Id not set - specify with -Dicecube.daq.stringhub.componentId=X");
-            System.exit(1);
-        }
+	public static void main(String[] args) throws Exception
+	{
+		BasicConfigurator.configure();
+		Logger.getRootLogger().setLevel(Level.DEBUG);
+		int hubId = 0;
+		try
+		{
+			hubId = Integer.getInteger("icecube.daq.stringhub.componentId");
+		}
+		catch (Exception ex)
+		{
+			System.err.println("Component Id not set - specify with -Dicecube.daq.stringhub.componentId=X");
+			System.exit(1);
+		}
 
-        StringHubComponent comp = new StringHubComponent(hubId);
-        int iarg = 0;
+		StringHubComponent comp = new StringHubComponent(hubId);
+		int iarg = 0;
 
-        comp.setGlobalConfigurationDir(args[iarg++]);
+		comp.setGlobalConfigurationDir(args[iarg++]);
         comp.configuring(args[iarg++]);
         comp.starting();
         Thread.sleep(5000);
         comp.stopping();
 
-    }
+	}
 
 
 }

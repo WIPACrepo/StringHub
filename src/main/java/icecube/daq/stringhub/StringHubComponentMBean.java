@@ -15,7 +15,6 @@ public interface StringHubComponentMBean
      */
     double getHitRateLC();
 
-
     /**
      * Report number of functioning DOM channels under control of stringHub.
      * @return number of DOMs
@@ -24,8 +23,7 @@ public interface StringHubComponentMBean
 
     /**
      * Return an array of the number of active doms and the number of total doms
-     * Packed into an integer array to avoid 2 xmlrpc calls from the 
-     * ActiveDOMsTask
+     * Packed into an integer array to avoid 2 xmlrpc calls from the ActiveDOMsTask
      * @return [0] = number of active doms, [1] = total number of doms
      */
     int[] getNumberOfActiveAndTotalChannels();
@@ -47,4 +45,23 @@ public interface StringHubComponentMBean
      * @return  a long value representing the total lbm overflows in this string
      */
     long getTotalLBMOverflows();
+
+    /**
+     * Return the number of non-zombie DOMs for this hub
+     *
+     * @return number of non-zombies
+     */
+    public int getNumberOfNonZombies();
+
+    /**
+     * Return the time when the last of the channels to report hits has finally reported
+     * @return the DAQ time (1E10 ticks/sec) of the hit which fulfills this condition
+     */
+    long getLatestFirstChannelHitTime();
+
+    /**
+     * Return the time when the first of the channels to stop has stopped.
+     * @return the DAQ time (1E10 ticks/sec) of the hit which fulfills this condition.
+     */
+    long getEarliestLastChannelHitTime();
 }

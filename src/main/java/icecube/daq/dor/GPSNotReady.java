@@ -13,7 +13,6 @@ public class GPSNotReady extends GPSException
     
     public String toString()
     {
-        return "GPS procfile " + procfile + " not ready (" + 
-            bytesRead + " read).";
+        return "GPS procfile " + procfile + " not ready (" + bytesRead + " read).";
     }
 }

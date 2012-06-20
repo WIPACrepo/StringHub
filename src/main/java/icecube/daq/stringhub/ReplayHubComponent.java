@@ -13,6 +13,7 @@ import icecube.daq.payload.impl.ReadoutRequestFactory;
 import icecube.daq.payload.impl.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
+import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.FlasherboardConfiguration;
 
 import java.io.File;
@@ -21,7 +22,11 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+
+import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.log4j.Logger;
 import org.dom4j.Attribute;
@@ -29,9 +34,11 @@ import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
+import org.xml.sax.SAXException;
 
 public class ReplayHubComponent
     extends DAQComponent
+    implements ReplayHubComponentMBean
 {
     private static final Logger LOG =
         Logger.getLogger(ReplayHubComponent.class);
@@ -39,7 +46,9 @@ public class ReplayHubComponent
     private static final String COMPONENT_NAME = "replayHub";
 
     private int hubId;
+    private IByteBufferCache cache;
     private Sender sender;
+    private DOMRegistry domRegistry;
 
     private String configurationPath;
 
@@ -56,10 +65,11 @@ public class ReplayHubComponent
 
         addMBean("jvm", new MemoryStatistics());
         addMBean("system", new SystemStatistics());
+        addMBean("stringhub", this);
 
-        IByteBufferCache genMgr = new VitreousBufferCache("RHGen#" + hubId);
-        addCache(genMgr);
-        addMBean("GenericBuffer", genMgr);
+        cache = new VitreousBufferCache("RHGen#" + hubId);
+        addCache(cache);
+        addMBean("GenericBuffer", cache);
 
         IByteBufferCache rdoutDataCache  =
             new VitreousBufferCache("SHRdOut#" + hubId);
@@ -70,33 +80,41 @@ public class ReplayHubComponent
             LOG.info("starting up ReplayHub component " + hubId);
         }
 
-        // Component derives behavioral characteristics from
-        // its 'minor ID' - they are ...
-        // (1) component xx81 - xx99 : icetop
-        // (2) component xx01 - xx80 : in-ice
-        // (3) component xx00        : amandaHub
-        int minorHubId = hubId % 100;
+        /*
+         * Component derives behavioral characteristics from
+         * its 'minor ID' which is the low 3 (decimal) digits of
+         * the hub component ID:
+         *  (1) component x000        : amandaHub
+         *  (2) component x001 - x199 : in-ice hub
+         *      (79 - 86 are deep core but this currently doesn't
+         *      mean anything)
+         *  (3) component x200 - x299 : icetop
+         */
+        int minorHubId = hubId % 1000;
 
         SimpleOutputEngine hitOut;
         if (minorHubId == 0) {
             hitOut = null;
         } else {
             hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "hitOut");
-            if (minorHubId > 80) {
+            if (minorHubId > 199)
                 addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
-            } else {
+            else
                 addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
             sender.setHitOutput(hitOut);
-            }
+            sender.setHitCache(cache);
         }
 
         ReadoutRequestFactory rdoutReqFactory =
-            new ReadoutRequestFactory(genMgr);
+            new ReadoutRequestFactory(cache);
 
         RequestReader reqIn;
-        try {
+        try
+        {
             reqIn = new RequestReader(COMPONENT_NAME, sender, rdoutReqFactory);
-        } catch (IOException ioe) {
+        }
+        catch (IOException ioe)
+        {
             throw new Error("Couldn't create RequestReader", ioe);
         }
         addMonitoredEngine(DAQConnector.TYPE_READOUT_REQUEST, reqIn);
@@ -215,6 +233,11 @@ public class ReplayHubComponent
         }
     }
 
+    public IByteBufferCache getCache()
+    {
+        return cache;
+    }
+
     /**
      * Get the file associated with the specified attribute.
      *
@@ -257,6 +280,106 @@ public class ReplayHubComponent
     }
 
     /**
+     * Return the time when the first of the channels to stop has stopped.
+     * @return the DAQ time (1E10 ticks/sec) of the hit which fulfills this
+     *         condition.
+     */
+    public long getEarliestLastChannelHitTime()
+    {
+        return 0L;
+    }
+
+    /**
+     * Report the total hit rate ( in Hz )
+     * @return total hit rate in Hz
+     */
+    public double getHitRate()
+    {
+        return 0.0;
+    }
+
+    /**
+     * Report the lc hit rate ( in Hz )
+     * @return lc hit rate in Hz
+     */
+    public double getHitRateLC()
+    {
+        return 0.0;
+    }
+
+    /**
+     * Return the time when the last of the channels to report hits has
+     * finally reported
+     * @return the DAQ time (1E10 ticks/sec) of the hit which fulfills this
+     *         condition
+     */
+    public long getLatestFirstChannelHitTime()
+    {
+        return 0L;
+    }
+
+    /**
+     * Return an array of the number of active doms and the number of total doms
+     * Packed into an integer array to avoid 2 xmlrpc calls from the ActiveDOMsTask
+     * @return [0] = number of active doms, [1] = total number of doms
+     */
+    public int[] getNumberOfActiveAndTotalChannels()
+    {
+        return new int[] { 60, 60 };
+    }
+
+    /**
+     * Report number of functioning DOM channels under control of stringHub.
+     * @return number of DOMs
+     */
+    public int getNumberOfActiveChannels()
+    {
+        return 60;
+    }
+
+    /**
+     * Return the number of non-zombie DOMs for this hub
+     *
+     * @return number of non-zombies
+     */
+    public int getNumberOfNonZombies()
+    {
+        return 0;
+    }
+
+    public Sender getSender()
+    {
+        return sender;
+    }
+
+    /**
+     * Report time of the most recent hit object pushed into the HKN1
+     * @return
+     */
+    public long getTimeOfLastHitInputToHKN1()
+    {
+        return 0L;
+    }
+
+    /**
+     * Report time of the most recent hit object output from the HKN1
+     * @return
+     */
+    public long getTimeOfLastHitOutputFromHKN1()
+    {
+        return 0L;
+    }
+
+    /**
+     * Return the number of LBM overflows inside this string
+     * @return  a long value representing the total lbm overflows in this string
+     */
+    public long getTotalLBMOverflows()
+    {
+        return 0L;
+    }
+
+    /**
      * Return this component's svn version id as a String.
      *
      * @return svn version id as a String
@@ -275,11 +398,25 @@ public class ReplayHubComponent
     public void setGlobalConfigurationDir(String dirName)
     {
         super.setGlobalConfigurationDir(dirName);
+
         configurationPath = dirName;
         if (LOG.isInfoEnabled()) {
             LOG.info("Setting the ueber configuration directory to " +
                      configurationPath);
         }
+
+        // get a reference to the DOM registry - useful later
+        try {
+            domRegistry = DOMRegistry.loadRegistry(configurationPath);
+        } catch (ParserConfigurationException e) {
+            LOG.error("Cannot load DOM registry", e);
+        } catch (SAXException e) {
+            LOG.error("Cannot load DOM registry", e);
+        } catch (IOException e) {
+            LOG.error("Cannot load DOM registry", e);
+        }
+
+        sender.setDOMRegistry(domRegistry);
     }
 
     /**
@@ -290,6 +427,8 @@ public class ReplayHubComponent
     public void starting()
         throws DAQCompException
     {
+        sender.reset();
+
         if (hitFile == null) {
             throw new DAQCompException("Hit file location has not been set");
         }
@@ -318,6 +457,74 @@ public class ReplayHubComponent
         stopped = true;
     }
 
+    class OrderedFileException
+        extends Exception
+    {
+        OrderedFileException(String msg)
+        {
+            super(msg);
+        }
+    }
+
+    class OrderedFile
+        implements Comparable<OrderedFile>
+    {
+        private File f;
+        private int num;
+
+        OrderedFile(File f)
+            throws OrderedFileException
+        {
+            this.f = f;
+            num = getFileNumber();
+        }
+
+        public int compareTo(OrderedFile of)
+        {
+            return num - of.num;
+        }
+
+        File getFile()
+        {
+            return f;
+        }
+
+        private int getFileNumber()
+            throws OrderedFileException
+        {
+            String name = f.getName();
+
+            int end = name.length();
+            if (name.endsWith(".dat")) {
+                end -= 4;
+            }
+
+            int idx;
+            for (idx = end;
+                 idx > 0 && Character.isDigit(name.charAt(idx - 1));
+                 idx--);
+
+            if (idx == end) {
+                throw new OrderedFileException("Expected numbers before" +
+                                               " \".dat\" at end of \"" +
+                                               name + "\"");
+            }
+
+            String substr = name.substring(idx, end);
+            try {
+                return Integer.parseInt(substr);
+            } catch (NumberFormatException nfe) {
+                throw new OrderedFileException("Cannot extract number" +
+                                               " from \"" + name + "\"");
+            }
+        }
+
+        public String toString()
+        {
+            return f.toString();
+        }
+    }
+
     /**
      * Payload file writer thread.
      */
@@ -328,8 +535,19 @@ public class ReplayHubComponent
         // so DAQ multiplier is 10^7
         private static final long DAQ_MULTIPLIER = 10000000L;
 
+        // catch unreasonably large payloads
+        private static final int MAX_PAYLOAD_LEN = 10000000;
+
         private File dataFile;
         private Thread realThread;
+
+        private ByteBuffer lenBuf = ByteBuffer.allocate(4);
+
+        private long totPayloads;
+
+        private boolean timeInit;
+        private long startSysTime;
+        private long startDAQTime;
 
         /**
          * Create payload file writer thread.
@@ -384,24 +602,42 @@ public class ReplayHubComponent
         {
         }
 
-        /**
-         * Main file writer loop.
-         */
-        public void run()
+        void processDirectory(File dataDir)
         {
-            stopped = false;
+            File[] dirList = dataDir.listFiles();
 
+            ArrayList<OrderedFile> list = new ArrayList<OrderedFile>();
+            for (int i = 0; i < dirList.length; i++) {
+                try {
+                    list.add(new OrderedFile(dirList[i]));
+                } catch (OrderedFileException ofe) {
+                    LOG.error("Bad ordered file", ofe);
+                }
+            }
+
+            Collections.sort(list);
+
+            for (OrderedFile f : list) {
+                if (stopped) {
+                    break;
+                }
+
+                LOG.error("Processing " + f);
+                processFile(f.getFile());
+            }
+        }
+
+        void processFile(File payFile)
+        {
             FileInputStream in;
             try {
-                in = new FileInputStream(dataFile);
+                in = new FileInputStream(payFile);
             } catch (IOException ioe) {
-                LOG.error("Couldn't open " + dataFile, ioe);
+                LOG.error("Couldn't open " + payFile, ioe);
                 return;
             }
 
             ReadableByteChannel chan = in.getChannel();
-
-            ByteBuffer lenBuf = ByteBuffer.allocate(4);
 
             boolean timeInit = false;
             long startSysTime = 0L;
@@ -409,57 +645,9 @@ public class ReplayHubComponent
 
             int numPayloads = 0;
             while (!stopped) {
-                lenBuf.rewind();
-                int numBytes;
-                try {
-                    numBytes = chan.read(lenBuf);
-                } catch (IOException ioe) {
-                    LOG.error("Couldn't read length of payload #" +
-                              numPayloads + " from " + dataFile, ioe);
+                ByteBuffer buf = readPayload(payFile, chan, numPayloads);
+                if (buf == null) {
                     break;
-                }
-
-                // end of file
-                if (numBytes < 0) {
-                    LOG.error("Saw end-of-file at payload #" + numPayloads);
-                    break;
-                }
-
-                if (numBytes < 4) {
-                    LOG.error("Only got " + numBytes +
-                              " of length for payload #" + numPayloads +
-                              " in " + dataFile);
-                    break;
-                }
-
-                // get payload length
-                int len = lenBuf.getInt(0);
-                if (len < 4) {
-                    LOG.error("Bad length " + len + " for payload #" +
-                              numPayloads + " in " + dataFile);
-                    break;
-                }
-
-                // Sender expects a separate buffer for each payload
-                ByteBuffer buf = ByteBuffer.allocate(len);
-                buf.limit(len);
-                buf.putInt(len);
-
-                // read the rest of the payload
-                int lenIn;
-                try {
-                    lenIn = chan.read(buf);
-                } catch (IOException ioe) {
-                    LOG.error("Couldn't read " + len +
-                              " data bytes for payload #" + numPayloads +
-                              " from " + dataFile, ioe);
-                    break;
-                }
-
-                if (lenIn != len - 4) {
-                    throw new Error("Expected to read " + (len - 4) +
-                                    " bytes, not " + lenIn + " for payload #" +
-                                    numPayloads + " from " + dataFile);
                 }
 
                 // try to deliver payloads at the rate they were created
@@ -478,6 +666,13 @@ public class ReplayHubComponent
 
                     // if we're sending payloads too quickly, wait a bit
                     final long sleepTime = daqDiff - sysDiff;
+                    if (sleepTime > 5000L) {
+                        LOG.error("Huge time gap (" + (sleepTime / 1000L) +
+                                  ") for payload #" + numPayloads +
+                                  " from " + payFile);
+                        break;
+                    }
+
                     if (sleepTime > 10L) {
                         try {
                             Thread.sleep(sleepTime);
@@ -493,22 +688,123 @@ public class ReplayHubComponent
                     write(buf);
                 } catch (IOException ioe) {
                     throw new Error("Sender did not consume payload #" +
-                                    numPayloads + " from " + dataFile, ioe);
+                                    numPayloads + " from " + payFile, ioe);
                 }
 
                 // don't overwhelm other threads
                 Thread.yield();
 
                 numPayloads++;
+                totPayloads++;
             }
-
-            stopped = true;
 
             try {
                 chan.close();
             } catch (IOException ioe) {
                 // ignore errors on close
             }
+        }
+
+        private ByteBuffer readPayload(File payFile,
+                                       ReadableByteChannel chan,
+                                       int payloadNum)
+        {
+            lenBuf.rewind();
+            int numBytes;
+            try {
+                numBytes = chan.read(lenBuf);
+            } catch (IOException ioe) {
+                LOG.error("Couldn't read length of payload #" +
+                          payloadNum + " from " + payFile, ioe);
+                return null;
+            }
+
+            if (numBytes < 0) {
+                LOG.error("Saw end-of-file at payload #" + payloadNum +
+                          " in " + payFile);
+                return null;
+            }
+
+            if (numBytes < 4) {
+                LOG.error("Only got " + numBytes +
+                          " of length for payload #" + payloadNum +
+                          " in " + payFile);
+                return null;
+            }
+
+            // get payload length
+            int len = lenBuf.getInt(0);
+            if (len < 4 || len > MAX_PAYLOAD_LEN) {
+                LOG.error("Bad length " + len + " for payload #" +
+                          payloadNum + " in " + payFile);
+                return null;
+            }
+
+            // Sender expects a separate buffer for each payload
+            ByteBuffer buf = ByteBuffer.allocate(len);
+            buf.limit(len);
+            buf.putInt(len);
+
+            // read the rest of the payload
+            for (int i = 0; i < 10 && buf.position() < buf.capacity(); i++) {
+                int rtnval;
+                try {
+                    rtnval = chan.read(buf);
+                } catch (IOException ioe) {
+                    LOG.error("Couldn't read " + len +
+                              " data bytes for payload #" + payloadNum +
+                              " from " + payFile, ioe);
+                    return null;
+                }
+
+                if (rtnval < 0) {
+                    LOG.error("Reached end of file while reading " + len +
+                              " data bytes for payload #" + payloadNum +
+                              " from " + payFile);
+                    return null;
+                }
+
+                if (buf.position() < buf.capacity()) {
+                    LOG.error(payFile.toString() + " payload #" +
+                              payloadNum + " partial read = " + rtnval);
+                }
+            }
+
+            if (buf.position() != len) {
+                LOG.error("Expected to read " + len + " bytes, not " +
+                          buf.position() + " for payload #" + payloadNum +
+                          " from " + payFile);
+                return null;
+            }
+
+            if (len < 32) {
+                LOG.error("Got short payload #" + payloadNum + " (" +
+                          len + " bytes) from " + payFile);
+                return null;
+            }
+
+            if (buf.getInt(0) == 32 && buf.getLong(24) == Long.MAX_VALUE) {
+                LOG.error("Found unexpected STOP message in " + payFile);
+                return null;
+            }
+
+            return buf;
+        }
+
+        /**
+         * Main file writer loop.
+         */
+        public void run()
+        {
+            stopped = false;
+
+            if (dataFile.isDirectory()) {
+                processDirectory(dataFile);
+            } else {
+                processFile(dataFile);
+            }            
+
+            stopped = true;
 
             ByteBuffer stopBuf = buildStopMessage();
             try {
@@ -559,7 +855,8 @@ public class ReplayHubComponent
         throws Exception
     {
         int hubId = 0;
-        try {
+        try
+        {
             hubId = Integer.getInteger("icecube.daq.stringhub.componentId");
         } catch (Exception ex) {
             System.err.println("Hub ID not set, specify with" +
@@ -573,7 +870,7 @@ public class ReplayHubComponent
         } catch (IllegalArgumentException ex) {
             System.err.println(ex.getMessage());
             System.exit(1);
-            return; 
+            return; // without this, compiler whines about uninitialized 'srvr'
         }
         srvr.startServing();
     }

@@ -5,7 +5,7 @@ import java.util.HashMap;
 
 public interface IDriver
 {
-    IGPSInfo readGPS(int card)
+    GPSInfo readGPS(int card)
         throws GPSException;
 
     TimeCalib readTCAL(int card, int pair, char dom)

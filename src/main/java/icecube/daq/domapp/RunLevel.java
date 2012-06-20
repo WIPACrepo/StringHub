@@ -13,8 +13,7 @@ public enum RunLevel
     IDLE,
 
     /**
-     * The data collector has gotten a CONFIGURE signal but hasn't fully
-     * executed it.
+     * The data collector has gotten a CONFIGURE signal but hasn't fully executed it.
      */
     CONFIGURING,
 

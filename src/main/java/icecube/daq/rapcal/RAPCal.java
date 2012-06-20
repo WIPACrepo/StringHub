@@ -3,22 +3,22 @@ package icecube.daq.rapcal;
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.util.UTC;
 
-public interface RAPCal 
-{
-    double clockRatio();
+public interface RAPCal {
 
-    double cableLength();
+	double clockRatio();
 
-    /**
-     * Test whether rapcal service is ready to
-     * translate the provided time.
-     * @param domclk
-     * @return
-     */
-    boolean laterThan(long domclk);
+	double cableLength();
 
-    UTC domToUTC(long domclk);
+	/**
+	 * Test whether rapcal service is ready to
+	 * translate the provided time.
+	 * @param domclk
+	 * @return
+	 */
+	boolean laterThan(long domclk);
 
-    void update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException;
+	UTC domToUTC(long domclk);
+
+	void update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException;
 
 }
