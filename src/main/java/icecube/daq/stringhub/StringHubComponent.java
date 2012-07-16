@@ -32,11 +32,6 @@ import icecube.daq.payload.impl.ReadoutRequestFactory;
 import icecube.daq.payload.impl.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
-import icecube.daq.trigger.algorithm.ITrigger;
-import icecube.daq.trigger.config.TriggerBuilder;
-import icecube.daq.trigger.control.IStringTriggerHandler;
-import icecube.daq.trigger.control.StringTriggerHandler;
-import icecube.daq.trigger.exceptions.TriggerException;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
@@ -97,9 +92,7 @@ public class StringHubComponent
 	private MultiChannelMergeSort scalSort;
 	private String configurationPath;
 
-	private boolean enableTriggering;
 	private ISourceID sourceId;
-	private IStringTriggerHandler triggerHandler;
 	private static final String COMPONENT_NAME =
 		DAQCmdInterface.DAQ_STRING_HUB;
 
@@ -339,19 +332,6 @@ public class StringHubComponent
 		}
 	}
 
-	private void enableTriggering()
-	{
-		if (hitOut == null) return;
-
-		triggerHandler = new StringTriggerHandler(sourceId);
-		triggerHandler.setMasterPayloadFactory(new MasterPayloadFactory(cache));
-		triggerHandler.setPayloadOutput(hitOut);
-
-		// feed sender output through string trigger
-		sender.setHitOutput(triggerHandler);
-		logger.info("triggering enabled");
-	}
-
 	/**
 	 * StringHub responds to a configure request from the controller
 	 */
@@ -409,7 +389,7 @@ public class StringHubComponent
 
 			if (hubNode != null)
 			{
-				if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) enableTriggering();
+				if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) logger.error("String triggering not implemented");
 				if (hubNode.valueOf("sender/forwardIsolatedHitsToTrigger").equalsIgnoreCase("true"))
 					sender.forwardIsolatedHitsToTrigger();
 				if (hubNode.valueOf("dataCollector/softboot").equalsIgnoreCase("true"))
@@ -630,12 +610,6 @@ public class StringHubComponent
 			throw new DAQCompException("Unexpected exception " + e, e);
 		}
 
-
-		// If triggers are enabled, configure them
-		if (enableTriggering) {
-			configureTrigger(configName);
-		}
-
 	}
 
 	/**
@@ -786,63 +760,6 @@ public class StringHubComponent
 		logger.info("Returning from stop.");
 	}
 
-	private void configureTrigger(String configName) throws DAQCompException {
-		// Build the trigger configuration directory
-		File cfgFile = new File(configurationPath, configName);
-		if (!cfgFile.isFile()) {
-			if (!configName.endsWith(".xml")) {
-				cfgFile = new File(configurationPath, configName + ".xml");
-			}
-
-			if (!cfgFile.isFile()) {
-				throw new DAQCompException("Configuration file \"" + cfgFile +
-										   "\" does not exist");
-			}
-		}
-
-		// Lookup the trigger configuration
-		String triggerConfiguration;
-		try {
-			triggerConfiguration = TriggerBuilder.getTriggerConfig(cfgFile);
-		} catch (Exception e) {
-			logger.error("Error extracting trigger configuration name from" +
-						 " global configuraion file.", e);
-			throw new DAQCompException("Cannot get trigger configuration" +
-									   " name.", e);
-		}
-		File triggerConfigDir = new File(configurationPath, "trigger");
-		File triggerConfigFile =
-			new File(triggerConfigDir, triggerConfiguration);
-		if (!triggerConfigFile.isFile()) {
-			if (!triggerConfiguration.endsWith(".xml")) {
-				triggerConfigFile =
-					new File(triggerConfigDir, triggerConfiguration + ".xml");
-			}
-
-			if (!triggerConfigFile.isFile()) {
-				throw new DAQCompException("Trigger configuration file \"" +
-										   triggerConfigFile +
-										   "\" (from \"" + configName +
-										   "\") does not exist");
-			}
-		}
-
-		// Add triggers to the trigger manager
-		List<ITrigger> currentTriggers;
-		try {
-			currentTriggers =
-				TriggerBuilder.buildTriggers(triggerConfigFile, sourceId);
-		} catch (TriggerException te) {
-			throw new DAQCompException("Cannot build triggers from \"" +
-									   triggerConfigFile + "\" for " +
-									   sourceId, te);
-		}
-		for (ITrigger trigger : currentTriggers) {
-			trigger.setTriggerHandler(triggerHandler);
-		}
-		triggerHandler.addTriggers(currentTriggers);
-	}
-
 	/**
 	 * Return this component's svn version id as a String.
 	 *
@@ -850,7 +767,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 13751 2012-06-12 17:14:51Z dglo $";
+		return "$Id: StringHubComponent.java 13797 2012-07-16 19:18:38Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
