@@ -106,7 +106,6 @@ public class DataCollector
     private BufferConsumer      moniConsumer;
     private BufferConsumer      tcalConsumer;
     private BufferConsumer      supernovaConsumer;
-    private BufferConsumer      histoConsumer;
 
     private InterruptorTask intTask = new InterruptorTask();
 
@@ -142,8 +141,6 @@ public class DataCollector
     private HitBufferAB abBuffer;
     private int         numSupernovaGaps;
 
-    private Histogram[] iceTopChargeHists;
-
     /**
      * The waitForRAPCal flag if true will force the time synchronizer
      * to only output DOM timestamped objects when a RAPCal before and
@@ -166,10 +163,7 @@ public class DataCollector
     private final int MAGIC_MONITOR_FMTID         = 102;
     private final int MAGIC_TCAL_FMTID            = 202;
     private final int MAGIC_SUPERNOVA_FMTID       = 302;
-    private final int MAGIC_HISTO_FMTID           = 1001;
-
     private boolean   latelyRunningFlashers;
-    private long      lastITChargeStampT0;
 
 
     /**
@@ -261,7 +255,7 @@ public class DataCollector
     public DataCollector(DOMChannelInfo chInfo, BufferConsumer hitsTo)
     throws IOException, MessageException
     {
-        this(chInfo.card, chInfo.pair, chInfo.dom, null, hitsTo, null, null, null, null, null, null);
+        this(chInfo.card, chInfo.pair, chInfo.dom, null, hitsTo, null, null, null, null, null);
     }
 
     public DataCollector(
@@ -271,7 +265,6 @@ public class DataCollector
             BufferConsumer moniTo,
             BufferConsumer supernovaTo,
             BufferConsumer tcalTo,
-            BufferConsumer histoTo,
             IDriver driver,
             RAPCal rapcal) throws IOException, MessageException
     {
@@ -283,7 +276,6 @@ public class DataCollector
         moniConsumer = moniTo;
         tcalConsumer = tcalTo;
         supernovaConsumer = supernovaTo;
-        histoConsumer = histoTo;
 
         if (driver != null)
             this.driver = driver;
@@ -447,27 +439,43 @@ public class DataCollector
         // enable charge stamp histogramming
         try
         {
-            app.histoChargeStamp((int) config.getHistoInterval(), config.getHistoPrescale());
+            app.histoChargeStamp(config.getHistoInterval(), config.getHistoPrescale());
         }
         catch (MessageException mex)
         {
             logger.warn("Unable to configure chargestamp histogramming");
         }
 
-        iceTopChargeHists = new Histogram[4];
 
-        for (int ich = 0; ich < 4; ich++)
-        {
-            iceTopChargeHists[ich] = new Histogram(config.getChargeStampHistoBins(ich),
-                    config.getChargeStampHistoXmin(ich),
-                    config.getChargeStampHistoXmax(ich));
-        }
         long configT1 = System.currentTimeMillis();
         if (logger.isDebugEnabled()) {
             logger.debug("Finished DOM configuration - " + canonicalName() +
                         "; configuration took " + (configT1 - configT0) +
                         " milliseconds.");
         }
+    }
+
+    private long dispatchBuffer(ByteBuffer buf, BufferConsumer target) throws IOException
+    {
+        long domclk = buf.getLong(24);
+        long utc    = rapcal.domToUTC(domclk).in_0_1ns();
+        buf.putLong(24, utc);
+        int fmtId = buf.getInt(4);
+        target.consume(buf);
+
+        // Collect HLC / SLC hit statistics ...
+        switch ( buf.getInt(4) )
+        {
+        case MAGIC_COMPRESSED_HIT_FMTID:
+            int flagsLC = (buf.getInt(46) & 0x30000) >> 16;
+            if (flagsLC != 0) rtLCRate.recordEvent(utc);
+            // intentional fall-through
+        case MAGIC_ENGINEERING_HIT_FMTID:
+            rtHitRate.recordEvent(utc);
+            lastHitTime = utc;
+            if (firstHitTime < 0L) firstHitTime = utc;
+        }
+        return utc;
     }
 
     private void dispatchHitBuffer(int atwdChip, ByteBuffer hitBuf) throws IOException
@@ -480,30 +488,17 @@ public class DataCollector
         {
             ByteBuffer buffer = abBuffer.pop();
             if (buffer == null) return;
-            long domClock = hitBuf.getLong(24);
-            long utc = rapcal.domToUTC(domClock).in_0_1ns();
-            hitBuf.putLong(24, utc);
-            hitsConsumer.consume(hitBuf);
-            rtHitRate.recordEvent(utc);
-            lastHitTime = utc;
-            if (firstHitTime < 0L) firstHitTime = utc;
-            if (hitBuf.getInt(4) == MAGIC_COMPRESSED_HIT_FMTID)
-            {
-                int word1 = hitBuf.getInt(46);
-                int word3 = hitBuf.getInt(50);
-
-                // Do IceTop chargestamp histogramming stuff
-                icetopChargeStampHistogram(utc, word1, word3);
-
-                // Do hit rate statistics gathering
-                int flagsLC = (word1 & 0x30000) >> 16;
-                if (flagsLC != 0) rtLCRate.recordEvent(utc);
-            }
+            dispatchBuffer(buffer, hitsConsumer);
         }
     }
 
+
     private void dataProcess(ByteBuffer in) throws IOException
     {
+        // TODO - I created a number of less-than-elegant hacks to
+        // keep performance at acceptable level such as minimal
+        // decoding of hit records. This should be cleaned up.
+
         if (hitsConsumer == null) return;
 
         int buffer_limit = in.limit();
@@ -603,66 +598,6 @@ public class DataCollector
         }
     }
 
-    private void icetopChargeStampHistogram(long utc, int cw1, int qenc)
-    {
-        if (histoConsumer == null) return;
-        double dt = 1.0E-10*(utc - lastITChargeStampT0);
-        if (dt > config.getHistoInterval())
-        {
-            int len = 36;
-            for (int i = 0; i < 4; i++)
-                len += 28 + 4*iceTopChargeHists[i].getBins().length;
-            ByteBuffer hbuf = ByteBuffer.allocate(len);
-            hbuf.putInt(len);
-            hbuf.putInt(MAGIC_HISTO_FMTID);
-            hbuf.putLong(numericMBID);
-            hbuf.putLong(0);
-            hbuf.putLong(lastITChargeStampT0);
-            hbuf.putInt(4);
-            for (int i = 0; i < 4; i++)
-            {
-                int[] a = iceTopChargeHists[i].getBins();
-                int n = a.length;
-                hbuf.putDouble(iceTopChargeHists[i].getX0());
-                hbuf.putDouble(iceTopChargeHists[i].getX1());
-                hbuf.putInt(n);
-                hbuf.putInt(iceTopChargeHists[i].getUnderflow());
-                for (int k = 0; k < n; k++) hbuf.putInt(a[k]);
-                hbuf.putInt(iceTopChargeHists[i].getOverflow());
-                iceTopChargeHists[i].reset();
-            }
-            hbuf.flip();
-            try
-            {
-                histoConsumer.consume(hbuf);
-            }
-            catch (IOException iox)
-            {
-                histoConsumer = null;
-            }
-            lastITChargeStampT0 = getHistoIntervalT0(utc);
-        }
-        int atwd_chip = (cw1 & 0x800) == 0 ? 1 : 0;
-        int atwd_chan = (qenc >> 17) & 3;
-        int chargestamp = qenc & 0x1ffff;
-        if (atwd_chan < 2) iceTopChargeHists[atwd_chip*2 + atwd_chan].fill(chargestamp);
-    }
-
-    /**
-     * This function will return the relevant chargeHisto T0
-     * @param utc
-     * @return
-     */
-    private long getHistoIntervalT0(long utc)
-    {
-        long interval = ((long) (1.0E10*config.getHistoInterval()));
-		if (interval == 0L) {
-			return 0L;
-		}
-
-        return utc / interval * interval;
-    }
-
     private void moniProcess(ByteBuffer in) throws IOException
     {
         if (moniConsumer == null) return;
@@ -682,10 +617,9 @@ public class DataCollector
             moniBuffer.putInt(MAGIC_MONITOR_FMTID);
             moniBuffer.putLong(numericMBID);
             moniBuffer.putLong(0L);
-            long utc = rapcal.domToUTC(monitor.getClock()).in_0_1ns();
-            moniBuffer.putLong(utc);
+            moniBuffer.putLong(monitor.getClock());
             moniBuffer.put(monitor.getBuffer());
-            moniConsumer.consume((ByteBuffer) moniBuffer.flip());
+            dispatchBuffer((ByteBuffer) moniBuffer.flip(), moniConsumer);
         }
     }
 
@@ -704,7 +638,7 @@ public class DataCollector
         tcalBuffer.putInt(0).putInt(MAGIC_TCAL_FMTID);
         tcalBuffer.putLong(numericMBID);
         tcalBuffer.putLong(0L);
-        tcalBuffer.putLong(rapcal.domToUTC(tcal.getDomTx().in_0_1ns()/250L).in_0_1ns());
+        tcalBuffer.putLong(tcal.getDomTx().in_0_1ns() / 250L);
         tcal.writeUncompressedRecord(tcalBuffer);
         if (gps == null)
         {
@@ -717,7 +651,7 @@ public class DataCollector
         }
         tcalBuffer.flip();
         tcalBuffer.putInt(0, tcalBuffer.remaining());
-        tcalConsumer.consume(tcalBuffer);
+        dispatchBuffer(tcalBuffer, tcalConsumer);
     }
 
     private void supernovaProcess(ByteBuffer in) throws IOException
@@ -737,8 +671,8 @@ public class DataCollector
                 int len = spkt.getLength() + 32;
                 ByteBuffer snBuf = ByteBuffer.allocate(len);
                 snBuf.putInt(len).putInt(MAGIC_SUPERNOVA_FMTID).putLong(numericMBID).putLong(0L);
-                snBuf.putLong(rapcal.domToUTC(spkt.getClock()).in_0_1ns()).put(spkt.getBuffer());
-                supernovaConsumer.consume((ByteBuffer) snBuf.flip());
+                snBuf.putLong(spkt.getClock()).put(spkt.getBuffer());
+                dispatchBuffer((ByteBuffer) snBuf.flip(), supernovaConsumer);
             }
         }
     }
@@ -1097,7 +1031,6 @@ public class DataCollector
                 }
                 app.beginRun();
                 storeRunStartTime();
-                lastITChargeStampT0 = getHistoIntervalT0(runStartUT);
                 logger.debug("DOM is running.");
                 setRunLevel(RunLevel.RUNNING);
                 break;
@@ -1300,46 +1233,4 @@ public class DataCollector
     {
         return rtLCRate.getRate();
     }
-}
-
-class Histogram
-{
-    private int of, uf;
-    private int[] bins;
-    private double x0, x1;
-
-    Histogram(int nBins, double x0, double x1)
-    {
-        this.bins = new int[nBins];
-        this.x0   = x0;
-        this.x1   = x1;
-        this.of   = 0;
-        this.uf   = 0;
-    }
-
-    void fill(double x)
-    {
-        if (x < x0)
-            this.uf++;
-        else if (x > x1)
-            this.of++;
-        else
-        {
-            int i = (int) (bins.length * (x - x0) / (x1 - x0));
-            bins[i]++;
-        }
-    }
-
-    void reset()
-    {
-        of = 0;
-        uf = 0;
-        for (int i = 0; i < bins.length; i++) bins[i] = 0;
-    }
-
-    int[] getBins() { return bins; }
-    int getOverflow() { return of; }
-    int getUnderflow() { return uf; }
-    double getX0() { return x0; }
-    double getX1() { return x1; }
 }

@@ -2,7 +2,6 @@
 package icecube.daq.stringhub;
 
 import icecube.daq.bindery.MultiChannelMergeSort;
-import icecube.daq.bindery.OutputStreamBufferConsumer;
 import icecube.daq.bindery.SecondaryStreamConsumer;
 import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.configuration.XMLConfig;
