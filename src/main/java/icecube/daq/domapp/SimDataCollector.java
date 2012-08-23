@@ -189,7 +189,7 @@ public class SimDataCollector extends AbstractDataCollector
             return false;
         }
 
-        StringHubAlert.sendDOMAlert(alerter, "Fake DOM alert", "Fake DOM alert",
+        StringHubAlert.sendDOMAlert(alerter, "Fake DOM alert",
                                     card, pair, dom, mbid, name, major, minor);
         return true;
     }

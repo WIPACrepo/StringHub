@@ -350,7 +350,7 @@ public class StringHubComponent
 
 			// check and see if the driver is using an expired leapseconds file
 			if (driver.daysTillLeapExpiry()<0) {
-				StringHubAlert.sendLeapsecondExpired(getAlerter(), "Config File Expired",
+				StringHubAlert.sendLeapsecondExpired(getAlerter(),
 													 "Nist Configuration file past expiration date",
 													 -1 * driver.daysTillLeapExpiry());
 			}
@@ -445,7 +445,7 @@ public class StringHubComponent
 				if (!activeDomSet.contains(mbid) && xmlConfig.getDOMConfig(mbid) != null) {
 					logger.warn("DOM " + deployedDOM + " requested in configuration but not found.");
 
-					StringHubAlert.sendDOMAlert(getAlerter(), "Dropped DOM",
+					StringHubAlert.sendDOMAlert(getAlerter(),
 												"Dropped DOM during configure",
 												0, 0, (char) 0,
 												deployedDOM.getMainboardId(),
@@ -737,7 +737,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 13819 2012-08-01 22:37:44Z dglo $";
+		return "$Id: StringHubComponent.java 13867 2012-08-23 22:48:52Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
