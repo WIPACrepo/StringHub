@@ -18,10 +18,8 @@ import icecube.daq.util.RealTimeRateMeter;
 import icecube.daq.util.StringHubAlert;
 import icecube.daq.util.UTC;
 
-import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.DecimalFormat;

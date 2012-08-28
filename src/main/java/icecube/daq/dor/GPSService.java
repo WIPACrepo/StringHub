@@ -1,6 +1,5 @@
 package icecube.daq.dor;
 
-import java.util.GregorianCalendar;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;

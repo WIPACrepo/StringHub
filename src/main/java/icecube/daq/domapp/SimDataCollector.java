@@ -6,7 +6,6 @@ import cern.jet.random.engine.RandomEngine;
 
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.bindery.MultiChannelMergeSort;
-import icecube.daq.bindery.StreamBinder;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.util.StringHubAlert;
 import icecube.daq.util.RealTimeRateMeter;
@@ -15,7 +14,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;

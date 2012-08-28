@@ -2,12 +2,9 @@
 
 package icecube.daq.domapp;
 
-import icecube.daq.juggler.alert.AlertException;
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
-
-import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 

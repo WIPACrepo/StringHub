@@ -1,70 +1,22 @@
 /* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
 package icecube.daq.stringhub;
 
-import icecube.daq.bindery.MultiChannelMergeSort;
-import icecube.daq.bindery.SecondaryStreamConsumer;
 import icecube.daq.common.DAQCmdInterface;
-import icecube.daq.configuration.XMLConfig;
-import icecube.daq.domapp.AbstractDataCollector;
-import icecube.daq.domapp.DOMConfiguration;
-import icecube.daq.domapp.DataCollector;
-import icecube.daq.domapp.RunLevel;
-import icecube.daq.domapp.SimDataCollector;
-import icecube.daq.dor.DOMChannelInfo;
-import icecube.daq.dor.Driver;
-import icecube.daq.dor.GPSService;
 import icecube.daq.io.DAQComponentInputProcessor;
 import icecube.daq.io.DAQComponentOutputProcess;
 import icecube.daq.io.OutputChannel;
-import icecube.daq.io.PayloadReader;
-import icecube.daq.io.SimpleOutputEngine;
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.juggler.component.DAQCompException;
-import icecube.daq.juggler.component.DAQConnector;
-import icecube.daq.juggler.mbean.MemoryStatistics;
-import icecube.daq.juggler.mbean.SystemStatistics;
-import icecube.daq.monitoring.MonitoringData;
-import icecube.daq.oldpayload.impl.MasterPayloadFactory;
 import icecube.daq.payload.IByteBufferCache;
-import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.SourceIdRegistry;
-import icecube.daq.payload.impl.ReadoutRequestFactory;
-import icecube.daq.payload.impl.VitreousBufferCache;
-import icecube.daq.sender.RequestReader;
-import icecube.daq.sender.Sender;
-import icecube.daq.util.DOMRegistry;
-import icecube.daq.util.DeployedDOM;
-import icecube.daq.util.FlasherboardConfiguration;
-import icecube.daq.util.StringHubAlert;
 
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.UnresolvedAddressException;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.TimeZone;
-import java.util.zip.GZIPOutputStream;
-
-import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.dom4j.Document;
-import org.dom4j.DocumentException;
-import org.dom4j.Node;
-import org.dom4j.io.SAXReader;
-import org.xml.sax.SAXException;
 
 class InternalHub
 	extends StringHubComponent

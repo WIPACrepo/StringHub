@@ -23,7 +23,6 @@ import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
 import icecube.daq.monitoring.MonitoringData;
-import icecube.daq.oldpayload.impl.MasterPayloadFactory;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.SourceIdRegistry;
@@ -737,7 +736,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 13867 2012-08-23 22:48:52Z dglo $";
+		return "$Id: StringHubComponent.java 13874 2012-08-28 19:14:11Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
