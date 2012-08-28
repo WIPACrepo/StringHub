@@ -24,7 +24,7 @@ public final class Driver implements IDriver {
     private File driver_root;
     private static final Driver instance = new Driver("/proc/driver/domhub");
     private static final Logger logger = Logger.getLogger(Driver.class);
-    
+
     private leapseconds leapsecondObj;
     private GPSSynch[] gpsList;
 
@@ -45,7 +45,7 @@ public final class Driver implements IDriver {
 	    // the driver code is setup to operate as if
 	    // the leapsecond code never existed in this case
 	    // It will however report that the leapsecond
-	    // object has expired.  This alert will make it 
+	    // object has expired.  This alert will make it
 	    // back to live.
 	    System.err.println("leap second object init error: "+e);
 	}
@@ -70,18 +70,18 @@ public final class Driver implements IDriver {
 	if (m.find()) return Float.parseFloat(m.group(1));
 	return 0.0f;
     }
-    
+
     public boolean power(int card, int pair) throws IOException {
 	File file = makeProcfile("" + card + "" + pair, "pwr");
 	String info = getProcfileText(file);
 	return info.indexOf("on.") != -1;
     }
-    
+
     public String getProcfileID(int card, int pair, char dom) throws IOException {
 	String info = getProcfileText(makeProcfile("" + card + "" + pair + dom, "id"));
 	return info.substring(info.length() - 12);
     }
-    
+
     /**
      * Reset the communications such as to bring back from a hardware timeout.
      * @param card 0 to 7
@@ -202,7 +202,7 @@ public final class Driver implements IDriver {
 	File file = makeProcfile("" + card + "" + pair + dom, "tcalib");
 	RandomAccessFile tcalib = new RandomAccessFile(file, "rw");
 	FileChannel ch = tcalib.getChannel();
-	
+
 	if (logger.isDebugEnabled()) logger.debug("Initiating TCAL sequence");
 	tcalib.writeBytes("single\n");
 	for (int iTry = 0; iTry < 5; iTry++)
@@ -223,8 +223,8 @@ public final class Driver implements IDriver {
 	tcalib.close();
 	throw new IOException("TCAL read failed.");
     }
-    
-    public GPSInfo readGPS(int card) throws GPSException 
+
+    public GPSInfo readGPS(int card) throws GPSException
     {
 	ByteBuffer buf = ByteBuffer.allocate(22);
 	File file = makeProcfile("" + card, "syncgps");
@@ -253,7 +253,7 @@ public final class Driver implements IDriver {
 		throw new GPSException(file.getAbsolutePath(), nex);
 	    }
     }
-    
+
     private String getProcfileText(File file) throws IOException {
 	FileInputStream fis = new FileInputStream(file);
 	BufferedReader r = new BufferedReader(new InputStreamReader(fis));
@@ -262,7 +262,7 @@ public final class Driver implements IDriver {
 	fis.close();
 	return txt;
     }
-    
+
     private String getProcfileMultilineText(File file) throws IOException {
 	FileInputStream fis = new FileInputStream(file);
 	BufferedReader r = new BufferedReader(new InputStreamReader(fis));
