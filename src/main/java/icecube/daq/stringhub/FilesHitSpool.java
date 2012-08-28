@@ -66,6 +66,9 @@ public class FilesHitSpool implements BufferConsumer
     
     public void consume(ByteBuffer buf) throws IOException
     {
+        
+        if (null != out) out.consume(buf);
+
         // bytes 24 .. 31 hold the 64-bit UTC clock value
         t = buf.getLong(24);
         
@@ -93,8 +96,6 @@ public class FilesHitSpool implements BufferConsumer
         byte[] tmpArray = new byte[buf.remaining()];
         buf.get(tmpArray);
         dataOut.write(tmpArray);
-        
-        if (null != out) out.consume(buf);
     }
 
     private void openNewFile() throws IOException
