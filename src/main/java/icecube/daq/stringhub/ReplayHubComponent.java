@@ -1,5 +1,6 @@
 package icecube.daq.stringhub;
 
+import icecube.daq.io.PayloadByteReader;
 import icecube.daq.io.SimpleOutputEngine;
 import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQCompServer;
@@ -21,7 +22,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -535,13 +535,8 @@ public class ReplayHubComponent
         // so DAQ multiplier is 10^7
         private static final long DAQ_MULTIPLIER = 10000000L;
 
-        // catch unreasonably large payloads
-        private static final int MAX_PAYLOAD_LEN = 10000000;
-
         private File dataFile;
         private Thread realThread;
-
-        private ByteBuffer lenBuf = ByteBuffer.allocate(4);
 
         private long totPayloads;
 
@@ -569,7 +564,7 @@ public class ReplayHubComponent
          *
          * @return stop message
          */
-        ByteBuffer buildStopMessage()
+        private ByteBuffer buildStopMessage()
         {
             final int stopLen = 32;
 
@@ -590,7 +585,7 @@ public class ReplayHubComponent
          *
          * @return time in milliseconds
          */
-        long getPayloadTime(ByteBuffer buf)
+        private long getPayloadTime(ByteBuffer buf)
         {
             return buf.getLong(24);
         }
@@ -598,11 +593,11 @@ public class ReplayHubComponent
         /**
          * No cleanup is needed.
          */
-        void finishThreadCleanup()
+        private void finishThreadCleanup()
         {
         }
 
-        void processDirectory(File dataDir)
+        private void processDirectory(File dataDir)
         {
             File[] dirList = dataDir.listFiles();
 
@@ -627,25 +622,22 @@ public class ReplayHubComponent
             }
         }
 
-        void processFile(File payFile)
+        private void processFile(File payFile)
         {
-            FileInputStream in;
-            try {
-                in = new FileInputStream(payFile);
-            } catch (IOException ioe) {
-                LOG.error("Couldn't open " + payFile, ioe);
-                return;
-            }
-
-            ReadableByteChannel chan = in.getChannel();
-
             boolean timeInit = false;
             long startSysTime = 0L;
             long startDAQTime = 0L;
 
-            int numPayloads = 0;
-            while (!stopped) {
-                ByteBuffer buf = readPayload(payFile, chan, numPayloads);
+            PayloadByteReader rdr;
+            try {
+                rdr = new PayloadByteReader(payFile);
+            } catch (IOException ioe) {
+                LOG.error("Cannot open payFile", ioe);
+                return;
+            }
+
+            while (rdr.hasNext()) {
+                ByteBuffer buf = rdr.next();
                 if (buf == null) {
                     break;
                 }
@@ -668,8 +660,9 @@ public class ReplayHubComponent
                     final long sleepTime = daqDiff - sysDiff;
                     if (sleepTime > 5000L) {
                         LOG.error("Huge time gap (" + (sleepTime / 1000L) +
-                                  ") for payload #" + numPayloads +
-                                  " from " + payFile);
+                                  ") for payload #" +
+                                  rdr.getNumberOfPayloads() + " from " +
+                                  payFile);
                         break;
                     }
 
@@ -688,107 +681,22 @@ public class ReplayHubComponent
                     write(buf);
                 } catch (IOException ioe) {
                     throw new Error("Sender did not consume payload #" +
-                                    numPayloads + " from " + payFile, ioe);
+                                    rdr.getNumberOfPayloads() + " from " +
+                                    payFile, ioe);
                 }
 
                 // don't overwhelm other threads
                 Thread.yield();
 
-                numPayloads++;
-                totPayloads++;
             }
 
             try {
-                chan.close();
+                rdr.close();
             } catch (IOException ioe) {
                 // ignore errors on close
             }
-        }
 
-        private ByteBuffer readPayload(File payFile,
-                                       ReadableByteChannel chan,
-                                       int payloadNum)
-        {
-            lenBuf.rewind();
-            int numBytes;
-            try {
-                numBytes = chan.read(lenBuf);
-            } catch (IOException ioe) {
-                LOG.error("Couldn't read length of payload #" +
-                          payloadNum + " from " + payFile, ioe);
-                return null;
-            }
-
-            if (numBytes < 0) {
-                LOG.error("Saw end-of-file at payload #" + payloadNum +
-                          " in " + payFile);
-                return null;
-            }
-
-            if (numBytes < 4) {
-                LOG.error("Only got " + numBytes +
-                          " of length for payload #" + payloadNum +
-                          " in " + payFile);
-                return null;
-            }
-
-            // get payload length
-            int len = lenBuf.getInt(0);
-            if (len < 4 || len > MAX_PAYLOAD_LEN) {
-                LOG.error("Bad length " + len + " for payload #" +
-                          payloadNum + " in " + payFile);
-                return null;
-            }
-
-            // Sender expects a separate buffer for each payload
-            ByteBuffer buf = ByteBuffer.allocate(len);
-            buf.limit(len);
-            buf.putInt(len);
-
-            // read the rest of the payload
-            for (int i = 0; i < 10 && buf.position() < buf.capacity(); i++) {
-                int rtnval;
-                try {
-                    rtnval = chan.read(buf);
-                } catch (IOException ioe) {
-                    LOG.error("Couldn't read " + len +
-                              " data bytes for payload #" + payloadNum +
-                              " from " + payFile, ioe);
-                    return null;
-                }
-
-                if (rtnval < 0) {
-                    LOG.error("Reached end of file while reading " + len +
-                              " data bytes for payload #" + payloadNum +
-                              " from " + payFile);
-                    return null;
-                }
-
-                if (buf.position() < buf.capacity()) {
-                    LOG.error(payFile.toString() + " payload #" +
-                              payloadNum + " partial read = " + rtnval);
-                }
-            }
-
-            if (buf.position() != len) {
-                LOG.error("Expected to read " + len + " bytes, not " +
-                          buf.position() + " for payload #" + payloadNum +
-                          " from " + payFile);
-                return null;
-            }
-
-            if (len < 32) {
-                LOG.error("Got short payload #" + payloadNum + " (" +
-                          len + " bytes) from " + payFile);
-                return null;
-            }
-
-            if (buf.getInt(0) == 32 && buf.getLong(24) == Long.MAX_VALUE) {
-                LOG.error("Found unexpected STOP message in " + payFile);
-                return null;
-            }
-
-            return buf;
+            totPayloads += rdr.getNumberOfPayloads();
         }
 
         /**
@@ -802,7 +710,7 @@ public class ReplayHubComponent
                 processDirectory(dataFile);
             } else {
                 processFile(dataFile);
-            }            
+            }
 
             stopped = true;
 
@@ -837,7 +745,7 @@ public class ReplayHubComponent
          *
          * @throws IOException should never be thrown
          */
-        void write(ByteBuffer buf)
+        private void write(ByteBuffer buf)
             throws IOException
         {
             sender.consume(buf);
