@@ -2,13 +2,17 @@ package icecube.daq.dor;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.io.File;
 
 public interface IDriver
 {
-    GPSInfo readGPS(int card)
+    File getTCALFile(int card, int pair, char dom);
+    File getGPSFile(int card);
+
+    GPSInfo readGPS(File gpsFile)
         throws GPSException;
 
-    TimeCalib readTCAL(int card, int pair, char dom)
+    TimeCalib readTCAL(File tcalFile)
         throws IOException, InterruptedException;
 
     void softboot(int card, int pair, char dom) throws IOException;

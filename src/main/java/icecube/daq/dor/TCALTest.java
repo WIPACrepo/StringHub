@@ -7,6 +7,7 @@ import icecube.daq.rapcal.RAPCal;
 import icecube.daq.util.UTC;
 
 import java.util.ArrayList;
+import java.io.File;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
@@ -19,6 +20,7 @@ public final class TCALTest
     private char dom;
     private Driver driver = Driver.getInstance();
     private RAPCal rapcal;
+    private File tcalFile;
 
     private TCALTest(int card, int pair, char dom, String classname) throws Exception
     {
@@ -26,16 +28,17 @@ public final class TCALTest
         this.pair = pair;
         this.dom  = dom;
         rapcal = (RAPCal) Class.forName(classname).newInstance();
+	tcalFile = driver.getTCALFile(card, pair, dom);
     }
 
     private void run(int n) throws Exception
     {
         ArrayList<Double> cableLengthList = new ArrayList<Double>();
         UTC u0 = new UTC();
-        rapcal.update(driver.readTCAL(card, pair, dom), u0);
+        rapcal.update(driver.readTCAL(tcalFile), u0);
         for (int iter = 0; iter < n; iter++)
         {
-            TimeCalib tcal = driver.readTCAL(card, pair, dom);
+            TimeCalib tcal = driver.readTCAL(tcalFile);
             rapcal.update(tcal, u0);
             System.out.println(
                     rapcal.cableLength() + " " +

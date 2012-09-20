@@ -23,6 +23,7 @@ public final class Driver implements IDriver {
     private File driver_root;
     private static final Driver instance = new Driver("/proc/driver/domhub");
     private static final Logger logger = Logger.getLogger(Driver.class);
+    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
 
     private leapseconds leapsecondObj;
     private GPSSynch[] gpsList;
@@ -91,7 +92,7 @@ public final class Driver implements IDriver {
     public void commReset(int card, int pair, char dom) throws IOException
     {
         String cwd = card + "" + pair + dom;
-        if (logger.isDebugEnabled()) logger.debug("Issuing a communications reset on " + cwd);
+        if (DEBUG_ENABLED) logger.debug("Issuing a communications reset on " + cwd);
         File file = makeProcfile(cwd, "is-communicating");
         FileOutputStream iscomm = new FileOutputStream(file);
         iscomm.write("reset\n".getBytes());
@@ -121,7 +122,7 @@ public final class Driver implements IDriver {
      */
     public void softboot(int card, int pair, char dom) throws IOException
     {
-	if (logger.isDebugEnabled()) logger.debug("Softbooting " + card + "" + pair + dom);
+	if (DEBUG_ENABLED) logger.debug("Softbooting " + card + "" + pair + dom);
 	File file = makeProcfile(card + "" + pair + dom, "softboot");
 	FileOutputStream sb = new FileOutputStream(file);
 	sb.write("reset\n".getBytes());
@@ -177,7 +178,7 @@ public final class Driver implements IDriver {
 	    for (int pair = 0; pair < 4; pair++) {
 		File pdir = makeProcfileDir("" + card + "" + pair);
 		if (!pdir.exists() || !power(card, pair)) continue;
-		if (logger.isDebugEnabled()) {
+		if (DEBUG_ENABLED) {
 		    logger.debug("Found powered pair on (" + card + ", " + pair + ").");
 		}
 		for (int dom = 0; dom < 2; dom++) {
@@ -185,7 +186,7 @@ public final class Driver implements IDriver {
 		    if (ddir.exists()) {
 			String mbid = getProcfileID(card, pair, ab[dom]);
 			if (mbid.matches("[0-9a-f]{12}") && !mbid.equals("000000000000")) {
-			    if (logger.isDebugEnabled()) {
+			    if (DEBUG_ENABLED) {
 				logger.debug("Found active DOM on (" + card + ", " + pair + ", " + ab[dom] + ")");
 			    }
 			    channelList.add(new DOMChannelInfo(mbid, card, pair, ab[dom]));
@@ -197,19 +198,23 @@ public final class Driver implements IDriver {
 	return channelList;
     }
 
-    public TimeCalib readTCAL(int card, int pair, char dom) throws IOException, InterruptedException {
-	File file = makeProcfile("" + card + "" + pair + dom, "tcalib");
-	RandomAccessFile tcalib = new RandomAccessFile(file, "rw");
+    public File getTCALFile(int card, int pair, char dom) {
+	return makeProcfile("" + card + "" + pair + dom, "tcalib");
+    }
+
+
+    public TimeCalib readTCAL(File tcalFile) throws IOException, InterruptedException {
+	RandomAccessFile tcalib = new RandomAccessFile(tcalFile, "rw");
 	FileChannel ch = tcalib.getChannel();
 
-	if (logger.isDebugEnabled()) logger.debug("Initiating TCAL sequence");
+	if (DEBUG_ENABLED) logger.debug("Initiating TCAL sequence");
 	tcalib.writeBytes("single\n");
 	for (int iTry = 0; iTry < 5; iTry++)
 	    {
 		Thread.sleep(20);
 		ByteBuffer buf = ByteBuffer.allocate(292);
 		int nr = ch.read(buf);
-		if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + file.getAbsolutePath());
+		if (DEBUG_ENABLED) logger.debug("Read " + nr + " bytes from " + tcalFile.getAbsolutePath());
 		if (nr == 292)
 		    {
 			ch.close();
@@ -223,33 +228,37 @@ public final class Driver implements IDriver {
 	throw new IOException("TCAL read failed.");
     }
 
-    public GPSInfo readGPS(int card) throws GPSException
+    public File getGPSFile(int card) {
+	return makeProcfile("" + card, "syncgps");
+    }
+
+    public GPSInfo readGPS(File gpsFile) throws GPSException 
     {
 	ByteBuffer buf = ByteBuffer.allocate(22);
-	File file = makeProcfile("" + card, "syncgps");
+	
 	try
 	    {
-		RandomAccessFile syncgps = new RandomAccessFile(file, "r");
+		RandomAccessFile syncgps = new RandomAccessFile(gpsFile, "r");
 		FileChannel ch = syncgps.getChannel();
 		int nr = ch.read(buf);
 		syncgps.close();
-		if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + file.getAbsolutePath());
+		if (DEBUG_ENABLED) logger.debug("Read " + nr + " bytes from " + gpsFile.getAbsolutePath());
 		if (nr == 22)
 		    {
 			buf.flip();
 			GPSInfo gpsinfo = new GPSInfo(buf, leapsecondObj);
-			if (logger.isDebugEnabled()) logger.debug("GPS read on " + file.getAbsolutePath() + " - " + gpsinfo);
+			if (DEBUG_ENABLED) logger.debug("GPS read on " + gpsFile.getAbsolutePath() + " - " + gpsinfo);
 			return gpsinfo;
 		    }
-		throw new GPSNotReady(file.getAbsolutePath(), 0);
+		throw new GPSNotReady(gpsFile.getAbsolutePath(), 0);
 	    }
 	catch (IOException iox)
 	    {
-		throw new GPSException(file.getAbsolutePath(), iox);
+		throw new GPSException(gpsFile.getAbsolutePath(), iox);
 	    }
 	catch (NumberFormatException nex)
 	    {
-		throw new GPSException(file.getAbsolutePath(), nex);
+		throw new GPSException(gpsFile.getAbsolutePath(), nex);
 	    }
     }
 
@@ -257,7 +266,7 @@ public final class Driver implements IDriver {
 	FileInputStream fis = new FileInputStream(file);
 	BufferedReader r = new BufferedReader(new InputStreamReader(fis));
 	String txt = r.readLine();
-	if (logger.isDebugEnabled()) logger.debug(file.getAbsolutePath() + " >> " + txt);
+	if (DEBUG_ENABLED) logger.debug(file.getAbsolutePath() + " >> " + txt);
 	fis.close();
 	return txt;
     }
@@ -269,7 +278,7 @@ public final class Driver implements IDriver {
 	String txt;
 	while((txt = r.readLine()) != null) {
 	    ret += txt+"\n";
-	    if (logger.isDebugEnabled()) logger.debug(file.getAbsolutePath() + " >> " + txt);
+	    if (DEBUG_ENABLED) logger.debug(file.getAbsolutePath() + " >> " + txt);
 	}
 	fis.close();
 	return ret;
