@@ -14,6 +14,7 @@ public class QuadFitLE extends AbstractRAPCal
 {
     private final double threshold;
     private static final Logger logger = Logger.getLogger(QuadFitLE.class);
+    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
 
     public QuadFitLE()
     {
@@ -72,7 +73,7 @@ public class QuadFitLE extends AbstractRAPCal
         final double rd = Math.sqrt(discriminant);
         final double r1 = -(B + rd) / (2.0*A);
         final double r2 = -(B - rd) / (2.0*A);
-        if (logger.isDebugEnabled())
+        if (DEBUG_ENABLED)
         {
             logger.debug("r1: " + r1 + " - r2: " + r2 + " A, B, C = (" +
                     A + ", " + B + ", " + C + ")");

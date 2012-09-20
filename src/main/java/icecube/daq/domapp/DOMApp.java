@@ -11,9 +11,18 @@ public class DOMApp implements IDOMApp
 {
 
     private static Logger logger = Logger.getLogger(DOMApp.class);
+    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
     private DOMIO         devIO;
     private ByteBuffer    msgBuffer;
     private ByteBuffer    msgBufferOut;
+
+    // prebuilt query commands
+    private byte[] dataMsgArray;
+    private byte[] moniMsgArray;
+    private byte[] snMsgArray;
+    private byte[] intervalMsgArray;
+
+    private static final int HEADER_LENGTH = 8;
 
     /**
      * Create a new DOMApp connection object for DOR channel provided
@@ -27,7 +36,84 @@ public class DOMApp implements IDOMApp
         devIO = new DOMIO(card, pair, dom);
         msgBuffer = ByteBuffer.allocate(4092);
         msgBufferOut = ByteBuffer.allocate(4092);
+	
+	preBuildMessages();
     }
+
+    protected void buildMessage(MessageType m_type, ByteBuffer tmpBuffer) {
+	tmpBuffer.clear();
+	tmpBuffer.put(m_type.getFacility()).put(m_type.getSubtype());
+	// put the length of the payload ( 0 in this case )
+	tmpBuffer.putShort((short)0);
+	// 16 bites of reserved
+	tmpBuffer.putShort((short)0);
+	// message id
+	tmpBuffer.put((byte)0);
+	// status byte
+	tmpBuffer.put((byte)0);
+	// no payload
+	tmpBuffer.flip();
+    }
+
+    protected void preBuildMessages() 
+    {
+	// allocate space for the messages we are about
+	// to pre-build
+	dataMsgArray = new byte[HEADER_LENGTH];
+	moniMsgArray = new byte[HEADER_LENGTH];
+	snMsgArray = new byte[HEADER_LENGTH];
+	intervalMsgArray = new byte[HEADER_LENGTH];
+	ByteBuffer tmpBuffer = ByteBuffer.allocate(HEADER_LENGTH);
+
+	// GET_INTERVAL message
+	// --------------------
+	buildMessage(MessageType.GET_INTERVAL, tmpBuffer);
+	tmpBuffer.get(intervalMsgArray, 0, intervalMsgArray.length);
+
+	// Data message
+	// ------------
+	buildMessage(MessageType.GET_DATA, tmpBuffer);
+	tmpBuffer.get(dataMsgArray, 0, dataMsgArray.length);
+
+	// moni message
+	// ------------
+	buildMessage(MessageType.GET_MONI, tmpBuffer);
+	tmpBuffer.get(moniMsgArray, 0, moniMsgArray.length);
+
+	// supernova message
+	// -----------------
+	buildMessage(MessageType.GET_SN_DATA, tmpBuffer);
+	tmpBuffer.get(snMsgArray, 0, snMsgArray.length);
+    }
+
+
+    /*
+     * send a PRE-BUILT message out to query the dom
+     * 
+     * Mainly this should be used for high frequency messages
+     * like the 'data', 'moni', and 'supernova' messages
+     *
+     */
+    protected ByteBuffer sendMessagePreBuilt(MessageType type, byte[] query) throws MessageException 
+    {
+
+        try
+	    {
+		devIO.send(query);
+
+		recvMessage(msgBufferOut);
+
+		// recvMessage returns a message
+		// with the header, skip that
+		msgBufferOut.position(HEADER_LENGTH);
+		return msgBufferOut.slice();
+	    }
+        catch (IOException e)
+	    {
+		throw new MessageException(type, e);
+	    }
+    }
+
 
     public void close()
     {
@@ -142,7 +228,8 @@ public class DOMApp implements IDOMApp
      */
     public ByteBuffer getData() throws MessageException
     {
-        return sendMessage(MessageType.GET_DATA);
+        return sendMessagePreBuilt(MessageType.GET_DATA,
+				   dataMsgArray);
     }
 
     /**
@@ -178,7 +265,7 @@ public class DOMApp implements IDOMApp
             {
                 Thread.yield();
                 ByteBuffer out = devIO.recv();
-                if (logger.isDebugEnabled())
+                if (DEBUG_ENABLED)
                     logger.debug("Received part " + i + " of multimessage.");
                 int status = out.get(7);
                 if (status != 1) throw new MessageException(
@@ -221,7 +308,8 @@ public class DOMApp implements IDOMApp
      */
     public ByteBuffer getMoni() throws MessageException
     {
-        return sendMessage(MessageType.GET_MONI);
+        return sendMessagePreBuilt(MessageType.GET_MONI,
+				   moniMsgArray);
     }
 
     public MuxState getMux() throws MessageException
@@ -286,7 +374,8 @@ public class DOMApp implements IDOMApp
      */
     public ByteBuffer getSupernova() throws MessageException
     {
-        return sendMessage(MessageType.GET_SN_DATA);
+        return sendMessagePreBuilt(MessageType.GET_SN_DATA,
+				   snMsgArray);
     }
 
     /**
@@ -352,6 +441,48 @@ public class DOMApp implements IDOMApp
         return sendMessage(type, ByteBuffer.allocate(0));
     }
 
+
+    /**
+     *
+     * Sends a query for one second of data
+     *
+     */
+    public void getInterval() throws MessageException
+    {
+	sendMessagePreBuilt(MessageType.GET_INTERVAL,
+			    intervalMsgArray);
+    }
+
+    public ByteBuffer recvMessage(ByteBuffer recvBuf) throws MessageException
+    {
+        recvBuf.clear();
+
+        try
+        {
+            // Loop on receive - allow partial receives
+            while (recvBuf.position() < 8 || recvBuf.position() < recvBuf.getShort(2) + 8)
+            {
+                Thread.yield();
+                ByteBuffer out = devIO.recv();
+                recvBuf.put(out);
+            }
+            recvBuf.flip();
+            int status = recvBuf.get(7);
+	    if (status != 1) {
+		throw new MessageException(MessageType.GET_DATA,
+					   recvBuf.get(0), recvBuf.get(1),
+					   status);
+	    }
+
+            return recvBuf;
+        }
+        catch (IOException e)
+        {
+            throw new MessageException(MessageType.GET_DATA, e);
+        }
+    }
+
+
     /**
      * Send DOMApp message and receive response
      *
@@ -377,7 +508,7 @@ public class DOMApp implements IDOMApp
         // Tack on the data payload
         buf.put(in);
         buf.flip();
-        if (logger.isDebugEnabled())
+        if (DEBUG_ENABLED)
             logger.debug("sendMessage [" + type.name() + "]");
 
         msgBufferOut.clear();
@@ -394,7 +525,7 @@ public class DOMApp implements IDOMApp
                 msgBufferOut.put(out);
             }
             msgBufferOut.flip();
-            int status = (msgBufferOut.get(7) & 0xff);
+            int status = msgBufferOut.get(7);
             msgBufferOut.position(8);
             if (!(type.equals(msgBufferOut.get(0), msgBufferOut.get(1)) && status == 1))
                 throw new MessageException(type, msgBufferOut.get(0), msgBufferOut.get(1), status);
@@ -469,7 +600,7 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.SET_DATA_FORMAT, buf);
         buf.clear();
         buf.put(enc[0]).put(enc[1]).put(enc[2]).flip();
-        if (logger.isDebugEnabled())
+        if (DEBUG_ENABLED)
             logger.debug("Setting engineering format bytes to (" + enc[0] + ", " + enc[1] + ", " + enc[2] + ").");
         sendMessage(MessageType.SET_ENG_FORMAT, buf);
     }
@@ -697,7 +828,7 @@ public class DOMApp implements IDOMApp
         // Issue a clear - something gets out-of-sorts in the iceboot
         // command decoder
         String status = talkToIceboot("s\" domapp.sbi.gz\" find if gunzip fpga endif . set-comm-params");
-        if (logger.isDebugEnabled()) {
+        if (DEBUG_ENABLED) {
             logger.debug("FPGA reload returns: " + status);
         }
         // Exec DOMApp & wait for "DOMAPP READY" message from DOMApp
@@ -720,18 +851,18 @@ public class DOMApp implements IDOMApp
         buf.put(cmd.getBytes());
         buf.put("\r\n".getBytes()).flip();
         devIO.send(buf);
-        if (logger.isDebugEnabled()) logger.debug("Sending: " + cmd);
+        if (DEBUG_ENABLED) logger.debug("Sending: " + cmd);
         while (true)
         {
             ByteBuffer ret = devIO.recv();
             byte[] bytearray = new byte[ret.remaining()];
             ret.get(bytearray);
             String fragment = new String(bytearray);
-            if (logger.isDebugEnabled()) logger.debug("Received: " + fragment);
+            if (DEBUG_ENABLED) logger.debug("Received: " + fragment);
             if (fragment.contains(cmd)) break;
         }
         if (expect == null) return "";
-        if (logger.isDebugEnabled()) logger.debug("Echoback from iceboot received - expecting ... " + expect);
+        if (DEBUG_ENABLED) logger.debug("Echoback from iceboot received - expecting ... " + expect);
         StringBuffer txt = new StringBuffer();
         while (true)
         {

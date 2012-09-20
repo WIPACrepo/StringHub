@@ -211,11 +211,12 @@ public class Omicron {
 			if (dc.isAlive()) dc.signalStartRun();
 
 		t0 = System.currentTimeMillis();
+		t0 = t0 + runLengthMsec;
 
 		while (true)
 		{
 			long time = System.currentTimeMillis();
-			if (time - t0 > runLengthMsec)
+			if (time > t0) 
 			{
 				for (DataCollector dc : collectors) if (dc.isAlive()) dc.signalStopRun();
 				break;

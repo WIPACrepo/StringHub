@@ -12,6 +12,7 @@ import icecube.daq.rapcal.ZeroCrossingRAPCal;
 import icecube.daq.util.UTC;
 
 import java.io.IOException;
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Timer;
@@ -36,6 +37,8 @@ public class AuraDataCollector extends AbstractDataCollector
     private long                mbid_numerique;
     private int                 evtCnt;
     private long                tracr_clock_offset  = 0L;
+    private File                tcalFile;
+    private File                gpsFile;
 
     private static final int    EVT_DOM_CLK         = 28;
     private static final int    EVT_TRACR_MATCH_CLK = 40;
@@ -50,6 +53,7 @@ public class AuraDataCollector extends AbstractDataCollector
     // This is the default : 3/4 ch and 3/4 bands
     private int                 triggerSetting      = 68;   
     private static final Logger logger              = Logger.getLogger(AuraDataCollector.class);
+    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
 
     public AuraDataCollector(int card, int pair, char dom, BufferConsumer hits)
     {
@@ -70,6 +74,9 @@ public class AuraDataCollector extends AbstractDataCollector
         this.forcedTrigger = new AtomicBoolean(true);
         this.radioTrigger = new AtomicBoolean(false);
         changeTriggerSetting = new AtomicBoolean(false);
+
+	tcalFile = driver.getTCALFile(card, pair, dom);
+        gpsFile = driver.getGPSFile(card);
     }
 
     public void run()
@@ -197,7 +204,7 @@ public class AuraDataCollector extends AbstractDataCollector
             tracr_clk = tracr_clk & 0xffffffffffL;
             buf.order(ByteOrder.LITTLE_ENDIAN);
             utc = rapcal.domToUTC(2 * tracr_clk + tracr_clock_offset).in_0_1ns();
-            if (logger.isDebugEnabled())
+            if (DEBUG_ENABLED)
             {
                 logger.debug("DOMClk: " + domclk + " TracrMatchClk: " + tracr_match_clk
                         + " TracrClk: " + tracr_clk + " - UTC: " + utc);
@@ -207,7 +214,7 @@ public class AuraDataCollector extends AbstractDataCollector
         else
         {
             utc = rapcal.domToUTC(domclk).in_0_1ns();
-            if (logger.isDebugEnabled())
+            if (DEBUG_ENABLED)
                 logger.debug("No tracr clock (beacon?): DOMClk: " + domclk + " - UTC: " + utc);
         }
         ByteBuffer xtb = ByteBuffer.allocate(xtbSize);
@@ -220,7 +227,7 @@ public class AuraDataCollector extends AbstractDataCollector
         xtb.rewind();
         try
         {
-            if (logger.isDebugEnabled())
+            if (DEBUG_ENABLED)
                 logger.debug("Sending buffer of size " + xtb.remaining());
             hits.consume(xtb);
         }
@@ -320,14 +327,14 @@ public class AuraDataCollector extends AbstractDataCollector
             {
                 try
                 {
-                    GPSInfo gps = driver.readGPS(card);
+                    GPSInfo gps = driver.readGPS(gpsFile);
                     gpsOffset = gps.getOffset();
                 }
                 catch (GPSException gpsx)
                 {
                     logger.warn("GPS exception");
                 }
-                TimeCalib tcal = driver.readTCAL(card, pair, dom);
+                TimeCalib tcal = driver.readTCAL(tcalFile);
                 synchronized (rapcal)
                 {
                     rapcal.update(tcal, gpsOffset);

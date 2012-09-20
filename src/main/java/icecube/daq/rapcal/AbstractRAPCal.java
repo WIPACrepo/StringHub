@@ -16,6 +16,8 @@ public abstract class AbstractRAPCal implements RAPCal
         private UTC gpsOffset;
         private double ratio;
         private double epsilon;
+	private long domMid;
+	private long dorMid;
 
         Isochron(TimeCalib tcal0, TimeCalib tcal1, UTC gpsOffset) throws RAPCalException
         {
@@ -73,7 +75,7 @@ public abstract class AbstractRAPCal implements RAPCal
                 // wild TCAL!
                 logger.warn("Wild TCAL - clen: " + clen + " clenAvg: " + clenAvg);
             }
-            if (logger.isDebugEnabled())
+            if (DEBUG_ENABLED)
             {
                 logger.debug("\n" +
                         " t0: " + t0[0] + ", " + t0[1] + ", " + t0[2] + ", " + t0[3] + "\n" +
@@ -82,16 +84,21 @@ public abstract class AbstractRAPCal implements RAPCal
                                 1.0E+09*epsilon, 1.0E+09*clen)
                         );
             }
+
+	    // proc gets called a limited number of times
+	    // domToUTC can be called many many times
+	    // ( on the order of 2-3 x per hit ), move
+	    // these calculations as they never change
+	    domMid = UTC.add(t1[1], t1[2]).in_0_1ns() / 2L;
+            dorMid = UTC.add(t1[0], t1[3]).in_0_1ns() / 2L;
         }
 
         UTC domToUTC(long domclk)
         {
-            long domMid = UTC.add(t1[1], t1[2]).in_0_1ns() / 2L;
-            long dorMid = UTC.add(t1[0], t1[3]).in_0_1ns() / 2L;
             long dt = 250L*domclk - domMid;
             // Correct for DOM frequency variation
             dt += (long) (epsilon * dt);
-            if (logger.isDebugEnabled())
+            if (DEBUG_ENABLED)
             {
                 logger.debug("Translating DOM time " + domclk + " at distance " +
                         dt / 10L + " ns from isomark.");
@@ -109,7 +116,7 @@ public abstract class AbstractRAPCal implements RAPCal
     private final int            MAX_HISTORY;
     private final int            BASELINE_SAMPLES;
     private static final Logger  logger = Logger.getLogger(AbstractRAPCal.class);
-
+    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
 
     public AbstractRAPCal()
     {
@@ -133,7 +140,7 @@ public abstract class AbstractRAPCal implements RAPCal
 
 	public void update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException
 	{
-	    if (logger.isDebugEnabled())
+	    if (DEBUG_ENABLED)
 	    {
 	        logger.debug("RAPCal update - history size is " + hist.size());
 	    }

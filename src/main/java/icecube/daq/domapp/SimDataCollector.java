@@ -74,6 +74,7 @@ public class SimDataCollector extends AbstractDataCollector
     private Random lbmOverflowRandom;
 
     private static final Logger logger = Logger.getLogger(SimDataCollector.class);
+    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
 
     public SimDataCollector(int card, int pair, char dom, double[] avgSnSignal,
 			double[] effVolumeScaling) {
@@ -202,10 +203,10 @@ public class SimDataCollector extends AbstractDataCollector
         cal.set(Calendar.MILLISECOND, 0);
         t0 = cal.getTimeInMillis();
 
-        if (logger.isDebugEnabled()) logger.debug("Start of year = " + t0);
+        if (DEBUG_ENABLED) logger.debug("Start of year = " + t0);
 
         clock = 0L;
-        if (logger.isDebugEnabled()) {
+        if (DEBUG_ENABLED) {
             logger.debug("Simulated DOM at " + card + "" + pair + "" + dom +
                         " started at dom clock " + clock);
         }
@@ -362,7 +363,7 @@ public class SimDataCollector extends AbstractDataCollector
         long utc = lastSupernova*1000L - t0 * 10000000L;  // utc is in 1e-10sec
         long clk = utc / 250L;
 
-//        if (logger.isDebugEnabled())
+//        if (DEBUG_ENABLED)
 //        {
 //            logger.debug("runStartMilli: " + runStartMilli + " MBID: " + mbid + " lastSupernova: " + lastSupernova + " UTC: " + utc + " # SN: " + nsn);
 //        }
@@ -388,7 +389,7 @@ public class SimDataCollector extends AbstractDataCollector
     			if (binTime > snStartTime) {
     				if (binTime < snStartTime + 16.384*916) {  	// There are 916 bins of 16.384 ms in the signal model below
 		    			int snBin = (int) ((binTime - snStartTime)*10000/16384);
-//    			        if (logger.isDebugEnabled()) {
+//    			        if (DEBUG_ENABLED) {
 //    			            logger.debug("snBin: " + snBin);
 //    			        }
 		    			snRate = snSignalPerDom(snBin)*effVol*(10./snDistance)*(10./snDistance);
@@ -417,7 +418,7 @@ public class SimDataCollector extends AbstractDataCollector
         double mu = dt * rate;
         int n = poissonRandom.nextInt(mu);
         numHits += n;
-//         if (logger.isDebugEnabled())
+//         if (DEBUG_ENABLED)
 //             logger.debug("Generated " + n + " events in interval " + lastGenHit + ":" + currTime);
         ArrayList<Long> eventTimes = new ArrayList<Long>(n);
         // generate n random times in the interval
@@ -470,7 +471,7 @@ public class SimDataCollector extends AbstractDataCollector
             int word3 = 0x00000000;
             buf.putInt(word1).putInt(word3);
             buf.flip();
-//            if (logger.isDebugEnabled())
+//            if (DEBUG_ENABLED)
 //                logger.debug("Writing " + buf.remaining() + " byte hit at UTC = " + utc);
             if (hitsConsumer != null) hitsConsumer.consume(buf);
         }
@@ -720,7 +721,7 @@ public class SimDataCollector extends AbstractDataCollector
     			0.0382441, 0.0382441
     	};
     	double s = avgSnSignalPerDom[nsnSigBin/10]/10.;
-//	if (logger.isDebugEnabled()) logger.debug("SN signal[" + nsnSigBin + "]: " + s);
+//	if (DEBUG_ENABLED) logger.debug("SN signal[" + nsnSigBin + "]: " + s);
 	return s;
     }
 

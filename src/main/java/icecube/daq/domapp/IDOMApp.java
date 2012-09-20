@@ -108,6 +108,21 @@ public interface IDOMApp {
 	 */
 	void endRun() throws MessageException;
 
+
+       /**
+        * receive one domapp message from the dom
+        * @param  ByteBuffer buffer to contain the domapp message
+        * @return ByteBuffer ByteBuffer containing a domapp message
+        * @throws MessageException
+        */
+        ByteBuffer recvMessage(ByteBuffer recvBuf) throws MessageException;
+    
+        /**
+         * get one second of data from the dom
+         * @throws MessageException
+         */
+        void getInterval() throws MessageException;
+
 	/**
 	 * Non-performance-optimized method to obtain data from
 	 * the DOMApp.  It simply sends off a GET_DATA message
