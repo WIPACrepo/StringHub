@@ -42,11 +42,11 @@ public class StringHubAlert
      */
     public static final void sendDOMAlert(Alerter alerter, String condition,
                                           int card, int pair, char dom,
-                                          String mbid, String name, int major,
-                                          int minor)
+                                          String mbid, String name, int string,
+                                          int position)
     {
-        sendDOMAlert(alerter, condition, card, pair, dom, mbid, name, major,
-                     minor, -1L);
+        sendDOMAlert(alerter, condition, card, pair, dom, mbid, name, string,
+                     position, -1L);
     }
 
     /**
@@ -54,8 +54,8 @@ public class StringHubAlert
      */
     public static final void sendDOMAlert(Alerter alerter, String condition,
                                           int card, int pair, char dom,
-                                          String mbid, String name, int major,
-                                          int minor, long utcTime)
+                                          String mbid, String name, int string,
+                                          int position, long utcTime)
     {
         if (alerter == null || !alerter.isActive()) {
             return;
@@ -73,8 +73,8 @@ public class StringHubAlert
         if (name != null) {
             vars.put("name", name);
         }
-        vars.put("major", major);
-        vars.put("minor", minor);
+        vars.put("string", string);
+        vars.put("position", position);
         if (utcTime >= 0L) {
             vars.put("exact-time", UTCTime.toDateString(utcTime));
         }

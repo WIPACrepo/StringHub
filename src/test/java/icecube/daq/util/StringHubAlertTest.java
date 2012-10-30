@@ -187,8 +187,8 @@ public class StringHubAlertTest
         final char dom = 'A';
         final String mbid = "123456789ABC";
         final String name = "TestDOM";
-        final int major = 12;
-        final int minor = 34;
+        final int string = 12;
+        final int position = 34;
 
         HashMap<String, Object> vars = new HashMap<String, Object>();
         vars.put("card", new Integer(card));
@@ -196,14 +196,14 @@ public class StringHubAlertTest
         vars.put("dom", dom);
         vars.put("mbid", mbid);
         vars.put("name", name);
-        vars.put("major", major);
-        vars.put("minor", minor);
+        vars.put("string", string);
+        vars.put("position", position);
 
         MockAlerter alerter = new MockAlerter();
         alerter.setExpected(Alerter.Priority.SCP, condition, vars);
 
         StringHubAlert.sendDOMAlert(alerter, condition, card, pair, dom,
-                                    mbid, name, major, minor);
+                                    mbid, name, string, position);
     }
 
     @Test
@@ -216,8 +216,8 @@ public class StringHubAlertTest
         final char dom = 'A';
         final String mbid = "123456789ABC";
         final String name = "TestDOM";
-        final int major = 12;
-        final int minor = 34;
+        final int string = 12;
+        final int position = 34;
         final long utcTime = 123456789L;
 
         HashMap<String, Object> vars = new HashMap<String, Object>();
@@ -226,14 +226,14 @@ public class StringHubAlertTest
         vars.put("dom", dom);
         vars.put("mbid", mbid);
         vars.put("name", name);
-        vars.put("major", major);
-        vars.put("minor", minor);
+        vars.put("string", string);
+        vars.put("position", position);
         vars.put("exact-time", UTCTime.toDateString(utcTime));
 
         MockAlerter alerter = new MockAlerter();
         alerter.setExpected(Alerter.Priority.SCP, condition, vars);
 
         StringHubAlert.sendDOMAlert(alerter, condition, card, pair, dom,
-                                    mbid, name, major, minor, utcTime);
+                                    mbid, name, string, position, utcTime);
     }
 }
