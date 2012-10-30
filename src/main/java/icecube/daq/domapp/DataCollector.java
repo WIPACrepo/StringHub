@@ -98,7 +98,7 @@ public class DataCollector
     implements DataCollectorMBean
 {
     private long                numericMBID;
-	
+
 	// the driver code used to rebuild a path on every call
 	// get the File object ONCE
 	private File tcalFile;
@@ -140,7 +140,7 @@ public class DataCollector
     private long    dataReadInterval      = 10;
     private long    moniReadInterval      = 1000;
     private long    tcalReadInterval      = 1000;
-	private long    supernovaReadInterval = 1000;    
+	private long    supernovaReadInterval = 1000;
 
 	// statistics on data packet size
 	// welford's method
@@ -325,7 +325,7 @@ public class DataCollector
 		// get and cache the gps file
         // and the tcal file
         tcalFile = this.driver.getTCALFile(card, pair, dom);
-		
+
         if (rapcal != null)
         {
             this.rapcal = rapcal;
@@ -908,12 +908,12 @@ public class DataCollector
 
 
 	/**
-	 * As there are two versions of runcore now ( both for the origional query 
+	 * As there are two versions of runcore now ( both for the origional query
 	 * method and the get_interval method ), this is contains code common to both
 	 * methods.  In addiiton it will decide which method to use.
-	 * 
+	 *
 	 * If the user explicitly disables intervals setting:
-	 * "icecube.daq.domapp.datacollector.disable_intervals" 
+	 * "icecube.daq.domapp.datacollector.disable_intervals"
 	 * to true, or the domapp version is not high enough to support
 	 * intervals it will default to the query method.  Otherwise, intervals
 	 * will be used.
@@ -998,7 +998,7 @@ public class DataCollector
             execRapCal();
         }
 
-		// determine if we should use get_intervals or 
+		// determine if we should use get_intervals or
 		// the origional query algorithm
 		String version = app.getRelease();
 		if(!DISABLE_INTERVAL && version_supports_intervals(version)) {
@@ -1051,7 +1051,7 @@ public class DataCollector
             loopCounter++;
 
             /* Do TCAL and GPS -- this always runs regardless of the run state */
-            if (t >= nextTcalRead) 
+            if (t >= nextTcalRead)
             {
                 if (DEBUG_ENABLED) logger.debug("Doing TCAL - runLevel is " + getRunLevel());
                 execRapCal();
@@ -1266,23 +1266,23 @@ public class DataCollector
     /**
 	 * This is an updated version of the origional runcore method.
 	 * It requires domapp version 4477 or above.
-	 * 
-	 * Instead of sending query messages down to the dom every 10 ms one 
-	 * "GET_INTERVAL" message is sent.  The results from that message are that all 
+	 *
+	 * Instead of sending query messages down to the dom every 10 ms one
+	 * "GET_INTERVAL" message is sent.  The results from that message are that all
 	 * data for the next second is returned followed by a moni and supernova message.
 	 * If supernova messages are disabled get interval will not work.
 	 *
 	 * In addition when statistics where run on the origional method it appears that
 	 * the origional code did not efficiently use the entire amount of space available
-	 * in messages.  Resulting in lots of small messages being returned from the dom.  
-	 * The required domapp release 4477 packs the responses as tightly as possible 
-	 * before sending the results to the stringhub for processing.  Further on 
+	 * in messages.  Resulting in lots of small messages being returned from the dom.
+	 * The required domapp release 4477 packs the responses as tightly as possible
+	 * before sending the results to the stringhub for processing.  Further on
 	 * an LBM overflow the origional code returned a zero length message to the surface
 	 * which causes the stringhub code to wait for one second before querying father.
 	 * This code is not effected by that decision.
 	 *
 	 * The following algorithm runs inside the domapp eventloop:
-	 *   
+	 *
 	 * if one second interval has expired, return any available data.
 	 * If the second has not expired and we have a full message send it
 	 * otherwise continue
@@ -1300,7 +1300,7 @@ public class DataCollector
             loopCounter++;
 
             /* Do TCAL and GPS -- this always runs regardless of the run state */
-            if (t >= nextTcalRead) 
+            if (t >= nextTcalRead)
             {
                 if (DEBUG_ENABLED) logger.debug("Doing TCAL - runLevel is " + getRunLevel());
                 execRapCal();
@@ -1317,7 +1317,7 @@ public class DataCollector
 					ByteBuffer msg = app.recvMessage(intervalBuffer);
 
 					intTask.ping();
-				
+
 					byte msg_type = msg.get(0);
 					byte msg_subtype = msg.get(1);
 
