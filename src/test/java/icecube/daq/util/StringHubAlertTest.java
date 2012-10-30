@@ -2,6 +2,7 @@ package icecube.daq.util;
 
 import icecube.daq.juggler.alert.AlertException;
 import icecube.daq.juggler.alert.Alerter;
+import icecube.daq.payload.impl.UTCTime;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -203,5 +204,36 @@ public class StringHubAlertTest
 
         StringHubAlert.sendDOMAlert(alerter, condition, card, pair, dom,
                                     mbid, name, major, minor);
+    }
+
+    @Test
+    public void testAlertPlusTime()
+        throws Exception
+    {
+        final String condition = "Test DOM alert";
+        final int card = 1;
+        final int pair = 23;
+        final char dom = 'A';
+        final String mbid = "123456789ABC";
+        final String name = "TestDOM";
+        final int major = 12;
+        final int minor = 34;
+        final long utcTime = 123456789L;
+
+        HashMap<String, Object> vars = new HashMap<String, Object>();
+        vars.put("card", new Integer(card));
+        vars.put("pair", new Integer(pair));
+        vars.put("dom", dom);
+        vars.put("mbid", mbid);
+        vars.put("name", name);
+        vars.put("major", major);
+        vars.put("minor", minor);
+        vars.put("exact-time", UTCTime.toDateString(utcTime));
+
+        MockAlerter alerter = new MockAlerter();
+        alerter.setExpected(Alerter.Priority.SCP, condition, vars);
+
+        StringHubAlert.sendDOMAlert(alerter, condition, card, pair, dom,
+                                    mbid, name, major, minor, utcTime);
     }
 }

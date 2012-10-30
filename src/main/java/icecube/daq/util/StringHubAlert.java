@@ -2,6 +2,7 @@ package icecube.daq.util;
 
 import icecube.daq.juggler.alert.AlertException;
 import icecube.daq.juggler.alert.Alerter;
+import icecube.daq.payload.impl.UTCTime;
 
 import java.util.HashMap;
 
@@ -44,6 +45,18 @@ public class StringHubAlert
                                           String mbid, String name, int major,
                                           int minor)
     {
+        sendDOMAlert(alerter, condition, card, pair, dom, mbid, name, major,
+                     minor, -1L);
+    }
+
+    /**
+     * Send a DOM alert.
+     */
+    public static final void sendDOMAlert(Alerter alerter, String condition,
+                                          int card, int pair, char dom,
+                                          String mbid, String name, int major,
+                                          int minor, long utcTime)
+    {
         if (alerter == null || !alerter.isActive()) {
             return;
         }
@@ -62,6 +75,9 @@ public class StringHubAlert
         }
         vars.put("major", major);
         vars.put("minor", minor);
+        if (utcTime >= 0L) {
+            vars.put("exact-time", UTCTime.toDateString(utcTime));
+        }
 
         try {
             alerter.send(Alerter.Priority.SCP, condition, vars);
