@@ -156,7 +156,9 @@ public class DataCollector
             "icecube.daq.domapp.datacollector.enableStats");
 	private static final boolean DISABLE_INTERVAL = Boolean.getBoolean(
             "icecube.daq.domapp.datacollector.disable_intervals");
-	private static final long INTERVAL_MIN_DOMAPP_VERSION = 4477;
+	private static final long INTERVAL_MIN_DOMAPP_PROD_VERSION = 445;
+	private static final long BASE_TEST_VERSION = 4000;
+	private static final long INTERVAL_MIN_DOMAPP_TEST_VERSION = 4477;
 
     private int     rapcalExceptionCount  = 0;
     private int     validRAPCalCount;
@@ -1014,6 +1016,16 @@ public class DataCollector
 		}
 	}
 
+	/**
+	 * XXX This is massively over-engineered.  If you're reading this in 2012
+	 * and we're still using intervals, you should probably just assume that
+	 * we always want intervals and just rip all the code related to checking
+	 * the DOM-MB version.
+	 *
+	 * @param versionStr DOM-MB version string
+	 *
+	 * @return <tt>true</tt> if the mainboard supports intervals
+	 */
 	private boolean version_supports_intervals(String versionStr) {
 		Pattern pattern = Pattern.compile("DOM-MB-([0-9]+)");
 		Matcher matcher = pattern.matcher(versionStr);
@@ -1021,7 +1033,14 @@ public class DataCollector
 		boolean results = false;
 		while(matcher.find()) {
 			long version = Long.parseLong(matcher.group(1));
-			if(version>=INTERVAL_MIN_DOMAPP_VERSION) {
+
+			if (version < BASE_TEST_VERSION) {
+				if (version >= INTERVAL_MIN_DOMAPP_PROD_VERSION)
+				{
+					results=true;
+					break;
+				}
+			} else if (version >= INTERVAL_MIN_DOMAPP_TEST_VERSION) {
 				results=true;
 				break;
 			}
