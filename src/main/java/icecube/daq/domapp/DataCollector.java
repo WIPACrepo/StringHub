@@ -910,7 +910,7 @@ public class DataCollector
 
 
 	/**
-	 * As there are two versions of runcore now ( both for the origional query
+	 * As there are two versions of runcore now ( both for the original query
 	 * method and the get_interval method ), this is contains code common to both
 	 * methods.  In addiiton it will decide which method to use.
 	 *
@@ -1001,7 +1001,7 @@ public class DataCollector
         }
 
 		// determine if we should use get_intervals or
-		// the origional query algorithm
+		// the original query algorithm
 		String version = app.getRelease();
 		if(!DISABLE_INTERVAL && version_supports_intervals(version)) {
 			if (DEBUG_ENABLED) {
@@ -1010,7 +1010,7 @@ public class DataCollector
 			runcore_interval();
 		} else {
 			if (DEBUG_ENABLED) {
-				logger.debug("Using origional run loop!");
+				logger.debug("Using original run loop!");
 			}
 			runcore_orig();
 		}
@@ -1283,7 +1283,7 @@ public class DataCollector
 
 
     /**
-	 * This is an updated version of the origional runcore method.
+	 * This is an updated version of the original runcore method.
 	 * It requires domapp version 4477 or above.
 	 *
 	 * Instead of sending query messages down to the dom every 10 ms one
@@ -1291,12 +1291,12 @@ public class DataCollector
 	 * data for the next second is returned followed by a moni and supernova message.
 	 * If supernova messages are disabled get interval will not work.
 	 *
-	 * In addition when statistics where run on the origional method it appears that
-	 * the origional code did not efficiently use the entire amount of space available
+	 * In addition when statistics where run on the original method it appears that
+	 * the original code did not efficiently use the entire amount of space available
 	 * in messages.  Resulting in lots of small messages being returned from the dom.
 	 * The required domapp release 4477 packs the responses as tightly as possible
 	 * before sending the results to the stringhub for processing.  Further on
-	 * an LBM overflow the origional code returned a zero length message to the surface
+	 * an LBM overflow the original code returned a zero length message to the surface
 	 * which causes the stringhub code to wait for one second before querying father.
 	 * This code is not effected by that decision.
 	 *
