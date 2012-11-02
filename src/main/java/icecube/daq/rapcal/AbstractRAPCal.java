@@ -16,8 +16,12 @@ public abstract class AbstractRAPCal implements RAPCal
         private UTC gpsOffset;
         private double ratio;
         private double epsilon;
-	private long domMid;
-	private long dorMid;
+        private long domMid;
+        private long dorMid;
+        private double clen;
+        private final double wildTcalThresh = 1.0E-09 * Double.parseDouble(
+        		System.getProperty("icecube.daq.rapcal.AbstractRAPCal.wildTcalThresh", "10")
+    		);
 
         Isochron(TimeCalib tcal0, TimeCalib tcal1, UTC gpsOffset) throws RAPCalException
         {
@@ -44,7 +48,7 @@ public abstract class AbstractRAPCal implements RAPCal
             t[3] = UTC.add(tcal.getDorRx(), getFineTimeCorrection(tcal.getDorWaveform()));
             return t;
         }
-
+        
         /**
          * Check whether give DOM oscillator time is between bounding TCALs
          * @param domclk dom oscillator time in 25 ns ticks
@@ -63,10 +67,10 @@ public abstract class AbstractRAPCal implements RAPCal
             long dom_dt = UTC.add(t1[1], t1[2]).subtractAsUTC(UTC.add(t0[1], t0[2])).in_0_1ns() / 2L;
             epsilon = (double) (dor_dt - dom_dt) / dom_dt;
             // Note that using double precision here but DOM internal delay is small number so OK
-            double clen  = 0.5 * (UTC.subtract(t1[3], t1[0]) - (1.0+epsilon) * UTC.subtract(t1[2], t1[1]));
+            clen  = 0.5 * (UTC.subtract(t1[3], t1[0]) - (1.0+epsilon) * UTC.subtract(t1[2], t1[1]));
             if (Double.isNaN(clenAvg))
                 clenAvg = clen;
-            else if (Math.abs(clenAvg - clen) < 25.0E-09)
+            else if (Math.abs(clenAvg - clen) < wildTcalThresh)
             {
                 clenAvg = (clenAvg + expWt * clen) / (1.0 + expWt);
             }
@@ -138,6 +142,17 @@ public abstract class AbstractRAPCal implements RAPCal
 		MAX_HISTORY = Integer.getInteger("icecube.daq.rapcal.AbstractRAPCal.history", 10);
 	}
 
+	public double getAverageCableLength()
+	{
+		return clenAvg;
+	}
+	
+	public double getLastCableLength() 
+	{
+		if (hist.size() == 0) return 0.0;
+		return hist.getLast().clen; 
+	}
+	
 	public void update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException
 	{
 	    if (DEBUG_ENABLED)
