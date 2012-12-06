@@ -509,7 +509,7 @@ public class DataCollector
         long domclk = buf.getLong(24);
         long utc    = rapcal.domToUTC(domclk).in_0_1ns();
         buf.putLong(24, utc);
-        int fmtId = buf.getInt(4);
+        
         target.consume(buf);
 
         // Collect HLC / SLC hit statistics ...
