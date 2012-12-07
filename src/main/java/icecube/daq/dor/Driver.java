@@ -95,8 +95,11 @@ public final class Driver implements IDriver {
         if (DEBUG_ENABLED) logger.debug("Issuing a communications reset on " + cwd);
         File file = makeProcfile(cwd, "is-communicating");
         FileOutputStream iscomm = new FileOutputStream(file);
-        iscomm.write("reset\n".getBytes());
-        iscomm.close();
+	try {
+	    iscomm.write("reset\n".getBytes());
+	} finally {
+	    iscomm.close();
+	}
     }
 
     /**
@@ -107,10 +110,14 @@ public final class Driver implements IDriver {
     {
         File file = makeProcfile("blocking");
         FileOutputStream blockingFile = new FileOutputStream(file);
-        if (block)
-            blockingFile.write("1\n".getBytes());
-        else
-            blockingFile.write("0\n".getBytes());
+	try {
+	    if (block)
+		blockingFile.write("1\n".getBytes());
+	    else
+		blockingFile.write("0\n".getBytes());
+	} finally {
+	    blockingFile.close();
+	}
     }
 
     /**
@@ -125,8 +132,11 @@ public final class Driver implements IDriver {
 	if (DEBUG_ENABLED) logger.debug("Softbooting " + card + "" + pair + dom);
 	File file = makeProcfile(card + "" + pair + dom, "softboot");
 	FileOutputStream sb = new FileOutputStream(file);
-	sb.write("reset\n".getBytes());
-	sb.close();
+	try {
+	    sb.write("reset\n".getBytes());
+	} finally {
+	    sb.close();
+	}
     }
 
     /**
@@ -139,8 +149,11 @@ public final class Driver implements IDriver {
     public void resetComstat(int card, int pair, char dom) throws IOException {
 	File file = makeProcfile(card + "" + pair + dom, "comstat");
 	FileOutputStream sb = new FileOutputStream(file);
-	sb.write("reset\n".getBytes());
-	sb.close();
+	try {
+	    sb.write("reset\n".getBytes());
+	} finally {
+	    sb.close();
+	}
     }
 
     /**
@@ -265,23 +278,29 @@ public final class Driver implements IDriver {
     private String getProcfileText(File file) throws IOException {
 	FileInputStream fis = new FileInputStream(file);
 	BufferedReader r = new BufferedReader(new InputStreamReader(fis));
-	String txt = r.readLine();
-	if (DEBUG_ENABLED) logger.debug(file.getAbsolutePath() + " >> " + txt);
-	fis.close();
-	return txt;
+	try {
+	    String txt = r.readLine();
+	    if (DEBUG_ENABLED) logger.debug(file.getAbsolutePath() + " >> " + txt);
+	    return txt;
+	} finally {
+	    r.close();
+	}
     }
 
     private String getProcfileMultilineText(File file) throws IOException {
 	FileInputStream fis = new FileInputStream(file);
 	BufferedReader r = new BufferedReader(new InputStreamReader(fis));
-	String ret = "";
-	String txt;
-	while((txt = r.readLine()) != null) {
-	    ret += txt+"\n";
-	    if (DEBUG_ENABLED) logger.debug(file.getAbsolutePath() + " >> " + txt);
+	try {
+	    String ret = "";
+	    String txt;
+	    while((txt = r.readLine()) != null) {
+		ret += txt+"\n";
+		if (DEBUG_ENABLED) logger.debug(file.getAbsolutePath() + " >> " + txt);
+	    }
+	    return ret;
+	} finally {
+	    r.close();
 	}
-	fis.close();
-	return ret;
     }
 
     /**
@@ -293,21 +312,25 @@ public final class Driver implements IDriver {
         HashMap<String, Integer> registerMap = new HashMap<String, Integer>();
         File f = makeProcfile("" + card, "fpga");
         FileInputStream fis = new FileInputStream(f);
-        BufferedReader r = new BufferedReader(new InputStreamReader(fis));
-        Pattern pat = Pattern.compile("([A-Z]+)\\s+0x([0-9a-f]+)");
-        while (true)
-        {
-            String txt = r.readLine();
-            if (txt == null || txt.length() == 0) break;
-            Matcher m  = pat.matcher(txt);
-            if (m.matches())
-            {
-                String key = m.group(1);
-                long val   = Long.parseLong(m.group(2), 16);
-                registerMap.put(key, new Integer((int) (val & 0xffffffffL)));
-            }
-        }
-        return registerMap;
+	BufferedReader r = new BufferedReader(new InputStreamReader(fis));
+	try {
+	    Pattern pat = Pattern.compile("([A-Z]+)\\s+0x([0-9a-f]+)");
+	    while (true)
+		{
+		    String txt = r.readLine();
+		    if (txt == null || txt.length() == 0) break;
+		    Matcher m  = pat.matcher(txt);
+		    if (m.matches())
+			{
+			    String key = m.group(1);
+			    long val   = Long.parseLong(m.group(2), 16);
+			    registerMap.put(key, new Integer((int) (val & 0xffffffffL)));
+			}
+		}
+	    return registerMap;
+	} finally {
+	    r.close();
+	}
     }
 
 	/**

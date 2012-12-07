@@ -190,14 +190,23 @@ public class ReplayHubComponent
             throw new DAQCompException("Couldn't open " + masterConfigFile);
         }
 
-        // read in config XML
-        Document doc;
-        try {
-            doc = new SAXReader().read(fis);
-        } catch (DocumentException de) {
-            throw new DAQCompException("Couldn't read " + masterConfigFile +
-                                       ": " + de.getMessage());
-        }
+	Document doc;
+	try {
+	    // read in config XML
+	    try {
+		doc = new SAXReader().read(fis);
+	    } catch (DocumentException de) {
+		throw new DAQCompException("Couldn't read " + masterConfigFile +
+					   ": " + de.getMessage());
+	    }
+	} finally {
+	    // done with the fileinputstream
+	    try {
+		fis.close();
+	    } catch (IOException e) {
+		throw new DAQCompException("Could not close the master config file input stream");
+	    }
+	}
 
         // extract hubFiles element tree
         String hubFilesStr = "runConfig/hubFiles";
