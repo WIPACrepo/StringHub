@@ -807,8 +807,9 @@ public class DataCollector
      */
     public void run()
     {
-
-        lastTcalUT = 0L;
+	synchronized (this) {
+	    lastTcalUT = 0L;
+	}
         nextSupernovaDomClock = 0L;
         numSupernovaGaps = 0;
 
