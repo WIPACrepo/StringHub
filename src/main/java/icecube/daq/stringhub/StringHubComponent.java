@@ -311,7 +311,11 @@ public class StringHubComponent
 				int card = (dom.getStringMinor()-1) / 8;
 				int pair = ((dom.getStringMinor()-1) % 8) / 2;
 				char aorb = 'A';
-				if (dom.getStringMinor() % 2 == 1) aorb = 'B';
+				// not a major change, but the previous code here used
+				// % 2 == 1 to check for oddness.  YES, the string's are all
+				// positive integers, but that test would fail for negative
+				// numbers.
+				if (dom.getStringMinor() % 2 != 0) aorb = 'B';
 				activeDOMs.add(new DOMChannelInfo(dom.getMainboardId(), card, pair, aorb));
 			}
 		}
@@ -490,10 +494,28 @@ public class StringHubComponent
 				File hitSpoolLast = new File(hitSpoolDir, "lastRun");
                 File hitSpoolTemp = new File(hitSpoolDir, "HitSpool"+getRunNumber()+".tmp");
 
-				if (hitSpoolLast.exists()) hitSpoolLast.renameTo(hitSpoolTemp);
-				if (hitSpoolCurrent.exists()) hitSpoolCurrent.renameTo(hitSpoolLast);
-				if (hitSpoolTemp.exists()) hitSpoolTemp.renameTo(hitSpoolCurrent);
-				if (!hitSpoolCurrent.exists()) hitSpoolCurrent.mkdir();
+				// Note that renameTo and mkdir return false on failure
+				if (hitSpoolLast.exists()) {
+					if (!hitSpoolLast.renameTo(hitSpoolTemp)) {
+						logger.debug("hitSpoolLast renameTo failed");
+					}
+				}
+				if (hitSpoolCurrent.exists()) {
+					if (!hitSpoolCurrent.renameTo(hitSpoolLast)) {
+						logger.debug("hitSpoolCurrent renameTo failed!");
+					}
+				}
+				if (hitSpoolTemp.exists()) {
+					if(!hitSpoolTemp.renameTo(hitSpoolCurrent)) {
+						logger.debug("hitSpoolTemp renameTo failed!");
+					}
+				}
+				if (!hitSpoolCurrent.exists()) {
+					if(!hitSpoolCurrent.mkdir()) {
+						logger.debug("hitSpoolCurrent mkdir failed!");
+					}
+				}
+
 				FilesHitSpool hitSpooler = new FilesHitSpool(sender, hitSpoolCurrent, hitSpoolIval, hitSpoolNumFiles);
 				hitsSort = new MultiChannelMergeSort(nch, hitSpooler);
 			}
@@ -736,7 +758,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 13874 2012-08-28 19:14:11Z dglo $";
+		return "$Id: StringHubComponent.java 14094 2012-12-07 20:50:13Z mnewcomb $";
 	}
 
 	public IByteBufferCache getCache()
