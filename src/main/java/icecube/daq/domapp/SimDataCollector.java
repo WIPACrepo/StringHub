@@ -402,7 +402,7 @@ public class SimDataCollector extends AbstractDataCollector
         }
         buf.flip();
 
-        lastSupernova = lastSupernova + nsn*16384;
+        lastSupernova = lastSupernova + nsn*16384L;
 
         if (scalConsumer != null) scalConsumer.consume(buf);
         return 1;
