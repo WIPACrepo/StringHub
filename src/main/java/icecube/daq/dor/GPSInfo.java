@@ -1,7 +1,7 @@
 package icecube.daq.dor;
 
 import icecube.daq.util.UTC;
-import icecube.daq.util.leapseconds;
+import icecube.daq.util.Leapseconds;
 
 import java.nio.ByteBuffer;
 
@@ -16,7 +16,7 @@ public class GPSInfo {
     private ByteBuffer record;
     private static final Logger logger = Logger.getLogger(GPSInfo.class);
 
-    public GPSInfo(ByteBuffer buf, leapseconds leapObj) {
+    public GPSInfo(ByteBuffer buf, Leapseconds leapObj) {
 	buf.mark();
 	byte[] timestringbytes = new byte[12];
 	if (buf.get() != 1) throw new IllegalArgumentException("GPS record does not begin with SOH");
