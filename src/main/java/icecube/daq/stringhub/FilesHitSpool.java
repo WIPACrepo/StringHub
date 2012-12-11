@@ -59,7 +59,7 @@ public class FilesHitSpool implements BufferConsumer
         this.fileInterval       = fileInterval;
         this.targetDirectory    = targetDir;
         this.maxNumberOfFiles   = fileCount;
-        this.packHeaders        = Boolean.getBoolean("icecube.daq.stringhub.hitspool,packHeaders");
+        this.packHeaders        = true; Boolean.getBoolean("icecube.daq.stringhub.hitspool,packHeaders");
         
         if (packHeaders)
             try 
@@ -70,6 +70,9 @@ public class FilesHitSpool implements BufferConsumer
             {
                 this.reg = null;
             }
+
+	logger.info("DOM registry " + (reg != null? "" : "NOT") + " found; header packing " + 
+		     (packHeaders ? "" : "NOT") + " activated.");
         
         iobuf = new byte[5000];
     }
@@ -90,13 +93,13 @@ public class FilesHitSpool implements BufferConsumer
         // Here's your chance to compactify the buffer
         if (reg != null && packHeaders)
         {
-            buf.putShort(0, (short)(0xC000 | buf.getLong(0)));
+            buf.putShort(0, (short)(0xC000 | (buf.getInt(0)-24)));
             long mbid = buf.getLong(8);
-            short chid = reg.getChannelId(String.format("%012.12x", mbid));
+            short chid = reg.getChannelId(String.format("%012x", mbid));
             buf.putShort(2, chid);
             buf.putLong(4, buf.getLong(24));
             // pack in the version (bytes 34-35) and the PED / ATWD-chargestamp flags (36-37)
-            buf.putShort((short)((buf.getShort(34) & 0xff) | ((buf.getShort(36) & 0xff) << 8)));
+            buf.putShort(12, (short)((buf.getShort(34) & 0xff) | ((buf.getShort(36) & 0xff) << 8)));
             buf.get(iobuf, 0, 14);
             buf.position(38);
             cpos = 14;
