@@ -32,13 +32,13 @@ public class GPSService
         private GPSInfo gps;
         private int gps_error_count;
         private AtomicBoolean running;
-	private File gpsFile;
+        private File gpsFile;
 
         GPSCollector(Driver driver, int card)
         {
             this.driver = driver;
             this.card = card;
-	    this.gpsFile = driver.getGPSFile(card);
+            this.gpsFile = driver.getGPSFile(card);
             cons_gpsx_count = 0;
             gps_error_count = 0;
             gps = null;
@@ -58,6 +58,23 @@ public class GPSService
 
         public void run()
         {
+            
+            try
+            {
+                // Eat through the up to 10 buffered GPS snaps in the DOR
+                for (int i = 0; i < 10; i++)
+                    driver.readGPS(gpsFile);
+            }
+            catch (GPSNotReady nr)
+            {
+                // OK
+            }
+            catch (GPSException gpsx)
+            {
+                // Probably not OK
+                gpsx.printStackTrace();
+                logger.warn("Got GPS exception " + gpsx.getMessage());
+            }
             while (running.get())
             {
                 try
