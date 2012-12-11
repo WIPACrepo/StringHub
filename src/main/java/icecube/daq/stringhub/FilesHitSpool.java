@@ -131,7 +131,7 @@ public class FilesHitSpool implements BufferConsumer
         // behavior desired.
         int nw = transform(buf);
 
-        dataOut.write(iobuf);
+        dataOut.write(iobuf, 0, nw);
     }
 
     private void openNewFile() throws IOException
