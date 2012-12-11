@@ -1,6 +1,7 @@
 package icecube.daq.stringhub;
 
 import icecube.daq.bindery.BufferConsumer;
+import icecube.daq.util.DOMRegistry;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -34,6 +35,9 @@ public class FilesHitSpool implements BufferConsumer
     private long t;
     private long t0;
     private long fileInterval;
+    private DOMRegistry reg;
+    private boolean packHeaders = false;
+    private byte[] iobuf;
     
     /**
      * Constructor with full options.
@@ -52,6 +56,15 @@ public class FilesHitSpool implements BufferConsumer
         this.fileInterval       = fileInterval;
         this.targetDirectory    = targetDir;
         this.maxNumberOfFiles   = fileCount;
+        this.packHeaders        = Boolean.getBoolean("icecube.daq.stringhub.hitspool,packHeaders");
+        
+        try {
+            this.reg = DOMRegistry.loadRegistry(System.getenv("PDAQ_HOME"));
+        } catch (Exception x) {
+            this.reg = null;
+        }
+        
+        iobuf = new byte[5000];
     }
     
     public FilesHitSpool(BufferConsumer out, File targetDir, long hitsPerFile) throws IOException
@@ -64,8 +77,30 @@ public class FilesHitSpool implements BufferConsumer
         this(out, targetDir, 100000L);
     }
     
+    private void transform(ByteBuffer buf)
+    {
+        int cpos = 0;
+        // Here's your chance to compactify the buffer
+        if (reg != null && packHeaders)
+        {
+            buf.putShort(0, (short)(0xC000 | buf.getLong(0)));
+            long mbid = buf.getLong(8);
+            short chid = reg.getChannelId(String.format("%012.12x", mbid));
+            buf.putShort(2, chid);
+            buf.putLong(4, buf.getLong(24));
+            // pack in the version (bytes 34-35) and the PED / ATWD-chargestamp flags (36-37)
+            buf.putShort((short)((buf.getShort(34) & 0xff) | ((buf.getShort(36) & 0xff) << 8)));
+            buf.get(iobuf, 0, 14);
+            buf.position(38);
+            cpos = 14;
+        }
+        buf.get(iobuf, cpos, buf.remaining());
+    }
+
     public void consume(ByteBuffer buf) throws IOException
     {
+        if (null != out) out.consume(buf);
+        
         // bytes 24 .. 31 hold the 64-bit UTC clock value
         t = buf.getLong(24);
         
@@ -90,11 +125,11 @@ public class FilesHitSpool implements BufferConsumer
             openNewFile();
         }
                 
-        byte[] tmpArray = new byte[buf.remaining()];
-        buf.get(tmpArray);
-        dataOut.write(tmpArray);
-        
-        if (null != out) out.consume(buf);
+        // now I should be free to pack the buffer, if that is the
+        // behavior desired.
+        transform(buf);
+
+        dataOut.write(iobuf);
     }
 
     private void openNewFile() throws IOException
