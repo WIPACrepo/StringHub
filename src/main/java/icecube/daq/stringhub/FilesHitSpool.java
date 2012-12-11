@@ -12,6 +12,8 @@ import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileLock;
 
+import org.apache.log4j.Logger;
+
 /**
  * This class will accept ByteBuffers from whatever is feeding it
  * and spool the byte buffer contents (assumed to be hits but
@@ -38,6 +40,7 @@ public class FilesHitSpool implements BufferConsumer
     private DOMRegistry reg;
     private boolean packHeaders = false;
     private byte[] iobuf;
+    private final static Logger logger = Logger.getLogger(FilesHitSpool.class);
     
     /**
      * Constructor with full options.
@@ -58,11 +61,15 @@ public class FilesHitSpool implements BufferConsumer
         this.maxNumberOfFiles   = fileCount;
         this.packHeaders        = Boolean.getBoolean("icecube.daq.stringhub.hitspool,packHeaders");
         
-        try {
-            this.reg = DOMRegistry.loadRegistry(System.getenv("PDAQ_HOME"));
-        } catch (Exception x) {
-            this.reg = null;
-        }
+        if (packHeaders)
+            try 
+            {
+                this.reg = DOMRegistry.loadRegistry(System.getenv("PDAQ_HOME") + "/config");
+            } 
+            catch (Exception x) 
+            {
+                this.reg = null;
+            }
         
         iobuf = new byte[5000];
     }
