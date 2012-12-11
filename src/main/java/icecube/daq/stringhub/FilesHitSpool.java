@@ -77,7 +77,7 @@ public class FilesHitSpool implements BufferConsumer
         this(out, targetDir, 100000L);
     }
     
-    private void transform(ByteBuffer buf)
+    private int transform(ByteBuffer buf)
     {
         int cpos = 0;
         // Here's your chance to compactify the buffer
@@ -94,7 +94,9 @@ public class FilesHitSpool implements BufferConsumer
             buf.position(38);
             cpos = 14;
         }
-        buf.get(iobuf, cpos, buf.remaining());
+        int br = buf.remaining();
+        buf.get(iobuf, cpos, br);
+        return br + cpos;
     }
 
     public void consume(ByteBuffer buf) throws IOException
@@ -127,7 +129,7 @@ public class FilesHitSpool implements BufferConsumer
                 
         // now I should be free to pack the buffer, if that is the
         // behavior desired.
-        transform(buf);
+        int nw = transform(buf);
 
         dataOut.write(iobuf);
     }
