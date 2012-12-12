@@ -291,13 +291,14 @@ public final class Driver implements IDriver {
 	FileInputStream fis = new FileInputStream(file);
 	BufferedReader r = new BufferedReader(new InputStreamReader(fis));
 	try {
-	    String ret = "";
+	    StringBuilder strBuild = new StringBuilder();
+	    //String ret = "";
 	    String txt;
 	    while((txt = r.readLine()) != null) {
-		ret += txt+"\n";
+		strBuild.append(txt+"\n");
 		if (DEBUG_ENABLED) logger.debug(file.getAbsolutePath() + " >> " + txt);
 	    }
-	    return ret;
+	    return strBuild.toString();
 	} finally {
 	    r.close();
 	}
