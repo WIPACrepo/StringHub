@@ -21,7 +21,8 @@ import org.apache.log4j.Logger;
 class InternalHub
 	extends StringHubComponent
 {
-	private int runNumber;
+	//Not used
+	//private int runNumber;
 
 	InternalHub(int hubId)
 	{

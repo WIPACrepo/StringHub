@@ -549,9 +549,11 @@ public class ReplayHubComponent
 
         private long totPayloads;
 
-        private boolean timeInit;
-        private long startSysTime;
-        private long startDAQTime;
+	// These are not used, redefined
+	// in processFile
+        //private boolean timeInit;
+        //private long startSysTime;
+        //private long startDAQTime;
 
         /**
          * Create payload file writer thread.
