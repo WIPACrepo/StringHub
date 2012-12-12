@@ -26,16 +26,12 @@ public final class Driver implements IDriver {
     private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
 
     private Leapseconds leapsecondObj;
-    private GPSSynch[] gpsList;
 
     /**
      * Drivers should be singletons - enforce through protected constructor.
      */
     private Driver(String root) {
 	driver_root = new File(root);
-	gpsList = new GPSSynch[8];
-	for (int i = 0; i < gpsList.length; i++)
-	    gpsList[i] = new GPSSynch();
 
 	leapsecondObj = null;
 	try {
