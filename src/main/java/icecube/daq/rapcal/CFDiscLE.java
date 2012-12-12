@@ -2,7 +2,7 @@ package icecube.daq.rapcal;
 
 public class CFDiscLE extends AbstractRAPCal
 {
-    private final double fthr = 0.5;
+    private static final double fthr = 0.5;
     
     @Override
     double getFineTimeCorrection(short[] w) throws RAPCalException
