@@ -372,13 +372,4 @@ public final class Driver implements IDriver {
 	}
 }
 
-class GPSSynch {
-	long last_read_time;
-	GPSInfo cached;
-
-	GPSSynch() {
-		last_read_time = -1001L;
-		cached = null;
-	}
-}
 
