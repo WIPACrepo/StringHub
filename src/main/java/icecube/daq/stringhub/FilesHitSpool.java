@@ -59,7 +59,7 @@ public class FilesHitSpool implements BufferConsumer
         this.fileInterval       = fileInterval;
         this.targetDirectory    = targetDir;
         this.maxNumberOfFiles   = fileCount;
-        this.packHeaders        = true; Boolean.getBoolean("icecube.daq.stringhub.hitspool,packHeaders");
+        this.packHeaders        = Boolean.getBoolean("icecube.daq.stringhub.hitspool.packHeaders");
         
         if (packHeaders)
             try 
@@ -71,8 +71,8 @@ public class FilesHitSpool implements BufferConsumer
                 this.reg = null;
             }
 
-	logger.info("DOM registry " + (reg != null? "" : "NOT") + " found; header packing " + 
-		     (packHeaders ? "" : "NOT") + " activated.");
+        logger.info("DOM registry " + (reg != null? "" : "NOT") + " found; header packing " + 
+                (packHeaders ? "" : "NOT") + " activated.");
         
         iobuf = new byte[5000];
     }
