@@ -38,6 +38,11 @@ public class MockReadoutRequestElement
         this.srcId = srcId;
     }
 
+    public Object deepCopy()
+    {
+        throw new Error("Unimplemented");
+    }
+
     public void dispose()
     {
         // do nothing
