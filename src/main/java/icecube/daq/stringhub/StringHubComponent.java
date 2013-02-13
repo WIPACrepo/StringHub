@@ -414,7 +414,7 @@ public class StringHubComponent
 				if (hitSpoolDir.length() == 0) hitSpoolDir = "/mnt/data/pdaqlocal";
 				if (hubNode.valueOf("hitspool/interval").length() > 0)
 					hitSpoolIval = (long) (1E10 * Double.parseDouble(hubNode.valueOf("hitspool/interval")));
-				if (hubNode.valueOf("hitpool/numFiles").length() > 0)
+				if (hubNode.valueOf("hitspool/numFiles").length() > 0)
 					hitSpoolNumFiles  = Integer.parseInt(hubNode.valueOf("hitspool/numFiles"));
 			}
 			double snDistance = Double.NaN;
@@ -820,7 +820,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 13770 2012-06-20 04:11:10Z dglo $";
+		return "$Id: StringHubComponent.java 14223 2013-02-13 20:11:45Z kael $";
 	}
 
 	public IByteBufferCache getCache()
