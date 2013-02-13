@@ -635,6 +635,10 @@ public class ReplayHubComponent
 
             ArrayList<OrderedFile> list = new ArrayList<OrderedFile>();
             for (int i = 0; i < dirList.length; i++) {
+                if (dirList[i].getName().equals("info.txt")) {
+                    continue;
+                }
+
                 try {
                     list.add(new OrderedFile(dirList[i]));
                 } catch (OrderedFileException ofe) {
