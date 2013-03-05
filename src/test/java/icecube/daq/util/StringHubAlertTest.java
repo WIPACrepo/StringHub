@@ -74,22 +74,38 @@ class MockAlerter
         return true;
     }
 
-    public void send(Alerter.Priority priority, String condition,
+    public void send(String varname, Alerter.Priority priority,
                      Map<String, Object> vars)
         throws AlertException
     {
-        send(priority, condition, null, vars);
+        send(varname, priority, null, vars);
+
     }
 
-    public void send(Alerter.Priority priority, String condition,
-                     String notify, Map<String, Object> vars)
+    public void send(String varname, Alerter.Priority priority,
+                     Calendar dateTime, Map<String, Object> vars)
         throws AlertException
     {
-        send(null, priority, condition, notify, vars);
+        throw new Error("Unimplemented");
     }
 
-    public void send(Calendar dateTime, Alerter.Priority priority,
-                     String condition, String notify, Map<String, Object> vars)
+    public void sendAlert(Alerter.Priority priority, String condition,
+                          Map<String, Object> vars)
+        throws AlertException
+    {
+        sendAlert(priority, condition, null, vars);
+    }
+
+    public void sendAlert(Alerter.Priority priority, String condition,
+                          String notify, Map<String, Object> vars)
+        throws AlertException
+    {
+        sendAlert(null, priority, condition, notify, vars);
+    }
+
+    public void sendAlert(Calendar dateTime, Alerter.Priority priority,
+                          String condition, String notify,
+                          Map<String, Object> vars)
         throws AlertException
     {
         if (priority != expPrio) {
