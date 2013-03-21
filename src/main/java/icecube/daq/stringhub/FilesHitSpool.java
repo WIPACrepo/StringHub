@@ -40,6 +40,8 @@ public class FilesHitSpool implements BufferConsumer
     private DOMRegistry reg;
     private boolean packHeaders = false;
     private byte[] iobuf;
+    private boolean isHosed = false;
+    
     private final static Logger logger = Logger.getLogger(FilesHitSpool.class);
     
     /**
@@ -106,12 +108,14 @@ public class FilesHitSpool implements BufferConsumer
         }
         int br = buf.remaining();
         buf.get(iobuf, cpos, br);
+        buf.rewind();
         return br + cpos;
     }
 
     public void consume(ByteBuffer buf) throws IOException
     {
         if (null != out) out.consume(buf);
+        if (isHosed) return;
         
         // bytes 24 .. 31 hold the 64-bit UTC clock value
         t = buf.getLong(24);
@@ -134,7 +138,18 @@ public class FilesHitSpool implements BufferConsumer
         if (fileNo != currentFileIndex)
         {
             currentFileIndex = fileNo;
-            openNewFile();
+            try
+            {
+            	openNewFile();
+            }
+            catch (IOException iox)
+            {
+            	logger.error("openNewFile threw " + iox.getMessage() + 
+            			". HitSpooling will be terminated.");
+            	dataOut = null;
+            	isHosed = true;
+            	return;
+            }
         }
                 
         // now I should be free to pack the buffer, if that is the
