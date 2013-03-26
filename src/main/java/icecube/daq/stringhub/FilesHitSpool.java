@@ -156,7 +156,17 @@ public class FilesHitSpool implements BufferConsumer
         // behavior desired.
         int nw = transform(buf);
 
-        dataOut.write(iobuf, 0, nw);
+        try
+        {
+        	dataOut.write(iobuf, 0, nw);
+        }
+        catch (IOException iox)
+        {
+        	logger.error("hit spool writing failed b/c " + iox.getMessage() +
+        			". Hit spooling will be terminated.");
+        	dataOut = null;
+        	isHosed = true;
+        }
     }
 
     private void openNewFile() throws IOException
