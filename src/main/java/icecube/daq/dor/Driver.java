@@ -1,6 +1,6 @@
 package icecube.daq.dor;
 
-import icecube.daq.util.leapseconds;
+import icecube.daq.util.Leapseconds;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -25,7 +25,7 @@ public final class Driver implements IDriver {
     private static final Driver instance = new Driver("/proc/driver/domhub");
     private static final Logger logger = Logger.getLogger(Driver.class);
     
-    private leapseconds leapsecondObj;
+    private Leapseconds leapsecondObj;
     private GPSSynch[] gpsList;
 
     /**
@@ -39,7 +39,7 @@ public final class Driver implements IDriver {
 
 	leapsecondObj = null;
 	try {
-	    leapsecondObj = leapseconds.getInstance();
+	    leapsecondObj = Leapseconds.getInstance();
 	} catch (IllegalArgumentException e) {
 	    // on error creating the leapsecond object
 	    // the driver code is setup to operate as if
