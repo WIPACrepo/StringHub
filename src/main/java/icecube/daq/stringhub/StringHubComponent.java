@@ -373,11 +373,11 @@ public class StringHubComponent
 			Document doc = r.read(fis);
 
 			XMLConfig xmlConfig = new XMLConfig();
-			List<Node> configNodeList = doc.selectNodes("runConfig/domConfigList");
 			/*
 			 * Lookup <stringHub hubId='x'> node - if any - and process
 			 * configuration directives.
 			 */
+			List<Node> configNodeList = doc.selectNodes("runConfig/stringHub");
 			Node hubNode = doc.selectSingleNode("runConfig/stringHub[@hubId='" + hubId + "']");
 			boolean dcSoftboot = false;
 
@@ -392,13 +392,24 @@ public class StringHubComponent
 					dcSoftboot = true;
 				String tcalPStxt = hubNode.valueOf("tcalPrescale");
 				if (tcalPStxt.length() != 0) tcalPrescale = Integer.parseInt(tcalPStxt);
-				if (hubNode.valueOf("hitspool/enabled").equalsIgnoreCase("true")) hitSpooling = true;
-				hitSpoolDir = hubNode.valueOf("hitspool/directory");
-				if (hitSpoolDir.length() == 0) hitSpoolDir = "/mnt/data/pdaqlocal";
-				if (hubNode.valueOf("hitspool/interval").length() > 0)
-					hitSpoolIval = (long) (1E10 * Double.parseDouble(hubNode.valueOf("hitspool/interval")));
-				if (hubNode.valueOf("hitpool/numFiles").length() > 0)
-					hitSpoolNumFiles  = Integer.parseInt(hubNode.valueOf("hitspool/numFiles"));
+
+				hitSpooling=false;
+				Node hitspool_node = hubNode.selectSingleNode("hitspool");
+				if(hitspool_node==null) {
+					hitspool_node = doc.selectSingleNode("runConfig/hitspool");
+				}
+				if (hitspool_node!=null) {
+					if (hitspool_node.valueOf("enabled").equalsIgnoreCase("true"))
+						hitSpooling = true;
+
+					hitSpoolDir = hitspool_node.valueOf("directory");
+					if (hitSpoolDir.length() == 0)
+						hitSpoolDir = "/mnt/data/pdaqlocal";
+					if (hitspool_node.valueOf("interval").length() > 0)
+						hitSpoolIval = (long) (1E10 * Double.parseDouble(hitspool_node.valueOf("interval")));
+					if (hitspool_node.valueOf("numFiles").length() > 0)
+						hitSpoolNumFiles  = Integer.parseInt(hitspool_node.valueOf("numFiles"));
+				}
 			}
 			double snDistance = Double.NaN;
 
@@ -411,7 +422,7 @@ public class StringHubComponent
 				logger.debug("Number of domConfigNodes found: " + configNodeList.size());
 			}
 			for (Node configNode : configNodeList) {
-				String tag = configNode.getText();
+				String tag = configNode.valueOf("@domConfig");
 				if (!tag.endsWith(".xml"))
 					tag = tag + ".xml";
 				File configFile = new File(domConfigsDirectory, tag);
@@ -579,7 +590,7 @@ public class StringHubComponent
 
 			// Still need to get the data collectors to pick up and do something with the config
 			conn.configure();
-		}
+			}
 
 		catch (FileNotFoundException fnx)
 		{
@@ -758,7 +769,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 14094 2012-12-07 20:50:13Z mnewcomb $";
+		return "$Id: StringHubComponent.java 14396 2013-04-04 17:12:17Z mnewcomb $";
 	}
 
 	public IByteBufferCache getCache()
