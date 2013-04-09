@@ -373,11 +373,16 @@ public class StringHubComponent
 			Document doc = r.read(fis);
 
 			XMLConfig xmlConfig = new XMLConfig();
+
+			// This should only produce a value with an OLD run config
+			List<Node> configNodeList = doc.selectNodes("runConfig/domConfigList");
+			// used for the new run config format
+			List<Node> hubNodeList = doc.selectNodes("runConfig/stringHub");
+
 			/*
 			 * Lookup <stringHub hubId='x'> node - if any - and process
 			 * configuration directives.
 			 */
-			List<Node> configNodeList = doc.selectNodes("runConfig/stringHub");
 			Node hubNode = doc.selectSingleNode("runConfig/stringHub[@hubId='" + hubId + "']");
 			boolean dcSoftboot = false;
 
@@ -396,6 +401,8 @@ public class StringHubComponent
 				hitSpooling=false;
 				Node hitspool_node = hubNode.selectSingleNode("hitspool");
 				if(hitspool_node==null) {
+					// if there is no hitspool child of the stringHub tag
+					// look for a default node
 					hitspool_node = doc.selectSingleNode("runConfig/hitspool");
 				}
 				if (hitspool_node!=null) {
@@ -421,7 +428,23 @@ public class StringHubComponent
 			if (logger.isDebugEnabled()) {
 				logger.debug("Number of domConfigNodes found: " + configNodeList.size());
 			}
+
+			// read in dom config info from OLD run configs
 			for (Node configNode : configNodeList) {
+                String tag = configNode.getText();
+                if (!tag.endsWith(".xml"))
+                    tag = tag + ".xml";
+                File configFile = new File(domConfigsDirectory, tag);
+				if (logger.isDebugEnabled()) {
+                    logger.debug("Configuring " + realism
+								                          + " - loading config from "
+                                 + configFile.getAbsolutePath());
+                }
+                xmlConfig.parseXMLConfig(new FileInputStream(configFile));
+            }
+
+			// read in dom config info from NEW run configs 
+			for (Node configNode : hubNodeList) {
 				String tag = configNode.valueOf("@domConfig");
 				if (!tag.endsWith(".xml"))
 					tag = tag + ".xml";
@@ -769,7 +792,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 14396 2013-04-04 17:12:17Z mnewcomb $";
+		return "$Id: StringHubComponent.java 14406 2013-04-09 19:04:57Z mnewcomb $";
 	}
 
 	public IByteBufferCache getCache()
