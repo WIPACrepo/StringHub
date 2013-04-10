@@ -400,7 +400,10 @@ public class DataCollector
         app.setLCSpan(lc.getSpan());
         app.setLCWindow(lc.getPreTrigger(), lc.getPostTrigger());
         app.setCableLengths(lc.getCableLengthUp(), lc.getCableLengthDn());
-        app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
+        if (config.isSupernovaEnabled())
+        	app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
+        else
+        	app.disableSupernova();
         app.setScalerDeadtime(config.getScalerDeadtime());
 
         try
