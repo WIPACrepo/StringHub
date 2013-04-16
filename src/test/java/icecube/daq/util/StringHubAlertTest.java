@@ -4,6 +4,7 @@ import icecube.daq.juggler.alert.AlertException;
 import icecube.daq.juggler.alert.Alerter;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -22,9 +23,8 @@ import static org.junit.Assert.*;
 class MockAlerter
     implements Alerter
 {
-    private int expPrio;
+    private Alerter.Priority expPrio;
     private String expCond;
-    private String expDesc;
     private Map<String, Object> expVars;
 
     public MockAlerter()
@@ -63,13 +63,48 @@ class MockAlerter
         // do nothing
     }
 
+
+    public String getService()
+    {
+        return DEFAULT_SERVICE;
+    }
+
     public boolean isActive()
     {
         return true;
     }
 
-    public void send(int priority, String condition, String desc,
+    public void send(String varname, Alerter.Priority priority,
                      Map<String, Object> vars)
+        throws AlertException
+    {
+        send(varname, priority, null, vars);
+    }
+
+    public void send(String varname, Alerter.Priority priority,
+                     Calendar dateTime, Map<String, Object> vars)
+        throws AlertException
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public void sendAlert(Alerter.Priority priority, String condition,
+                          Map<String, Object> vars)
+        throws AlertException
+    {
+        sendAlert(priority, condition, null, vars);
+    }
+
+    public void sendAlert(Alerter.Priority priority, String condition,
+                          String notify, Map<String, Object> vars)
+        throws AlertException
+    {
+        sendAlert(null, priority, condition, notify, vars);
+    }
+
+    public void sendAlert(Calendar dateTime, Alerter.Priority priority,
+                          String condition, String notify,
+                          Map<String, Object> vars)
         throws AlertException
     {
         if (priority != expPrio) {
@@ -80,11 +115,6 @@ class MockAlerter
         if (!condition.equals(expCond)) {
             throw new Error("Expected alert condition \"" + expCond +
                             "\", got \"" + condition);
-        }
-
-        if (!desc.equals(expDesc)) {
-            throw new Error("Expected alert description \"" + expDesc +
-                            "\", got \"" + desc);
         }
 
         if ((vars == null || vars.size() == 0) &&
@@ -138,16 +168,15 @@ class MockAlerter
         }
     }
 
-    void setExpected(int priority, String condition, String desc,
+    void setExpected(Alerter.Priority priority, String condition,
                      Map<String, Object> vars)
     {
         expPrio = priority;
         expCond = condition;
-        expDesc = desc;
         expVars = vars;
     }
 
-    public void setLive(String host, int port)
+    public void setAddress(String host, int port)
         throws AlertException
     {
         throw new Error("Unimplemented");
@@ -168,7 +197,6 @@ public class StringHubAlertTest
         throws Exception
     {
         final String condition = "Test DOM alert";
-        final String desc = "Test description";
         final int card = 1;
         final int pair = 23;
         final char dom = 'A';
@@ -187,9 +215,9 @@ public class StringHubAlertTest
         vars.put("minor", minor);
 
         MockAlerter alerter = new MockAlerter();
-        alerter.setExpected(Alerter.PRIO_SCP, condition, desc, vars);
+        alerter.setExpected(Alerter.Priority.SCP, condition, vars);
 
-        StringHubAlert.sendDOMAlert(alerter, condition, desc, card, pair, dom,
+        StringHubAlert.sendDOMAlert(alerter, condition, null, card, pair, dom,
                                     mbid, name, major, minor);
     }
 }

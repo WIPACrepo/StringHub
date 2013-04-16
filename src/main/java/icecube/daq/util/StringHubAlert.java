@@ -29,10 +29,10 @@ public class StringHubAlert
         }
 
         try {
-            alerter.send(Alerter.PRIO_SCP, condition, desc, vars);
+            alerter.sendAlert(Alerter.Priority.SCP, condition, vars);
         } catch (AlertException ae) {
             LOG.error("Cannot send " + condition + " alert", ae);
-	}	
+	}
 
     }
 
@@ -65,10 +65,9 @@ public class StringHubAlert
         vars.put("minor", minor);
 
         try {
-            alerter.send(Alerter.PRIO_SCP, condition, desc, vars);
+            alerter.sendAlert(Alerter.Priority.SCP, condition, vars);
         } catch (AlertException ae) {
             LOG.error("Cannot send " + condition + " alert", ae);
         }
     }
 }
-
