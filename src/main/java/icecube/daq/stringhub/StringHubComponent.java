@@ -31,11 +31,6 @@ import icecube.daq.payload.impl.ReadoutRequestFactory;
 import icecube.daq.payload.impl.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
-import icecube.daq.trigger.algorithm.ITrigger;
-import icecube.daq.trigger.config.TriggerBuilder;
-import icecube.daq.trigger.control.IStringTriggerHandler;
-import icecube.daq.trigger.control.StringTriggerHandler;
-import icecube.daq.trigger.exceptions.TriggerException;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
@@ -91,9 +86,7 @@ public class StringHubComponent
 	private MultiChannelMergeSort scalSort;
 	private String configurationPath;
 
-	private boolean enableTriggering;
 	private ISourceID sourceId;
-	private IStringTriggerHandler triggerHandler;
 	private static final String COMPONENT_NAME =
 		DAQCmdInterface.DAQ_STRING_HUB;
 
@@ -333,19 +326,6 @@ public class StringHubComponent
 		}
 	}
 
-	private void enableTriggering()
-	{
-		if (hitOut == null) return;
-
-		triggerHandler = new StringTriggerHandler(sourceId);
-		triggerHandler.setMasterPayloadFactory(new MasterPayloadFactory(cache));
-		triggerHandler.setPayloadOutput(hitOut);
-
-		// feed sender output through string trigger
-		sender.setHitOutput(triggerHandler);
-		logger.info("triggering enabled");
-	}
-
 	/**
 	 * StringHub responds to a configure request from the controller
 	 */
@@ -390,7 +370,12 @@ public class StringHubComponent
 			Document doc = r.read(fis);
 
 			XMLConfig xmlConfig = new XMLConfig();
+
+			// This should only produce a value with an OLD run config
 			List<Node> configNodeList = doc.selectNodes("runConfig/domConfigList");
+			// used for the new run config format
+			List<Node> hubNodeList = doc.selectNodes("runConfig/stringHub");
+
 			/*
 			 * Lookup <stringHub hubId='x'> node - if any - and process
 			 * configuration directives.
@@ -402,20 +387,33 @@ public class StringHubComponent
 
 			if (hubNode != null)
 			{
-				if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) enableTriggering();
+				if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) logger.error("String triggering not implemented");
 				if (hubNode.valueOf("sender/forwardIsolatedHitsToTrigger").equalsIgnoreCase("true"))
 					sender.forwardIsolatedHitsToTrigger();
 				if (hubNode.valueOf("dataCollector/softboot").equalsIgnoreCase("true"))
 					dcSoftboot = true;
 				String tcalPStxt = hubNode.valueOf("tcalPrescale");
 				if (tcalPStxt.length() != 0) tcalPrescale = Integer.parseInt(tcalPStxt);
-				if (hubNode.valueOf("hitspool/enabled").equalsIgnoreCase("true")) hitSpooling = true;
-				hitSpoolDir = hubNode.valueOf("hitspool/directory");
-				if (hitSpoolDir.length() == 0) hitSpoolDir = "/mnt/data/pdaqlocal";
-				if (hubNode.valueOf("hitspool/interval").length() > 0)
-					hitSpoolIval = (long) (1E10 * Double.parseDouble(hubNode.valueOf("hitspool/interval")));
-				if (hubNode.valueOf("hitspool/numFiles").length() > 0)
-					hitSpoolNumFiles  = Integer.parseInt(hubNode.valueOf("hitspool/numFiles"));
+
+				hitSpooling=false;
+				Node hitspool_node = hubNode.selectSingleNode("hitspool");
+				if(hitspool_node==null) {
+					// if there is no hitspool child of the stringHub tag
+					// look for a default node
+					hitspool_node = doc.selectSingleNode("runConfig/hitspool");
+				}
+				if (hitspool_node!=null) {
+					if (hitspool_node.valueOf("enabled").equalsIgnoreCase("true"))
+						hitSpooling = true;
+
+					hitSpoolDir = hitspool_node.valueOf("directory");
+					if (hitSpoolDir.length() == 0)
+						hitSpoolDir = "/mnt/data/pdaqlocal";
+					if (hitspool_node.valueOf("interval").length() > 0)
+						hitSpoolIval = (long) (1E10 * Double.parseDouble(hitspool_node.valueOf("interval")));
+					if (hitspool_node.valueOf("numFiles").length() > 0)
+						hitSpoolNumFiles  = Integer.parseInt(hitspool_node.valueOf("numFiles"));
+				}
 			}
 			double snDistance = Double.NaN;
 
@@ -427,8 +425,24 @@ public class StringHubComponent
 			if (logger.isDebugEnabled()) {
 				logger.debug("Number of domConfigNodes found: " + configNodeList.size());
 			}
+
+			// read in dom config info from OLD run configs
 			for (Node configNode : configNodeList) {
-				String tag = configNode.getText();
+                String tag = configNode.getText();
+                if (!tag.endsWith(".xml"))
+                    tag = tag + ".xml";
+                File configFile = new File(domConfigsDirectory, tag);
+				if (logger.isDebugEnabled()) {
+                    logger.debug("Configuring " + realism
+								                          + " - loading config from "
+                                 + configFile.getAbsolutePath());
+                }
+                xmlConfig.parseXMLConfig(new FileInputStream(configFile));
+            }
+
+			// read in dom config info from NEW run configs
+			for (Node configNode : hubNodeList) {
+				String tag = configNode.valueOf("@domConfig");
 				if (!tag.endsWith(".xml"))
 					tag = tag + ".xml";
 				File configFile = new File(domConfigsDirectory, tag);
@@ -578,7 +592,7 @@ public class StringHubComponent
 
 			// Still need to get the data collectors to pick up and do something with the config
 			conn.configure();
-		}
+			}
 
 		catch (FileNotFoundException fnx)
 		{
@@ -598,12 +612,6 @@ public class StringHubComponent
 		catch (Exception e)
 		{
 			throw new DAQCompException("Unexpected exception " + e, e);
-		}
-
-
-		// If triggers are enabled, configure them
-		if (enableTriggering) {
-			configureTrigger(configName);
 		}
 
 	}
@@ -756,63 +764,6 @@ public class StringHubComponent
 		logger.info("Returning from stop.");
 	}
 
-	private void configureTrigger(String configName) throws DAQCompException {
-		// Build the trigger configuration directory
-		File cfgFile = new File(configurationPath, configName);
-		if (!cfgFile.isFile()) {
-			if (!configName.endsWith(".xml")) {
-				cfgFile = new File(configurationPath, configName + ".xml");
-			}
-
-			if (!cfgFile.isFile()) {
-				throw new DAQCompException("Configuration file \"" + cfgFile +
-										   "\" does not exist");
-			}
-		}
-
-		// Lookup the trigger configuration
-		String triggerConfiguration;
-		try {
-			triggerConfiguration = TriggerBuilder.getTriggerConfig(cfgFile);
-		} catch (Exception e) {
-			logger.error("Error extracting trigger configuration name from" +
-						 " global configuraion file.", e);
-			throw new DAQCompException("Cannot get trigger configuration" +
-									   " name.", e);
-		}
-		File triggerConfigDir = new File(configurationPath, "trigger");
-		File triggerConfigFile =
-			new File(triggerConfigDir, triggerConfiguration);
-		if (!triggerConfigFile.isFile()) {
-			if (!triggerConfiguration.endsWith(".xml")) {
-				triggerConfigFile =
-					new File(triggerConfigDir, triggerConfiguration + ".xml");
-			}
-
-			if (!triggerConfigFile.isFile()) {
-				throw new DAQCompException("Trigger configuration file \"" +
-										   triggerConfigFile +
-										   "\" (from \"" + configName +
-										   "\") does not exist");
-			}
-		}
-
-		// Add triggers to the trigger manager
-		List<ITrigger> currentTriggers;
-		try {
-			currentTriggers =
-				TriggerBuilder.buildTriggers(triggerConfigFile, sourceId);
-		} catch (TriggerException te) {
-			throw new DAQCompException("Cannot build triggers from \"" +
-									   triggerConfigFile + "\" for " +
-									   sourceId, te);
-		}
-		for (ITrigger trigger : currentTriggers) {
-			trigger.setTriggerHandler(triggerHandler);
-		}
-		triggerHandler.addTriggers(currentTriggers);
-	}
-
 	/**
 	 * Return this component's svn version id as a String.
 	 *
@@ -820,7 +771,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 14223 2013-02-13 20:11:45Z kael $";
+		return "$Id: StringHubComponent.java 14422 2013-04-16 22:48:01Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
