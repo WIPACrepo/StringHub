@@ -31,20 +31,20 @@ public final class Driver implements IDriver {
      * Drivers should be singletons - enforce through protected constructor.
      */
     private Driver(String root) {
-	driver_root = new File(root);
+       driver_root = new File(root);
 
-	leapsecondObj = null;
-	try {
-	    leapsecondObj = Leapseconds.getInstance();
-	} catch (IllegalArgumentException e) {
-	    // on error creating the leapsecond object
-	    // the driver code is setup to operate as if
-	    // the leapsecond code never existed in this case
-	    // It will however report that the leapsecond
-	    // object has expired.  This alert will make it
-	    // back to live.
-	    System.err.println("leap second object init error: "+e);
-	}
+       leapsecondObj = null;
+       try {
+           leapsecondObj = Leapseconds.getInstance();
+       } catch (IllegalArgumentException e) {
+           // on error creating the leapsecond object
+           // the driver code is setup to operate as if
+           // the leapsecond code never existed in this case
+           // It will however report that the leapsecond
+           // object has expired.  This alert will make it
+           // back to live.
+           System.err.println("leap second object init error: "+e);
+       }
     }
 
     public static Driver getInstance() {
@@ -241,10 +241,10 @@ public final class Driver implements IDriver {
 	return makeProcfile("" + card, "syncgps");
     }
 
-    public GPSInfo readGPS(File gpsFile) throws GPSException 
+    public GPSInfo readGPS(File gpsFile) throws GPSException
     {
 	ByteBuffer buf = ByteBuffer.allocate(22);
-	
+
 	try
 	    {
 		RandomAccessFile syncgps = new RandomAccessFile(gpsFile, "r");
@@ -371,5 +371,3 @@ public final class Driver implements IDriver {
 		return makeProcfile(cwd, null);
 	}
 }
-
-

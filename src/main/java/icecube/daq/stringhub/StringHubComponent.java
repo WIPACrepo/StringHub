@@ -408,7 +408,6 @@ public class StringHubComponent
 				if (hitspool_node!=null) {
 					if (hitspool_node.valueOf("enabled").equalsIgnoreCase("true"))
 						hitSpooling = true;
-
 					hitSpoolDir = hitspool_node.valueOf("directory");
 					if (hitSpoolDir.length() == 0)
 						hitSpoolDir = "/mnt/data/pdaqlocal";
@@ -792,7 +791,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 14406 2013-04-09 19:04:57Z mnewcomb $";
+		return "$Id: StringHubComponent.java 14415 2013-04-16 17:28:43Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
