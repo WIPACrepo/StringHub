@@ -443,6 +443,9 @@ public class StringHubComponent
 			// read in dom config info from NEW run configs
 			for (Node configNode : hubNodeList) {
 				String tag = configNode.valueOf("@domConfig");
+				if (tag.equals("")) {
+					continue;
+				}
 				if (!tag.endsWith(".xml"))
 					tag = tag + ".xml";
 				File configFile = new File(domConfigsDirectory, tag);
@@ -771,7 +774,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 14422 2013-04-16 22:48:01Z dglo $";
+		return "$Id: StringHubComponent.java 14436 2013-04-21 19:33:04Z mnewcomb $";
 	}
 
 	public IByteBufferCache getCache()
