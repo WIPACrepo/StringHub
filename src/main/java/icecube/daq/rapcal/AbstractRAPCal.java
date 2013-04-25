@@ -64,7 +64,7 @@ public abstract class AbstractRAPCal implements RAPCal
             double clen  = 0.5 * (UTC.subtract(t1[3], t1[0]) - (1.0+epsilon) * UTC.subtract(t1[2], t1[1]));
             if (Double.isNaN(clenAvg))
                 clenAvg = clen;
-            else if (Math.abs(clenAvg - clen) < 25.0E-09)
+            else if (Math.abs(clenAvg - clen) < 10.0E-09)
             {
                 clenAvg = (clenAvg + expWt * clen) / (1.0 + expWt);
             }
