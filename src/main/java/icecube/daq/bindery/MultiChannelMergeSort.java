@@ -152,10 +152,14 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
                     {
                         outputCounter++;
                         DAQBuffer sorted = terminalNode.pop();
-                        if (lastUT > sorted.timestamp)
-                            logger.warn(
-                                "Out-of-order sorted value: " + lastUT +
-                                ", " + sorted.timestamp);
+                        if (lastUT > sorted.timestamp) {
+                            final String errmsg =
+                                String.format("Out-of-order %012x sorted value:" +
+                                              " %d, %d (diff %d)", sorted.mbid,
+                                              lastUT, sorted.timestamp,
+                                              lastUT - sorted.timestamp);
+                            logger.warn(errmsg);
+                        }
                         lastUT = sorted.timestamp;
                         if (sorted.timestamp == Long.MAX_VALUE)
                         {
