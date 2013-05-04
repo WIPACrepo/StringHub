@@ -1004,7 +1004,7 @@ public class DataCollector
                         tired = false;
                     }
                 }
-                if (t - lastSupernovaRead > supernovaReadInterval)
+                if (t - lastSupernovaRead > supernovaReadInterval && config.isSupernovaEnabled())
                 {
                     lastSupernovaRead = t;
                     while (true)
