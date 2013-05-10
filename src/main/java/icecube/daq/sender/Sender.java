@@ -337,9 +337,9 @@ public class Sender
                     }
                 }
             }
+            buf.flip();
         }
 
-        buf.flip();
     }
 
     /**
