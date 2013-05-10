@@ -1035,6 +1035,13 @@ public class DataCollector
                 app.beginRun();
                 storeRunStartTime();
                 logger.debug("DOM is running.");
+                // Kill off Supernova stream if disabled
+                if (!config.isSupernovaEnabled())
+                {
+                	ByteBuffer eos = MultiChannelMergeSort.eos(numericMBID);
+                	supernovaConsumer.consume(eos.asReadOnlyBuffer());
+                	supernovaConsumer = null;
+                }
                 setRunLevel(RunLevel.RUNNING);
                 break;
 
