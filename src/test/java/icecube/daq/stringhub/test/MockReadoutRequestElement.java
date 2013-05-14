@@ -97,9 +97,9 @@ public class MockReadoutRequestElement
     }
 
     /**
-     * Unimplemented
-     * @param buf unused
-     * @param offset unused
+     * Write this element to the byte buffer
+     * @param buf byte buffer
+     * @param offset index of first byte
      */
     public void put(ByteBuffer buf, int offset)
     {
