@@ -164,7 +164,11 @@ public class MockReadoutRequest
      */
     public void setSourceID(ISourceID srcId)
     {
-        throw new Error("Unimplemented");
+        if (srcId == null) {
+            throw new Error("Source ID cannot be null");
+        }
+
+        this.srcId = srcId;
     }
 
     /**
