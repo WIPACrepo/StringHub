@@ -807,6 +807,8 @@ public class DataCollector
             logger.error(iox);
         }
 
+        app.close();
+        
         logger.info("End data collection thread.");
 
     } /* END OF run() METHOD */
