@@ -281,6 +281,8 @@ public class StringHubComponent
 
 	/**
 	 * Close all open files, sockets, etc.
+	 *
+	 * @throws IOException if there is a problem
 	 */
 	public void closeAll()
 		throws IOException
@@ -292,6 +294,8 @@ public class StringHubComponent
 		teOut.destroyProcessor();
 		reqIn.destroyProcessor();
 		dataOut.destroyProcessor();
+
+		super.closeAll();
 	}
 
 	/**
@@ -794,7 +798,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 14448 2013-04-26 20:07:54Z dglo $";
+		return "$Id: StringHubComponent.java 14506 2013-05-16 19:23:08Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
