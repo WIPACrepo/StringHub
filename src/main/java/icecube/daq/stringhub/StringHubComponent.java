@@ -446,7 +446,7 @@ public class StringHubComponent
                 xmlConfig.parseXMLConfig(new FileInputStream(configFile));
             }
 
-			// read in dom config info from NEW run configs 
+			// read in dom config info from NEW run configs
 			for (Node configNode : hubNodeList) {
 				String tag = configNode.valueOf("@domConfig");
 				if (tag.equals("")) {
@@ -489,7 +489,7 @@ public class StringHubComponent
 					logger.warn("DOM " + deployedDOM + " requested in configuration but not found.");
 
 					StringHubAlert.sendDOMAlert(getAlerter(),
-												"Dropped DOM during configure",
+												"Dropped DOM",
 												0, 0, (char) 0,
 												deployedDOM.getMainboardId(),
 												deployedDOM.getName(),
@@ -798,7 +798,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 14506 2013-05-16 19:23:08Z dglo $";
+		return "$Id: StringHubComponent.java 14546 2013-06-05 16:18:53Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
