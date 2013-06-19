@@ -3,7 +3,9 @@ package icecube.daq.util;
 import icecube.daq.juggler.alert.AlertException;
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.payload.impl.UTCTime;
+import icecube.daq.util.Leapseconds;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -226,6 +228,15 @@ public class StringHubAlertTest
     public void testAlertPlusTime()
         throws Exception
     {
+        // set the Leapseconds config directory to UTCTime.toDateString() works
+        File configDir = new File(getClass().getResource("/config").getPath());
+        if (!configDir.exists()) {
+            throw new IllegalArgumentException("Cannot find config" +
+                                               " directory under " +
+                                               getClass().getResource("/"));
+        }
+        Leapseconds.setConfigDirectory(configDir);
+
         final String condition = "Test DOM alert";
         final int card = 1;
         final int pair = 23;
