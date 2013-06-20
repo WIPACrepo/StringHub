@@ -355,13 +355,6 @@ public class StringHubComponent
 		try
 		{
 
-			// check and see if the driver is using an expired leapseconds file
-			if (driver.daysTillLeapExpiry()<0) {
-				StringHubAlert.sendLeapsecondExpired(getAlerter(),
-													 "Nist Configuration file past expiration date",
-													 -1 * driver.daysTillLeapExpiry());
-			}
-
 			// Lookup the connected DOMs
 			discover();
 
@@ -798,7 +791,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 14546 2013-06-05 16:18:53Z dglo $";
+		return "$Id: StringHubComponent.java 14575 2013-06-20 21:42:58Z mnewcomb $";
 	}
 
 	public IByteBufferCache getCache()
