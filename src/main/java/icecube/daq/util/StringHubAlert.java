@@ -15,29 +15,6 @@ public class StringHubAlert
     private static final Log LOG = LogFactory.getLog(StringHubAlert.class);
 
     /**
-     * Send an alert that the leapsecond file has expired
-     */
-    public static final void sendLeapsecondExpired(Alerter alerter,
-                                                   String condition,
-                                                   double days_past_expiry)
-    {
-        if (alerter == null || !alerter.isActive()) {
-            return;
-        }
-
-        HashMap<String, Object> vars = new HashMap<String, Object>();
-        if (days_past_expiry!=0) {
-            vars.put("days_past_expiry", days_past_expiry);
-        }
-
-        try {
-            alerter.sendAlert(Alerter.Priority.SCP, condition, vars);
-        } catch (AlertException ae) {
-            LOG.error("Cannot send " + condition + " alert", ae);
-        }
-    }
-
-    /**
      * Send a DOM alert.
      */
     public static final void sendDOMAlert(Alerter alerter, String condition,
