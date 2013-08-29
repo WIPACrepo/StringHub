@@ -63,15 +63,35 @@ public class FilesHitSpool implements BufferConsumer
         this.maxNumberOfFiles   = fileCount;
         this.packHeaders        = Boolean.getBoolean("icecube.daq.stringhub.hitspool.packHeaders");
 
-        if (packHeaders)
-            try
-            {
-                this.reg = DOMRegistry.loadRegistry(System.getenv("PDAQ_HOME") + "/config");
+        if (packHeaders) {
+            File configDir = null;
+
+            String pcfg = System.getenv("PDAQ_CONFIG");
+            if (pcfg != null) {
+                configDir = new File(pcfg);
+                if (!configDir.exists()) {
+                    configDir = null;
+                }
             }
-            catch (Exception x)
-            {
-                this.reg = null;
+
+            if (configDir == null) {
+                configDir = new File(System.getenv("HOME"), "config");
+                if (!configDir.isDirectory()) {
+                    configDir = null;
+                }
             }
+
+            if (configDir != null) {
+                try
+                {
+                    this.reg = DOMRegistry.loadRegistry(configDir);
+                }
+                catch (Exception x)
+                {
+                    this.reg = null;
+                }
+            }
+        }
 
         logger.info("DOM registry " + (reg != null? "" : "NOT") + " found; header packing " +
                 (packHeaders ? "" : "NOT") + " activated.");
