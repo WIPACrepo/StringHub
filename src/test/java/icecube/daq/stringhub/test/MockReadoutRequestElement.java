@@ -53,9 +53,27 @@ public class MockReadoutRequestElement
         return domId;
     }
 
+    public long getFirstTime()
+    {
+        if (firstTime == null) {
+            return 0L;
+        }
+
+        return firstTime.longValue();
+    }
+
     public IUTCTime getFirstTimeUTC()
     {
         return firstTime;
+    }
+
+    public long getLastTime()
+    {
+        if (lastTime == null) {
+            return 0L;
+        }
+
+        return lastTime.longValue();
     }
 
     public IUTCTime getLastTimeUTC()
