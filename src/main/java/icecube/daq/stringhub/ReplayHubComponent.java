@@ -248,47 +248,6 @@ public class ReplayHubComponent
     }
 
     /**
-     * Get the file associated with the specified attribute.
-     *
-     * @param dataDir data directory
-     * @param elem XML element describing this hub's input files
-     * @param attrName name of file attribute
-     *
-     * @return data file
-     *
-     * @throws DAQCompException if the attribute or file cannot be found
-     */
-    private File getFile(String dataDir, Element elem, String attrName)
-        throws DAQCompException
-    {
-        // get attribute
-        Attribute fileAttr = elem.attribute(attrName);
-        if (fileAttr == null) {
-            return null;
-        }
-
-        // get attribute value
-        String name = fileAttr.getValue();
-
-        // build path for attribute
-        File file;
-        if (dataDir == null) {
-            file = new File(name);
-        } else {
-            file = new File(dataDir, name);
-        }
-
-        // make sure path exists
-        if (!file.exists()) {
-            throw new DAQCompException("Replay " + attrName + " " + file +
-                                       " does not exist");
-        }
-
-        // return file path
-        return file;
-    }
-
-    /**
      * Return the time when the first of the channels to stop has stopped.
      * @return the DAQ time (1E10 ticks/sec) of the hit which fulfills this
      *         condition.
@@ -503,7 +462,7 @@ public class ReplayHubComponent
 	    if (!(obj instanceof OrderedFile)) {
 		return false;
 	    }
-	    
+
 	    OrderedFile other = (OrderedFile)obj;
 	    return this.f==other.f;
 	}

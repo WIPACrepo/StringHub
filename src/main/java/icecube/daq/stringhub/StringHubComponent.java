@@ -52,7 +52,6 @@ import org.apache.log4j.Logger;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.Node;
-import org.dom4j.io.SAXReader;
 import org.xml.sax.SAXException;
 
 public class StringHubComponent
@@ -83,7 +82,7 @@ public class StringHubComponent
 	private MultiChannelMergeSort moniSort;
 	private MultiChannelMergeSort tcalSort;
 	private MultiChannelMergeSort scalSort;
-	private String configurationPath;
+	private File configurationPath;
 
 	private ISourceID sourceId;
 	private static final String COMPONENT_NAME =
@@ -260,7 +259,12 @@ public class StringHubComponent
 	@Override
 	public void setGlobalConfigurationDir(String dirName)
 	{
-		configurationPath = dirName;
+		configurationPath = new File(dirName);
+		if (!configurationPath.exists()) {
+			throw new Error("Configuration directory \"" + configurationPath +
+							"\" does not exist");
+		}
+
 		if (logger.isInfoEnabled()) {
 			logger.info("Setting the ueber configuration directory to " +
 						configurationPath);
@@ -362,12 +366,9 @@ public class StringHubComponent
 				throw new DAQCompException("No Active DOMs on hub.");
 
 			// Parse out tags from 'master configuration' file
-			File domConfigsDirectory = new File(configurationPath, "domconfigs");
-			File masterConfigFile = new File(configurationPath, configName + ".xml");
-			FileInputStream fis = new FileInputStream(masterConfigFile);
+			Document doc = loadXMLDocument(configurationPath, configName);
 
-			SAXReader r = new SAXReader();
-			Document doc = r.read(fis);
+			File domConfigsDirectory = new File(configurationPath, "domconfigs");
 
 			XMLConfig xmlConfig = new XMLConfig();
 
@@ -455,8 +456,6 @@ public class StringHubComponent
 				}
 				xmlConfig.parseXMLConfig(new FileInputStream(configFile));
 			}
-
-			fis.close();
 
 			int nch = 0;
 			/***********
@@ -791,7 +790,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 14615 2013-09-20 19:54:05Z dglo $";
+		return "$Id: StringHubComponent.java 14617 2013-09-20 20:48:42Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
@@ -937,7 +936,7 @@ public class StringHubComponent
 		for (AbstractDataCollector adc : conn.getCollectors()) {
 			if (!adc.isZombie()) {
 				long val = adc.getLastHitTime();
-				if (val <= 0L) {
+				if (val < 0L) {
 					found = false;
 					break;
 				} else if (val < earliestLast) {
