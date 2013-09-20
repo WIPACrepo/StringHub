@@ -791,7 +791,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 14575 2013-06-20 21:42:58Z mnewcomb $";
+		return "$Id: StringHubComponent.java 14615 2013-09-20 19:54:05Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
@@ -913,7 +913,7 @@ public class StringHubComponent
 		for (AbstractDataCollector adc : conn.getCollectors()) {
 			if (!adc.isZombie()) {
 				long val = adc.getFirstHitTime();
-				if (val <= 0L) {
+				if (val < 0L) {
 					found = false;
 					break;
 				} else if (val > latestFirst) {
