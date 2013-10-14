@@ -953,9 +953,9 @@ public class Sender
         boolean sent = false;
         ByteBuffer buf;
         if (dataCache == null) {
-            buf = ByteBuffer.allocate(payload.getPayloadLength());
+            buf = ByteBuffer.allocate(payload.length());
         } else {
-            buf = dataCache.acquireBuffer(payload.getPayloadLength());
+            buf = dataCache.acquireBuffer(payload.length());
         }
         try {
             ((IWriteablePayload) payload).writePayload(false, 0, buf);
