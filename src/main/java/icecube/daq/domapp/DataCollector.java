@@ -154,8 +154,11 @@ public class DataCollector
 
     private static final boolean ENABLE_STATS = Boolean.getBoolean(
             "icecube.daq.domapp.datacollector.enableStats");
-	private static final boolean DISABLE_INTERVAL = Boolean.getBoolean(
-            "icecube.daq.domapp.datacollector.disable_intervals");
+
+	// used to be set from a system property, now reads from the runconfig
+	// stringhub[hubId=X] / intervals / enable - True
+	private final boolean disable_intervals;
+
 	private static final long INTERVAL_MIN_DOMAPP_PROD_VERSION = 445;
 	private static final long BASE_TEST_VERSION = 4000;
 	private static final long INTERVAL_MIN_DOMAPP_TEST_VERSION = 4477;
@@ -306,6 +309,23 @@ public class DataCollector
             BufferConsumer tcalTo,
             IDriver driver,
             RAPCal rapcal) throws IOException, MessageException
+	{
+		// support class old signature
+		// but default to disabling intervals
+		this(card, pair, dom, config, hitsTo, moniTo, supernovaTo, tcalTo, driver, rapcal, false);
+	}
+					  
+
+    public DataCollector(
+            int card, int pair, char dom,
+            DOMConfiguration config,
+            BufferConsumer hitsTo,
+            BufferConsumer moniTo,
+            BufferConsumer supernovaTo,
+            BufferConsumer tcalTo,
+            IDriver driver,
+            RAPCal rapcal,
+			boolean enable_intervals) throws IOException, MessageException
     {
         super(card, pair, dom);
         this.card = card;
@@ -362,6 +382,10 @@ public class DataCollector
 
 		// byte buffer for messages read out with GetInterval
 		intervalBuffer = ByteBuffer.allocateDirect(4092);
+
+		// turn intervals on/off as requested
+		disable_intervals = !enable_intervals;
+
         start();
     }
 
@@ -918,9 +942,9 @@ public class DataCollector
 	 * method and the get_interval method ), this is contains code common to both
 	 * methods.  In addiiton it will decide which method to use.
 	 *
-	 * If the user explicitly disables intervals setting:
-	 * "icecube.daq.domapp.datacollector.disable_intervals"
-	 * to true, or the domapp version is not high enough to support
+	 * If the user explicitly disables intervals setting 
+	 * runConfig/Stringhub[id=X]/intervals/enable/false
+	 * or the domapp version is not high enough to support
 	 * intervals it will default to the query method.  Otherwise, intervals
 	 * will be used.
 	*/
@@ -1007,7 +1031,7 @@ public class DataCollector
 		// determine if we should use get_intervals or
 		// the original query algorithm
 		String version = app.getRelease();
-		if(!DISABLE_INTERVAL && version_supports_intervals(version)) {
+		if(!disable_intervals && version_supports_intervals(version)) {
 			if (DEBUG_ENABLED) {
 				logger.debug("Using intervals run loop!");
 			}

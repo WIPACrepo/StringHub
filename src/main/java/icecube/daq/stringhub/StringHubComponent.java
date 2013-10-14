@@ -383,12 +383,15 @@ public class StringHubComponent
 			 */
 			Node hubNode = doc.selectSingleNode("runConfig/stringHub[@hubId='" + hubId + "']");
 			boolean dcSoftboot = false;
-
+			boolean enable_intervals = false;
 			int tcalPrescale = 10;
 
 			if (hubNode != null)
 			{
 				if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) logger.error("String triggering not implemented");
+				if (hubNode.valueOf("intervals/enabled").equalsIgnoreCase("true")) {
+					enable_intervals = true;
+				}
 				if (hubNode.valueOf("sender/forwardIsolatedHitsToTrigger").equalsIgnoreCase("true"))
 					sender.forwardIsolatedHitsToTrigger();
 				if (hubNode.valueOf("dataCollector/softboot").equalsIgnoreCase("true"))
@@ -790,7 +793,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 14617 2013-09-20 20:48:42Z dglo $";
+		return "$Id: StringHubComponent.java 14646 2013-10-14 20:12:32Z mnewcomb $";
 	}
 
 	public IByteBufferCache getCache()

@@ -23,10 +23,11 @@ import org.apache.log4j.PropertyConfigurator;
 
 public class Omicron {
 
-	private static Driver driver = Driver.getInstance();
-	private static ArrayList<DataCollector> collectors;
-	//private static ByteBuffer drain;
-	private static final Logger logger = Logger.getLogger(Omicron.class);
+    private static Driver driver = Driver.getInstance();
+    private static ArrayList<DataCollector> collectors;
+    //private static ByteBuffer drain;
+    private static final Logger logger = Logger.getLogger(Omicron.class);
+    private static final boolean DISABLE_INTERVAL = Boolean.getBoolean("icecube.daq.domapp.datacollector.disable_intervals");
 
     // ext-3 on scube has a block size of 4K.  Buffer 10 blocks
     private static final int BUFFER_SIZE = 40960;
@@ -123,7 +124,7 @@ public class Omicron {
 			DataCollector dc = new DataCollector(
 					chInfo.card, chInfo.pair, chInfo.dom, config,
 					hitsSort, moniSort, scalSort, tcalSort,
-					null, null
+					null, null, !DISABLE_INTERVAL
 					);
 			collectors.add(dc);
 			if (logger.isDebugEnabled()) logger.debug("Starting new DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ").");
