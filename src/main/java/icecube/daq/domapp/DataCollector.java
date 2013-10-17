@@ -125,47 +125,48 @@ public class DataCollector
 
     //private long    lastDataRead          = 0;
     //private long    lastMoniRead          = 0;
-	//private long    lastSupernovaRead     = 0;
+    //private long    lastSupernovaRead     = 0;
     //private long    lastTcalRead          = 0;
-
-	// rewrite the processing loop so instead of
-	// keeping trakc of the last read, figure out
-	// when the next read will be, means fewer
-	// subtractions
-	private long nextSupernovaRead = 0;
-	private long nextTcalRead = 0;
-	private long nextMoniRead = 0;
-	private long nextDataRead = 0;
+    
+    // rewrite the processing loop so instead of
+    // keeping trakc of the last read, figure out
+    // when the next read will be, means fewer
+    // subtractions
+    private long nextSupernovaRead = 0;
+    private long nextTcalRead = 0;
+    private long nextMoniRead = 0;
+    private long nextDataRead = 0;
 
     private long    dataReadInterval      = 10;
     private long    moniReadInterval      = 1000;
     private long    tcalReadInterval      = 1000;
-	private long    supernovaReadInterval = 1000;
-
-	// statistics on data packet size
-	// welford's method
-	private double data_m_n = 0;
-	private double data_s_n = 0;
-	private long data_count = 0;
-	private long data_max = 0;
-	private long data_min = 4092;
-	private long data_zero_count = 0;
+    private long    supernovaReadInterval = 1000;
+    
+    // statistics on data packet size
+    // welford's method
+    private double data_m_n = 0;
+    private double data_s_n = 0;
+    private long data_count = 0;
+    private long data_max = 0;
+    private long data_min = 4092;
+    private long data_zero_count = 0;
     private static final DecimalFormat  data_fmt = new DecimalFormat("0.###");
-
+    
     private static final boolean ENABLE_STATS = Boolean.getBoolean(
-            "icecube.daq.domapp.datacollector.enableStats");
+	    "icecube.daq.domapp.datacollector.enableStats");
 
-	// used to be set from a system property, now reads from the runconfig
-	// stringhub[hubId=X] / intervals / enable - True
-	private final boolean disable_intervals;
+    // used to be set from a system property, now reads from the runconfig
+    // stringhub[hubId=X] / intervals / enable - True
+    private final boolean disable_intervals;
+    private boolean supernova_disabled = true;
 
-	private static final long INTERVAL_MIN_DOMAPP_PROD_VERSION = 445;
-	private static final long BASE_TEST_VERSION = 4000;
-	private static final long INTERVAL_MIN_DOMAPP_TEST_VERSION = 4477;
-
+    private static final long INTERVAL_MIN_DOMAPP_PROD_VERSION = 445;
+    private static final long BASE_TEST_VERSION = 4000;
+    private static final long INTERVAL_MIN_DOMAPP_TEST_VERSION = 4477;
+    
     private int     rapcalExceptionCount  = 0;
     private int     validRAPCalCount;
-
+    
     private int     numHits               = 0;
     private int     numMoni               = 0;
     private int     numSupernova          = 0;
@@ -473,10 +474,20 @@ public class DataCollector
         app.setLCSpan(lc.getSpan());
         app.setLCWindow(lc.getPreTrigger(), lc.getPostTrigger());
         app.setCableLengths(lc.getCableLengthUp(), lc.getCableLengthDn());
-        if (config.isSupernovaEnabled())
-        	app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
-        else
-        	app.disableSupernova();
+        if (config.isSupernovaEnabled()) {
+	    app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
+	    supernova_disabled=false;
+	} else {
+	    app.disableSupernova();
+	    supernova_disabled=true;
+	    ByteBuffer eos = MultiChannelMergeSort.eos(numericMBID);
+	    try {
+		if (supernovaConsumer != null) supernovaConsumer.consume(eos.asReadOnlyBuffer());
+	    } catch (IOException iox) {
+		logger.warn("Caught IO Exception trying to shut down unused SN channel");
+	    }
+	}
+
         app.setScalerDeadtime(config.getScalerDeadtime());
 
         try
@@ -1110,7 +1121,7 @@ public class DataCollector
                 // Time to do a data collection?
                 if (t>=nextDataRead)
                 {
-					nextDataRead = t + dataReadInterval;
+		    nextDataRead = t + dataReadInterval;
 
                     try
                     {
@@ -1118,29 +1129,29 @@ public class DataCollector
                         ByteBuffer data = app.getData();
                         if (data.remaining() > 0) tired = false;
 
-						// generate some stats as to the average size
+			// generate some stats as to the average size
                         // of hit bytebuffers
-						if(ENABLE_STATS) {
-							// Compute the mean and variance of data message sizes
-							// This is an implementation of welfords method
-							// http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-							int remaining = data.remaining();
-							if(remaining>0) {
-								double m_new = data_m_n + ( remaining - data_m_n) / ( data_count+1.0);
-								data_s_n = data_s_n + ( remaining - data_m_n) * ( remaining - m_new);
-								data_m_n = m_new;
-								data_count++;
-								if (remaining>data_max) {
-									data_max = remaining;
-								}
-								if (remaining<data_min) {
-									data_min = remaining;
-								}
-							} else {
-								data_zero_count++;
-							}
-						}
-
+			if(ENABLE_STATS) {
+			    // Compute the mean and variance of data message sizes
+			    // This is an implementation of welfords method
+			    // http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+			    int remaining = data.remaining();
+			    if(remaining>0) {
+				double m_new = data_m_n + ( remaining - data_m_n) / ( data_count+1.0);
+				data_s_n = data_s_n + ( remaining - data_m_n) * ( remaining - m_new);
+				data_m_n = m_new;
+				data_count++;
+				if (remaining>data_max) {
+				    data_max = remaining;
+				}
+				if (remaining<data_min) {
+				    data_min = remaining;
+				}
+			    } else {
+				data_zero_count++;
+			    }
+			}
+			
                         dataProcess(data);
                     }
                     catch (IllegalArgumentException ex)
@@ -1155,7 +1166,7 @@ public class DataCollector
                 // What about monitoring?
                 if (t >= moniReadInterval)
                 {
-					nextMoniRead = t + moniReadInterval;
+		    nextMoniRead = t + moniReadInterval;
 
                     ByteBuffer moni = app.getMoni();
                     if (moni.remaining() > 0)
@@ -1167,8 +1178,8 @@ public class DataCollector
 
                 if (t > nextSupernovaRead)
                 {
-					nextSupernovaRead = t + supernovaReadInterval;
-                    while (true)
+		    nextSupernovaRead = t + supernovaReadInterval;
+                    while (!supernova_disabled)
                     {
                         ByteBuffer sndata = app.getSupernova();
                         if (sndata.remaining() > 0)
