@@ -157,7 +157,7 @@ public class DataCollector
 
     // used to be set from a system property, now reads from the runconfig
     // stringhub[hubId=X] / intervals / enable - True
-    private final boolean disable_intervals;
+    private boolean disable_intervals;
     private boolean supernova_disabled = true;
 
     private static final long INTERVAL_MIN_DOMAPP_PROD_VERSION = 445;
@@ -475,18 +475,25 @@ public class DataCollector
         app.setLCWindow(lc.getPreTrigger(), lc.getPostTrigger());
         app.setCableLengths(lc.getCableLengthUp(), lc.getCableLengthDn());
         if (config.isSupernovaEnabled()) {
-	    app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
-	    supernova_disabled=false;
-	} else {
-	    app.disableSupernova();
-	    supernova_disabled=true;
-	    ByteBuffer eos = MultiChannelMergeSort.eos(numericMBID);
-	    try {
-		if (supernovaConsumer != null) supernovaConsumer.consume(eos.asReadOnlyBuffer());
-	    } catch (IOException iox) {
-		logger.warn("Caught IO Exception trying to shut down unused SN channel");
-	    }
-	}
+			app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
+			supernova_disabled=false;
+		} else {
+			if(disable_intervals) {
+				app.disableSupernova();
+			} else {
+				// we need to send the enable supernova message
+				// if we are using intervals, for now the runcore_interval method will
+				// filter out supernova data
+				app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
+			}
+			supernova_disabled=true;
+			ByteBuffer eos = MultiChannelMergeSort.eos(numericMBID);
+			try {
+				if (supernovaConsumer != null) supernovaConsumer.consume(eos.asReadOnlyBuffer());
+			} catch (IOException iox) {
+				logger.warn("Caught IO Exception trying to shut down unused SN channel");
+			}
+		}
 
         app.setScalerDeadtime(config.getScalerDeadtime());
 
@@ -1046,11 +1053,16 @@ public class DataCollector
 			if (DEBUG_ENABLED) {
 				logger.debug("Using intervals run loop!");
 			}
+			// configure is only called inside the following
 			runcore_interval();
 		} else {
 			if (DEBUG_ENABLED) {
 				logger.debug("Using original run loop!");
 			}
+			// explicitly turn off intervals if the dom-mb version
+			// does not support intervals
+			this.disable_intervals = true;
+			// configure is only called inside the following
 			runcore_orig();
 		}
 	}
@@ -1411,7 +1423,9 @@ public class DataCollector
 						dataProcess(msg.slice());
 					} else if(MessageType.GET_SN_DATA.equals(msg_type, msg_subtype)) {
 						if (msg.remaining()>0) {
-                            supernovaProcess(msg.slice());
+							if(!supernova_disabled) {
+								supernovaProcess(msg.slice());
+							}
                             tired = false;
                         }
 						done = true;

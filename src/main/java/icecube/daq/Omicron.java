@@ -147,9 +147,12 @@ public class Omicron {
 		}
 		for (DataCollector dc : collectors)
 		{
+		    // Note that if you turn SN data off on all doms the extra 
+		    // messaging pushed the us over the timeout here
+		    // doubling the timeout worked.
             while (dc.isAlive() && 
                     !dc.getRunLevel().equals(RunLevel.IDLE) && 
-                    System.currentTimeMillis() - t0 < 15000L)
+                    System.currentTimeMillis() - t0 < 30000L)
                 Thread.sleep(100);
 		    if (!dc.isAlive())
 		    {
