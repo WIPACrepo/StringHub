@@ -42,7 +42,7 @@ public class FilesHitSpool implements BufferConsumer
     private byte[] iobuf;
     private boolean isHosed = false;
 
-    private final static Logger logger = Logger.getLogger(FilesHitSpool.class);
+    private static final Logger logger = Logger.getLogger(FilesHitSpool.class);
 
     /**
      * Constructor with full options.
