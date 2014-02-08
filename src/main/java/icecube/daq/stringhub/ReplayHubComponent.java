@@ -742,6 +742,7 @@ class PayloadFileThread
             }
 
             numHits++;
+            totPayloads++;
 
             final long daqTime = rdr.getUTCTime(buf);
             if (daqTime <= Long.MIN_VALUE) {
@@ -836,15 +837,12 @@ class PayloadFileThread
 
         }
 
-        LOG.error("Not writing STOP payload");
-
         try {
             rdr.close();
         } catch (IOException ioe) {
             // ignore errors on close
         }
 
-        totPayloads += numHits;
         LOG.error("Finished writing " + numHits + " hits");
     }
 
@@ -853,7 +851,11 @@ class PayloadFileThread
      */
     public void run()
     {
-        process();
+        try {
+            process();
+        } catch (Throwable thr) {
+            LOG.error("Processing failed after " + totPayloads + " hits");
+        }
 
         outThread.push(buildStopMessage());
 
