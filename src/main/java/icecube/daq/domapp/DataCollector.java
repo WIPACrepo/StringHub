@@ -684,7 +684,7 @@ public class DataCollector
             if (monitor instanceof AsciiMonitorRecord)
             {
                 String moniMsg = monitor.toString();
-                if (DEBUG_ENABLED) logger.debug(moniMsg);
+                logger.error(moniMsg);
                 if (moniMsg.contains("LBM OVERFLOW")) numLBMOverflows++;
             }
             numMoni++;
