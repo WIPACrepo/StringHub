@@ -24,6 +24,7 @@ public class StreamBinder extends Thread
     private BufferConsumer             out;
     private Node<DAQRecord>            terminal;
     private static final Logger        logger   = Logger.getLogger(StreamBinder.class);
+    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
     private boolean                    running;
     private static final ByteBuffer    eos;
     private volatile long       counter;
@@ -92,7 +93,7 @@ public class StreamBinder extends Thread
 
     public void register(SelectableChannel ch, String streamName) throws IOException
     {
-        if (logger.isDebugEnabled())
+        if (DEBUG_ENABLED)
             logger.debug("Registering channel " + streamName);
         if (nreg == inputs.size()) throw new IllegalStateException("Too many input channels registered");
         Node<DAQRecord> node = inputs.get(nreg++);
@@ -116,13 +117,13 @@ public class StreamBinder extends Thread
             try
             {
                 int n = selector.select(500);
-                if (logger.isDebugEnabled())
+                if (DEBUG_ENABLED)
                     logger.debug("Selector returned " + n + " interests; counter = " + counter);
                 for (Iterator<SelectionKey> it = selector.selectedKeys().iterator(); it.hasNext();)
                 {
                     SelectionKey key = it.next();
                     it.remove();
-                    if (logger.isDebugEnabled())
+                    if (DEBUG_ENABLED)
                         logger.debug("Sort tree object count = " + counter);
                     // overflow handling - check whether the counter is too
                     // large
@@ -143,7 +144,7 @@ public class StreamBinder extends Thread
                             logger.warn(getName() + " out-of-order record detected");
                         // A single end-of-stream is sufficient to shut down
                         // this binder.
-                        if (logger.isDebugEnabled())
+                        if (DEBUG_ENABLED)
                             logger.debug(getName() + "sending buffer to sender RECL = " + buf.getInt(0)
                                     + " - TYPE = " + buf.getInt(4) + " - UTC = " + currentUT.toString());
                         if (buf.getInt(0) == 32 && buf.getLong(8) == 0L &&

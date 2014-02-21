@@ -23,7 +23,6 @@ import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
 import icecube.daq.monitoring.MonitoringData;
-import icecube.daq.oldpayload.impl.MasterPayloadFactory;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.SourceIdRegistry;
@@ -53,7 +52,6 @@ import org.apache.log4j.Logger;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.Node;
-import org.dom4j.io.SAXReader;
 import org.xml.sax.SAXException;
 
 public class StringHubComponent
@@ -84,7 +82,7 @@ public class StringHubComponent
 	private MultiChannelMergeSort moniSort;
 	private MultiChannelMergeSort tcalSort;
 	private MultiChannelMergeSort scalSort;
-	private String configurationPath;
+	private File configurationPath;
 
 	private ISourceID sourceId;
 	private static final String COMPONENT_NAME =
@@ -261,7 +259,12 @@ public class StringHubComponent
 	@Override
 	public void setGlobalConfigurationDir(String dirName)
 	{
-		configurationPath = dirName;
+		configurationPath = new File(dirName);
+		if (!configurationPath.exists()) {
+			throw new Error("Configuration directory \"" + configurationPath +
+							"\" does not exist");
+		}
+
 		if (logger.isInfoEnabled()) {
 			logger.info("Setting the ueber configuration directory to " +
 						configurationPath);
@@ -282,6 +285,8 @@ public class StringHubComponent
 
 	/**
 	 * Close all open files, sockets, etc.
+	 *
+	 * @throws IOException if there is a problem
 	 */
 	public void closeAll()
 		throws IOException
@@ -293,6 +298,8 @@ public class StringHubComponent
 		teOut.destroyProcessor();
 		reqIn.destroyProcessor();
 		dataOut.destroyProcessor();
+
+		super.closeAll();
 	}
 
 	/**
@@ -312,7 +319,11 @@ public class StringHubComponent
 				int card = (dom.getStringMinor()-1) / 8;
 				int pair = ((dom.getStringMinor()-1) % 8) / 2;
 				char aorb = 'A';
-				if (dom.getStringMinor() % 2 == 1) aorb = 'B';
+				// not a major change, but the previous code here used
+				// % 2 == 1 to check for oddness.  YES, the string's are all
+				// positive integers, but that test would fail for negative
+				// numbers.
+				if (dom.getStringMinor() % 2 != 0) aorb = 'B';
 				activeDOMs.add(new DOMChannelInfo(dom.getMainboardId(), card, pair, aorb));
 			}
 		}
@@ -348,13 +359,6 @@ public class StringHubComponent
 		try
 		{
 
-			// check and see if the driver is using an expired leapseconds file
-			if (driver.daysTillLeapExpiry()<0) {
-				StringHubAlert.sendLeapsecondExpired(getAlerter(), "Config File Expired",
-													 "Nist Configuration file past expiration date",
-													 -1 * driver.daysTillLeapExpiry());
-			}
-
 			// Lookup the connected DOMs
 			discover();
 
@@ -362,12 +366,9 @@ public class StringHubComponent
 				throw new DAQCompException("No Active DOMs on hub.");
 
 			// Parse out tags from 'master configuration' file
-			File domConfigsDirectory = new File(configurationPath, "domconfigs");
-			File masterConfigFile = new File(configurationPath, configName + ".xml");
-			FileInputStream fis = new FileInputStream(masterConfigFile);
+			Document doc = loadXMLDocument(configurationPath, configName);
 
-			SAXReader r = new SAXReader();
-			Document doc = r.read(fis);
+			File domConfigsDirectory = new File(configurationPath, "domconfigs");
 
 			XMLConfig xmlConfig = new XMLConfig();
 
@@ -382,12 +383,15 @@ public class StringHubComponent
 			 */
 			Node hubNode = doc.selectSingleNode("runConfig/stringHub[@hubId='" + hubId + "']");
 			boolean dcSoftboot = false;
-
+			boolean enable_intervals = false;
 			int tcalPrescale = 10;
 
 			if (hubNode != null)
 			{
 				if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) logger.error("String triggering not implemented");
+				if (hubNode.valueOf("intervals/enabled").equalsIgnoreCase("true")) {
+					enable_intervals = true;
+				}
 				if (hubNode.valueOf("sender/forwardIsolatedHitsToTrigger").equalsIgnoreCase("true"))
 					sender.forwardIsolatedHitsToTrigger();
 				if (hubNode.valueOf("dataCollector/softboot").equalsIgnoreCase("true"))
@@ -405,7 +409,6 @@ public class StringHubComponent
 				if (hitspool_node!=null) {
 					if (hitspool_node.valueOf("enabled").equalsIgnoreCase("true"))
 						hitSpooling = true;
-
 					hitSpoolDir = hitspool_node.valueOf("directory");
 					if (hitSpoolDir.length() == 0)
 						hitSpoolDir = "/mnt/data/pdaqlocal";
@@ -457,8 +460,6 @@ public class StringHubComponent
 				xmlConfig.parseXMLConfig(new FileInputStream(configFile));
 			}
 
-			fis.close();
-
 			int nch = 0;
 			/***********
 
@@ -482,8 +483,8 @@ public class StringHubComponent
 				if (!activeDomSet.contains(mbid) && xmlConfig.getDOMConfig(mbid) != null) {
 					logger.warn("DOM " + deployedDOM + " requested in configuration but not found.");
 
-					StringHubAlert.sendDOMAlert(getAlerter(), "Dropped DOM",
-												"Dropped DOM during configure",
+					StringHubAlert.sendDOMAlert(getAlerter(),
+												"Dropped DOM",
 												0, 0, (char) 0,
 												deployedDOM.getMainboardId(),
 												deployedDOM.getName(),
@@ -528,10 +529,28 @@ public class StringHubComponent
 				File hitSpoolLast = new File(hitSpoolDir, "lastRun");
                 File hitSpoolTemp = new File(hitSpoolDir, "HitSpool"+getRunNumber()+".tmp");
 
-                  if (hitSpoolLast.exists()) hitSpoolLast.renameTo(hitSpoolTemp);
-                  if (hitSpoolCurrent.exists()) hitSpoolCurrent.renameTo(hitSpoolLast);
-                  if (hitSpoolTemp.exists()) hitSpoolTemp.renameTo(hitSpoolCurrent);
-                  if (!hitSpoolCurrent.exists()) hitSpoolCurrent.mkdir();
+				// Note that renameTo and mkdir return false on failure
+				if (hitSpoolLast.exists()) {
+					if (!hitSpoolLast.renameTo(hitSpoolTemp)) {
+						logger.debug("hitSpoolLast renameTo failed");
+					}
+				}
+				if (hitSpoolCurrent.exists()) {
+					if (!hitSpoolCurrent.renameTo(hitSpoolLast)) {
+						logger.debug("hitSpoolCurrent renameTo failed!");
+					}
+				}
+				if (hitSpoolTemp.exists()) {
+					if(!hitSpoolTemp.renameTo(hitSpoolCurrent)) {
+						logger.debug("hitSpoolTemp renameTo failed!");
+					}
+				}
+				if (!hitSpoolCurrent.exists()) {
+					if(!hitSpoolCurrent.mkdir()) {
+						logger.debug("hitSpoolCurrent mkdir failed!");
+					}
+				}
+
 				FilesHitSpool hitSpooler = new FilesHitSpool(sender, hitSpoolCurrent, hitSpoolIval, hitSpoolNumFiles);
 				hitsSort = new MultiChannelMergeSort(nch, hitSpooler);
 			}
@@ -774,7 +793,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 14436 2013-04-21 19:33:04Z mnewcomb $";
+		return "$Id: StringHubComponent.java 14646 2013-10-14 20:12:32Z mnewcomb $";
 	}
 
 	public IByteBufferCache getCache()
@@ -896,7 +915,7 @@ public class StringHubComponent
 		for (AbstractDataCollector adc : conn.getCollectors()) {
 			if (!adc.isZombie()) {
 				long val = adc.getFirstHitTime();
-				if (val <= 0L) {
+				if (val < 0L) {
 					found = false;
 					break;
 				} else if (val > latestFirst) {
@@ -920,7 +939,7 @@ public class StringHubComponent
 		for (AbstractDataCollector adc : conn.getCollectors()) {
 			if (!adc.isZombie()) {
 				long val = adc.getLastHitTime();
-				if (val <= 0L) {
+				if (val < 0L) {
 					found = false;
 					break;
 				} else if (val < earliestLast) {

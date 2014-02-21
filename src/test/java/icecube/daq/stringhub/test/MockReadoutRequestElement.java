@@ -38,6 +38,11 @@ public class MockReadoutRequestElement
         this.srcId = srcId;
     }
 
+    public Object deepCopy()
+    {
+        throw new Error("Unimplemented");
+    }
+
     public void dispose()
     {
         // do nothing
@@ -48,9 +53,27 @@ public class MockReadoutRequestElement
         return domId;
     }
 
+    public long getFirstTime()
+    {
+        if (firstTime == null) {
+            return 0L;
+        }
+
+        return firstTime.longValue();
+    }
+
     public IUTCTime getFirstTimeUTC()
     {
         return firstTime;
+    }
+
+    public long getLastTime()
+    {
+        if (lastTime == null) {
+            return 0L;
+        }
+
+        return lastTime.longValue();
     }
 
     public IUTCTime getLastTimeUTC()
@@ -87,6 +110,16 @@ public class MockReadoutRequestElement
      * @exception DataFormatException if the record is not of the correct format
      */
     public void loadData(int offset, ByteBuffer buffer)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    /**
+     * Write this element to the byte buffer
+     * @param buf byte buffer
+     * @param offset index of first byte
+     */
+    public void put(ByteBuffer buf, int offset)
     {
         throw new Error("Unimplemented");
     }

@@ -24,10 +24,10 @@ public class GPSInfo {
 	timestring = new String(timestringbytes);
 	try
 	    {
-		day  = Integer.valueOf(timestring.substring(0, 3)).intValue();
-		hour = Integer.valueOf(timestring.substring(4, 6)).intValue();
-		min  = Integer.valueOf(timestring.substring(7, 9)).intValue();
-		sec  = Integer.valueOf(timestring.substring(10, 12)).intValue();
+		day  = Integer.parseInt(timestring.substring(0, 3));
+		hour = Integer.parseInt(timestring.substring(4, 6));
+		min  = Integer.parseInt(timestring.substring(7, 9));
+		sec  = Integer.parseInt(timestring.substring(10, 12));
 	    }
 	catch (NumberFormatException nex)
 	    {

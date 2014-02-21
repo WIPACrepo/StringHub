@@ -23,7 +23,7 @@ import org.apache.log4j.Logger;
  * one opened up with a sequential identifier indicating that it is
  * the next file.  Once the maximum number of files is achieved,
  * the sequence will start from the beginning, overwriting files.
- * 
+ *
  * @author kael hanson (khanson@ulb.ac.be)
  *
  */
@@ -41,13 +41,13 @@ public class FilesHitSpool implements BufferConsumer
     private boolean packHeaders = false;
     private byte[] iobuf;
     private boolean isHosed = false;
-    
+
     private final static Logger logger = Logger.getLogger(FilesHitSpool.class);
-    
+
     /**
      * Constructor with full options.
      * @param out   BufferConsumer object that will receive forwarded hits.  Can be null.
-     * @param targetDir output directory on filesystem 
+     * @param targetDir output directory on filesystem
      * @param hitsPerFile number of hits per file
      * @param fileCount number of files in the spooling ensemble
      * @see BufferConsumer
@@ -62,33 +62,53 @@ public class FilesHitSpool implements BufferConsumer
         this.targetDirectory    = targetDir;
         this.maxNumberOfFiles   = fileCount;
         this.packHeaders        = Boolean.getBoolean("icecube.daq.stringhub.hitspool.packHeaders");
-        
-        if (packHeaders)
-            try 
-            {
-                this.reg = DOMRegistry.loadRegistry(System.getenv("PDAQ_HOME") + "/config");
-            } 
-            catch (Exception x) 
-            {
-                this.reg = null;
+
+        if (packHeaders) {
+            File configDir = null;
+
+            String pcfg = System.getenv("PDAQ_CONFIG");
+            if (pcfg != null) {
+                configDir = new File(pcfg);
+                if (!configDir.exists()) {
+                    configDir = null;
+                }
             }
 
-        logger.info("DOM registry " + (reg != null? "" : "NOT") + " found; header packing " + 
+            if (configDir == null) {
+                configDir = new File(System.getenv("HOME"), "config");
+                if (!configDir.isDirectory()) {
+                    configDir = null;
+                }
+            }
+
+            if (configDir != null) {
+                try
+                {
+                    this.reg = DOMRegistry.loadRegistry(configDir);
+                }
+                catch (Exception x)
+                {
+                    this.reg = null;
+                }
+            }
+        }
+
+        logger.info("DOM registry " + (reg != null? "" : "NOT") + " found; header packing " +
                 (packHeaders ? "" : "NOT") + " activated.");
-        
+
         iobuf = new byte[5000];
     }
-    
+
     public FilesHitSpool(BufferConsumer out, File targetDir, long hitsPerFile) throws IOException
     {
         this(out, targetDir, hitsPerFile, 100);
     }
-    
+
     public FilesHitSpool(BufferConsumer out, File targetDir) throws IOException
     {
         this(out, targetDir, 100000L);
     }
-    
+
     private int transform(ByteBuffer buf)
     {
         int cpos = 0;
@@ -116,11 +136,11 @@ public class FilesHitSpool implements BufferConsumer
     {
         if (null != out) out.consume(buf);
         if (isHosed) return;
-        
+
         // bytes 24 .. 31 hold the 64-bit UTC clock value
         t = buf.getLong(24);
-        
-        if (t == Long.MAX_VALUE) 
+
+        if (t == Long.MAX_VALUE)
         {
             // this is the END-OF-DATA marker - close file and quit
             // note there could be multiple EODs
@@ -130,11 +150,11 @@ public class FilesHitSpool implements BufferConsumer
             }
             return;
         }
-        
+
         if (t0 == 0L) t0 = t;
         long deltaT = t - t0;
-        int fileNo = ((int) (deltaT / fileInterval)) % maxNumberOfFiles; 
-        
+        int fileNo = ((int) (deltaT / fileInterval)) % maxNumberOfFiles;
+
         if (fileNo != currentFileIndex)
         {
             currentFileIndex = fileNo;
@@ -144,14 +164,21 @@ public class FilesHitSpool implements BufferConsumer
             }
             catch (IOException iox)
             {
-            	logger.error("openNewFile threw " + iox.getMessage() + 
+            	logger.error("openNewFile threw " + iox.getMessage() +
             			". HitSpooling will be terminated.");
             	dataOut = null;
             	isHosed = true;
             	return;
             }
         }
-                
+
+        // this buffer wrap fix conflicts with HitSpool code
+        /*
+        byte[] tmpArray = new byte[buf.remaining()];
+        buf.get(tmpArray);
+        dataOut.write(tmpArray);
+        */
+
         // now I should be free to pack the buffer, if that is the
         // behavior desired.
         int nw = transform(buf);
@@ -174,13 +201,13 @@ public class FilesHitSpool implements BufferConsumer
         String fileName = "HitSpool-" + currentFileIndex + ".dat";
         File newFile = new File(targetDirectory, fileName);
         File infFile = new File(targetDirectory, "info.txt");
-        
+
         FileOutputStream ostr = new FileOutputStream(infFile);
         FileLock lock = ostr.getChannel().lock();
         PrintStream info = new PrintStream(ostr);
-        
+
         if (dataOut != null) { dataOut.flush(); dataOut.close(); }
-        try 
+        try
         {
             info.println(String.format("T0   %20d", t0));
             info.println(String.format("CURT %20d", t));
@@ -193,6 +220,6 @@ public class FilesHitSpool implements BufferConsumer
             lock.release();
             info.close();
         }
-        dataOut = new BufferedOutputStream(new FileOutputStream(newFile), 32768); 
+        dataOut = new BufferedOutputStream(new FileOutputStream(newFile), 32768);
     }
 }

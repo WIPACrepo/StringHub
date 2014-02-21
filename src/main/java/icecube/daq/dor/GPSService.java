@@ -1,7 +1,7 @@
 package icecube.daq.dor;
 
-import java.util.GregorianCalendar;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.io.File;
 
 import org.apache.log4j.Logger;
 
@@ -32,37 +32,56 @@ public class GPSService
         private GPSInfo gps;
         private int gps_error_count;
         private AtomicBoolean running;
-        
-        GPSCollector(Driver driver, int card) 
+        private File gpsFile;
+
+        GPSCollector(Driver driver, int card)
         {
             this.driver = driver;
             this.card = card;
+            this.gpsFile = driver.getGPSFile(card);
             cons_gpsx_count = 0;
             gps_error_count = 0;
             gps = null;
             running = new AtomicBoolean(false);
         }
-        
+
         void startup()
         {
             running.set(true);
             this.start();
         }
-        
+
         void shutdown()
         {
             running.set(false);
         }
-        
+
         public void run()
         {
+            
+            try
+            {
+                // Eat through the up to 10 buffered GPS snaps in the DOR
+                for (int i = 0; i < 10; i++)
+                    driver.readGPS(gpsFile);
+            }
+            catch (GPSNotReady nr)
+            {
+                // OK
+            }
+            catch (GPSException gpsx)
+            {
+                // Probably not OK
+                gpsx.printStackTrace();
+                logger.warn("Got GPS exception " + gpsx.getMessage());
+            }
             while (running.get())
             {
-                try 
+                try
                 {
                     Thread.sleep(740L);
-                    GPSInfo newGPS = driver.readGPS(card);
-                    
+                    GPSInfo newGPS = driver.readGPS(gpsFile);
+
                     cons_gpsx_count = 0;
                     if (!(gps == null || newGPS.getOffset().equals(gps.getOffset())))
                     {
@@ -70,7 +89,7 @@ public class GPSService
                                 "GPS offset mis-alignment detected - old GPS: " +
                                 gps + " new GPS: " + newGPS);
                         StringHubAlert.sendDOMAlert(
-                                alerter, "GPS Error", "GPS Offset mis-match",
+                                alerter, "GPS Offset mis-match",
                                 card, 0, '-', "000000000000", "GPS", 0, 0);
                     }
                     else
@@ -88,7 +107,7 @@ public class GPSService
                     {
                         logger.warn("GPS not ready.");
                         StringHubAlert.sendDOMAlert(
-                                alerter, "GPS Error", "SyncGPS procfile not ready",
+                                alerter, "SyncGPS procfile not ready",
                                 card, 0, '-', "000000000000", "GPS", 0, 0);
                     }
                 }
@@ -97,13 +116,13 @@ public class GPSService
                     gps_ex.printStackTrace();
                     logger.warn("Got GPS exception - time translation to UTC will be incomplete");
                     StringHubAlert.sendDOMAlert(
-                            alerter, "GPS Error", "SyncGPS procfile I/O error",
+                            alerter, "SyncGPS procfile I/O error",
                             card, 0, '-', "000000000000", "GPS", 0, 0);
                     gps_error_count++;
                 }
             }
         }
-        
+
         synchronized GPSInfo getGps() { return gps; }
 
         public boolean isRunning()
@@ -111,35 +130,35 @@ public class GPSService
             return running.get();
         }
     }
-    
+
     private GPSCollector[] coll;
     private static final GPSService instance = new GPSService();
-    
+
     private GPSService()
     {
         coll = new GPSCollector[8];
     }
-    
+
     public static GPSService getInstance() { return instance; }
-    
-    public GPSInfo getGps(int card) { return coll[card].getGps(); } 
-    
-    public void startService(Driver drv, int card) 
+
+    public GPSInfo getGps(int card) { return coll[card].getGps(); }
+
+    public void startService(Driver drv, int card)
     {
         if (coll[card] == null) { coll[card] = new GPSCollector(drv, card); }
-        if (!coll[card].isRunning()) coll[card].startup(); 
+        if (!coll[card].isRunning()) coll[card].startup();
     }
-    
+
     public void startService(int card)
     {
         startService(Driver.getInstance(), card);
     }
-    
-    public void shutdownAll() 
+
+    public void shutdownAll()
     {
         for (int i = 0; i < 8; i++)
             if (coll[i] != null && coll[i].isRunning()) coll[i].shutdown();
     }
-    
+
     public void setAlerter(Alerter alerter) { this.alerter = alerter; }
 }

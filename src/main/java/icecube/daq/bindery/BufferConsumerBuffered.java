@@ -46,9 +46,10 @@ public class BufferConsumerBuffered
        }
 
        // transfer the data
-       buf.get(buffer_data);
+       int remaining = buf.remaining();
+       buf.get(buffer_data, 0, remaining);
 
        // write the data to disk
-       this.bos.write(buffer_data, 0, buf.remaining());
+       this.bos.write(buffer_data, 0, remaining);
    }
 }

@@ -47,9 +47,9 @@ public class DOMConfiguration implements Serializable
     /** The fraction of hits that have HLC bit set (simulation only) */
     private double        simHLCFrac              = 1.0;
     private int           histoInterval           = 10;
-    private short         histoPrescale           = (short) 8;
-    private boolean       chargeStampATWD         = false;
-    private byte          chargeStampAtwdChannel  = -2;
+    private short      histoPrescale           = (short) 8;
+    private boolean    chargeStampATWD         = false;
+    private byte       chargeStampAtwdChannel  = -2;
 	
 	/** Set for injecting supernova simulation signal */
 	private	boolean       snSigEnabled = false;					
@@ -460,7 +460,7 @@ public class DOMConfiguration implements Serializable
                 || averagePedestal[5] == null) return new Integer[0];
         return averagePedestal;
     }
-
+    
 }
 
 

@@ -2,6 +2,7 @@ package icecube.daq.util;
 
 import icecube.daq.juggler.alert.AlertException;
 import icecube.daq.juggler.alert.Alerter;
+import icecube.daq.payload.impl.UTCTime;
 
 import java.util.HashMap;
 
@@ -13,37 +14,25 @@ public class StringHubAlert
     /** Logging object */
     private static final Log LOG = LogFactory.getLog(StringHubAlert.class);
 
-
     /**
-     * Send an alert that the leapsecond file has expired
+     * Send a DOM alert.
      */
-    public static final void sendLeapsecondExpired(Alerter alerter, String condition,
-						   String desc, double days_past_expiry) {
-        if (alerter == null || !alerter.isActive()) {
-            return;
-        }
-
-        HashMap<String, Object> vars = new HashMap<String, Object>();
-        if (days_past_expiry!=0) {
-            vars.put("days_past_expiry", days_past_expiry);
-        }
-
-        try {
-            alerter.sendAlert(Alerter.Priority.SCP, condition, vars);
-        } catch (AlertException ae) {
-            LOG.error("Cannot send " + condition + " alert", ae);
-	}
-
+    public static final void sendDOMAlert(Alerter alerter, String condition,
+                                          int card, int pair, char dom,
+                                          String mbid, String name, int string,
+                                          int position)
+    {
+        sendDOMAlert(alerter, condition, card, pair, dom, mbid, name, string,
+                     position, -1L);
     }
-
 
     /**
      * Send a DOM alert.
      */
     public static final void sendDOMAlert(Alerter alerter, String condition,
-                                          String desc, int card, int pair,
-                                          char dom, String mbid, String name,
-                                          int major, int minor)
+                                          int card, int pair, char dom,
+                                          String mbid, String name, int string,
+                                          int position, long utcTime)
     {
         if (alerter == null || !alerter.isActive()) {
             return;
@@ -61,8 +50,11 @@ public class StringHubAlert
         if (name != null) {
             vars.put("name", name);
         }
-        vars.put("major", major);
-        vars.put("minor", minor);
+        vars.put("string", string);
+        vars.put("position", position);
+        if (utcTime >= 0L) {
+            vars.put("exact-time", UTCTime.toDateString(utcTime));
+        }
 
         try {
             alerter.sendAlert(Alerter.Priority.SCP, condition, vars);
@@ -71,3 +63,4 @@ public class StringHubAlert
         }
     }
 }
+

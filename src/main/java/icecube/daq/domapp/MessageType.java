@@ -109,6 +109,10 @@ public enum MessageType {
 	
 	GET_FAST_MONI_RATE_TYPE(3, 36),
 	SET_FAST_MONI_RATE_TYPE(3, 37),
+
+	/** Get a one second interval of data */
+	GET_INTERVAL(3, 39),
+	    
 	
 	/** Start a data collection run on the DOM */
 	BEGIN_RUN(4, 12),

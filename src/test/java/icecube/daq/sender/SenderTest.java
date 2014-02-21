@@ -1841,7 +1841,7 @@ public class SenderTest
     public void testConsumeStop()
         throws IOException
     {
-        MockBufferCache cache = new MockBufferCache();
+        MockBufferCache cache = new MockBufferCache("foo");
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
         //sender.setDOMRegistry(domRegistry);
 
@@ -1881,7 +1881,7 @@ public class SenderTest
     public void testConsumeEngHit()
         throws IOException
     {
-        MockBufferCache cache = new MockBufferCache();
+        MockBufferCache cache = new MockBufferCache("foo");
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
         //sender.setDOMRegistry(domRegistry);
 
@@ -1939,11 +1939,11 @@ public class SenderTest
     public void testConsumeEngHitWithTE()
         throws IOException
     {
-        MockBufferCache cache = new MockBufferCache();
+        MockBufferCache cache = new MockBufferCache("foo");
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
         sender.setDOMRegistry(domRegistry);
 
-        MockBufferCache teCache = new MockBufferCache();
+        MockBufferCache teCache = new MockBufferCache("foo");
         sender.setTrackEngineCache(teCache);
 
         MockHitChannel hitChan = new MockHitChannel();
@@ -2020,7 +2020,7 @@ public class SenderTest
     public void testConsumeDeltaHit()
         throws IOException
     {
-        MockBufferCache cache = new MockBufferCache();
+        MockBufferCache cache = new MockBufferCache("foo");
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
         //sender.setDOMRegistry(domRegistry);
 
@@ -2082,7 +2082,7 @@ public class SenderTest
     public void testConsumeHitsAndRequest()
         throws IOException
     {
-        MockBufferCache cache = new MockBufferCache();
+        MockBufferCache cache = new MockBufferCache("foo");
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
         sender.setDOMRegistry(domRegistry);
 

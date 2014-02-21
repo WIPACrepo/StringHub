@@ -2,12 +2,9 @@
 
 package icecube.daq.domapp;
 
-import icecube.daq.juggler.alert.AlertException;
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
-
-import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
@@ -94,7 +91,9 @@ public abstract class AbstractDataCollector extends Thread
 	 */
 	public void signalConfigure()
 	{
-	    switch (getRunLevel())
+		RunLevel tmpRunLevel = getRunLevel();
+
+	    switch (tmpRunLevel)
 	    {
 	    case ZOMBIE: return;
 	    case IDLE:
@@ -102,7 +101,7 @@ public abstract class AbstractDataCollector extends Thread
 	        setRunLevel(RunLevel.CONFIGURING);
 	        break;
 	    default:
-	        logger.error("Attempted to configure DOM at run level " + runLevel);
+	        logger.error("Attempted to configure DOM at run level " + tmpRunLevel);
 	    }
 	}
 
@@ -112,52 +111,56 @@ public abstract class AbstractDataCollector extends Thread
 	 */
 	public void signalStartRun()
 	{
+		RunLevel tmpRunLevel = getRunLevel();
 		logger.info("signalStartRun");
-	    switch (getRunLevel())
+	    switch (tmpRunLevel)
 	    {
 	    case CONFIGURED:
 	        setRunLevel(RunLevel.STARTING);
 	        break;
         default:
-            logger.error("Attempted to start run on DOM at run level " + runLevel);
+            logger.error("Attempted to start run on DOM at run level " + tmpRunLevel);
 	    }
 	}
 
 	public void signalStopRun()
 	{
-        switch (getRunLevel())
+		RunLevel tmpRunLevel = getRunLevel();
+        switch (tmpRunLevel)
         {
         case RUNNING:
             setRunLevel(RunLevel.STOPPING);
             break;
         default:
             if (logger.isInfoEnabled()) {
-                logger.info("Ignoring stop from run level " + runLevel);
+                logger.info("Ignoring stop from run level " + tmpRunLevel);
             }
         }
 	}
 
 	public void signalStartSubRun()
 	{
-	    switch (getRunLevel())
+		RunLevel tmpRunLevel = getRunLevel();
+	    switch (tmpRunLevel)
 	    {
 	    case RUNNING:
 	        setRunLevel(RunLevel.STARTING_SUBRUN);
 	        break;
         default:
-            logger.warn("Cannot start subrun on DOM at run level " + runLevel);
+            logger.warn("Cannot start subrun on DOM at run level " + tmpRunLevel);
 	    }
 	}
 
     public void signalPauseRun()
     {
-        switch (getRunLevel())
+		RunLevel tmpRunLevel = getRunLevel();
+        switch (tmpRunLevel)
         {
         case RUNNING:
             setRunLevel(RunLevel.PAUSING);
             break;
         default:
-            logger.warn("Ignoring pause from run level " + runLevel);
+            logger.warn("Ignoring pause from run level " + tmpRunLevel);
         }
 
     }
@@ -248,7 +251,9 @@ public abstract class AbstractDataCollector extends Thread
 
 	public long getLastHitTime()
 	{
-		if (runLevel == RunLevel.CONFIGURED) {
+		RunLevel tmpRunLevel = getRunLevel();
+		
+		if (tmpRunLevel == RunLevel.CONFIGURED) {
 			return lastHitTime;
 		}
 		return -1L;

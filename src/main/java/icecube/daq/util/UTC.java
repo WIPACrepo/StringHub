@@ -98,9 +98,21 @@ public class UTC implements Comparable<UTC> {
 			return 0;
 	}
 
+	// define a hash code for this object
+	public int hashCode() {
+	    final int prime = 17;
+
+	    return (int)(prime * tick10);
+	}
+
+
     @Override
     public boolean equals(Object obj)
     {
+	if (obj==null) {
+	    return false;
+	}
+
         if (!(obj instanceof UTC)) return false;
         UTC o = (UTC) obj;
         return tick10 == o.tick10;

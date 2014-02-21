@@ -14,13 +14,13 @@ import icecube.daq.payload.IReadoutRequestElement;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.IWriteablePayload;
+import icecube.daq.payload.PayloadException;
 import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.impl.DOMHit;
 import icecube.daq.payload.impl.DOMHitFactory;
 import icecube.daq.payload.impl.DOMHitReadoutData;
 import icecube.daq.payload.impl.DOMID;
 import icecube.daq.payload.impl.HitRecordList;
-import icecube.daq.payload.PayloadException;
 import icecube.daq.reqFiller.RequestFiller;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
@@ -337,9 +337,9 @@ public class Sender
                     }
                 }
             }
-            buf.flip();
         }
 
+        buf.flip();
     }
 
     /**
@@ -953,9 +953,9 @@ public class Sender
         boolean sent = false;
         ByteBuffer buf;
         if (dataCache == null) {
-            buf = ByteBuffer.allocate(payload.getPayloadLength());
+            buf = ByteBuffer.allocate(payload.length());
         } else {
-            buf = dataCache.acquireBuffer(payload.getPayloadLength());
+            buf = dataCache.acquireBuffer(payload.length());
         }
         try {
             ((IWriteablePayload) payload).writePayload(false, 0, buf);

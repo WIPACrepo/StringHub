@@ -18,7 +18,6 @@ import icecube.daq.util.FlasherboardConfiguration;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
