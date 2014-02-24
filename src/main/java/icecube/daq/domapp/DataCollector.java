@@ -314,7 +314,7 @@ public class DataCollector
 		// but default to disabling intervals
 		this(card, pair, dom, config, hitsTo, moniTo, supernovaTo, tcalTo, driver, rapcal, false);
 	}
-					  
+
 
     public DataCollector(
             int card, int pair, char dom,
@@ -536,7 +536,7 @@ public class DataCollector
         long domclk = buf.getLong(24);
         long utc    = rapcal.domToUTC(domclk).in_0_1ns();
         buf.putLong(24, utc);
-        
+
         target.consume(buf);
 
         // Collect HLC / SLC hit statistics ...
@@ -684,8 +684,12 @@ public class DataCollector
             if (monitor instanceof AsciiMonitorRecord)
             {
                 String moniMsg = monitor.toString();
-                logger.error(moniMsg);
-                if (moniMsg.contains("LBM OVERFLOW")) numLBMOverflows++;
+                if (moniMsg.contains("LBM OVERFLOW")) {
+                    numLBMOverflows++;
+                    logger.error(moniMsg);
+                } else if (DEBUG_ENABLED) {
+                    logger.debug(moniMsg);
+                }
             }
             numMoni++;
             ByteBuffer moniBuffer = ByteBuffer.allocate(monitor.getLength()+32);
@@ -942,7 +946,7 @@ public class DataCollector
 	 * method and the get_interval method ), this is contains code common to both
 	 * methods.  In addiiton it will decide which method to use.
 	 *
-	 * If the user explicitly disables intervals setting 
+	 * If the user explicitly disables intervals setting
 	 * runConfig/Stringhub[id=X]/intervals/enable/false
 	 * or the domapp version is not high enough to support
 	 * intervals it will default to the query method.  Otherwise, intervals
