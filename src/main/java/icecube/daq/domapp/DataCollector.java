@@ -686,7 +686,7 @@ public class DataCollector
                 String moniMsg = monitor.toString();
                 if (moniMsg.contains("LBM OVERFLOW")) {
                     numLBMOverflows++;
-                    logger.error(moniMsg);
+                    logger.error("LBM Overflow");
                 } else if (DEBUG_ENABLED) {
                     logger.debug(moniMsg);
                 }
