@@ -376,7 +376,7 @@ public class ReplayHubComponent
      */
     public int getNumberOfNonZombies()
     {
-        return 0;
+        return 60;
     }
 
     /**
