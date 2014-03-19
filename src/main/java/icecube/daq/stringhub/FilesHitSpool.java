@@ -172,13 +172,6 @@ public class FilesHitSpool implements BufferConsumer
             }
         }
 
-        // this buffer wrap fix conflicts with HitSpool code
-        /*
-        byte[] tmpArray = new byte[buf.remaining()];
-        buf.get(tmpArray);
-        dataOut.write(tmpArray);
-        */
-
         // now I should be free to pack the buffer, if that is the
         // behavior desired.
         int nw = transform(buf);

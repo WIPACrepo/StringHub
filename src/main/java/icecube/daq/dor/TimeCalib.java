@@ -18,7 +18,6 @@ public class TimeCalib {
 	private short[] domWaveform;
 
 	private static final Logger logger = Logger.getLogger(TimeCalib.class);
-    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
 
 	public TimeCalib(ByteBuffer buf) {
 		buf.order(ByteOrder.LITTLE_ENDIAN);
@@ -32,7 +31,7 @@ public class TimeCalib {
 		domTx = buf.getLong();
 		domWaveform = new short[64];
 		for (int i = 0; i < 64; i++) domWaveform[i] = buf.getShort();
-		if (DEBUG_ENABLED) logger.debug("Decode TCAL record - len: " + bytes + " - flags: " + flags + " dorTx: " + dorTx);
+		if (logger.isDebugEnabled()) logger.debug("Decode TCAL record - len: " + bytes + " - flags: " + flags + " dorTx: " + dorTx);
 	}
 
 	/**

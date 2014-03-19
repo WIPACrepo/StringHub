@@ -48,7 +48,7 @@ public abstract class AbstractRAPCal implements RAPCal
             t[3] = UTC.add(tcal.getDorRx(), getFineTimeCorrection(tcal.getDorWaveform()));
             return t;
         }
-        
+
         /**
          * Check whether give DOM oscillator time is between bounding TCALs
          * @param domclk dom oscillator time in 25 ns ticks
@@ -79,7 +79,7 @@ public abstract class AbstractRAPCal implements RAPCal
                 // wild TCAL!
                 logger.warn("Wild TCAL - clen: " + clen + " clenAvg: " + clenAvg);
             }
-            if (DEBUG_ENABLED)
+            if (logger.isDebugEnabled())
             {
                 logger.debug("\n" +
                         " t0: " + t0[0] + ", " + t0[1] + ", " + t0[2] + ", " + t0[3] + "\n" +
@@ -102,7 +102,7 @@ public abstract class AbstractRAPCal implements RAPCal
             long dt = 250L*domclk - domMid;
             // Correct for DOM frequency variation
             dt += (long) (epsilon * dt);
-            if (DEBUG_ENABLED)
+            if (logger.isDebugEnabled())
             {
                 logger.debug("Translating DOM time " + domclk + " at distance " +
                         dt / 10L + " ns from isomark.");
@@ -120,7 +120,6 @@ public abstract class AbstractRAPCal implements RAPCal
     private final int            MAX_HISTORY;
     private final int            BASELINE_SAMPLES;
     private static final Logger  logger = Logger.getLogger(AbstractRAPCal.class);
-    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
 
     public AbstractRAPCal()
     {
@@ -146,16 +145,16 @@ public abstract class AbstractRAPCal implements RAPCal
 	{
 		return clenAvg;
 	}
-	
-	public double getLastCableLength() 
+
+	public double getLastCableLength()
 	{
 		if (hist.size() == 0) return 0.0;
-		return hist.getLast().clen; 
+		return hist.getLast().clen;
 	}
-	
+
 	public void update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException
 	{
-	    if (DEBUG_ENABLED)
+	    if (logger.isDebugEnabled())
 	    {
 	        logger.debug("RAPCal update - history size is " + hist.size());
 	    }

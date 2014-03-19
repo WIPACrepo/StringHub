@@ -59,7 +59,6 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     private final DAQBufferComparator bufferCmp = new DAQBufferComparator();
     private boolean running;
     private static final Logger logger = Logger.getLogger(MultiChannelMergeSort.class);
-    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
     private volatile long lastInputUT;
     private volatile long lastUT;
     private int inputCounter;
@@ -132,7 +131,7 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
                 ByteBuffer buf = q.take();
                 DAQBuffer daqBuffer = new DAQBuffer(buf);
                 lastInputUT = daqBuffer.timestamp;
-                if (DEBUG_ENABLED)
+                if (logger.isDebugEnabled())
                 {
                     logger.debug(
                             String.format("took buffer from MBID %012x at UT %d",
@@ -143,7 +142,7 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
                 if (inputMap.containsKey(daqBuffer.mbid))
                 {
                     inputCounter++;
-                    if (DEBUG_ENABLED && inputCounter % 1000 == 0)
+                    if (logger.isDebugEnabled() && inputCounter % 1000 == 0)
                     {
                         logger.debug("Inputs: " + inputCounter + " Outputs: " + outputCounter);
                     }

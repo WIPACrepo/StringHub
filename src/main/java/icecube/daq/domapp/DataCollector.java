@@ -18,8 +18,8 @@ import icecube.daq.util.RealTimeRateMeter;
 import icecube.daq.util.StringHubAlert;
 import icecube.daq.util.UTC;
 
-import java.io.FileNotFoundException;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -99,9 +99,9 @@ public class DataCollector
 {
     private long                numericMBID;
 
-	// the driver code used to rebuild a path on every call
-	// get the File object ONCE
-	private File tcalFile;
+    // the driver code used to rebuild a path on every call
+    // get the File object ONCE
+    private File tcalFile;
 
     private IDOMApp             app;
     private RAPCal              rapcal;
@@ -115,7 +115,6 @@ public class DataCollector
     private InterruptorTask intTask = new InterruptorTask();
 
     private static final Logger         logger  = Logger.getLogger(DataCollector.class);
-	private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
 
     private static final DecimalFormat  fmt     = new DecimalFormat("#0.000000000");
 
@@ -127,7 +126,7 @@ public class DataCollector
     //private long    lastMoniRead          = 0;
     //private long    lastSupernovaRead     = 0;
     //private long    lastTcalRead          = 0;
-    
+
     // rewrite the processing loop so instead of
     // keeping trakc of the last read, figure out
     // when the next read will be, means fewer
@@ -141,7 +140,7 @@ public class DataCollector
     private long    moniReadInterval      = 1000;
     private long    tcalReadInterval      = 1000;
     private long    supernovaReadInterval = 1000;
-    
+
     // statistics on data packet size
     // welford's method
     private double data_m_n = 0;
@@ -151,7 +150,7 @@ public class DataCollector
     private long data_min = 4092;
     private long data_zero_count = 0;
     private static final DecimalFormat  data_fmt = new DecimalFormat("0.###");
-    
+
     private static final boolean ENABLE_STATS = Boolean.getBoolean(
 	    "icecube.daq.domapp.datacollector.enableStats");
 
@@ -163,10 +162,10 @@ public class DataCollector
     private static final long INTERVAL_MIN_DOMAPP_PROD_VERSION = 445;
     private static final long BASE_TEST_VERSION = 4000;
     private static final long INTERVAL_MIN_DOMAPP_TEST_VERSION = 4477;
-    
+
     private int     rapcalExceptionCount  = 0;
     private int     validRAPCalCount;
-    
+
     private int     numHits               = 0;
     private int     numMoni               = 0;
     private int     numSupernova          = 0;
@@ -275,7 +274,7 @@ public class DataCollector
                 }
                 else
                 {
-                    if (DEBUG_ENABLED) logger.debug("Holding back A hit at " + aclk);
+                    if (logger.isDebugEnabled()) logger.debug("Holding back A hit at " + aclk);
                     return null;
                 }
             }
@@ -283,7 +282,7 @@ public class DataCollector
             {
                 return popB();
             }
-            if (DEBUG_ENABLED) logger.debug("Holding back B hit at " + bclk);
+            if (logger.isDebugEnabled()) logger.debug("Holding back B hit at " + bclk);
             return null;
         }
     }
@@ -315,7 +314,7 @@ public class DataCollector
 		// but default to disabling intervals
 		this(card, pair, dom, config, hitsTo, moniTo, supernovaTo, tcalTo, driver, rapcal, false);
 	}
-					  
+
 
     public DataCollector(
             int card, int pair, char dom,
@@ -345,7 +344,7 @@ public class DataCollector
         else
             this.driver = Driver.getInstance();
 
-		// get and cache the gps file
+        // get and cache the gps file
         // and the tcal file
         tcalFile = this.driver.getTCALFile(card, pair, dom);
 
@@ -411,7 +410,7 @@ public class DataCollector
      */
     private void configure(DOMConfiguration config) throws MessageException
     {
-        if (DEBUG_ENABLED) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Configuring DOM on " + canonicalName());
         }
         long configT0 = System.currentTimeMillis();
@@ -541,7 +540,7 @@ public class DataCollector
         }
 
 
-        if (DEBUG_ENABLED) {
+        if (logger.isDebugEnabled()) {
 			long configT1 = System.currentTimeMillis();
             logger.debug("Finished DOM configuration - " + canonicalName() +
                         "; configuration took " + (configT1 - configT0) +
@@ -554,7 +553,7 @@ public class DataCollector
         long domclk = buf.getLong(24);
         long utc    = rapcal.domToUTC(domclk).in_0_1ns();
         buf.putLong(24, utc);
-        
+
         target.consume(buf);
 
         // Collect HLC / SLC hit statistics ...
@@ -650,7 +649,7 @@ public class DataCollector
                     int hitSize = word1 & 0x7ff;
                     atwdChip = (word1 >> 11) & 1;
                     domClock = (((long) clkMSB) << 32) | (((long) word2) & 0xffffffffL);
-                    if (DEBUG_ENABLED)
+                    if (logger.isDebugEnabled())
                     {
                         int trigMask = (word1 >> 18) & 0x1fff;
                         logger.debug("DELTA HIT - CLK: " + domClock + " TRIG: " + Integer.toHexString(trigMask));
@@ -702,7 +701,7 @@ public class DataCollector
             if (monitor instanceof AsciiMonitorRecord)
             {
                 String moniMsg = monitor.toString();
-                if (DEBUG_ENABLED) logger.debug(moniMsg);
+                if (logger.isDebugEnabled()) logger.debug(moniMsg);
                 if (moniMsg.contains("LBM OVERFLOW")) numLBMOverflows++;
             }
             numMoni++;
@@ -960,7 +959,7 @@ public class DataCollector
 	 * method and the get_interval method ), this is contains code common to both
 	 * methods.  In addiiton it will decide which method to use.
 	 *
-	 * If the user explicitly disables intervals setting 
+	 * If the user explicitly disables intervals setting
 	 * runConfig/Stringhub[id=X]/intervals/enable/false
 	 * or the domapp version is not high enough to support
 	 * intervals it will default to the query method.  Otherwise, intervals
@@ -1035,7 +1034,7 @@ public class DataCollector
         setRunLevel(RunLevel.IDLE);
 
         intTask.ping();
-        if (DEBUG_ENABLED) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Found DOM " + mbid + " running " + app.getRelease());
         }
 
@@ -1050,13 +1049,13 @@ public class DataCollector
 		// the original query algorithm
 		String version = app.getRelease();
 		if(!disable_intervals && version_supports_intervals(version)) {
-			if (DEBUG_ENABLED) {
+			if (logger.isDebugEnabled()) {
 				logger.debug("Using intervals run loop!");
 			}
 			// configure is only called inside the following
 			runcore_interval();
 		} else {
-			if (DEBUG_ENABLED) {
+			if (logger.isDebugEnabled()) {
 				logger.debug("Using original run loop!");
 			}
 			// explicitly turn off intervals if the dom-mb version
@@ -1123,7 +1122,7 @@ public class DataCollector
             /* Do TCAL and GPS -- this always runs regardless of the run state */
             if (t >= nextTcalRead)
             {
-                if (DEBUG_ENABLED) logger.debug("Doing TCAL - runLevel is " + getRunLevel());
+                if (logger.isDebugEnabled()) logger.debug("Doing TCAL - runLevel is " + getRunLevel());
                 execRapCal();
             }
 
@@ -1163,7 +1162,7 @@ public class DataCollector
 				data_zero_count++;
 			    }
 			}
-			
+
                         dataProcess(data);
                     }
                     catch (IllegalArgumentException ex)
@@ -1213,7 +1212,7 @@ public class DataCollector
                 break;
 
             case STARTING:
-                if (DEBUG_ENABLED) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Got START RUN signal " + canonicalName());
                 }
                 app.beginRun();
@@ -1287,7 +1286,7 @@ public class DataCollector
                 break;
 
             case PAUSING:
-                if (DEBUG_ENABLED) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Got PAUSE RUN signal " + canonicalName());
                 }
                 app.endRun();
@@ -1295,7 +1294,7 @@ public class DataCollector
                 break;
 
             case STOPPING:
-                if (DEBUG_ENABLED) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Got STOP RUN signal " + canonicalName());
                 }
                 app.endRun();
@@ -1316,7 +1315,7 @@ public class DataCollector
 
             if (tired)
             {
-                if (DEBUG_ENABLED) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Runcore loop is tired - sleeping " +
                                  threadSleepInterval + " ms.");
                 }
@@ -1372,7 +1371,7 @@ public class DataCollector
             /* Do TCAL and GPS -- this always runs regardless of the run state */
             if (t >= nextTcalRead)
             {
-                if (DEBUG_ENABLED) logger.debug("Doing TCAL - runLevel is " + getRunLevel());
+                if (logger.isDebugEnabled()) logger.debug("Doing TCAL - runLevel is " + getRunLevel());
                 execRapCal();
             }
 
@@ -1467,7 +1466,7 @@ public class DataCollector
                 break;
 
             case STARTING:
-                if (DEBUG_ENABLED) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Got START RUN signal " + canonicalName());
                 }
                 app.beginRun();
@@ -1541,7 +1540,7 @@ public class DataCollector
                 break;
 
             case PAUSING:
-                if (DEBUG_ENABLED) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Got PAUSE RUN signal " + canonicalName());
                 }
                 app.endRun();
@@ -1549,7 +1548,7 @@ public class DataCollector
                 break;
 
             case STOPPING:
-                if (DEBUG_ENABLED) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Got STOP RUN signal " + canonicalName());
                 }
                 app.endRun();
@@ -1570,7 +1569,7 @@ public class DataCollector
 
             if (tired)
             {
-                if (DEBUG_ENABLED) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Runcore loop is tired - sleeping " +
                                  threadSleepInterval + " ms.");
                 }
@@ -1641,7 +1640,7 @@ public class DataCollector
 
         public void ping()
         {
-            if (DEBUG_ENABLED)
+            if (logger.isDebugEnabled())
             {
                 logger.debug("pinged at " + fmt.format(System.nanoTime() * 1.0E-09));
             }

@@ -11,7 +11,6 @@ public class DOMApp implements IDOMApp
 {
 
     private static Logger logger = Logger.getLogger(DOMApp.class);
-    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
     private DOMIO         devIO;
     private ByteBuffer    msgBuffer;
     private ByteBuffer    msgBufferOut;
@@ -36,7 +35,7 @@ public class DOMApp implements IDOMApp
         devIO = new DOMIO(card, pair, dom);
         msgBuffer = ByteBuffer.allocate(4092);
         msgBufferOut = ByteBuffer.allocate(4092);
-	
+
 	preBuildMessages();
     }
 
@@ -55,7 +54,7 @@ public class DOMApp implements IDOMApp
 	tmpBuffer.flip();
     }
 
-    protected void preBuildMessages() 
+    protected void preBuildMessages()
     {
 	// allocate space for the messages we are about
 	// to pre-build
@@ -89,12 +88,12 @@ public class DOMApp implements IDOMApp
 
     /*
      * send a PRE-BUILT message out to query the dom
-     * 
+     *
      * Mainly this should be used for high frequency messages
      * like the 'data', 'moni', and 'supernova' messages
      *
      */
-    protected ByteBuffer sendMessagePreBuilt(MessageType type, byte[] query) throws MessageException 
+    protected ByteBuffer sendMessagePreBuilt(MessageType type, byte[] query) throws MessageException
     {
 
         try
@@ -121,17 +120,17 @@ public class DOMApp implements IDOMApp
     }
 
     public void changeFlasherSettings(
-            short brightness, 
-            short width, 
-            short delay, 
-            short mask, 
+            short brightness,
+            short width,
+            short delay,
+            short mask,
             short rate) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(10);
         buf.putShort(brightness).putShort(width).putShort(delay).putShort(mask).putShort(rate).flip();
         sendMessage(MessageType.CHANGE_FB_SETTINGS, buf);
     }
-    
+
     public void beginFlasherRun(short brightness, short width, short delay, short mask, short rate)
             throws MessageException
     {
@@ -154,8 +153,8 @@ public class DOMApp implements IDOMApp
     {
         ByteBuffer buf = ByteBuffer.allocate(24);
         buf.putInt(nAtwd0).putInt(nAtwd1).putInt(nFadc);
-        if (avgPedestals.length == 6) 
-        { 
+        if (avgPedestals.length == 6)
+        {
             buf.putShort(avgPedestals[0].shortValue());
             buf.putShort(avgPedestals[1].shortValue());
             buf.putShort(avgPedestals[2].shortValue());
@@ -265,7 +264,7 @@ public class DOMApp implements IDOMApp
             {
                 Thread.yield();
                 ByteBuffer out = devIO.recv();
-                if (DEBUG_ENABLED)
+                if (logger.isDebugEnabled())
                     logger.debug("Received part " + i + " of multimessage.");
                 int status = out.get(7);
                 if (status != 1) throw new MessageException(
@@ -394,7 +393,7 @@ public class DOMApp implements IDOMApp
         buf.flip();
         sendMessage(MessageType.HISTO_CHARGE_STAMPS, buf);
     }
-    
+
     /*
      * (non-Javadoc)
      *
@@ -508,7 +507,7 @@ public class DOMApp implements IDOMApp
         // Tack on the data payload
         buf.put(in);
         buf.flip();
-        if (DEBUG_ENABLED)
+        if (logger.isDebugEnabled())
             logger.debug("sendMessage [" + type.name() + "]");
 
         msgBufferOut.clear();
@@ -536,7 +535,7 @@ public class DOMApp implements IDOMApp
             throw new MessageException(type, e);
         }
     }
-    
+
     public void setAtwdReadout(AtwdChipSelect csel) throws MessageException
     {
         byte bsel = (byte) csel.ordinal();
@@ -600,7 +599,7 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.SET_DATA_FORMAT, buf);
         buf.clear();
         buf.put(enc[0]).put(enc[1]).put(enc[2]).flip();
-        if (DEBUG_ENABLED)
+        if (logger.isDebugEnabled())
             logger.debug("Setting engineering format bytes to (" + enc[0] + ", " + enc[1] + ", " + enc[2] + ").");
         sendMessage(MessageType.SET_ENG_FORMAT, buf);
     }
@@ -621,19 +620,19 @@ public class DOMApp implements IDOMApp
     {
         ByteBuffer buf = ByteBuffer.allocate(1);
         buf.put((byte) (depth.ordinal()+8)).flip();
-        try 
+        try
         {
             sendMessage(MessageType.SET_LBM_DEPTH, buf);
-        } 
+        }
         catch (MessageException mex)
         {
-            /* 
+            /*
              * work-around to ignore messages which fail here - domapp forgot
              * to set the success to OK on this message!
              */
         }
     }
-    
+
     public LBMDepth getLBMDepth() throws MessageException
     {
         ByteBuffer buf = sendMessage(MessageType.GET_LBM_DEPTH);
@@ -657,10 +656,10 @@ public class DOMApp implements IDOMApp
         case 0x400000: return LBMDepth.LBM_4M;
         case 0x800000: return LBMDepth.LBM_8M;
         default:
-            throw new MessageException(MessageType.GET_LBM_DEPTH, new IllegalArgumentException()); 
+            throw new MessageException(MessageType.GET_LBM_DEPTH, new IllegalArgumentException());
         }
     }
-    
+
     /*
      * (non-Javadoc)
      *
@@ -817,7 +816,7 @@ public class DOMApp implements IDOMApp
         while (ack.position() < 34) ack.put(devIO.recv());
         return false;
     }
-    
+
     /*
      * (non-Javadoc)
      *
@@ -828,7 +827,7 @@ public class DOMApp implements IDOMApp
         // Issue a clear - something gets out-of-sorts in the iceboot
         // command decoder
         String status = talkToIceboot("s\" domapp.sbi.gz\" find if gunzip fpga endif . set-comm-params");
-        if (DEBUG_ENABLED) {
+        if (logger.isDebugEnabled()) {
             logger.debug("FPGA reload returns: " + status);
         }
         // Exec DOMApp & wait for "DOMAPP READY" message from DOMApp
@@ -851,18 +850,18 @@ public class DOMApp implements IDOMApp
         buf.put(cmd.getBytes());
         buf.put("\r\n".getBytes()).flip();
         devIO.send(buf);
-        if (DEBUG_ENABLED) logger.debug("Sending: " + cmd);
+        if (logger.isDebugEnabled()) logger.debug("Sending: " + cmd);
         while (true)
         {
             ByteBuffer ret = devIO.recv();
             byte[] bytearray = new byte[ret.remaining()];
             ret.get(bytearray);
             String fragment = new String(bytearray);
-            if (DEBUG_ENABLED) logger.debug("Received: " + fragment);
+            if (logger.isDebugEnabled()) logger.debug("Received: " + fragment);
             if (fragment.contains(cmd)) break;
         }
         if (expect == null) return "";
-        if (DEBUG_ENABLED) logger.debug("Echoback from iceboot received - expecting ... " + expect);
+        if (logger.isDebugEnabled()) logger.debug("Echoback from iceboot received - expecting ... " + expect);
         StringBuffer txt = new StringBuffer();
         while (true)
         {
@@ -899,7 +898,7 @@ public class DOMApp implements IDOMApp
     {
         ByteBuffer buf = ByteBuffer.allocate(4);
         buf.put((byte) 1).flip();
-        sendMessage(MessageType.SELECT_MINBIAS, buf);        
+        sendMessage(MessageType.SELECT_MINBIAS, buf);
     }
 
     public FastMoniRateType getFastMoniRateType() throws MessageException

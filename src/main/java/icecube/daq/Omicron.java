@@ -214,8 +214,7 @@ public class Omicron {
 		for (DataCollector dc : collectors)
 			if (dc.isAlive()) dc.signalStartRun();
 
-		t0 = System.currentTimeMillis();
-		t0 = t0 + runLengthMsec;
+		t0 = System.currentTimeMillis() + runLengthMsec;
 
 		while (true)
 		{

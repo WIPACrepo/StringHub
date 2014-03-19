@@ -4,7 +4,6 @@ import java.io.IOException;
 
 import icecube.daq.juggler.alert.Alerter;
 
-
 public interface IGPSService
 {
     GPSInfo getGps(int card) throws IOException;
@@ -14,5 +13,4 @@ public interface IGPSService
     void shutdownAll()  throws IOException;
 
     void setAlerter(Alerter alerter)  throws IOException;
-
 }
