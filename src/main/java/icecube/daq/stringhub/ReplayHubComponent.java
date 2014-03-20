@@ -38,8 +38,17 @@ import org.xml.sax.SAXException;
  */
 class DOMTimes
 {
+    private static final Logger LOG =
+        Logger.getLogger(ReplayHubComponent.class);
+
+    private String dom;
     private long firstTime = Long.MIN_VALUE;
     private long lastTime = Long.MIN_VALUE;
+
+    DOMTimes(long mbid)
+    {
+        this.dom = String.format("%012x", mbid);
+    }
 
     /**
      * Add the next DOM time
@@ -50,6 +59,9 @@ class DOMTimes
     {
         if (firstTime == Long.MIN_VALUE) {
             firstTime = time;
+        } else if (time < firstTime) {
+            LOG.error("Reset " + dom + " first time from " + firstTime +
+                      " to " + time);
         }
 
         lastTime = time;
@@ -295,6 +307,7 @@ public class ReplayHubComponent
     public long getEarliestLastChannelHitTime()
     {
         if (fileThread == null) {
+            LOG.error("No active thread for getEarliestLastChannelHitTime");
             return 0L;
         }
 
@@ -328,6 +341,7 @@ public class ReplayHubComponent
     public long getLatestFirstChannelHitTime()
     {
         if (fileThread == null) {
+            LOG.error("No active thread for getLatestFirstChannelHitTime");
             return 0L;
         }
 
@@ -419,6 +433,7 @@ public class ReplayHubComponent
     public double getTimeGap()
     {
         if (fileThread == null) {
+            LOG.error("No active thread for getTimeGap");
             return 0L;
         }
 
@@ -696,7 +711,7 @@ class PayloadFileThread
      */
     public long getLatestFirstChannelHitTime()
     {
-        long latestFirst = Long.MAX_VALUE;
+        long latestFirst = Long.MIN_VALUE;
         boolean found = true;
 
         for (Long mbid : domTimes.keySet()) {
@@ -709,7 +724,7 @@ class PayloadFileThread
             }
         }
 
-        if (!found) {
+        if (!found || latestFirst < 0L) {
             return 0L;
         }
 
@@ -744,14 +759,15 @@ class PayloadFileThread
             numHits++;
             totPayloads++;
 
-            final long daqTime = rdr.getUTCTime(buf);
-            if (daqTime <= Long.MIN_VALUE) {
+            final long tmpTime = rdr.getUTCTime(buf);
+            if (tmpTime == Long.MIN_VALUE) {
                 final String fmtStr =
                     "Ignoring short hit buffer#%d (%d bytes)";
                 LOG.error(String.format(fmtStr, numHits, buf.limit()));
                 continue;
             }
 
+            final long daqTime = tmpTime + timeOffset;
             if (daqTime < prevTime) {
                 final String fmtStr =
                     "Hit#%d went back %d in time! (cur %d, prev %d)";
@@ -760,6 +776,11 @@ class PayloadFileThread
                 continue;
             }
             prevTime = daqTime;
+
+            // update the raw buffer's hit time
+            if (timeOffset != 0) {
+                rdr.setUTCTime(buf, daqTime);
+            }
 
             // get system time
             final long sysTime = System.nanoTime();
@@ -820,13 +841,9 @@ class PayloadFileThread
             // record the DAQ time for this DOM
             long mbid = buf.getLong(8);
             if (!domTimes.containsKey(mbid)) {
-                domTimes.put(mbid, new DOMTimes());
+                domTimes.put(mbid, new DOMTimes(mbid));
             }
             domTimes.get(mbid).add(daqTime);
-
-            if (timeOffset != 0) {
-                rdr.setUTCTime(buf, daqTime + timeOffset);
-            }
 
             buf.flip();
 
@@ -834,7 +851,6 @@ class PayloadFileThread
 
             // don't overwhelm other threads
             Thread.yield();
-
         }
 
         try {
@@ -961,6 +977,13 @@ class OutputThread
      */
     public void run()
     {
+        // sleep for a second so detector has a chance to get first good time
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException ie) {
+            LOG.error("Initial output thread sleep interrupted", ie);
+        }
+
         ByteBuffer buf;
         while (!stopping || outputQueue.size() > 0) {
             synchronized (outputQueue) {
