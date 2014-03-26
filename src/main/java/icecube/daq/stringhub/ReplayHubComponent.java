@@ -649,27 +649,6 @@ class PayloadFileThread
     }
 
     /**
-     * Build DOM stop message.
-     *
-     * @param stopBuff byte buffer to use (in not <tt>null</tt>)
-     *
-     * @return stop message
-     */
-    private ByteBuffer buildStopMessage()
-    {
-        final int stopLen = 32;
-
-        ByteBuffer stopBuf = ByteBuffer.allocate(stopLen);
-
-        stopBuf.putInt(0, stopLen);
-        stopBuf.putLong(24, Long.MAX_VALUE);
-
-        stopBuf.position(0);
-
-        return stopBuf;
-    }
-
-    /**
      * No cleanup is needed.
      */
     private void finishThreadCleanup()
@@ -873,8 +852,6 @@ class PayloadFileThread
             LOG.error("Processing failed after " + totPayloads + " hits");
         }
 
-        outThread.push(buildStopMessage());
-
         finishThreadCleanup();
     }
 
@@ -933,6 +910,25 @@ class OutputThread
         thread.setName(name);
 
         this.sender = sender;
+    }
+
+    /**
+     * Build DOM stop message.
+     *
+     * @return stop message
+     */
+    private ByteBuffer buildStopMessage()
+    {
+        final int stopLen = 32;
+
+        ByteBuffer stopBuf = ByteBuffer.allocate(stopLen);
+
+        stopBuf.putInt(0, stopLen);
+        stopBuf.putLong(24, Long.MAX_VALUE);
+
+        stopBuf.position(0);
+
+        return stopBuf;
     }
 
     /**
@@ -1011,6 +1007,8 @@ class OutputThread
 
             sender.consume(buf);
         }
+
+        sender.consume(buildStopMessage());
 
         stopped = true;
     }
