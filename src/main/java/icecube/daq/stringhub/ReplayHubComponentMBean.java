@@ -19,4 +19,19 @@ public interface ReplayHubComponentMBean
      * @return gap between DAQ and system time
      */
     double getTimeGap();
+
+    /**
+     * Get the total number of payloads read.
+     *
+     * @return total payloads
+     */
+    long getTotalPayloads();
+
+    /**
+     * Get the total time (in nanoseconds) spent sleeping in order to
+     * match DAQ time to system time
+     *
+     * @return total nanoseconds spent sleeping
+     */
+    long getTotalSleep();
 }

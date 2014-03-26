@@ -468,6 +468,37 @@ public class ReplayHubComponent
     }
 
     /**
+     * Get the total number of payloads read.
+     *
+     * @return total payloads
+     */
+    public long getTotalPayloads()
+    {
+        if (fileThread == null) {
+            LOG.error("No active thread for getTotalPayloads");
+            return 0L;
+        }
+
+        return fileThread.getTotalPayloads();
+    }
+
+    /**
+     * Get the total time (in nanoseconds) spent sleeping in order to
+     * match DAQ time to system time
+     *
+     * @return total nanoseconds spent sleeping
+     */
+    public long getTotalSleep()
+    {
+        if (fileThread == null) {
+            LOG.error("No active thread for getTotalSleep");
+            return 0L;
+        }
+
+        return fileThread.getTotalSleep();
+    }
+
+    /**
      * Return this component's svn version id as a String.
      *
      * @return svn version id as a String
@@ -608,6 +639,9 @@ class PayloadFileThread
     private static final Logger LOG =
         Logger.getLogger(PayloadFileThread.class);
 
+    /** Nanoseconds per second */
+    private static final long NS_PER_SEC = 1000000000L;
+
     /** hit spool reader */
     private CachingHitSpoolReader rdr;
     /** Offset to apply to every hit time */
@@ -628,7 +662,11 @@ class PayloadFileThread
     private long prevTime = Long.MIN_VALUE;
 
     /** Gap between DAQ time and system time */
-    private double gapSecs;
+    private long timeGap;
+    /** Time spent in the main loop */
+    private long loopTime;
+    /** Total time spent sleeping so payload time matches system time */
+    private long totalSleep;
     /** total number of payloads read */
     private long totPayloads;
 
@@ -717,7 +755,28 @@ class PayloadFileThread
      */
     public double getTimeGap()
     {
-        return gapSecs;
+        return ((double) timeGap) / ((double) NS_PER_SEC);
+    }
+
+    /**
+     * Get the total number of payloads read.
+     *
+     * @return total payloads
+     */
+    public long getTotalPayloads()
+    {
+        return totPayloads;
+    }
+
+    /**
+     * Get the total time (in nanoseconds) spent sleeping in order to
+     * match DAQ time to system time
+     *
+     * @return total nanoseconds spent sleeping
+     */
+    public long getTotalSleep()
+    {
+        return totalSleep;
     }
 
     private void process()
@@ -775,22 +834,18 @@ class PayloadFileThread
                     (daqTime - startDAQTime) / 10L;
                 final long sysDiff = sysTime - startSysTime;
 
-                long sleepTime = daqDiff - sysDiff;
-
-                // track the number of seconds' gap between system and DAQ time
-                final long ns_per_sec = 1000000000L;
-                gapSecs = ((double) sleepTime) / ((double) ns_per_sec);
+                timeGap = daqDiff - sysDiff;
 
                 // whine if the time gap is greater than one second
-                if (sleepTime > ns_per_sec * 2) {
+                if (timeGap > NS_PER_SEC * 2) {
                     if (rdr.getNumberOfPayloads() < 10) {
                         // minimize gap for first few payloads
-                        sleepTime = ns_per_sec / 10L;
+                        timeGap = NS_PER_SEC / 10L;
                     } else {
                         // complain about gap
                         final String fmtStr =
                             "Huge time gap (%.2f sec) for payload #%d from %s";
-                        LOG.error(String.format(fmtStr, gapSecs,
+                        LOG.error(String.format(fmtStr, getTimeGap(),
                                                 rdr.getNumberOfPayloads(),
                                                 rdr.getFile()));
                         if (++gapCount > 20) {
@@ -800,16 +855,18 @@ class PayloadFileThread
                     }
 
                     // reset base times
-                    startSysTime = sysTime + sleepTime;
+                    startSysTime = sysTime + timeGap;
                     startDAQTime = daqTime;
                 }
 
                 // if we're sending payloads too quickly, wait a bit
-                if (sleepTime > ns_per_sec) {
+                if (timeGap > NS_PER_SEC) {
+                    totalSleep += timeGap;
+
                     try {
                         final long ns_per_ms = 1000000L;
-                        final long sleepMS = sleepTime / ns_per_ms;
-                        final int sleepNS = (int) (sleepTime % ns_per_ms);
+                        final long sleepMS = timeGap / ns_per_ms;
+                        final int sleepNS = (int) (timeGap % ns_per_ms);
                         Thread.sleep(sleepMS, sleepNS);
                     } catch (InterruptedException ie) {
                         // ignore interrupts
