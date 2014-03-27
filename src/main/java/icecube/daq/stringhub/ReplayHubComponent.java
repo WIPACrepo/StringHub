@@ -889,6 +889,8 @@ class PayloadFileThread
             Thread.yield();
         }
 
+        outThread.stop();
+
         try {
             rdr.close();
         } catch (IOException ioe) {
