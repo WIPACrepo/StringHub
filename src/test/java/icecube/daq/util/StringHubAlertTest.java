@@ -171,6 +171,12 @@ class MockAlerter
         }
     }
 
+    public void sendObject(Object obj)
+        throws AlertException
+    {
+        throw new Error("Unimplemented");
+    }
+
     void setExpected(Alerter.Priority priority, String condition,
                      Map<String, Object> vars)
     {
