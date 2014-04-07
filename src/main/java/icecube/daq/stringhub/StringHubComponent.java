@@ -591,7 +591,7 @@ public class StringHubComponent
 					dc = new DataCollector(
 										   chanInfo.card, chanInfo.pair, chanInfo.dom, config,
 										   hitsSort, moniSort, scalSort, tcalSort,
-										   null,null);
+										   null,null,enable_intervals);
 					addMBean("DataCollectorMonitor-" + chanInfo, dc);
 				}
 
@@ -793,7 +793,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 14646 2013-10-14 20:12:32Z mnewcomb $";
+		return "$Id: StringHubComponent.java 14961 2014-04-07 16:07:20Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
