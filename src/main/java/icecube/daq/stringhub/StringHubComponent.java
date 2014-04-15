@@ -349,16 +349,8 @@ public class StringHubComponent
 	public void configure(String configName, boolean openSecondary)
 		throws DAQCompException
 	{
-		String realism;
-
-		if (isSim)
-			realism = "SIMULATION";
-		else
-			realism = "REAL DOMS";
-
 		try
 		{
-
 			// Lookup the connected DOMs
 			discover();
 
@@ -372,26 +364,31 @@ public class StringHubComponent
 
 			XMLConfig xmlConfig = new XMLConfig();
 
-			// This should only produce a value with an OLD run config
-			List<Node> configNodeList = doc.selectNodes("runConfig/domConfigList");
-			// used for the new run config format
-			List<Node> hubNodeList = doc.selectNodes("runConfig/stringHub");
+			boolean dcSoftboot = false;
+			int tcalPrescale = 10;
+
+			final String intvlPath = "runConfig/intervals/enabled";
+			boolean enable_intervals =
+				parseIntervals(doc.selectSingleNode(intvlPath), false);
 
 			/*
 			 * Lookup <stringHub hubId='x'> node - if any - and process
 			 * configuration directives.
 			 */
 			Node hubNode = doc.selectSingleNode("runConfig/stringHub[@hubId='" + hubId + "']");
-			boolean dcSoftboot = false;
-			boolean enable_intervals = false;
-			int tcalPrescale = 10;
-
-			if (hubNode != null)
-			{
-				if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) logger.error("String triggering not implemented");
-				if (hubNode.valueOf("intervals/enabled").equalsIgnoreCase("true")) {
-					enable_intervals = true;
+			if (hubNode != null) {
+				if (!readDOMConfig(xmlConfig, domConfigsDirectory,
+								   hubNode, false))
+				{
+					throw new DAQCompException("Cannot read DOM config file" +
+											   " for hub " + hubId);
 				}
+
+				if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) logger.error("String triggering not implemented");
+
+				Node intvlNode = hubNode.selectSingleNode("intervals/enabled");
+				enable_intervals = parseIntervals(intvlNode, enable_intervals);
+
 				if (hubNode.valueOf("sender/forwardIsolatedHitsToTrigger").equalsIgnoreCase("true"))
 					sender.forwardIsolatedHitsToTrigger();
 				if (hubNode.valueOf("dataCollector/softboot").equalsIgnoreCase("true"))
@@ -417,47 +414,23 @@ public class StringHubComponent
 					if (hitspool_node.valueOf("numFiles").length() > 0)
 						hitSpoolNumFiles  = Integer.parseInt(hitspool_node.valueOf("numFiles"));
 				}
-			}
-			double snDistance = Double.NaN;
+			} else {
+				// handle runconfig files which don't specify hubId
+				readAllDOMConfigs(xmlConfig, domConfigsDirectory,
+								  doc.selectNodes("runConfig/domConfigList"),
+								  true);
 
+				// handle really ancient runconfig files
+				readAllDOMConfigs(xmlConfig, domConfigsDirectory,
+								  doc.selectNodes("runConfig/stringHub"),
+								  false);
+			}
+
+			double snDistance = Double.NaN;
 			Number snDistNum=doc.numberValueOf("runConfig/setSnDistance");
 			if (snDistNum != null)
 			{
 				snDistance=snDistNum.doubleValue();
-			}
-			if (logger.isDebugEnabled()) {
-				logger.debug("Number of domConfigNodes found: " + configNodeList.size());
-			}
-
-			// read in dom config info from OLD run configs
-			for (Node configNode : configNodeList) {
-                String tag = configNode.getText();
-                if (!tag.endsWith(".xml"))
-                    tag = tag + ".xml";
-                File configFile = new File(domConfigsDirectory, tag);
-				if (logger.isDebugEnabled()) {
-                    logger.debug("Configuring " + realism
-								                          + " - loading config from "
-                                 + configFile.getAbsolutePath());
-                }
-                xmlConfig.parseXMLConfig(new FileInputStream(configFile));
-            }
-
-			// read in dom config info from NEW run configs
-			for (Node configNode : hubNodeList) {
-				String tag = configNode.valueOf("@domConfig");
-				if (tag.equals("")) {
-					continue;
-				}
-				if (!tag.endsWith(".xml"))
-					tag = tag + ".xml";
-				File configFile = new File(domConfigsDirectory, tag);
-				if (logger.isDebugEnabled()) {
-					logger.debug("Configuring " + realism
-								 + " - loading config from "
-								 + configFile.getAbsolutePath());
-				}
-				xmlConfig.parseXMLConfig(new FileInputStream(configFile));
 			}
 
 			int nch = 0;
@@ -614,28 +587,117 @@ public class StringHubComponent
 
 			// Still need to get the data collectors to pick up and do something with the config
 			conn.configure();
-			}
-
-		catch (FileNotFoundException fnx)
-		{
-			logger.error("Could not find the configuration file.", fnx);
-			throw new DAQCompException(fnx.getMessage());
 		}
 		catch (IOException iox)
 		{
 			logger.error("Caught IOException", iox);
 			throw new DAQCompException("Cannot configure", iox);
 		}
-		catch (DAQCompException dcx)
-		{
-			logger.error("Caught DAQ exception", dcx);
-			throw dcx;
-		}
 		catch (Exception e)
 		{
 			throw new DAQCompException("Unexpected exception " + e, e);
 		}
+	}
 
+	/**
+	 * Parse the XML node to enable intervals.
+	 *
+	 * @param node 'interval' node (may be null)
+	 * @param prevValue previous value
+	 *
+	 * @return new value
+	 */
+	private boolean parseIntervals(Node node, boolean prevValue)
+	{
+		boolean val;
+		if (node == null) {
+			val = prevValue;
+		} else {
+			val = node.getStringValue().equalsIgnoreCase("true");
+		}
+
+		return val;
+	}
+
+	/**
+	 * Read in DOM config info from run configuration file
+	 *
+	 * @param xmlConfig XML configuration parser
+	 * @param dir location of DOM configuration directory
+	 * @param nodeList list of DOM configuration nodes
+	 * @param oldFormat <tt>true</tt> if nodes are in old format
+	 *
+	 * @throws DAQCompException if a file cannot be read
+	 */
+	private void readAllDOMConfigs(XMLConfig xmlConfig, File dir,
+								   List<Node> nodeList, boolean oldFormat)
+		throws DAQCompException
+	{
+		for (Node node : nodeList) {
+			readDOMConfig(xmlConfig, dir, node, oldFormat);
+		}
+	}
+
+	/**
+	 * Read in DOM config info from run configuration file
+	 *
+	 * @param xmlConfig XML configuration parser
+	 * @param dir location of DOM configuration directory
+	 * @param nodeList list of DOM configuration nodes
+	 * @param oldFormat <tt>true</tt> if nodes are in old format
+	 *
+	 * @return <tt>true</tt> if the config file was read
+	 *
+	 * @throws DAQCompException if the file cannot be read
+	 */
+	private boolean readDOMConfig(XMLConfig xmlConfig, File dir,
+							   Node node, boolean oldFormat)
+		throws DAQCompException
+	{
+		String tag;
+		if (oldFormat) {
+			tag = node.getText();
+		} else {
+			tag = node.valueOf("@domConfig");
+			if (tag.equals("")) {
+				return false;
+			}
+		}
+
+		// add ".xml" if it's missing
+		if (!tag.endsWith(".xml")) {
+			tag = tag + ".xml";
+		}
+
+		// load DOM config
+		File configFile = new File(dir, tag);
+		if (logger.isDebugEnabled()) {
+			String realism;
+			if (isSim)
+				realism = "SIMULATION";
+			else
+				realism = "REAL DOMS";
+
+			logger.debug("Configuring " + realism
+						 + " - loading config from "
+						 + configFile.getAbsolutePath());
+		}
+		FileInputStream in;
+		try {
+			in = new FileInputStream(configFile);
+		} catch (FileNotFoundException fnfe) {
+			throw new DAQCompException("Cannot open DOM config file " +
+									   configFile, fnfe);
+		}
+
+		try {
+			xmlConfig.parseXMLConfig(in);
+		} catch (Exception ex) {
+			throw new DAQCompException("Cannot parse DOM config file " +
+									   configFile, ex);
+		}
+
+		return true;
 	}
 
 	/**
@@ -793,7 +855,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 14961 2014-04-07 16:07:20Z dglo $";
+		return "$Id: StringHubComponent.java 14983 2014-04-15 22:27:11Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
