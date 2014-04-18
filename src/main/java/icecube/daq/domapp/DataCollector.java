@@ -155,7 +155,7 @@ public class DataCollector
 	    "icecube.daq.domapp.datacollector.enableStats");
 
     // used to be set from a system property, now reads from the runconfig
-    // stringhub[hubId=X] / intervals / enable - True
+    // intervals / enabled - True
     private boolean disable_intervals;
     private boolean supernova_disabled = true;
 
@@ -477,14 +477,7 @@ public class DataCollector
 			app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
 			supernova_disabled=false;
 		} else {
-			if(disable_intervals) {
-				app.disableSupernova();
-			} else {
-				// we need to send the enable supernova message
-				// if we are using intervals, for now the runcore_interval method will
-				// filter out supernova data
-				app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
-			}
+			app.disableSupernova();
 			supernova_disabled=true;
 			ByteBuffer eos = MultiChannelMergeSort.eos(numericMBID);
 			try {
@@ -866,7 +859,7 @@ public class DataCollector
         {
 			// core common to both intervals AND query
 			// it will decide which method is appropriate and
-			// call runcore_orig or runcore_intervals
+			// call runcore_orig or runcore_interval
 			runcore_universal();
         }
         catch (Exception x)
@@ -1422,9 +1415,7 @@ public class DataCollector
 						dataProcess(msg.slice());
 					} else if(MessageType.GET_SN_DATA.equals(msg_type, msg_subtype)) {
 						if (msg.remaining()>0) {
-							if(!supernova_disabled) {
-								supernovaProcess(msg.slice());
-							}
+							supernovaProcess(msg.slice());
                             tired = false;
                         }
 						done = true;
@@ -1433,6 +1424,9 @@ public class DataCollector
 							moniProcess(msg.slice());
 							tired = false;
 						}
+						// If we're not going to get a SN message, this marks the
+						// end of the interval						
+						done = supernova_disabled;
 					} else {
 						// assume a status of one
 						// as the recv code will have
