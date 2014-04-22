@@ -371,6 +371,9 @@ public class StringHubComponent
 			boolean enable_intervals =
 				parseIntervals(doc.selectSingleNode(intvlPath), false);
 
+			Node dclNode =
+				doc.selectSingleNode("runConfig/domConfigList[@hub='" + hubId +
+									 "']");
 			/*
 			 * Lookup <stringHub hubId='x'> node - if any - and process
 			 * configuration directives.
@@ -380,8 +383,13 @@ public class StringHubComponent
 				if (!readDOMConfig(xmlConfig, domConfigsDirectory,
 								   hubNode, false))
 				{
-					throw new DAQCompException("Cannot read DOM config file" +
-											   " for hub " + hubId);
+					if (dclNode == null ||
+						!readDOMConfig(xmlConfig, domConfigsDirectory,
+									   dclNode, true))
+					{
+						throw new DAQCompException("Cannot read DOM config" +
+												   " file for hub " + hubId);
+					}
 				}
 
 				if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) logger.error("String triggering not implemented");
@@ -855,7 +863,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 14983 2014-04-15 22:27:11Z dglo $";
+		return "$Id: StringHubComponent.java 14991 2014-04-22 21:06:38Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
