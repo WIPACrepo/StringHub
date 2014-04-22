@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.zip.DataFormatException;
 
 public class MockReadoutRequest
     implements ILoadablePayload, IReadoutRequest
@@ -136,7 +135,6 @@ public class MockReadoutRequest
     }
 
     public void loadPayload()
-        throws IOException, DataFormatException
     {
         // do nothing
     }
