@@ -138,15 +138,15 @@ public class StringHubComponent
 		if (minorHubId == 0) {
 			cacheName = "AM";
 			cacheNum = "";
-		} else if (minorHubId <= 78) {
+		} else if (SourceIdRegistry.isDeepCoreHubSourceID(hubId)) {
+			cacheName = "DC";
+			cacheNum = "#" + (minorHubId - SourceIdRegistry.DEEPCORE_ID_OFFSET);
+		} else if (SourceIdRegistry.isIniceHubSourceID(hubId)) {
 			cacheName = "SH";
 			cacheNum = "#" + minorHubId;
-		} else if (minorHubId <= 200) {
-			cacheName = "DC";
-			cacheNum = "#" + (minorHubId - 80);
-		} else if (minorHubId <= 300) {
+		} else if (SourceIdRegistry.isIcetopHubSourceID(hubId)) {
 			cacheName = "IT";
-			cacheNum = "#" + (minorHubId - 200);
+			cacheNum = "#" + (minorHubId - SourceIdRegistry.ICETOP_ID_OFFSET);
 		} else {
 			cacheName = "??";
 			cacheNum = "#" + minorHubId;
@@ -183,7 +183,7 @@ public class StringHubComponent
 				teOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "teOut",
 											   true);
 			}
-			if (minorHubId >= 200) {
+			if (SourceIdRegistry.isIcetopHubSourceID(hubId)) {
 				if (hitOut != null) {
 					addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
 				}
@@ -863,7 +863,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 14991 2014-04-22 21:06:38Z dglo $";
+		return "$Id: StringHubComponent.java 15012 2014-05-28 15:46:16Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
