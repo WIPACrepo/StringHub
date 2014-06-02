@@ -102,7 +102,7 @@ public class Omicron {
 		BufferConsumerBuffered moniChan = new BufferConsumerBuffered(fOutMoni);
 		BufferConsumerBuffered tcalChan = new BufferConsumerBuffered(fOutTcal);
 		BufferConsumerBuffered scalChan = new BufferConsumerBuffered(fOutScal);
-        
+
 		MultiChannelMergeSort hitsSort = new MultiChannelMergeSort(nDOM, hitsChan, "hits");
 		MultiChannelMergeSort moniSort = new MultiChannelMergeSort(nDOM, moniChan, "moni");
 		MultiChannelMergeSort tcalSort = new MultiChannelMergeSort(nDOM, tcalChan, "tcal");
@@ -117,10 +117,10 @@ public class Omicron {
 			moniSort.register(chInfo.getMainboardIdAsLong());
 			tcalSort.register(chInfo.getMainboardIdAsLong());
 			scalSort.register(chInfo.getMainboardIdAsLong());
-			
+
 			// Associate a GPS service to this card, if not already done
             GPSService.getInstance().startService(chInfo.card);
-            
+
 			DataCollector dc = new DataCollector(
 					chInfo.card, chInfo.pair, chInfo.dom, config,
 					hitsSort, moniSort, scalSort, tcalSort,
@@ -135,7 +135,7 @@ public class Omicron {
 		moniSort.start();
 		scalSort.start();
 		tcalSort.start();
-		
+
 		// All collectors are now started at latest by t0
 		long t0 = System.currentTimeMillis();
 
@@ -147,11 +147,11 @@ public class Omicron {
 		}
 		for (DataCollector dc : collectors)
 		{
-		    // Note that if you turn SN data off on all doms the extra 
+		    // Note that if you turn SN data off on all doms the extra
 		    // messaging pushed the us over the timeout here
 		    // doubling the timeout worked.
-            while (dc.isAlive() && 
-                    !dc.getRunLevel().equals(RunLevel.IDLE) && 
+            while (dc.isAlive() &&
+                    !dc.getRunLevel().equals(RunLevel.IDLE) &&
                     System.currentTimeMillis() - t0 < 30000L)
                 Thread.sleep(100);
 		    if (!dc.isAlive())
@@ -160,7 +160,7 @@ public class Omicron {
 		        reaper.add(dc);
 		    }
 		}
-		
+
 		logger.info("Sending CONFIGURE signal to DataCollectors");
 
 		for (DataCollector dc : collectors)
@@ -219,7 +219,7 @@ public class Omicron {
 		while (true)
 		{
 			long time = System.currentTimeMillis();
-			if (time > t0) 
+			if (time > t0)
 			{
 				for (DataCollector dc : collectors) if (dc.isAlive()) dc.signalStopRun();
 				break;
@@ -236,7 +236,7 @@ public class Omicron {
 		moniSort.join();
 		scalSort.join();
 		tcalSort.join();
-		
+
 		// kill GPS services
 		GPSService.getInstance().shutdownAll();
 
