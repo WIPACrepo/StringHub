@@ -1058,7 +1058,7 @@ public class Sender
     }
 
     /**
-     * Set the starting and engin times for the current request.
+     * Set the starting and ending times for the current request.
      *
      * @param payload readout request payload
      */
