@@ -797,15 +797,15 @@ class PayloadFileThread
             numHits++;
             totPayloads++;
 
-            final long tmpTime = rdr.getUTCTime(buf);
-            if (tmpTime == Long.MIN_VALUE) {
+            final long rawTime = rdr.getUTCTime(buf);
+            if (rawTime == Long.MIN_VALUE) {
                 final String fmtStr =
                     "Ignoring short hit buffer#%d (%d bytes)";
                 LOG.error(String.format(fmtStr, numHits, buf.limit()));
                 continue;
             }
 
-            final long daqTime = tmpTime + timeOffset;
+            final long daqTime = rawTime + timeOffset;
             if (daqTime < prevTime) {
                 final String fmtStr =
                     "Hit#%d went back %d in time! (cur %d, prev %d)";
