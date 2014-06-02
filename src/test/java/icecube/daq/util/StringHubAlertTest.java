@@ -2,6 +2,7 @@ package icecube.daq.util;
 
 import icecube.daq.juggler.alert.AlertException;
 import icecube.daq.juggler.alert.Alerter;
+import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.impl.UTCTime;
 import icecube.daq.util.Leapseconds;
 
@@ -80,12 +81,26 @@ class MockAlerter
                      Map<String, Object> vars)
         throws AlertException
     {
-        send(varname, priority, null, vars);
-
+        throw new Error("Unimplemented");
     }
 
     public void send(String varname, Alerter.Priority priority,
                      Calendar dateTime, Map<String, Object> vars)
+        throws AlertException
+    {
+        throw new Error("Unimplemented");
+    }
+
+    /**
+     * Send a message to IceCube Live.
+     *
+     * @param varname variable name
+     * @param priority priority level
+     * @param utcTime DAQ time
+     * @param values map of names to values
+     */
+    public void send(String varname, Priority priority, IUTCTime utcTime,
+              Map<String, Object> values)
         throws AlertException
     {
         throw new Error("Unimplemented");
@@ -102,7 +117,7 @@ class MockAlerter
                           String notify, Map<String, Object> vars)
         throws AlertException
     {
-        sendAlert(null, priority, condition, notify, vars);
+        sendAlert((Calendar) null, priority, condition, notify, vars);
     }
 
     public void sendAlert(Calendar dateTime, Alerter.Priority priority,
@@ -169,6 +184,14 @@ class MockAlerter
                 throw new Error(buf.toString());
             }
         }
+    }
+
+    public void sendAlert(IUTCTime utcTime, Alerter.Priority priority,
+                          String condition, String notify,
+                          Map<String, Object> vars)
+        throws AlertException
+    {
+        throw new Error("Unimplemented");
     }
 
     public void sendObject(Object obj)

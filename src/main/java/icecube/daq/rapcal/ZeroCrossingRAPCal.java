@@ -20,7 +20,7 @@ public class ZeroCrossingRAPCal extends AbstractRAPCal
             double b = w[i+1] - mean;
             if (a > threshold && b <= threshold) return 50.0E-09 * (i+(threshold-a)/(b-a) - 48.0);
         }
-        throw new RAPCalException(w);
+        throw new RAPCalException(getClass().getName(), w);
     }
 
 }

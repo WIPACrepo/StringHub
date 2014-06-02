@@ -6,6 +6,7 @@ import icecube.daq.dor.Driver;
 import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.TimeCalib;
+import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.ZeroCrossingRAPCal;
@@ -265,6 +266,11 @@ public class AuraDataCollector extends AbstractDataCollector
     public void setRadioDACs(short[][] dacs)
     {
         this.radioDACs = dacs;
+    }
+
+    public void setLiveMoni(LiveTCalMoni moni)
+    {
+        rapcal.setMoni(moni);
     }
 
     @Override

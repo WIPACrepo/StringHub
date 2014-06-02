@@ -119,13 +119,12 @@ public class Omicron {
 			scalSort.register(chInfo.getMainboardIdAsLong());
 
 			// Associate a GPS service to this card, if not already done
-            GPSService.getInstance().startService(chInfo.card);
+			GPSService.getInstance().startService(chInfo.card, null);
 
 			DataCollector dc = new DataCollector(
 					chInfo.card, chInfo.pair, chInfo.dom, config,
 					hitsSort, moniSort, scalSort, tcalSort,
-					null, null, !DISABLE_INTERVAL
-					);
+					!DISABLE_INTERVAL);
 			collectors.add(dc);
 			if (logger.isDebugEnabled()) logger.debug("Starting new DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ").");
 			if (logger.isDebugEnabled()) logger.debug("DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ") started.");

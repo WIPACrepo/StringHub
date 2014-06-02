@@ -136,6 +136,9 @@ public class FilesHitSpool implements BufferConsumer
     {
         if (null != out) out.consume(buf);
         if (isHosed) return;
+        if (buf.limit() < 38) {
+            logger.error("Skipping short buffer (" + buf.limit() + " bytes)");
+        }
 
         // bytes 24 .. 31 hold the 64-bit UTC clock value
         t = buf.getLong(24);

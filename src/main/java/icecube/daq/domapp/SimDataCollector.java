@@ -7,6 +7,7 @@ import cern.jet.random.engine.RandomEngine;
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.dor.DOMChannelInfo;
+import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.util.StringHubAlert;
 import icecube.daq.util.RealTimeRateMeter;
 
@@ -740,5 +741,10 @@ public class SimDataCollector extends AbstractDataCollector
 	public void setAvgSnSignal(double[] avgSnSignal) {
 		this.avgSnSignal = avgSnSignal;
 	}
+
+    public void setLiveMoni(LiveTCalMoni moni)
+    {
+        // don't have RAPCal object, so ignore this
+    }
 
 }

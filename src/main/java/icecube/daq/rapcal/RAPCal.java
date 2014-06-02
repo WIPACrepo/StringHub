@@ -1,6 +1,7 @@
 package icecube.daq.rapcal;
 
 import icecube.daq.dor.TimeCalib;
+import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.util.UTC;
 
 public interface RAPCal {
@@ -8,6 +9,8 @@ public interface RAPCal {
 	double clockRatio();
 
 	double cableLength();
+
+	UTC domToUTC(long domclk);
 
 	/**
 	 * Test whether rapcal service is ready to
@@ -17,8 +20,7 @@ public interface RAPCal {
 	 */
 	boolean laterThan(long domclk);
 
-	UTC domToUTC(long domclk);
+	void setMoni(LiveTCalMoni moni);
 
 	void update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException;
-
 }

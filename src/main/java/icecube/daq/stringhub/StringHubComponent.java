@@ -22,6 +22,7 @@ import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
+import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.ISourceID;
@@ -355,7 +356,7 @@ public class StringHubComponent
 			discover();
 
 			if (activeDOMs.size() == 0)
-				throw new DAQCompException("No Active DOMs on hub.");
+				throw new DAQCompException("No Active DOMs on hub " + hubId);
 
 			// Parse out tags from 'master configuration' file
 			Document doc = loadXMLDocument(configurationPath, configName);
@@ -456,13 +457,16 @@ public class StringHubComponent
 			}
 
 			if (nch == 0)
-				throw new DAQCompException("No Active DOMs on Hub selected in configuration.");
+				throw new DAQCompException("No Active DOMs on Hub " + hubId +
+										   " selected in configuration.");
 
 			for (DeployedDOM deployedDOM : domRegistry.getDomsOnHub(getNumber()))
 			{
 				String mbid = deployedDOM.getMainboardId();
 				if (!activeDomSet.contains(mbid) && xmlConfig.getDOMConfig(mbid) != null) {
-					logger.warn("DOM " + deployedDOM + " requested in configuration but not found.");
+					logger.warn("DOM " + deployedDOM +
+								" requested in configuration for hub " +
+								hubId + " but not found.");
 
 					StringHubAlert.sendDOMAlert(getAlerter(),
 												"Dropped DOM",
@@ -572,14 +576,21 @@ public class StringHubComponent
 					dc = new DataCollector(
 										   chanInfo.card, chanInfo.pair, chanInfo.dom, config,
 										   hitsSort, moniSort, scalSort, tcalSort,
-										   null,null,enable_intervals);
+										   enable_intervals);
 					addMBean("DataCollectorMonitor-" + chanInfo, dc);
 				}
 
-				// Associate a GPS service to this card, if not already done
-				if (!isSim) GPSService.getInstance().startService(chanInfo.card);
+				DeployedDOM domInfo = domRegistry.getDom(chanInfo.mbid);
 
-				dc.setDomInfo(domRegistry.getDom(chanInfo.mbid));
+				LiveTCalMoni moni = new LiveTCalMoni(getAlerter(), domInfo);
+
+				// Associate a GPS service to this card, if not already done
+				if (!isSim) {
+					GPSService inst = GPSService.getInstance();
+					inst.startService(chanInfo.card, moni);
+				}
+
+				dc.setDomInfo(domInfo);
 
 				dc.setSoftbootBehavior(dcSoftboot);
 				hitsSort.register(chanInfo.mbid_numerique);
@@ -587,6 +598,7 @@ public class StringHubComponent
 				scalSort.register(chanInfo.mbid_numerique);
 				tcalSort.register(chanInfo.mbid_numerique);
 				dc.setAlerter(getAlerter());
+				dc.setLiveMoni(moni);
 				conn.add(dc);
 				if (logger.isDebugEnabled()) logger.debug("Starting new DataCollector thread on (" + cwd + ").");
 			}
@@ -598,12 +610,13 @@ public class StringHubComponent
 		}
 		catch (IOException iox)
 		{
-			logger.error("Caught IOException", iox);
-			throw new DAQCompException("Cannot configure", iox);
+			logger.error("Caught IOException on hub " + hubId, iox);
+			throw new DAQCompException("Cannot configure hub " + hubId, iox);
 		}
 		catch (Exception e)
 		{
-			throw new DAQCompException("Unexpected exception " + e, e);
+			throw new DAQCompException("Unexpected hub " + hubId +
+									   " exception " + e, e);
 		}
 	}
 
@@ -863,7 +876,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15012 2014-05-28 15:46:16Z dglo $";
+		return "$Id: StringHubComponent.java 15015 2014-06-02 16:24:13Z dglo $";
 	}
 
 	public IByteBufferCache getCache()

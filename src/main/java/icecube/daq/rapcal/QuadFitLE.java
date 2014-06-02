@@ -43,7 +43,7 @@ public class QuadFitLE extends AbstractRAPCal
                 return 50.0e-09 * (i + quadfit(a, b, c) - 48.0);
             }
         }
-        throw new RAPCalException(w);
+        throw new RAPCalException(getClass().getName(), w);
     }
 
     /**

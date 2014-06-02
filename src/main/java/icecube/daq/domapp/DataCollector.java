@@ -11,9 +11,12 @@ import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.GPSService;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
+import icecube.daq.juggler.alert.Alerter;
+import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.ZeroCrossingRAPCal;
+import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.RealTimeRateMeter;
 import icecube.daq.util.StringHubAlert;
 import icecube.daq.util.UTC;
@@ -297,7 +300,7 @@ public class DataCollector
     public DataCollector(DOMChannelInfo chInfo, BufferConsumer hitsTo)
     throws IOException, MessageException
     {
-        this(chInfo.card, chInfo.pair, chInfo.dom, null, hitsTo, null, null, null, null, null);
+        this(chInfo.card, chInfo.pair, chInfo.dom, null, hitsTo, null, null, null);
     }
 
     public DataCollector(
@@ -306,13 +309,11 @@ public class DataCollector
             BufferConsumer hitsTo,
             BufferConsumer moniTo,
             BufferConsumer supernovaTo,
-            BufferConsumer tcalTo,
-            IDriver driver,
-            RAPCal rapcal) throws IOException, MessageException
+            BufferConsumer tcalTo) throws IOException, MessageException
 	{
 		// support class old signature
 		// but default to disabling intervals
-		this(card, pair, dom, config, hitsTo, moniTo, supernovaTo, tcalTo, driver, rapcal, false);
+		this(card, pair, dom, config, hitsTo, moniTo, supernovaTo, tcalTo, false);
 	}
 
 
@@ -323,8 +324,6 @@ public class DataCollector
             BufferConsumer moniTo,
             BufferConsumer supernovaTo,
             BufferConsumer tcalTo,
-            IDriver driver,
-            RAPCal rapcal,
 			boolean enable_intervals) throws IOException, MessageException
     {
         super(card, pair, dom);
@@ -339,35 +338,25 @@ public class DataCollector
         tcalConsumer = tcalTo;
         supernovaConsumer = supernovaTo;
 
-        if (driver != null)
-            this.driver = driver;
-        else
-            this.driver = Driver.getInstance();
+        this.driver = Driver.getInstance();
 
         // get and cache the gps file
         // and the tcal file
         tcalFile = this.driver.getTCALFile(card, pair, dom);
 
-        if (rapcal != null)
+        String rapcalClass = System.getProperty(
+                "icecube.daq.domapp.datacollector.rapcal",
+                "icecube.daq.rapcal.ZeroCrossingRAPCal"
+                );
+        try
         {
-            this.rapcal = rapcal;
+            this.rapcal = (RAPCal) Class.forName(rapcalClass).newInstance();
         }
-        else
+        catch (Exception ex)
         {
-            String rapcalClass = System.getProperty(
-                    "icecube.daq.domapp.datacollector.rapcal",
-                    "icecube.daq.rapcal.ZeroCrossingRAPCal"
-                    );
-            try
-            {
-                this.rapcal = (RAPCal) Class.forName(rapcalClass).newInstance();
-            }
-            catch (Exception ex)
-            {
-                logger.warn("Unable to load / instantiate RAPCal class " +
-                        rapcalClass + ".  Loading ZeroCrossingRAPCal instead.");
-                this.rapcal = new ZeroCrossingRAPCal();
-            }
+            logger.warn("Unable to load / instantiate RAPCal class " +
+                    rapcalClass + ".  Loading ZeroCrossingRAPCal instead.");
+            this.rapcal = new ZeroCrossingRAPCal();
         }
         this.app = null;
         this.config = config;
@@ -761,6 +750,11 @@ public class DataCollector
                 dispatchBuffer((ByteBuffer) snBuf.flip(), supernovaConsumer);
             }
         }
+    }
+
+    public void setLiveMoni(LiveTCalMoni moni)
+    {
+        rapcal.setMoni(moni);
     }
 
     public synchronized void signalShutdown()
@@ -1425,7 +1419,7 @@ public class DataCollector
 							tired = false;
 						}
 						// If we're not going to get a SN message, this marks the
-						// end of the interval						
+						// end of the interval
 						done = supernova_disabled;
 					} else {
 						// assume a status of one

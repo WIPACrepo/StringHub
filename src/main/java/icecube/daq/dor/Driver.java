@@ -5,6 +5,7 @@ import icecube.daq.util.Leapseconds;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -241,31 +242,44 @@ public final class Driver implements IDriver {
 
     public GPSInfo readGPS(File gpsFile) throws GPSException
     {
-	ByteBuffer buf = ByteBuffer.allocate(22);
-	try
-	    {
-		RandomAccessFile syncgps = new RandomAccessFile(gpsFile, "r");
-		FileChannel ch = syncgps.getChannel();
-		int nr = ch.read(buf);
-		syncgps.close();
-		if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + gpsFile.getAbsolutePath());
-		if (nr == 22)
-		    {
-			buf.flip();
-			GPSInfo gpsinfo = new GPSInfo(buf, leapsecondObj);
-			if (logger.isDebugEnabled()) logger.debug("GPS read on " + gpsFile.getAbsolutePath() + " - " + gpsinfo);
-			return gpsinfo;
-		    }
-		throw new GPSNotReady(gpsFile.getAbsolutePath(), 0);
-	    }
-	catch (IOException iox)
-	    {
-		throw new GPSException(gpsFile.getAbsolutePath(), iox);
-	    }
-	catch (NumberFormatException nex)
-	    {
-		throw new GPSException(gpsFile.getAbsolutePath(), nex);
-	    }
+        RandomAccessFile syncgps;
+        try {
+            syncgps = new RandomAccessFile(gpsFile, "r");
+        } catch (FileNotFoundException fnfe) {
+            throw new GPSException("Cannot open \"" +
+                                   gpsFile.getAbsolutePath() + "\"", fnfe);
+        }
+
+        FileChannel ch = syncgps.getChannel();
+
+        ByteBuffer buf = ByteBuffer.allocate(22);
+        int nr;
+        try {
+            nr = ch.read(buf);
+        } catch (IOException ioe) {
+            throw new GPSException("Cannot read \"" +
+                                   gpsFile.getAbsolutePath() + "\"", ioe);
+        }
+
+        try {
+            syncgps.close();
+        } catch (IOException ioe) {
+            // ignore errors on close
+        }
+
+        if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + gpsFile.getAbsolutePath());
+        if (nr != 22)
+        {
+            throw new GPSNotReady(gpsFile.getAbsolutePath(), 0);
+        }
+
+        buf.flip();
+        GPSInfo gpsinfo = new GPSInfo(buf, leapsecondObj);
+        if (logger.isDebugEnabled()) {
+            logger.debug("GPS read on " + gpsFile.getAbsolutePath() + " - " +
+                         gpsinfo);
+        }
+        return gpsinfo;
     }
 
     private String getProcfileText(File file) throws IOException {

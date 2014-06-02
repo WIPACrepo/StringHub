@@ -1,12 +1,13 @@
 package icecube.daq.dor;
 
+import icecube.daq.juggler.alert.Alerter;
+import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.util.StringHubAlert;
+
 import java.io.File;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
-
-import icecube.daq.juggler.alert.Alerter;
-import icecube.daq.util.StringHubAlert;
 
 /**
  * This class exists to centralize the GPS information collection
@@ -58,7 +59,7 @@ public class GPSService
 
         public void run()
         {
-            
+
             try
             {
                 // Eat through the up to 10 buffered GPS snaps in the DOR
@@ -85,12 +86,13 @@ public class GPSService
                     cons_gpsx_count = 0;
                     if (!(gps == null || newGPS.getOffset().equals(gps.getOffset())))
                     {
-                        logger.error(
-                                "GPS offset mis-alignment detected - old GPS: " +
-                                gps + " new GPS: " + newGPS);
-                        StringHubAlert.sendDOMAlert(
-                                alerter, "GPS Offset mis-match",
-                                card, 0, '-', "000000000000", "GPS", 0, 0);
+                        final String errmsg =
+                            "GPS offset mis-alignment detected - old GPS: " +
+                            gps + " new GPS: " + newGPS;
+                        logger.error(errmsg);
+                        if (moni != null) {
+                            moni.send(errmsg, null);
+                        }
                     }
                     else
                     {
@@ -106,18 +108,18 @@ public class GPSService
                     if (cons_gpsx_count++ > 10)
                     {
                         logger.warn("GPS not ready.");
-                        StringHubAlert.sendDOMAlert(
-                                alerter, "SyncGPS procfile not ready",
-                                card, 0, '-', "000000000000", "GPS", 0, 0);
+                        if (moni != null) {
+                            moni.send("SyncGPS procfile not ready", null);
+                        }
                     }
                 }
                 catch (GPSException gps_ex)
                 {
                     gps_ex.printStackTrace();
                     logger.warn("Got GPS exception - time translation to UTC will be incomplete");
-                    StringHubAlert.sendDOMAlert(
-                            alerter, "SyncGPS procfile I/O error",
-                            card, 0, '-', "000000000000", "GPS", 0, 0);
+                    if (moni != null) {
+                        moni.send(gps_ex.getMessage(), null);
+                    }
                     gps_error_count++;
                 }
             }
@@ -131,6 +133,7 @@ public class GPSService
         }
     }
 
+    private LiveTCalMoni moni;
     private GPSCollector[] coll;
     private static final GPSService instance = new GPSService();
 
@@ -143,15 +146,17 @@ public class GPSService
 
     public GPSInfo getGps(int card) { return coll[card].getGps(); }
 
-    public void startService(Driver drv, int card)
+    public void startService(Driver drv, int card, LiveTCalMoni moni)
     {
+        this.moni = moni;
+
         if (coll[card] == null) { coll[card] = new GPSCollector(drv, card); }
         if (!coll[card].isRunning()) coll[card].startup();
     }
 
-    public void startService(int card)
+    public void startService(int card, LiveTCalMoni moni)
     {
-        startService(Driver.getInstance(), card);
+        startService(Driver.getInstance(), card, moni);
     }
 
     public void shutdownAll()
@@ -159,6 +164,4 @@ public class GPSService
         for (int i = 0; i < 8; i++)
             if (coll[i] != null && coll[i].isRunning()) coll[i].shutdown();
     }
-
-    public void setAlerter(Alerter alerter) { this.alerter = alerter; }
 }

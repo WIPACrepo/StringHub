@@ -3,6 +3,7 @@
 package icecube.daq.domapp;
 
 import icecube.daq.juggler.alert.Alerter;
+import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
 
@@ -273,6 +274,8 @@ public abstract class AbstractDataCollector extends Thread
     {
         this.alerter = alerter;
     }
+
+    public abstract void setLiveMoni(LiveTCalMoni moni);
 
     public void setDomInfo(DeployedDOM domInfo)
     {
