@@ -85,7 +85,6 @@ public class StringHubComponent
 	private MultiChannelMergeSort scalSort;
 	private File configurationPath;
 
-	private ISourceID sourceId;
 	private static final String COMPONENT_NAME =
 		DAQCmdInterface.DAQ_STRING_HUB;
 
@@ -115,9 +114,6 @@ public class StringHubComponent
 		this.hubId = hubId;
 		this.isSim = isSim;
 
-		sourceId =
-			SourceIdRegistry.getISourceIDFromNameAndId(COMPONENT_NAME, hubId);
-
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
 		addMBean("stringhub", this);
@@ -132,20 +128,21 @@ public class StringHubComponent
 		 *  (3) component x200 - x299 : icetop
 		 * I
 		 */
-		int minorHubId = hubId % 1000;
+		final int minorHubId = hubId % 1000;
+		final int fullId = SourceIdRegistry.STRING_HUB_SOURCE_ID + minorHubId;
 
-		String cacheName;
-		String cacheNum;
+		final String cacheName;
+		final String cacheNum;
 		if (minorHubId == 0) {
 			cacheName = "AM";
 			cacheNum = "";
-		} else if (SourceIdRegistry.isDeepCoreHubSourceID(hubId)) {
+		} else if (SourceIdRegistry.isDeepCoreHubSourceID(fullId)) {
 			cacheName = "DC";
 			cacheNum = "#" + (minorHubId - SourceIdRegistry.DEEPCORE_ID_OFFSET);
-		} else if (SourceIdRegistry.isIniceHubSourceID(hubId)) {
+		} else if (SourceIdRegistry.isIniceHubSourceID(fullId)) {
 			cacheName = "SH";
 			cacheNum = "#" + minorHubId;
-		} else if (SourceIdRegistry.isIcetopHubSourceID(hubId)) {
+		} else if (SourceIdRegistry.isIcetopHubSourceID(fullId)) {
 			cacheName = "IT";
 			cacheNum = "#" + (minorHubId - SourceIdRegistry.ICETOP_ID_OFFSET);
 		} else {
@@ -176,6 +173,7 @@ public class StringHubComponent
 		teOut = null;
 
 		if (minorHubId > 0) {
+			// all non-AMANDA hubs send hits to a trigger
 			if (includeHitOut) {
 				hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId,
 												"hitOut");
@@ -184,7 +182,7 @@ public class StringHubComponent
 				teOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "teOut",
 											   true);
 			}
-			if (SourceIdRegistry.isIcetopHubSourceID(hubId)) {
+			if (SourceIdRegistry.isIcetopHubSourceID(fullId)) {
 				if (hitOut != null) {
 					addMonitoredEngine(DAQConnector.TYPE_ICETOP_HIT, hitOut);
 				}
@@ -876,7 +874,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15015 2014-06-02 16:24:13Z dglo $";
+		return "$Id: StringHubComponent.java 15020 2014-06-03 15:44:12Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
