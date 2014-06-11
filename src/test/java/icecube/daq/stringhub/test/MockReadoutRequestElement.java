@@ -1,7 +1,6 @@
 package icecube.daq.stringhub.test;
 
 import icecube.daq.payload.IDOMID;
-import icecube.daq.payload.IPayloadDestination;
 import icecube.daq.payload.IReadoutRequestElement;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.IUTCTime;
@@ -116,19 +115,6 @@ public class MockReadoutRequestElement
      * @param offset index of first byte
      */
     public void put(ByteBuffer buf, int offset)
-    {
-        throw new Error("Unimplemented");
-    }
-
-    /**
-     * Write this record to the payload destination.
-     *
-     * @param dest PayloadDestination to which to write this record.
-     *
-     * @return the number of bytes written to this destination.
-     */
-    public int writeData(IPayloadDestination dest)
-        throws IOException
     {
         throw new Error("Unimplemented");
     }
