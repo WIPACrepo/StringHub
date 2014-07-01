@@ -683,8 +683,12 @@ public class DataCollector
             if (monitor instanceof AsciiMonitorRecord)
             {
                 String moniMsg = monitor.toString();
-                if (logger.isDebugEnabled()) logger.debug(moniMsg);
-                if (moniMsg.contains("LBM OVERFLOW")) numLBMOverflows++;
+                if (moniMsg.contains("LBM OVERFLOW")) {
+                    numLBMOverflows++;
+                    logger.error("LBM Overflow");
+                } else if (logger.isDebugEnabled()) {
+                    logger.debug(moniMsg);
+                }
             }
             numMoni++;
             ByteBuffer moniBuffer = ByteBuffer.allocate(monitor.getLength()+32);
