@@ -596,6 +596,10 @@ public class ReplayHubComponent
      */
     public void stopping()
     {
+        if (fileThread == null) {
+            LOG.error("No active thread for stopping");
+        }
+
         fileThread.stopping();
     }
 
@@ -651,6 +655,8 @@ class PayloadFileThread
 
     /** The actual thread object */
     private Thread realThread;
+    /** 'true' if this thread has been started */
+    private boolean started;
     /** 'true' if this thread is stopping */
     private boolean stopping;
 
@@ -897,7 +903,7 @@ class PayloadFileThread
             // ignore errors on close
         }
 
-        LOG.error("Finished writing " + numHits + " hits");
+        LOG.error("Finished queuing " + numHits + " hits");
     }
 
     /**
@@ -919,12 +925,12 @@ class PayloadFileThread
      */
     public void start()
     {
-        if (realThread == null) {
+        if (started) {
             throw new Error("Thread has already been started!");
         }
 
         realThread.start();
-        realThread = null;
+        started = true;
     }
 
     /**
@@ -932,7 +938,12 @@ class PayloadFileThread
      */
     public void stopping()
     {
+        if (!started) {
+            throw new Error("Thread has not been started!");
+        }
+
         stopping = true;
+        realThread.interrupt();
     }
 }
 
@@ -1042,7 +1053,7 @@ class OutputThread
         ByteBuffer buf;
         while (!stopping || outputQueue.size() > 0) {
             synchronized (outputQueue) {
-                if (outputQueue.size() == 0) {
+                if (!stopping && outputQueue.size() == 0) {
                     try {
                         waiting = true;
                         outputQueue.wait();
@@ -1070,6 +1081,8 @@ class OutputThread
         sender.consume(buildStopMessage());
 
         stopped = true;
+
+        LOG.error("Finished writing hits");
     }
 
     public void start()
