@@ -2,6 +2,7 @@ package icecube.daq.stringhub;
 
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.LocatePDAQ;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -64,21 +65,11 @@ public class FilesHitSpool implements BufferConsumer
         this.packHeaders        = Boolean.getBoolean("icecube.daq.stringhub.hitspool.packHeaders");
 
         if (packHeaders) {
-            File configDir = null;
-
-            String pcfg = System.getenv("PDAQ_CONFIG");
-            if (pcfg != null) {
-                configDir = new File(pcfg);
-                if (!configDir.exists()) {
-                    configDir = null;
-                }
-            }
-
-            if (configDir == null) {
-                configDir = new File(System.getenv("HOME"), "config");
-                if (!configDir.isDirectory()) {
-                    configDir = null;
-                }
+            File configDir;
+            try {
+                configDir = LocatePDAQ.findConfigDirectory();
+            } catch (IllegalArgumentException iae) {
+                configDir = null;
             }
 
             if (configDir != null) {
@@ -94,7 +85,7 @@ public class FilesHitSpool implements BufferConsumer
         }
 
         logger.info("DOM registry " + (reg != null? "" : "NOT") + " found; header packing " +
-                (packHeaders ? "" : "NOT") + " activated.");
+                    (packHeaders ? "" : "NOT") + " activated.");
 
         iobuf = new byte[5000];
     }
@@ -167,15 +158,15 @@ public class FilesHitSpool implements BufferConsumer
             currentFileIndex = fileNo;
             try
             {
-            	openNewFile();
+                openNewFile();
             }
             catch (IOException iox)
             {
-            	logger.error("openNewFile threw " + iox.getMessage() +
-            			". HitSpooling will be terminated.");
-            	dataOut = null;
-            	isHosed = true;
-            	return;
+                logger.error("openNewFile threw " + iox.getMessage() +
+                             ". HitSpooling will be terminated.");
+                dataOut = null;
+                isHosed = true;
+                return;
             }
         }
 
@@ -185,14 +176,14 @@ public class FilesHitSpool implements BufferConsumer
 
         try
         {
-        	dataOut.write(iobuf, 0, nw);
+            dataOut.write(iobuf, 0, nw);
         }
         catch (IOException iox)
         {
-        	logger.error("hit spool writing failed b/c " + iox.getMessage() +
-        			". Hit spooling will be terminated.");
-        	dataOut = null;
-        	isHosed = true;
+            logger.error("hit spool writing failed b/c " + iox.getMessage() +
+                         ". Hit spooling will be terminated.");
+            dataOut = null;
+            isHosed = true;
         }
     }
 
