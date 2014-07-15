@@ -46,16 +46,16 @@ public class DOMConnector
 	 */
 	public void configure() throws InterruptedException
 	{
-	    // Wait for data collectors to finish initializing
+		// Wait for data collectors to finish initializing
 		for (AbstractDataCollector dc : collectors)
 		{
-		    while (dc.isInitializing()) Thread.sleep(100);
+			while (dc.isInitializing()) Thread.sleep(100);
 			dc.signalConfigure();
 		}
 
 		// wait for things to configure
 		for (AbstractDataCollector dc : collectors)
-		    while(dc.isConfiguring()) Thread.sleep(100);
+			while(dc.isConfiguring()) Thread.sleep(100);
 
 		logger.debug("Data collector ensemble has been configured.");
 	}
@@ -68,14 +68,14 @@ public class DOMConnector
 	public void destroy()
 		throws Exception
 	{
-	    stopProcessing();
+		stopProcessing();
 
 		for (AbstractDataCollector dc : collectors) dc.signalShutdown();
 
 		for (AbstractDataCollector dc : collectors)
 		{
-		    while (dc.isAlive()) Thread.sleep(100);
-	        dc.close();
+			while (dc.isAlive()) Thread.sleep(100);
+			dc.close();
 		}
 	}
 
@@ -127,7 +127,7 @@ public class DOMConnector
 	 */
 	public boolean isRunning()
 	{
-	    return !isStopped();
+		return !isStopped();
 	}
 
 	/**
@@ -151,11 +151,11 @@ public class DOMConnector
 	{
 		CLOOP: for (AbstractDataCollector dc : collectors)
 		{
-		    while (!dc.isConfigured())
-	        {
-		        if (dc.isZombie()) continue CLOOP;
-		        Thread.sleep(100);
-	        }
+			while (!dc.isConfigured())
+			{
+				if (dc.isZombie()) continue CLOOP;
+				Thread.sleep(100);
+			}
 			dc.signalStartRun();
 		}
 	}
