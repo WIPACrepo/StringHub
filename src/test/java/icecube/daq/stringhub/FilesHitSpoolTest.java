@@ -1,26 +1,64 @@
 package icecube.daq.stringhub;
 
+import icecube.daq.stringhub.test.MockAppender;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.Level;
+
+import org.junit.After;
+import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
 
 public class FilesHitSpoolTest
 {
+    private static final MockAppender appender = new MockAppender();
 
     @Before
     public void setUp() throws Exception
     {
+        appender.clear();
+
+        BasicConfigurator.resetConfiguration();
+        BasicConfigurator.configure(appender);
+    }
+
+    @After
+    public void tearDown() throws Exception
+    {
+        assertEquals("Bad number of log messages",
+                     0, appender.getNumberOfMessages());
+    }
+
+    // stolen from http://stackoverflow.com/questions/617414/
+    private static File createTempDirectory()
+        throws IOException
+    {
+        final File temp =
+            File.createTempFile("temp", Long.toString(System.nanoTime()));
+
+        if (!temp.delete()) {
+            throw new IOException("Could not delete temp file: " +
+                                  temp.getAbsolutePath());
+        }
+
+        if (!temp.mkdir()) {
+            throw new IOException("Could not create temp directory: " +
+                                  temp.getAbsolutePath());
+        }
+
+        return temp;
     }
 
     @Test
     public void testFilesHitSpoolRollover() throws IOException
     {
         File configDir = null;
-        File targetDir = new File("hitspool-tmp");
-        targetDir.mkdir();
+        File targetDir = createTempDirectory();
         long fileInterval = 10000000000L;
         int fileCount = 5;
         FilesHitSpool hitspool = new FilesHitSpool(null, configDir, targetDir, fileInterval, fileCount);
