@@ -47,13 +47,16 @@ public class FilesHitSpool implements BufferConsumer
 
     /**
      * Constructor with full options.
-     * @param out   BufferConsumer object that will receive forwarded hits.  Can be null.
+     * @param out BufferConsumer object that will receive forwarded hits.
+     *            Can be null.
+     * @param configDir directory holding configuration files
      * @param targetDir output directory on filesystem
      * @param hitsPerFile number of hits per file
      * @param fileCount number of files in the spooling ensemble
      * @see BufferConsumer
      */
-    public FilesHitSpool(BufferConsumer out, File targetDir, long fileInterval, int fileCount) throws IOException
+    public FilesHitSpool(BufferConsumer out, File configDir, File targetDir,
+                         long fileInterval, int fileCount)
     {
         this.out = out;
         this.t0  = 0L;
@@ -65,13 +68,6 @@ public class FilesHitSpool implements BufferConsumer
         this.packHeaders        = Boolean.getBoolean("icecube.daq.stringhub.hitspool.packHeaders");
 
         if (packHeaders) {
-            File configDir;
-            try {
-                configDir = LocatePDAQ.findConfigDirectory();
-            } catch (IllegalArgumentException iae) {
-                configDir = null;
-            }
-
             if (configDir != null) {
                 try
                 {
@@ -90,14 +86,14 @@ public class FilesHitSpool implements BufferConsumer
         iobuf = new byte[5000];
     }
 
-    public FilesHitSpool(BufferConsumer out, File targetDir, long hitsPerFile) throws IOException
+    public FilesHitSpool(BufferConsumer out, File configDir, File targetDir, long hitsPerFile)
     {
-        this(out, targetDir, hitsPerFile, 100);
+        this(out, configDir, targetDir, hitsPerFile, 100);
     }
 
-    public FilesHitSpool(BufferConsumer out, File targetDir) throws IOException
+    public FilesHitSpool(BufferConsumer out, File configDir, File targetDir)
     {
-        this(out, targetDir, 100000L);
+        this(out, configDir, targetDir, 100000L);
     }
 
     private int transform(ByteBuffer buf)

@@ -534,7 +534,7 @@ public class StringHubComponent
 					}
 				}
 
-				FilesHitSpool hitSpooler = new FilesHitSpool(sender, hitSpoolCurrent, hitSpoolIval, hitSpoolNumFiles);
+				FilesHitSpool hitSpooler = new FilesHitSpool(sender, configurationPath, hitSpoolCurrent, hitSpoolIval, hitSpoolNumFiles);
 				hitsSort = new MultiChannelMergeSort(nch, hitSpooler);
 			}
 			else
@@ -874,7 +874,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15020 2014-06-03 15:44:12Z dglo $";
+		return "$Id: StringHubComponent.java 15091 2014-07-15 14:51:47Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
