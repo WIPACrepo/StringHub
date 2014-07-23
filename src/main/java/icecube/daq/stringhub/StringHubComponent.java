@@ -541,6 +541,19 @@ public class StringHubComponent
 	}
 
 	/**
+     * Set the run number inside this component.
+     *
+     * @param runNumber run number
+     */
+	public void setRunNumber(int runNumber)
+	{
+		logger.info("Set run number");
+		for (AbstractDataCollector adc : conn.getCollectors()) {
+			adc.setRunNumber(runNumber);
+		}
+	}
+
+	/**
 	 * Controller wants StringHub to start sending data.
 	 * Tell DOMs to start up.
 	 */
@@ -689,13 +702,28 @@ public class StringHubComponent
 	}
 
 	/**
+	 * Perform any actions related to switching to a new run.
+	 *
+	 * @param runNumber new run number
+	 *
+	 * @throws DAQCompException if there is a problem switching the component
+	 */
+	public void switching(int runNumber)
+		throws DAQCompException
+	{
+		// this will set the run number a bit before it actually starts,
+		// but hubs have no other way of knowing when the new number has begun
+		setRunNumber(runNumber);
+	}
+
+	/**
 	 * Return this component's svn version id as a String.
 	 *
 	 * @return svn version id as a String
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15100 2014-07-22 19:21:54Z dglo $";
+		return "$Id: StringHubComponent.java 15103 2014-07-23 20:22:47Z dglo $";
 	}
 
 	public IByteBufferCache getCache()

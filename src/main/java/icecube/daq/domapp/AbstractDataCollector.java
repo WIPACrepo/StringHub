@@ -41,6 +41,7 @@ public abstract class AbstractDataCollector extends Thread
     protected Alerter alerter;
     protected long firstHitTime;
     protected long lastHitTime;
+    protected int runNumber = Integer.MIN_VALUE;
 
     private static final Logger logger = Logger.getLogger(AbstractDataCollector.class);
 
@@ -283,4 +284,15 @@ public abstract class AbstractDataCollector extends Thread
         major = domInfo.getStringMajor();
         minor = domInfo.getStringMinor();
     }
+
+	/**
+     * Set the current run number.  This is a bit off if the run is switching
+	 * instead of starting, but it's the best we can do.
+     *
+     * @param runNumber run number
+     */
+	public void setRunNumber(int runNumber)
+	{
+		this.runNumber = runNumber;
+	}
 }

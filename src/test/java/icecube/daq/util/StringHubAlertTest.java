@@ -274,6 +274,7 @@ public class StringHubAlertTest
         final String name = "TestDOM";
         final int string = 12;
         final int position = 34;
+        final int runNumber = 123456;
         final long utcTime = 123456789L;
 
         HashMap<String, Object> vars = new HashMap<String, Object>();
@@ -284,12 +285,14 @@ public class StringHubAlertTest
         vars.put("name", name);
         vars.put("string", string);
         vars.put("position", position);
+        vars.put("runNumber", runNumber);
         vars.put("exact-time", UTCTime.toDateString(utcTime));
 
         MockAlerter alerter = new MockAlerter();
         alerter.setExpected(Alerter.Priority.SCP, condition, vars);
 
         StringHubAlert.sendDOMAlert(alerter, condition, card, pair, dom,
-                                    mbid, name, string, position, utcTime);
+                                    mbid, name, string, position, runNumber,
+                                    utcTime);
     }
 }

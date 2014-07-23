@@ -23,7 +23,7 @@ public class StringHubAlert
                                           int position)
     {
         sendDOMAlert(alerter, condition, card, pair, dom, mbid, name, string,
-                     position, -1L);
+                     position, Integer.MIN_VALUE);
     }
 
     /**
@@ -32,7 +32,20 @@ public class StringHubAlert
     public static final void sendDOMAlert(Alerter alerter, String condition,
                                           int card, int pair, char dom,
                                           String mbid, String name, int string,
-                                          int position, long utcTime)
+                                          int position, int runNumber)
+    {
+        sendDOMAlert(alerter, condition, card, pair, dom, mbid, name, string,
+                     position, runNumber, Long.MIN_VALUE);
+    }
+
+    /**
+     * Send a DOM alert.
+     */
+    public static final void sendDOMAlert(Alerter alerter, String condition,
+                                          int card, int pair, char dom,
+                                          String mbid, String name, int string,
+                                          int position, int runNumber,
+                                          long utcTime)
     {
         if (alerter == null || !alerter.isActive()) {
             return;
@@ -52,6 +65,9 @@ public class StringHubAlert
         }
         vars.put("string", string);
         vars.put("position", position);
+        if (runNumber > 0) {
+            vars.put("runNumber", runNumber);
+        }
         if (utcTime >= 0L) {
             vars.put("exact-time", UTCTime.toDateString(utcTime));
         }

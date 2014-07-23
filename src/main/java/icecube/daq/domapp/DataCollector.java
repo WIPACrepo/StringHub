@@ -869,7 +869,8 @@ public class DataCollector
              */
             setRunLevel(RunLevel.ZOMBIE);
             StringHubAlert.sendDOMAlert(alerter, "Zombie DOM", card, pair, dom,
-                                        mbid, name, major, minor, lastHitTime);
+                                        mbid, name, major, minor, runNumber,
+                                        lastHitTime);
         }
         watcher.cancel();
 
