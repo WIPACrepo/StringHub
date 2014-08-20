@@ -1165,7 +1165,7 @@ public class DataCollector
                 }
 
                 // What about monitoring?
-                if (t >= moniReadInterval)
+                if (t >= nextMoniRead)
                 {
 		    nextMoniRead = t + moniReadInterval;
 
