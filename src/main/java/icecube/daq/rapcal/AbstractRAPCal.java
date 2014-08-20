@@ -4,9 +4,7 @@ import icecube.daq.dor.TimeCalib;
 import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.util.UTC;
 
-import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.ListIterator;
 
 import org.apache.log4j.Logger;
 

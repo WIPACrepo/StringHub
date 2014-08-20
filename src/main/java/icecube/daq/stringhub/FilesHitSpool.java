@@ -2,7 +2,6 @@ package icecube.daq.stringhub;
 
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.util.DOMRegistry;
-import icecube.daq.util.LocatePDAQ;
 
 import java.io.BufferedOutputStream;
 import java.io.File;

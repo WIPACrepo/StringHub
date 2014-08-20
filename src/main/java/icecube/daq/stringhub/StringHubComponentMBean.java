@@ -51,7 +51,7 @@ public interface StringHubComponentMBean
      *
      * @return number of non-zombies
      */
-    public int getNumberOfNonZombies();
+    int getNumberOfNonZombies();
 
     /**
      * Return the time when the last of the channels to report hits has finally reported

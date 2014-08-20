@@ -112,7 +112,6 @@ public class Omicron {
 		{
 			DOMConfiguration config = xmlConfig.getDOMConfig(chInfo.mbid);
 			if (config == null) continue;
-			String cwd = chInfo.card + "" + chInfo.pair + chInfo.dom;
 			hitsSort.register(chInfo.getMainboardIdAsLong());
 			moniSort.register(chInfo.getMainboardIdAsLong());
 			tcalSort.register(chInfo.getMainboardIdAsLong());

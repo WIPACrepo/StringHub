@@ -2,7 +2,6 @@ package icecube.daq.dor;
 
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.livemoni.LiveTCalMoni;
-import icecube.daq.util.StringHubAlert;
 
 import java.io.File;
 import java.util.concurrent.atomic.AtomicBoolean;

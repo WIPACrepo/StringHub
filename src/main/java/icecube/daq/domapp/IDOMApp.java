@@ -30,7 +30,7 @@ public interface IDOMApp {
 	 * @param rate
 	 * @throws MessageException
 	 */
-	public void changeFlasherSettings(
+	void changeFlasherSettings(
             short brightness, 
             short width, 
             short delay, 
@@ -258,7 +258,7 @@ public interface IDOMApp {
 	 * @param depth
 	 * @throws MessageException
 	 */
-	public void setLBMDepth(LBMDepth depth) throws MessageException;
+	void setLBMDepth(LBMDepth depth) throws MessageException;
 	
 	/**
 	 * Sets the LC (Rx) mode.  This determines whether the DOM
