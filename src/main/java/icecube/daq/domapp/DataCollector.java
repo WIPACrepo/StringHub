@@ -164,7 +164,6 @@ public class DataCollector
     private static final long BASE_TEST_VERSION = 4000;
     private static final long INTERVAL_MIN_DOMAPP_TEST_VERSION = 4477;
 
-    private int     rapcalExceptionCount  = 0;
     private int     validRAPCalCount;
 
     private int     numHits               = 0;
@@ -806,7 +805,6 @@ public class DataCollector
         }
         catch (RAPCalException rcex)
         {
-            rapcalExceptionCount++;
             logger.warn("Got RAPCal exception", rcex);
         }
         catch (IOException iox)
