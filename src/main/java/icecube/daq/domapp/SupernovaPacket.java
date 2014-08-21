@@ -5,7 +5,7 @@ import java.nio.ByteBuffer;
 public final class SupernovaPacket
 {
 	private int recl;
-	private int fmtid;
+	//private int fmtid;
 	private long domClock;
 	private byte[] counters;
 	private ByteBuffer buffer;
@@ -18,7 +18,7 @@ public final class SupernovaPacket
 		int pos = buf.position();
 		SupernovaPacket sn = new SupernovaPacket();
 		sn.recl = buf.getShort(pos);
-		sn.fmtid = buf.getShort(pos+2);
+		//sn.fmtid = buf.getShort(pos+2);
 		sn.domClock = DOMAppUtil.decodeClock6B(buf, pos+4);
 		int n = sn.recl - 10;
 		sn.counters = new byte[n];

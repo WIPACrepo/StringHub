@@ -1,6 +1,5 @@
 package icecube.daq.dor;
 
-import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.livemoni.LiveTCalMoni;
 
 import java.io.File;
@@ -22,25 +21,22 @@ public class GPSService
 {
 
     private Logger logger = Logger.getLogger(GPSService.class);
-    private Alerter alerter;
 
     private class GPSCollector extends Thread
     {
         private Driver driver;
-        private int card;
+        //private int card;
         private int cons_gpsx_count;
         private GPSInfo gps;
-        private int gps_error_count;
         private AtomicBoolean running;
         private File gpsFile;
 
         GPSCollector(Driver driver, int card)
         {
             this.driver = driver;
-            this.card = card;
+            //this.card = card;
             this.gpsFile = driver.getGPSFile(card);
             cons_gpsx_count = 0;
-            gps_error_count = 0;
             gps = null;
             running = new AtomicBoolean(false);
         }
@@ -119,7 +115,6 @@ public class GPSService
                     if (moni != null) {
                         moni.send(gps_ex.getMessage(), null);
                     }
-                    gps_error_count++;
                 }
             }
         }

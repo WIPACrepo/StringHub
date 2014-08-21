@@ -16,7 +16,7 @@ public class DeltaMCodec
 	private int bitsPerWord;
 	private int bitBoundary;
 	private int bvalid = 0;
-	private int pos;
+	//private int pos;
 	private int reg = 0;
 
 	static final Logger logger = Logger.getLogger(DeltaMCodec.class);
@@ -24,7 +24,7 @@ public class DeltaMCodec
 	public DeltaMCodec(ByteBuffer buf)
 	{
 		this.buf = buf;
-		pos = buf.position();
+		//pos = buf.position();
 	}
 
 	/**

@@ -669,8 +669,6 @@ class PayloadFileThread
 
     /** Gap between DAQ time and system time */
     private long timeGap;
-    /** Time spent in the main loop */
-    private long loopTime;
     /** Total time spent sleeping so payload time matches system time */
     private long totalSleep;
     /** total number of payloads read */

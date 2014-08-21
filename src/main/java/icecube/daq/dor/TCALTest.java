@@ -15,18 +15,12 @@ import org.apache.log4j.Logger;
 
 public final class TCALTest
 {
-    private int card;
-    private int pair;
-    private char dom;
     private Driver driver = Driver.getInstance();
     private RAPCal rapcal;
     private File tcalFile;
 
     private TCALTest(int card, int pair, char dom, String classname) throws Exception
     {
-        this.card = card;
-        this.pair = pair;
-        this.dom  = dom;
         rapcal = (RAPCal) Class.forName(classname).newInstance();
 	tcalFile = driver.getTCALFile(card, pair, dom);
     }
