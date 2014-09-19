@@ -18,29 +18,33 @@ import static org.junit.Assert.*;
 
 public class MultiChannelMergeSortTest implements BufferConsumer
 {
+    private double rate;
+    private int    nch;
 
     private MultiChannelMergeSort mms; 
     private boolean timeOrdered;
     private int numBuffersSeen;
     private long lastUT;
-    private final double rate;
-    private final int    nch;
     private final static Logger logger = Logger.getLogger(MultiChannelMergeSortTest.class);
     
     public MultiChannelMergeSortTest()
     {
-        this(
-                Integer.getInteger("icecube.daq.bindery.MultiChannelMergeSortTest.channels", 16),
-                500.0
-            );
+        final String prop =
+            "icecube.daq.bindery.MultiChannelMergeSortTest.channels";
+        nch = Integer.getInteger(prop, 16);
+        rate = 500.0;
     }
     
-    public MultiChannelMergeSortTest(int nch, double rate)
+    void setNumChannels(int val)
     {
-        this.nch  = nch;
-        this.rate = rate;
+        nch = val;
     }
-    
+
+    void setRate(double val)
+    {
+        rate = val;
+    }
+
     @BeforeClass
     public static void loggingSetUp()
     {
@@ -103,7 +107,9 @@ public class MultiChannelMergeSortTest implements BufferConsumer
         double rate = 500.0;
         if (args.length > 0) nch = Integer.parseInt(args[0]);
         if (args.length > 1) rate = Double.parseDouble(args[1]);
-        MultiChannelMergeSortTest mcmt = new MultiChannelMergeSortTest(nch, rate);
+        MultiChannelMergeSortTest mcmt = new MultiChannelMergeSortTest();
+        mcmt.setNumChannels(nch);
+        mcmt.setRate(rate);
         mcmt.setUp();
         mcmt.testTimeOrdering();
         System.gc();
