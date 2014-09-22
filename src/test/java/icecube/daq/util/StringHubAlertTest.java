@@ -238,8 +238,8 @@ public class StringHubAlertTest
         final int position = 34;
 
         HashMap<String, Object> vars = new HashMap<String, Object>();
-        vars.put("card", new Integer(card));
-        vars.put("pair", new Integer(pair));
+        vars.put("card", Integer.valueOf(card));
+        vars.put("pair", Integer.valueOf(pair));
         vars.put("dom", dom);
         vars.put("mbid", mbid);
         vars.put("name", name);
@@ -278,8 +278,8 @@ public class StringHubAlertTest
         final long utcTime = 123456789L;
 
         HashMap<String, Object> vars = new HashMap<String, Object>();
-        vars.put("card", new Integer(card));
-        vars.put("pair", new Integer(pair));
+        vars.put("card", Integer.valueOf(card));
+        vars.put("pair", Integer.valueOf(pair));
         vars.put("dom", dom);
         vars.put("mbid", mbid);
         vars.put("name", name);

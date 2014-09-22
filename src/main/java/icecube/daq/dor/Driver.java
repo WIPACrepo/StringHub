@@ -331,7 +331,8 @@ public final class Driver implements IDriver {
 			{
 			    String key = m.group(1);
 			    long val   = Long.parseLong(m.group(2), 16);
-			    registerMap.put(key, new Integer((int) (val & 0xffffffffL)));
+			    registerMap.put(key,
+			                    Integer.valueOf((int) (val & 0xffffffffL)));
 			}
 		}
 	    return registerMap;
