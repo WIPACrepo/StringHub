@@ -25,7 +25,7 @@ public class XMLConfig extends DefaultHandler
 {
 	private ParserState internalState;
 
-	private StringBuffer xmlChars;
+	private StringBuilder xmlChars;
 	private short fadcSamples;
 	private final short[] defaultAtwdSamples = { 128, 128, 128, 0 };
 	private short[] atwdSamples;
@@ -52,7 +52,7 @@ public class XMLConfig extends DefaultHandler
 	public XMLConfig()
 	{
 		definedDOMConfigs = new HashMap<String, DOMConfiguration>();
-		xmlChars = new StringBuffer();
+		xmlChars = new StringBuilder();
 
 	}
 

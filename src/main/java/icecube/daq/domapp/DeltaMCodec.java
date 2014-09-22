@@ -219,7 +219,7 @@ public class DeltaMCodec
 	{
 		if (logger.getEffectiveLevel().isGreaterOrEqual(Level.DEBUG))
 		{
-			StringBuffer bstr = new StringBuffer(Integer.toBinaryString(reg));
+			StringBuilder bstr = new StringBuilder(Integer.toBinaryString(reg));
 			while (bstr.length() < bvalid) bstr.insert(0, "0");
 			if (logger.isDebugEnabled()) {
 				logger.debug("bit register = B\"" + bstr + "\"");

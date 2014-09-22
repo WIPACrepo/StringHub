@@ -804,7 +804,7 @@ public class DOMApp implements IDOMApp
         ByteBuffer ack = ByteBuffer.allocate(34);
         while (ack.position() < 20) ack.put(devIO.recv());
         // if the 5th byte is an 'E'
-        StringBuffer debugTxt = new StringBuffer("DOMApp detector returns");
+        StringBuilder debugTxt = new StringBuilder("DOMApp detector returns");
         for (int i = 0; i < 8; i++) {
             int b = ack.get(i);
             if (b < 0) b += 256;
@@ -862,7 +862,7 @@ public class DOMApp implements IDOMApp
         }
         if (expect == null) return "";
         if (logger.isDebugEnabled()) logger.debug("Echoback from iceboot received - expecting ... " + expect);
-        StringBuffer txt = new StringBuffer();
+        StringBuilder txt = new StringBuilder();
         while (true)
         {
             ByteBuffer ret = devIO.recv();

@@ -188,7 +188,7 @@ public abstract class AbstractRAPCal implements RAPCal
                     hist.add(new Isochron(lastTcal, tcal, gpsOffset));
                 }
             } catch (RAPCalException re) {
-                StringBuffer msgbuf = new StringBuffer(re.getSource());
+                StringBuilder msgbuf = new StringBuilder(re.getSource());
                 msgbuf.append(':');
                 short[] waveform = re.getWaveform();
                 for (int i = 0; i < waveform.length; i++) {

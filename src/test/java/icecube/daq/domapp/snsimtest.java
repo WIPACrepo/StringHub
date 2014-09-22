@@ -145,7 +145,7 @@ public class snsimtest implements BufferConsumer {
 		try {
 			FileWriter outFile = new FileWriter("/Users/rmaruyama/Documents/IceCubeDocs/SN/DataChallenge/binnedRates.txt", false);
 			BufferedWriter out = new BufferedWriter(outFile);
-			StringBuffer strBuffer = new StringBuffer();
+			StringBuilder strBuffer = new StringBuilder();
 
 			for (int i = 0; i<runLength ; i++) {
 				strBuffer.append(snTimeBinned[i] + "\t" + snScalerBinned[i] + "\n");
@@ -163,7 +163,7 @@ public class snsimtest implements BufferConsumer {
 //		try {
 //	    	FileWriter outFile = new FileWriter("/Users/rmaruyama/Documents/IceCubeDocs/SN/DataChallenge/test.txt", false);
 //	        BufferedWriter out = new BufferedWriter(outFile);
-//	    	StringBuffer strBuffer = new StringBuffer();
+//	    	StringBuilder strBuffer = new StringBuilder();
 //
 //	    	for (int i = 0; i<snScaler.size() ; i++) {
 //	    		strBuffer.append(numericMBID.get(i) + "\t" + snTime.get(i) + "\t" + snScaler.get(i) + "\n");
