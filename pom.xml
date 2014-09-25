@@ -133,6 +133,11 @@
 
     <dependency>
       <groupId>edu.wisc.icecube</groupId>
+      <artifactId>splicer</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>edu.wisc.icecube</groupId>
       <artifactId>trigger</artifactId>
     </dependency>
 
@@ -142,14 +147,8 @@
     </dependency>
 
     <dependency>
-      <groupId>dom4j</groupId>
-      <artifactId>dom4j</artifactId>
-    </dependency>
-
-    <!-- required by dom4j -->
-    <dependency>
-      <groupId>jaxen</groupId>
-      <artifactId>jaxen</artifactId>
+      <groupId>javax.xml.parsers</groupId>
+      <artifactId>jaxp-api</artifactId>
     </dependency>
   </dependencies>
 

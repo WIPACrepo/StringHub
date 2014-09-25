@@ -16,6 +16,8 @@ import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.FlasherboardConfiguration;
+import icecube.daq.util.JAXPUtil;
+import icecube.daq.util.JAXPUtilException;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,9 +30,10 @@ import java.util.List;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.log4j.Logger;
-import org.dom4j.Attribute;
-import org.dom4j.Document;
-import org.dom4j.Element;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+
 import org.xml.sax.SAXException;
 
 /**
@@ -246,28 +249,39 @@ public class ReplayHubComponent
         // clear hit file name
         payloadReader = null;
 
-        Document doc = loadXMLDocument(configurationPath, configName);
+        Document doc;
+        try {
+            doc = JAXPUtil.loadXMLDocument(configurationPath, configName);
+        } catch (JAXPUtilException jux) {
+            throw new DAQCompException(jux);
+        }
+
+        final String replayFilesStr = "runConfig/replayFiles";
 
         // extract replayFiles element tree
-        String replayFilesStr = "runConfig/replayFiles";
-        Element replayFiles = (Element) doc.selectSingleNode(replayFilesStr);
+        Element replayFiles;
+        try {
+            replayFiles =
+                (Element) JAXPUtil.extractNode(doc, replayFilesStr);
+        } catch (JAXPUtilException jux) {
+            throw new DAQCompException(jux);
+        }
         if (replayFiles == null) {
             throw new DAQCompException("No replayFiles entry found in " +
                                        configName);
         }
 
         // save base directory name
-        String baseDir;
-        Attribute bdAttr = replayFiles.attribute("baseDir");
-        if (bdAttr == null) {
-            baseDir = null;
-        } else {
-            baseDir = bdAttr.getValue();
-        }
+        String baseDir = replayFiles.getAttribute("baseDir");
 
         // extract this hub's entry
         String hubNodeStr = replayFilesStr + "/hits[@hub='" + hubId + "']";
-        Element hubNode = (Element) doc.selectSingleNode(hubNodeStr);
+        Element hubNode;
+        try {
+            hubNode = (Element) JAXPUtil.extractNode(doc, hubNodeStr);
+        } catch (JAXPUtilException jux) {
+            throw new DAQCompException(jux);
+        }
         if (hubNode == null) {
             throw new DAQCompException("No replayFiles entry for hub#" +
                                        hubId + " found in " +

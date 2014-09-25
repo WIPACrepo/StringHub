@@ -34,6 +34,8 @@ import icecube.daq.sender.Sender;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
+import icecube.daq.util.JAXPUtil;
+import icecube.daq.util.JAXPUtilException;
 import icecube.daq.util.StringHubAlert;
 
 import java.io.File;
@@ -50,9 +52,12 @@ import java.util.Set;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.log4j.Logger;
-import org.dom4j.Document;
-import org.dom4j.DocumentException;
-import org.dom4j.Node;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+
 import org.xml.sax.SAXException;
 
 public class StringHubComponent
@@ -307,7 +312,7 @@ public class StringHubComponent
 	 * @throws IOException
 	 */
 	private List<DOMChannelInfo> discover()
-		throws IOException, DocumentException
+		throws IOException
 	{
 		if (!isSim) {
 			driver.setBlocking(true);
@@ -370,7 +375,12 @@ public class StringHubComponent
 			logger.debug("Found " + activeDOMs.size() + " active DOMs.");
 		}
 
-		ConfigData cfgData = new ConfigData(configName, activeDOMs);
+		ConfigData cfgData;
+		try {
+			cfgData = new ConfigData(configName, activeDOMs);
+		} catch (JAXPUtilException jux) {
+			throw new DAQCompException(jux);
+		}
 
 		logger.debug("Configuration successfully loaded -" +
 					 " Intersection(DISC, CONFIG).size() = " + cfgData.nch);
@@ -723,7 +733,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15103 2014-07-23 20:22:47Z dglo $";
+		return "$Id: StringHubComponent.java 15165 2014-09-25 18:43:15Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
@@ -900,40 +910,47 @@ public class StringHubComponent
 		private XMLConfig xmlConfig;
 
 		ConfigData(String configName, List<DOMChannelInfo> activeDOMs)
-			throws DAQCompException
+			throws DAQCompException, JAXPUtilException
 		{
 			// Parse out tags from 'master configuration' file
-			Document doc = loadXMLDocument(configurationPath, configName);
+			Document doc = JAXPUtil.loadXMLDocument(configurationPath,
+													configName);
 
 			xmlConfig = new XMLConfig();
 
-			final String intvlPath = "runConfig/intervals/enabled";
-			enable_intervals =
-				parseIntervals(doc.selectSingleNode(intvlPath), false);
+			Node intvlNode =
+				JAXPUtil.extractNode(doc, "runConfig/intervals/enabled");
+			enable_intervals = parseIntervals(intvlNode, false);
 
 			File domConfigsDir = new File(configurationPath, "domconfigs");
 
 			// Lookup <stringHub hubId='x'> node - if any - and process
 			// configuration directives.
-			Node hubNode =
-				doc.selectSingleNode("runConfig/stringHub[@hubId='" + hubId +
-									 "']");
+			final String hnPath = "runConfig/stringHub[@hubId='" + hubId +
+				"']";
+			Node hubNode = JAXPUtil.extractNode(doc, hnPath);
 			if (hubNode == null) {
-				// handle runconfig files which don't specify hubId
-				readAllDOMConfigs(domConfigsDir,
-								  doc.selectNodes("runConfig/domConfigList"),
-								  true);
+				// handle older runconfig files which don't specify hubId
+				NodeList dcList =
+					JAXPUtil.extractNodeList(doc, "runConfig/domConfigList");
 
-				// handle really ancient runconfig files
-				readAllDOMConfigs(domConfigsDir,
-								  doc.selectNodes("runConfig/stringHub"),
-								  false);
+				if (dcList.getLength() > 0) {
+					readAllDOMConfigs(domConfigsDir, dcList, true);
+				} else {
+					// handle really ancient runconfig files
+					NodeList shList =
+						JAXPUtil.extractNodeList(doc, "runConfig/stringhub");
+					if (shList.getLength() > 0) {
+						readAllDOMConfigs(domConfigsDir, shList, false);
+					}
+				}
 			} else {
 				// normal case
 				if (!readDOMConfig(domConfigsDir, hubNode, false)) {
-					Node dclNode =
-						doc.selectSingleNode("runConfig/domConfigList[@hub='" +
-											 hubId + "']");
+					final String path = "runConfig/domConfigList[@hub='" +
+						hubId + "']";
+					Node dclNode = JAXPUtil.extractNode(doc, path);
+
 					if (dclNode == null ||
 						!readDOMConfig(domConfigsDir, dclNode, true))
 					{
@@ -942,58 +959,74 @@ public class StringHubComponent
 					}
 				}
 
-				if (hubNode.valueOf("trigger/enabled").equalsIgnoreCase("true")) {
+				if (JAXPUtil.extractText(hubNode, "trigger/enabled").
+					equalsIgnoreCase("true"))
+				{
 					logger.error("String triggering not implemented");
 				}
 
-				Node intvlNode = hubNode.selectSingleNode("intervals/enabled");
+				intvlNode = JAXPUtil.extractNode(doc, "intervals/enabled");
 				enable_intervals = parseIntervals(intvlNode, enable_intervals);
 
 				final String fwdProp = "sender/forwardIsolatedHitsToTrigger";
-				if (hubNode.valueOf(fwdProp).equalsIgnoreCase("true")) {
+				final String fwdText = JAXPUtil.extractText(hubNode, fwdProp);
+				if (fwdText.equalsIgnoreCase("true")) {
 					sender.forwardIsolatedHitsToTrigger();
 				}
 
 				final String softProp = "dataCollector/softboot";
-				if (hubNode.valueOf(softProp).equalsIgnoreCase("true")) {
+				final String softText =
+					JAXPUtil.extractText(hubNode, softProp);
+				if (softText.equalsIgnoreCase("true")) {
 					dcSoftboot = true;
 				}
 
-				String tcalPStxt = hubNode.valueOf("tcalPrescale");
+				String tcalPStxt =
+					JAXPUtil.extractText(hubNode, "tcalPrescale");
 				if (tcalPStxt.length() != 0) {
 					tcalPrescale = Integer.parseInt(tcalPStxt);
 				}
 
-				hitSpooling=false;
-				Node hitspool_node = hubNode.selectSingleNode("hitspool");
-				if(hitspool_node == null) {
+				Node hsNode = JAXPUtil.extractNode(hubNode, "hitspool");
+				if (hsNode == null) {
 					// if there is no hitspool child of the stringHub tag
 					// look for a default node
-					hitspool_node = doc.selectSingleNode("runConfig/hitspool");
+					hsNode =
+						JAXPUtil.extractNode(hubNode, "runConfig/hitspool");
 				}
-				if (hitspool_node != null) {
-					if (hitspool_node.valueOf("enabled").equalsIgnoreCase("true")) {
+
+				hitSpooling=false;
+				if (hsNode != null) {
+					final String enabled =
+						JAXPUtil.extractText(hsNode, "enabled");
+					if (enabled.equalsIgnoreCase("true")) {
 						hitSpooling = true;
 					}
-					hitSpoolDir = hitspool_node.valueOf("directory");
+
+					hitSpoolDir = JAXPUtil.extractText(hsNode, "directory");
 					if (hitSpoolDir.length() == 0) {
 						hitSpoolDir = "/mnt/data/pdaqlocal";
 					}
-					if (hitspool_node.valueOf("interval").length() > 0) {
-						final double interval =
-							Double.parseDouble(hitspool_node.valueOf("interval"));
+
+					final String hsIvalText =
+						JAXPUtil.extractText(hsNode, "interval");
+					if (hsIvalText.length() > 0) {
+						final double interval = Double.parseDouble(hsIvalText);
 						hitSpoolIval = (long) (1E10 * interval);
 					}
-					if (hitspool_node.valueOf("numFiles").length() > 0) {
-						hitSpoolNumFiles  =
-							Integer.parseInt(hitspool_node.valueOf("numFiles"));
+
+					final String hsNFText =
+						JAXPUtil.extractText(hsNode, "numFiles");
+					if (hsNFText.length() > 0) {
+						hitSpoolNumFiles  = Integer.parseInt(hsNFText);
 					}
 				}
 			}
 
-			Number snDistNum=doc.numberValueOf("runConfig/setSnDistance");
-			if (snDistNum != null) {
-				snDistance=snDistNum.doubleValue();
+			final String snDistText =
+				JAXPUtil.extractText(doc, "runConfig/setSnDistance");
+			if (snDistText.length() > 0) {
+				snDistance = Double.parseDouble(snDistText);
 			}
 
 			// Dropped DOM detection logic - WARN if channel on string AND in
@@ -1056,7 +1089,7 @@ public class StringHubComponent
 			if (node == null) {
 				val = prevValue;
 			} else {
-				val = node.getStringValue().equalsIgnoreCase("true");
+				val = node.getTextContent().equalsIgnoreCase("true");
 			}
 
 			return val;
@@ -1072,12 +1105,12 @@ public class StringHubComponent
 	 *
 	 * @throws DAQCompException if a file cannot be read
 	 */
-	private void readAllDOMConfigs(File dir, List<Node> nodeList,
+	private void readAllDOMConfigs(File dir, NodeList nodeList,
 								   boolean oldFormat)
 		throws DAQCompException
 	{
-		for (Node node : nodeList) {
-			readDOMConfig(dir, node, oldFormat);
+		for (int i = 0; i < nodeList.getLength(); i++) {
+			readDOMConfig(dir, nodeList.item(i), oldFormat);
 		}
 	}
 
@@ -1097,9 +1130,9 @@ public class StringHubComponent
 	{
 		String tag;
 		if (oldFormat) {
-			tag = node.getText();
+			tag = node.getTextContent();
 		} else {
-			tag = node.valueOf("@domConfig");
+			tag = ((Element) node).getAttribute("domConfig");
 			if (tag.equals("")) {
 				return false;
 			}
