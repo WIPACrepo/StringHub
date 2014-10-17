@@ -90,11 +90,6 @@ public class MockReadoutRequest
         throw new Error("Unimplemented");
     }
 
-    public int getPayloadLength()
-    {
-        throw new Error("Unimplemented");
-    }
-
     public IUTCTime getPayloadTimeUTC()
     {
         throw new Error("Unimplemented");
