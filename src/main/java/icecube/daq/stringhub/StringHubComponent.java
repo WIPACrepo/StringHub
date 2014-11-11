@@ -733,7 +733,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15165 2014-09-25 18:43:15Z dglo $";
+		return "$Id: StringHubComponent.java 15242 2014-11-11 16:56:50Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
@@ -920,7 +920,7 @@ public class StringHubComponent
 
 			Node intvlNode =
 				JAXPUtil.extractNode(doc, "runConfig/intervals/enabled");
-			enable_intervals = parseIntervals(intvlNode, false);
+			enable_intervals = parseIntervals(intvlNode, true);
 
 			File domConfigsDir = new File(configurationPath, "domconfigs");
 
@@ -965,7 +965,8 @@ public class StringHubComponent
 					logger.error("String triggering not implemented");
 				}
 
-				intvlNode = JAXPUtil.extractNode(doc, "intervals/enabled");
+
+				intvlNode = JAXPUtil.extractNode(hubNode, "intervals/enabled");
 				enable_intervals = parseIntervals(intvlNode, enable_intervals);
 
 				final String fwdProp = "sender/forwardIsolatedHitsToTrigger";
