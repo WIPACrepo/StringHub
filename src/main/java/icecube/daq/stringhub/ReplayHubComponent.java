@@ -41,8 +41,7 @@ import org.xml.sax.SAXException;
  */
 class DOMTimes
 {
-    private static final Logger LOG =
-        Logger.getLogger(ReplayHubComponent.class);
+    private static final Logger LOG = Logger.getLogger(DOMTimes.class);
 
     private String dom;
     private long firstTime = Long.MIN_VALUE;
@@ -1151,18 +1150,6 @@ class CachingHitSpoolReader
     }
 
     /**
-     * Get the hit time from the buffer
-     */
-    static long getUTCTime(ByteBuffer buf)
-    {
-        if (buf.limit() < 32) {
-            return Long.MIN_VALUE;
-        }
-
-        return buf.getLong(24);
-    }
-
-    /**
      * Return the file being read
      *
      * @return current file
@@ -1186,6 +1173,18 @@ class CachingHitSpoolReader
 
         // don't count the cached hit
         return rdr.getNumberOfPayloads() - 1;
+    }
+
+    /**
+     * Get the hit time from the buffer
+     */
+    static long getUTCTime(ByteBuffer buf)
+    {
+        if (buf.limit() < 32) {
+            return Long.MIN_VALUE;
+        }
+
+        return buf.getLong(24);
     }
 
     /**
