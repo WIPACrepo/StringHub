@@ -677,9 +677,6 @@ class PayloadFileThread
     private HashMap<Long, DOMTimes> domTimes =
         new HashMap<Long, DOMTimes>();
 
-    /** time of the most recently read hit */
-    private long prevTime = Long.MIN_VALUE;
-
     /** Gap between DAQ time and system time */
     private long timeGap;
     /** Total time spent sleeping so payload time matches system time */
@@ -798,14 +795,16 @@ class PayloadFileThread
 
     private void process()
     {
-        boolean timeInit = false;
-        long startSysTime = 0L;
-        long startDAQTime = 0L;
+        boolean firstPayload = true;
+        TimeKeeper sysTime = new TimeKeeper(true);
+        TimeKeeper daqTime = new TimeKeeper(false);
 
         long numHits = 0;
 
         int gapCount = 0;
-        while (!stopping && rdr.hasNext()) {
+        while (!stopping) {
+            if (!rdr.hasNext()) break;
+
             ByteBuffer buf = rdr.next();
             if (buf == null) {
                 break;
@@ -822,36 +821,32 @@ class PayloadFileThread
                 continue;
             }
 
-            final long daqTime = rawTime + timeOffset;
-            if (daqTime < prevTime) {
-                final String fmtStr =
-                    "Hit#%d went back %d in time! (cur %d, prev %d)";
-                LOG.error(String.format(fmtStr, numHits, prevTime - daqTime,
-                                        daqTime, prevTime));
+            // set the DAQ time
+            if (!daqTime.set(rawTime + timeOffset, numHits)) {
+                // if the current time if before the previous time, skip it
                 continue;
             }
-            prevTime = daqTime;
 
             // update the raw buffer's hit time
             if (timeOffset != 0) {
-                rdr.setUTCTime(buf, daqTime);
+                rdr.setUTCTime(buf, daqTime.get());
             }
 
-            // get system time
-            final long sysTime = System.nanoTime();
+            // set system time
+            if (!sysTime.set(System.nanoTime(), numHits)) {
+                // if the current time if before the previous time, skip it
+                continue;
+            }
 
-            // try to deliver payloads at the rate they were created
-            if (!timeInit) {
-                startSysTime = sysTime;
-                startDAQTime = daqTime;
-                timeInit = true;
+            if (firstPayload) {
+                // don't need to recalibrate the first payload
+                firstPayload = false;
             } else {
-                // DAQ time is 0.1 ns so divide by 10L to match nanoTime()
-                final long daqDiff =
-                    (daqTime - startDAQTime) / 10L;
-                final long sysDiff = sysTime - startSysTime;
+                // try to deliver payloads at the rate they were created
 
-                timeGap = daqDiff - sysDiff;
+                // get the difference the current system time and
+                //  the next payload time
+                timeGap = daqTime.baseDiff() - sysTime.baseDiff();
 
                 // whine if the time gap is greater than one second
                 if (timeGap > NS_PER_SEC * 2) {
@@ -872,8 +867,8 @@ class PayloadFileThread
                     }
 
                     // reset base times
-                    startSysTime = sysTime + timeGap;
-                    startDAQTime = daqTime;
+                    sysTime.setBase(timeGap);
+                    daqTime.setBase(0L);
                 }
 
                 // if we're sending payloads too quickly, wait a bit
@@ -896,7 +891,7 @@ class PayloadFileThread
             if (!domTimes.containsKey(mbid)) {
                 domTimes.put(mbid, new DOMTimes(mbid));
             }
-            domTimes.get(mbid).add(daqTime);
+            domTimes.get(mbid).add(daqTime.get());
 
             buf.flip();
 
@@ -1107,6 +1102,114 @@ class OutputThread
             stopping = true;
             outputQueue.notify();
         }
+    }
+}
+
+/**
+ * Track various times.
+ */
+class TimeKeeper
+{
+    private static final Logger LOG = Logger.getLogger(TimeKeeper.class);
+
+    private boolean isSystemTime;
+    private boolean initialized;
+    private long firstTime;
+    private long baseTime;
+    private long lastTime;
+
+    /**
+     * Create a time keeper
+     *
+     * @param isSystemTime - <tt>true</tt> if this is for the system time,
+     *                       <tt>false</tt> for DAQ time
+     */
+    TimeKeeper(boolean isSystemTime)
+    {
+        this.isSystemTime = isSystemTime;
+    }
+
+    /**
+     * Return the difference between the last time and the base time (in ns).
+     *
+     * @return difference in nanoseconds
+     */
+    long baseDiff()
+    {
+        long diff = lastTime - baseTime;
+        if (!isSystemTime) {
+            // convert DAQ time (10ths of ns) to system time
+            diff /= 10L;
+        }
+        return diff;
+    }
+
+    /**
+     * Return the difference between the last time and the first time (in ns).
+     *
+     * @return difference in nanoseconds
+     */
+    long realDiff()
+    {
+        long diff = lastTime - firstTime;
+        if (!isSystemTime) {
+            // convert DAQ time (10ths of ns) to system time
+            diff /= 10L;
+        }
+        return diff;
+    }
+
+    /**
+     * Get the most recent time
+     *
+     * @return time (ns for system time, 10ths of ns for DAQ time)
+     */
+    long get()
+    {
+        return lastTime;
+    }
+
+    /**
+     * Record the next time.
+     *
+     * @param time next time
+     * @param hitNum sequential hit number to use in error reporting
+     *
+     * @return <tt>false</tt> if <tt>time</tt> preceeds the previous time
+     */
+    boolean set(long time, long hitNum)
+    {
+        if (!initialized) {
+            firstTime = time;
+            baseTime = time;
+            initialized = true;
+        } else if (time < lastTime) {
+            String timeType;
+            if (isSystemTime) {
+                timeType = "System";
+            } else {
+                timeType = "DAQ";
+            }
+
+            final String fmtStr =
+                "%s hit#%d went back %d in time! (cur %d, prev %d)";
+            LOG.error(String.format(fmtStr, hitNum, lastTime - time, time,
+                                    lastTime));
+            return false;
+        }
+
+        lastTime = time;
+        return true;
+    }
+
+    /**
+     * Set the base time as <tt>offset</tt> from the most recent time
+     *
+     * @param offset time offset
+     */
+    void setBase(long offset)
+    {
+        baseTime = lastTime + offset;
     }
 }
 
