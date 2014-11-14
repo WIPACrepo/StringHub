@@ -733,7 +733,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15242 2014-11-11 16:56:50Z bendfelt $";
+		return "$Id: StringHubComponent.java 15254 2014-11-14 14:37:00Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1097,88 +1097,88 @@ public class StringHubComponent
 		}
 
 
-	/**
-	 * Read in DOM config info from run configuration file
-	 *
-	 * @param dir location of DOM configuration directory
-	 * @param nodeList list of DOM configuration nodes
-	 * @param oldFormat <tt>true</tt> if nodes are in old format
-	 *
-	 * @throws DAQCompException if a file cannot be read
-	 */
-	private void readAllDOMConfigs(File dir, NodeList nodeList,
-								   boolean oldFormat)
-		throws DAQCompException
-	{
-		for (int i = 0; i < nodeList.getLength(); i++) {
-			readDOMConfig(dir, nodeList.item(i), oldFormat);
-		}
-	}
-
-	/**
-	 * Read in DOM config info from run configuration file
-	 *
-	 * @param dir location of DOM configuration directory
-	 * @param nodeList list of DOM configuration nodes
-	 * @param oldFormat <tt>true</tt> if nodes are in old format
-	 *
-	 * @return <tt>true</tt> if the config file was read
-	 *
-	 * @throws DAQCompException if the file cannot be read
-	 */
-	private boolean readDOMConfig(File dir, Node node, boolean oldFormat)
-		throws DAQCompException
-	{
-		String tag;
-		if (oldFormat) {
-			tag = node.getTextContent();
-		} else {
-			tag = ((Element) node).getAttribute("domConfig");
-			if (tag.equals("")) {
-				return false;
+		/**
+		 * Read in DOM config info from run configuration file
+		 *
+		 * @param dir location of DOM configuration directory
+		 * @param nodeList list of DOM configuration nodes
+		 * @param oldFormat <tt>true</tt> if nodes are in old format
+		 *
+		 * @throws DAQCompException if a file cannot be read
+		 */
+		private void readAllDOMConfigs(File dir, NodeList nodeList,
+									   boolean oldFormat)
+			throws DAQCompException
+		{
+			for (int i = 0; i < nodeList.getLength(); i++) {
+				readDOMConfig(dir, nodeList.item(i), oldFormat);
 			}
 		}
 
-		// add ".xml" if it's missing
-		if (!tag.endsWith(".xml")) {
-			tag = tag + ".xml";
-		}
+		/**
+		 * Read in DOM config info from run configuration file
+		 *
+		 * @param dir location of DOM configuration directory
+		 * @param nodeList list of DOM configuration nodes
+		 * @param oldFormat <tt>true</tt> if nodes are in old format
+		 *
+		 * @return <tt>true</tt> if the config file was read
+		 *
+		 * @throws DAQCompException if the file cannot be read
+		 */
+		private boolean readDOMConfig(File dir, Node node, boolean oldFormat)
+			throws DAQCompException
+		{
+			String tag;
+			if (oldFormat) {
+				tag = node.getTextContent();
+			} else {
+				tag = ((Element) node).getAttribute("domConfig");
+				if (tag.equals("")) {
+					return false;
+				}
+			}
 
-		// load DOM config
-		File configFile = new File(dir, tag);
-		if (logger.isDebugEnabled()) {
-			String realism;
-			if (isSim)
-				realism = "SIMULATION";
-			else
-				realism = "REAL DOMS";
+			// add ".xml" if it's missing
+			if (!tag.endsWith(".xml")) {
+				tag = tag + ".xml";
+			}
 
-			logger.debug("Configuring " + realism
-						 + " - loading config from "
-						 + configFile.getAbsolutePath());
-		}
-		FileInputStream in;
-		try {
-			in = new FileInputStream(configFile);
-		} catch (FileNotFoundException fnfe) {
-			throw new DAQCompException("Cannot open DOM config file " +
-									   configFile, fnfe);
-		}
+			// load DOM config
+			File configFile = new File(dir, tag);
+			if (logger.isDebugEnabled()) {
+				String realism;
+				if (isSim)
+					realism = "SIMULATION";
+				else
+					realism = "REAL DOMS";
 
-		try {
-			xmlConfig.parseXMLConfig(in);
-		} catch (Exception ex) {
-			throw new DAQCompException("Cannot parse DOM config file " +
-									   configFile, ex);
-		} finally {
+				logger.debug("Configuring " + realism
+							 + " - loading config from "
+							 + configFile.getAbsolutePath());
+			}
+			FileInputStream in;
 			try {
-				in.close();
-			} catch (IOException ioe) {
-				// ignore errors on close
+				in = new FileInputStream(configFile);
+			} catch (FileNotFoundException fnfe) {
+				throw new DAQCompException("Cannot open DOM config file " +
+										   configFile, fnfe);
 			}
-		}
 
-		return true;
-	}
+			try {
+				xmlConfig.parseXMLConfig(in);
+			} catch (Exception ex) {
+				throw new DAQCompException("Cannot parse DOM config file " +
+										   configFile, ex);
+			} finally {
+				try {
+					in.close();
+				} catch (IOException ioe) {
+					// ignore errors on close
+				}
+			}
+
+			return true;
+		}
 	}
 }
