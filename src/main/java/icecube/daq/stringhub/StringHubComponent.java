@@ -18,6 +18,8 @@ import icecube.daq.io.DAQComponentOutputProcess;
 import icecube.daq.io.OutputChannel;
 import icecube.daq.io.PayloadReader;
 import icecube.daq.io.SimpleOutputEngine;
+import icecube.daq.juggler.alert.AlertException;
+import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
@@ -99,6 +101,10 @@ public class StringHubComponent
 	private long hitSpoolIval;
 
 	private int hitSpoolNumFiles = 100;
+
+	/** map of configured DOMs filled during configuring() */
+	private HashMap<String, DeployedDOM> configuredDOMs =
+		new HashMap<String, DeployedDOM>();
 
 	public StringHubComponent(int hubId)
 	{
@@ -553,6 +559,41 @@ public class StringHubComponent
 	}
 
 	/**
+	 * Send the list of configured DOMs for this hub.
+	 *
+	 * @param runNumber run number
+	 *
+	 * @throws DAQCompException if the alert cannot be sent
+	 */
+	private void sendConfiguredDOMs(int runNumber)
+		throws DAQCompException
+	{
+		Alerter alerter = getAlerter();
+		if (!alerter.isActive()) {
+			throw new DAQCompException("Alerter " + alerter +
+									   " is not active");
+		}
+
+		int[] list = new int[configuredDOMs.size()];
+
+		int idx = 0;
+		for (DeployedDOM dom : configuredDOMs.values()) {
+			list[idx++] = dom.getStringMinor();
+		}
+
+		HashMap<String, Object> values = new HashMap<String, Object>();
+		values.put("string", getNumber());
+		values.put("runNumber", runNumber);
+		values.put("doms", list);
+
+		try {
+			alerter.send("doms_in_config", Alerter.Priority.SCP, values);
+		} catch (AlertException ae) {
+			throw new DAQCompException("Cannot send alert", ae);
+		}
+	}
+
+	/**
      * Set the run number inside this component.
      *
      * @param runNumber run number
@@ -597,6 +638,9 @@ public class StringHubComponent
 		{
 			throw new DAQCompException("Couldn't start DOMs", e);
 		}
+
+		// resend the list of this hub's DOMs which are in the run config
+		sendConfiguredDOMs(runNumber);
 	}
 
 	public long startSubrun(List<FlasherboardConfiguration> flasherConfigs)
@@ -731,9 +775,12 @@ public class StringHubComponent
 	public void switching(int runNumber)
 		throws DAQCompException
 	{
-		// this will set the run number a bit before it actually starts,
+		// this may set the run number before it actually starts,
 		// but hubs have no other way of knowing when the new number has begun
 		setRunNumber(runNumber);
+
+		// resend the list of this hub's DOMs which are in the run config
+		sendConfiguredDOMs(runNumber);
 	}
 
 	/**
@@ -743,7 +790,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15256 2014-11-14 14:43:43Z dglo $";
+		return "$Id: StringHubComponent.java 15257 2014-11-14 14:46:33Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1059,24 +1106,36 @@ public class StringHubComponent
 										   " selected in configuration.");
 			}
 
+			// clear configured DOMs cache
+			configuredDOMs.clear();
+
+			// check all the DOMs which are known to be on this hub
 			for (DeployedDOM deployedDOM :
 					 domRegistry.getDomsOnHub(getNumber()))
 			{
 				String mbid = deployedDOM.getMainboardId();
-				if (!activeDomSet.contains(mbid) &&
-					xmlConfig.getDOMConfig(mbid) != null)
-				{
+
+				// if this DOM is in the run configuration...
+				if (xmlConfig.getDOMConfig(mbid) != null) {
+
+					// complain about DOMs which are in the config
+					// but are not active
+					if (!activeDomSet.contains(mbid)) {
 					logger.warn("DOM " + deployedDOM +
 								" requested in configuration for hub " +
 								hubId + " but not found.");
 
-					StringHubAlert.sendDOMAlert(getAlerter(),
-												"Dropped DOM",
-												0, 0, (char) 0,
+						StringHubAlert.
+							sendDOMAlert(getAlerter(),
+										 "Dropped DOM", 0, 0, (char) 0,
 												deployedDOM.getMainboardId(),
 												deployedDOM.getName(),
 												deployedDOM.getStringMajor(),
 												deployedDOM.getStringMinor());
+				}
+
+					// add to the list of configured DOMs
+					configuredDOMs.put(mbid, deployedDOM);
 				}
 			}
 		}
@@ -1167,6 +1226,7 @@ public class StringHubComponent
 							 + " - loading config from "
 							 + configFile.getAbsolutePath());
 			}
+
 			FileInputStream in;
 			try {
 				in = new FileInputStream(configFile);
