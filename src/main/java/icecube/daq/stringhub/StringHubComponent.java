@@ -92,6 +92,8 @@ public class StringHubComponent
 	private MultiChannelMergeSort scalSort;
 	private File configurationPath;
 
+	private int runNumber;
+
 	private boolean hitSpooling;
 	private String hitSpoolDir;
 	private long hitSpoolIval;
@@ -429,7 +431,7 @@ public class StringHubComponent
 			File hitSpoolCurrent = new File(hitSpoolDir, "currentRun");
 			File hitSpoolLast = new File(hitSpoolDir, "lastRun");
 			File hitSpoolTemp = new File(hitSpoolDir, "HitSpool" +
-										 getRunNumber() + ".tmp");
+										 runNumber + ".tmp");
 
 			// Note that renameTo and mkdir return false on failure
 			if (hitSpoolLast.exists()) {
@@ -557,9 +559,15 @@ public class StringHubComponent
      */
 	public void setRunNumber(int runNumber)
 	{
+		this.runNumber = runNumber;
+
 		logger.info("Set run number");
-		for (AbstractDataCollector adc : conn.getCollectors()) {
-			adc.setRunNumber(runNumber);
+		if (conn == null) {
+			logger.error("DOMConnector has not been initialized!");
+		} else {
+			for (AbstractDataCollector adc : conn.getCollectors()) {
+				adc.setRunNumber(runNumber);
+			}
 		}
 	}
 
@@ -567,9 +575,11 @@ public class StringHubComponent
 	 * Controller wants StringHub to start sending data.
 	 * Tell DOMs to start up.
 	 */
-	public void starting()
+	public void starting(int runNumber)
 		throws DAQCompException
 	{
+		setRunNumber(runNumber);
+
 		logger.info("StringHub is starting the run.");
 
 		sender.reset();
@@ -733,7 +743,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15254 2014-11-14 14:37:00Z dglo $";
+		return "$Id: StringHubComponent.java 15256 2014-11-14 14:43:43Z dglo $";
 	}
 
 	public IByteBufferCache getCache()

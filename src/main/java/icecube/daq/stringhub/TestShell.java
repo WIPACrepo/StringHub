@@ -34,7 +34,7 @@ public class TestShell
 
 		comp.setGlobalConfigurationDir(args[iarg++]);
         comp.configuring(args[iarg++]);
-        comp.starting();
+        comp.starting(0);
         Thread.sleep(5000);
         comp.stopping();
 
