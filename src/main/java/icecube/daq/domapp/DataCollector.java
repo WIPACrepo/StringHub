@@ -1215,8 +1215,8 @@ public class DataCollector
                  * on this DOM and I am just changing the flasher parameters.
                  */
                 logger.info("Starting subrun - flasher config is " +
-                        (flasherConfig == null ? "not" : "") + " null / lately " +
-                        (latelyRunningFlashers ? "" : "not") + " running flashers.");
+                        (flasherConfig == null ? "" : " not ") + "null / lately " +
+                        (latelyRunningFlashers ? "" : "not ") + "running flashers.");
                 if (!(latelyRunningFlashers && flasherConfig != null))
                 {
                     setRunLevel(RunLevel.STOPPING_SUBRUN);
