@@ -587,7 +587,7 @@ public class StringHubComponent
 		values.put("doms", list);
 
 		try {
-			alerter.send("doms_in_config", Alerter.Priority.SCP, values);
+			alerter.send("doms_in_config", Alerter.Priority.EMAIL, values);
 		} catch (AlertException ae) {
 			throw new DAQCompException("Cannot send alert", ae);
 		}
@@ -790,7 +790,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15257 2014-11-14 14:46:33Z dglo $";
+		return "$Id: StringHubComponent.java 15270 2014-11-19 17:06:20Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
