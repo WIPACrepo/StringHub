@@ -790,7 +790,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15270 2014-11-19 17:06:20Z dglo $";
+		return "$Id: StringHubComponent.java 15286 2014-12-04 19:37:24Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1126,12 +1126,17 @@ public class StringHubComponent
 								hubId + " but not found.");
 
 						StringHubAlert.
-							sendDOMAlert(getAlerter(),
-										 "Dropped DOM", 0, 0, (char) 0,
-												deployedDOM.getMainboardId(),
-												deployedDOM.getName(),
-												deployedDOM.getStringMajor(),
-												deployedDOM.getStringMinor());
+							sendDOMAlert(getAlerter(), Alerter.Priority.EMAIL,
+										 "Dropped DOM",
+										 StringHubAlert.NO_CARD,
+										 StringHubAlert.NO_PAIR,
+										 StringHubAlert.NO_SPECIFIER,
+										 deployedDOM.getMainboardId(),
+										 deployedDOM.getName(),
+										 deployedDOM.getStringMajor(),
+										 deployedDOM.getStringMinor(),
+										 StringHubAlert.NO_RUNNUMBER,
+										 StringHubAlert.NO_UTCTIME);
 				}
 
 					// add to the list of configured DOMs

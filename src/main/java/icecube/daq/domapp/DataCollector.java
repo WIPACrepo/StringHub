@@ -11,6 +11,7 @@ import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.GPSService;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
+import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
@@ -860,13 +861,14 @@ public class DataCollector
         {
             logger.error("Intercepted error in DataCollector runcore", x);
             /*
-             * TODO cleanup needed set run level to ZOMBIE so that controller knows
-             * that this channel has expired and does not wait.
+             * TODO cleanup needed set run level to ZOMBIE so that controller
+             * knows that this channel has expired and does not wait.
              */
             setRunLevel(RunLevel.ZOMBIE);
-            StringHubAlert.sendDOMAlert(alerter, "Zombie DOM", card, pair, dom,
-                                        mbid, name, major, minor, runNumber,
-                                        lastHitTime);
+			StringHubAlert.sendDOMAlert(alerter, Alerter.Priority.EMAIL,
+										"Zombie DOM", card, pair, dom,
+										mbid, name, major, minor, runNumber,
+										lastHitTime);
         }
         watcher.cancel();
 
