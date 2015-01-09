@@ -58,4 +58,14 @@ public interface DataCollectorMBean
      * Get the number of DOM buffer overflows.
      */
     long getLBMOverflowCount();
+
+    /**
+     * Get the average latency of hit data acquisition in milliseconds.
+     */
+    long getAverageHitAcquisitionLatencyMillis();
+
+    /**
+     * Get the timestamp at which data acquisition began.
+     */
+    String getAcquisitionStartTime();
 }

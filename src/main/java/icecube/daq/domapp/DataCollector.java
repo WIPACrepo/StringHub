@@ -17,6 +17,7 @@ import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.ZeroCrossingRAPCal;
 import icecube.daq.util.RealTimeRateMeter;
+import icecube.daq.util.SimpleMovingAverage;
 import icecube.daq.util.StringHubAlert;
 import icecube.daq.util.UTC;
 
@@ -26,7 +27,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -120,19 +124,16 @@ public class DataCollector
 
     private static final DecimalFormat  fmt     = new DecimalFormat("#0.000000000");
 
+    private final SimpleDateFormat dateFormat =
+            new SimpleDateFormat ("yyyy-mm-dd HH:mm:ss.SSS");
+
+
     // TODO - replace these with properties-supplied constants
     // for now they are totally reasonable
     private long    threadSleepInterval   = 50;
 
-    //private long    lastDataRead          = 0;
-    //private long    lastMoniRead          = 0;
-    //private long    lastSupernovaRead     = 0;
-    //private long    lastTcalRead          = 0;
-
-    // rewrite the processing loop so instead of
-    // keeping trakc of the last read, figure out
-    // when the next read will be, means fewer
-    // subtractions
+    // Note: data, moni and supernova polling intervals are only
+    // relevant when running in non-interval mode.
     private long nextSupernovaRead = 0;
     private long nextTcalRead = 0;
     private long nextMoniRead = 0;
@@ -287,6 +288,297 @@ public class DataCollector
             return null;
         }
     }
+
+    /**
+     * Collects diagnostics pertaining to a single data
+     * collection cycle.
+     */
+    private class CycleStats
+    {
+
+        final long sequence;
+
+        final long lastCycleNanos;
+        final long lastCycleDOMClk;
+
+        long cycleStartNano;
+        long cycleStopNano;
+
+        long messagesAcquired;
+        long bytesAcquired;
+        long hitCount;
+
+        long currentMsgRecvNano;
+
+        long firstHitDOMClk = -1;
+        long lastHitDOMClk = -1;
+
+        //calculated at cycle completion
+        long cycleDurationNanos;
+        long cycleGapDurationNanos;
+        long lastHitAgeNanos;
+        long dataSpanNanos;
+        long dataGapNanos;
+
+
+        private CycleStats(long sequence, long lastCycleNanos,
+                           long lastCycleDOMClk)
+        {
+            this.sequence = sequence;
+
+            //NOTE: carrying last cycle timing data forward makes
+            //      gap calculations more compact.
+            this.lastCycleNanos = lastCycleNanos;
+            this.lastCycleDOMClk = lastCycleDOMClk;
+        }
+
+
+        final void reportCycleStart()
+        {
+            cycleStartNano = now();
+        }
+
+        final void reportDataMessageRcv(ByteBuffer data)
+        {
+            currentMsgRecvNano = now();
+
+            bytesAcquired += data.remaining();
+            messagesAcquired++;
+
+            if(ENABLE_STATS)
+            {
+                trackMessageStats(data);
+            }
+        }
+
+        final void reportHitData(ByteBuffer hitBuf)
+        {
+
+            long domclk = hitBuf.getLong(24);
+
+            lastHitDOMClk = domclk;
+            if(firstHitDOMClk == -1)
+            {
+                firstHitDOMClk = domclk;
+            }
+            hitCount++;
+        }
+
+
+        final void reportCycleStop()
+        {
+            cycleStopNano = now();
+
+            // system timer durations
+            cycleDurationNanos = cycleStopNano - cycleStartNano;
+            cycleGapDurationNanos = cycleStartNano -lastCycleNanos;
+
+            // data stream spans
+            if (hitCount > 0)
+            {
+                lastHitAgeNanos = currentMsgRecvNano -
+                        domToSystemTimer.translate(lastHitDOMClk);
+                dataSpanNanos = (lastHitDOMClk - firstHitDOMClk) * 25;
+
+                if(lastCycleDOMClk == -1)
+                {
+                    dataGapNanos = 0;
+                }
+                else
+                {
+                    dataGapNanos = (firstHitDOMClk -lastCycleDOMClk) * 25;
+                }
+            }
+            else
+            {
+                lastHitAgeNanos = 0;
+                dataSpanNanos = 0;
+                dataGapNanos = 0;
+            }
+
+        }
+
+        final void trackMessageStats(ByteBuffer msgBuffer)
+        {
+            // generate some stats as to the average size
+            // of hit bytebuffers
+
+            // Compute the mean and variance of data message sizes
+            // This is an implementation of welfords method
+            // http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+            int remaining = msgBuffer.remaining();
+            if(remaining>0) {
+                double m_new = data_m_n + ( remaining - data_m_n) / ( data_count+1.0);
+                data_s_n = data_s_n + ( remaining - data_m_n) * ( remaining - m_new);
+                data_m_n = m_new;
+                data_count++;
+                if (remaining>data_max) {
+                    data_max = remaining;
+                }
+                if (remaining<data_min) {
+                    data_min = remaining;
+                }
+            } else {
+                data_zero_count++;
+            }
+        }
+
+        final long now()
+        {
+            return System.nanoTime();
+        }
+
+        final StringBuffer verbosePrint()
+        {
+            StringBuffer info = new StringBuffer(256);
+            long durationMillis = cycleDurationNanos / 1000000;
+            long millisSinceLastCycle = cycleGapDurationNanos /1000000;
+            long dataMillisInCycle = (dataSpanNanos/ 1000000);
+            long dataMillisSinceLastCycle = dataGapNanos / 1000000;
+            long lbmBacklogMillis = lastHitAgeNanos / 1000000;
+
+            info.append("cycle [").append(sequence).append("]")
+               .append(" messages [").append(messagesAcquired)
+               .append ("]")
+               .append(" bytes [").append(bytesAcquired / 1024)
+               .append(" kb]")
+               .append(" hits [").append(hitCount).append("]")
+               .append(" duration [").append(durationMillis)
+               .append(" ms]")
+               .append(" gap [").append(millisSinceLastCycle).append(" ms]")
+               .append(" data-span [").append(dataMillisInCycle)
+               .append(" ms]")
+               .append(" data-gap [").append(dataMillisSinceLastCycle)
+               .append(" ms]")
+               .append(" lbm-backlog [").append(lbmBacklogMillis)
+               .append(" ms]");
+
+            return info;
+        }
+
+    }
+
+    /**
+     * Collects data acquisition diagnostics for all
+     * data collection cycles in a run.
+     */
+    class CycleMonitor
+    {
+        long runStartTime; // local system clock
+        long runStartNano; // system timer
+
+        long sequence = -1;
+
+        Queue<CycleStats> history = new LinkedList<CycleStats>();
+
+        SimpleMovingAverage avgCycleDurationMillis =
+                new SimpleMovingAverage(10);
+
+        SimpleMovingAverage avgHitAcquisitionLatencyMillis =
+                new SimpleMovingAverage(10);
+
+        SimpleMovingAverage avgCycleDataSpanMillis = new SimpleMovingAverage
+                (10);
+
+        long lastCycleNanos;
+        long lastCycleDOMClk = -1;
+
+        final void reportRunStart()
+        {
+            runStartNano = now();
+            runStartTime = System.currentTimeMillis();
+            lastCycleNanos = runStartNano;
+        }
+
+        final CycleStats initiateCycle()
+        {
+
+            CycleStats cycleStats =
+                    new CycleStats(++sequence, lastCycleNanos, lastCycleDOMClk);
+            cycleStats.reportCycleStart();
+
+            return cycleStats;
+        }
+
+        void completeCycle(final CycleStats cycle)
+        {
+            cycle.reportCycleStop();
+
+            avgCycleDurationMillis.add(cycle.cycleDurationNanos / 1000000);
+            avgCycleDataSpanMillis.add(cycle.dataSpanNanos / 1000000);
+            lastCycleNanos = cycle.cycleStopNano;
+            lastCycleDOMClk = cycle.lastHitDOMClk;
+
+            //Note: We are really only interested in the
+            //      age of the last hit in the cycle, the
+            //      hits at the beginning have been intentionally
+            //      buffered (via intervals, sleeps) to increase
+            //      throughput. Increasing latency at the end
+            //      of an acquisition cycle is an indication
+            //      that the DOM LMB depth is increasing.
+            //
+            //      A value from a hit-less cycle is discarded.
+            if(cycle.hitCount > 0)
+            {
+                avgHitAcquisitionLatencyMillis.add(cycle
+                        .lastHitAgeNanos / 1000000);
+            }
+
+            history.add(cycle);
+            if( history.size() > 10)
+            {
+                history.remove();
+            }
+
+        }
+
+        final StringBuffer logAverages()
+        {
+            StringBuffer sb = new StringBuffer(128);
+            sb.append("avg-lbm-backlog [").append
+                    (avgHitAcquisitionLatencyMillis.getAverage())
+                    .append(" ms]")
+                    .append(" avg-cycle-duration [").append
+                    (avgCycleDurationMillis.getAverage())
+                    .append(" ms]")
+                    .append(" avg-data-span [").append
+                    (avgCycleDataSpanMillis.getAverage())
+                    .append(" ms]");
+            return sb;
+        }
+
+
+        final long now()
+        {
+            return System.nanoTime();
+        }
+    }
+    private CycleMonitor cycleMonitor = new CycleMonitor();
+
+    /**
+     * Provides a loosely calibrated mapping from the DOM clock
+     * to the system monotonic clock.
+     *
+     * This mapping is for diagnostic use only as the quality of the
+     * calibration is not guaranteed.
+     *
+     */
+    private class DOMToSystemTimer
+    {
+        private long offsetNanos;
+
+        void update(long domclk, long systemNanos)
+        {
+            offsetNanos = systemNanos - (domclk * 25);
+        }
+
+        long translate(long domclk)
+        {
+            return (domclk*25) + offsetNanos;
+        }
+    }
+    private final DOMToSystemTimer domToSystemTimer = new
+            DOMToSystemTimer();
 
     /**
      * Simple hits-only constructor (other channels suppressed)
@@ -551,7 +843,8 @@ public class DataCollector
         return utc;
     }
 
-    private void dispatchHitBuffer(int atwdChip, ByteBuffer hitBuf) throws IOException
+    private void dispatchHitBuffer(CycleStats cycleStats, int atwdChip,
+                                   ByteBuffer hitBuf) throws IOException
     {
         if (atwdChip == 0)
             abBuffer.pushA(hitBuf);
@@ -561,12 +854,13 @@ public class DataCollector
         {
             ByteBuffer buffer = abBuffer.pop();
             if (buffer == null) return;
+            cycleStats.reportHitData(hitBuf);
             dispatchBuffer(buffer, hitsConsumer);
         }
     }
 
-
-    private void dataProcess(ByteBuffer in) throws IOException
+    private void dataProcess(CycleStats cycleStats, ByteBuffer in) throws
+            IOException
     {
         // TODO - I created a number of less-than-elegant hacks to
         // keep performance at acceptable level such as minimal
@@ -609,7 +903,7 @@ public class DataCollector
                 // DO the A/B stuff
                 //
                 ////////
-                dispatchHitBuffer(atwdChip, outputBuffer);
+                dispatchHitBuffer(cycleStats, atwdChip, outputBuffer);
 
                 break;
 
@@ -658,7 +952,7 @@ public class DataCollector
                     outputBuffer.put(in).flip();
                     in.limit(buffer_limit);
                     // DO the A/B stuff
-                    dispatchHitBuffer(atwdChip, outputBuffer);
+                    dispatchHitBuffer(cycleStats, atwdChip, outputBuffer);
                 }
                 // Restore previous byte order
                 in.order(lastOrder);
@@ -683,7 +977,16 @@ public class DataCollector
                 String moniMsg = monitor.toString();
                 if (moniMsg.contains("LBM OVERFLOW")) {
                     numLBMOverflows++;
-                    logger.error("LBM Overflow");
+                    logger.error("LBM Overflow [" + cycleMonitor.sequence +
+                            "] [" + moniMsg +
+                            "]");
+                    logger.error("data collection stats: " +
+                            cycleMonitor.logAverages());
+                    //todo - squelch after mystery LBM overflows are solved
+                    for(CycleStats cycleStats : cycleMonitor.history)
+                    {
+                        logger.error("HISTORY:" + cycleStats.verbosePrint());
+                    }
                 } else if (logger.isDebugEnabled()) {
                     logger.debug(moniMsg);
                 }
@@ -792,8 +1095,16 @@ public class DataCollector
             if (gps != null) gpsOffset = gps.getOffset();
 
             TimeCalib tcal = driver.readTCAL(tcalFile);
+            long tcalReceivedNanos = System.nanoTime();
+
             rapcal.update(tcal, gpsOffset);
 			nextTcalRead = System.currentTimeMillis() + tcalReadInterval;
+
+            // Calibrating the local clock offset using these values
+            // is the best we can do without relying on local time
+            //  being synchronized.
+            domToSystemTimer.update((tcal.getDomTx().in_0_1ns() / 250),
+                    tcalReceivedNanos);
 
             validRAPCalCount++;
 
@@ -1119,77 +1430,65 @@ public class DataCollector
             switch (getRunLevel())
             {
             case RUNNING:
-                // Time to do a data collection?
-                if (t>=nextDataRead)
+                CycleStats cycleStats = cycleMonitor.initiateCycle();
+
+                try
                 {
-		    nextDataRead = t + dataReadInterval;
-
-                    try
+                    // Time to do a data collection?
+                    if (t>=nextDataRead)
                     {
-                        // Get debug information during Alpaca failures
-                        ByteBuffer data = app.getData();
-                        if (data.remaining() > 0) tired = false;
+                        nextDataRead = t + dataReadInterval;
 
-			// generate some stats as to the average size
-                        // of hit bytebuffers
-			if(ENABLE_STATS) {
-			    // Compute the mean and variance of data message sizes
-			    // This is an implementation of welfords method
-			    // http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-			    int remaining = data.remaining();
-			    if(remaining>0) {
-				double m_new = data_m_n + ( remaining - data_m_n) / ( data_count+1.0);
-				data_s_n = data_s_n + ( remaining - data_m_n) * ( remaining - m_new);
-				data_m_n = m_new;
-				data_count++;
-				if (remaining>data_max) {
-				    data_max = remaining;
-				}
-				if (remaining<data_min) {
-				    data_min = remaining;
-				}
-			    } else {
-				data_zero_count++;
-			    }
-			}
-
-                        dataProcess(data);
-                    }
-                    catch (IllegalArgumentException ex)
-                    {
-                        logger.error("Caught & re-raising IllegalArgumentException");
-                        logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
-                        logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
-                        throw ex;
-                    }
-                }
-
-                // What about monitoring?
-                if (t >= nextMoniRead)
-                {
-		    nextMoniRead = t + moniReadInterval;
-
-                    ByteBuffer moni = app.getMoni();
-                    if (moni.remaining() > 0)
-                    {
-                        moniProcess(moni);
-                        tired = false;
-                    }
-                }
-
-                if (t > nextSupernovaRead)
-                {
-		    nextSupernovaRead = t + supernovaReadInterval;
-                    while (!supernova_disabled)
-                    {
-                        ByteBuffer sndata = app.getSupernova();
-                        if (sndata.remaining() > 0)
+                        try
                         {
-                            supernovaProcess(sndata);
-                            tired = false;
-                            break;
+                            // Get debug information during Alpaca failures
+                            ByteBuffer data = app.getData();
+                            cycleStats.reportDataMessageRcv(data);
+
+                            if (data.remaining() > 0) tired = false;
+
+                            dataProcess(cycleStats, data);
+                        }
+                        catch (IllegalArgumentException ex)
+                        {
+                            logger.error("Caught & re-raising IllegalArgumentException");
+                            logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
+                            logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
+                            throw ex;
                         }
                     }
+
+                    // What about monitoring?
+                    if (t >= nextMoniRead)
+                    {
+                        nextMoniRead = t + moniReadInterval;
+
+                        ByteBuffer moni = app.getMoni();
+                        if (moni.remaining() > 0)
+                        {
+                            moniProcess(moni);
+                            tired = false;
+                        }
+                    }
+
+                    if (t > nextSupernovaRead)
+                    {
+                        nextSupernovaRead = t + supernovaReadInterval;
+                        while (!supernova_disabled)
+                        {
+                            ByteBuffer sndata = app.getSupernova();
+                            if (sndata.remaining() > 0)
+                            {
+                                supernovaProcess(sndata);
+                                tired = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    cycleMonitor.completeCycle(cycleStats);
                 }
                 break;
 
@@ -1206,6 +1505,7 @@ public class DataCollector
                     logger.debug("Got START RUN signal " + canonicalName());
                 }
                 app.beginRun();
+                cycleMonitor.reportRunStart();
                 storeRunStartTime();
                 logger.debug("DOM is running.");
                 setRunLevel(RunLevel.RUNNING);
@@ -1271,6 +1571,9 @@ public class DataCollector
                     configure(config);
                     app.beginRun();
                 }
+                //todo consider how subruns should interact with
+                //     the cycleMonitor
+                // ??? cycleMonitor.reportRunStart();
                 storeRunStartTime();
                 setRunLevel(RunLevel.RUNNING);
                 break;
@@ -1369,83 +1672,70 @@ public class DataCollector
             {
             case RUNNING:
 				app.getInterval();
+                CycleStats cycleStats = cycleMonitor.initiateCycle();
 
-				boolean done = false;
-				while (!done) {
-					tired = true;
-					ByteBuffer msg = app.recvMessage(intervalBuffer);
+                try
+                {
+                    boolean done = false;
+                    while (!done) {
+                        tired = true;
+                        ByteBuffer msg = app.recvMessage(intervalBuffer);
+                        cycleStats.reportDataMessageRcv(msg);
 
-					intTask.ping();
+                        intTask.ping();
 
-					byte msg_type = msg.get(0);
-					byte msg_subtype = msg.get(1);
+                        byte msg_type = msg.get(0);
+                        byte msg_subtype = msg.get(1);
 
-					// past the header
-					msg.position(8);
+                        // past the header
+                        msg.position(8);
 
-					if(MessageType.GET_DATA.equals(msg_type, msg_subtype)) {
-						if (msg.remaining()>0) {
-							tired = false;
-						}
+                        if(MessageType.GET_DATA.equals(msg_type, msg_subtype)) {
+                            if (msg.remaining()>0) {
+                                tired = false;
+                            }
 
-						if(ENABLE_STATS) {
-							// Compute the mean and variance of data message sizes
-							// This is an implementation of welfords method
-							// http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-							int remaining = msg.remaining();
-							if(remaining>0) {
-								double m_new = data_m_n + ( remaining - data_m_n) / ( data_count+1.0);
-								data_s_n = data_s_n + ( remaining - data_m_n) * ( remaining - m_new);
-								data_m_n = m_new;
-								data_count++;
-								if (remaining>data_max) {
-									data_max = remaining;
-								}
-								if (remaining<data_min) {
-									data_min = remaining;
-								}
-							} else {
-								data_zero_count++;
-							}
-						}
-
-						dataProcess(msg.slice());
-					} else if(MessageType.GET_SN_DATA.equals(msg_type, msg_subtype)) {
-						if (msg.remaining()>0) {
-							supernovaProcess(msg.slice());
-                            tired = false;
+                            dataProcess(cycleStats, msg.slice());
+                        } else if(MessageType.GET_SN_DATA.equals(msg_type, msg_subtype)) {
+                            if (msg.remaining()>0) {
+                                supernovaProcess(msg.slice());
+                                tired = false;
+                            }
+                            done = true;
+                        } else if(MessageType.GET_MONI.equals(msg_type, msg_subtype)) {
+                            if (msg.remaining()>0) {
+                                moniProcess(msg.slice());
+                                tired = false;
+                            }
+                            // If we're not going to get a SN message, this marks the
+                            // end of the interval
+                            done = supernova_disabled;
+                        } else {
+                            // assume a status of one
+                            // as the recv code will have
+                            // thrown an exception if that was not
+                            // true
+                            throw new MessageException(MessageType.GET_DATA,
+                                    msg_type, msg_subtype, 1);
                         }
-						done = true;
-					} else if(MessageType.GET_MONI.equals(msg_type, msg_subtype)) {
-						if (msg.remaining()>0) {
-							moniProcess(msg.slice());
-							tired = false;
-						}
-						// If we're not going to get a SN message, this marks the
-						// end of the interval
-						done = supernova_disabled;
-					} else {
-						// assume a status of one
-						// as the recv code will have
-						// thrown an exception if that was not
-						// true
-						throw new MessageException(MessageType.GET_DATA,
-												   msg_type, msg_subtype, 1);
-					}
 
-					if(tired) {
-						// sleep before next iteration
-						try
-							{
-								Thread.sleep(threadSleepInterval);
-							}
-						catch (InterruptedException intx)
-							{
-								logger.warn("Interrupted.");
-							}
-					}
-				}
-
+                        if(tired) {
+                            // sleep before next iteration
+                            try
+                            {
+                                Thread.sleep(threadSleepInterval);
+                            }
+                            catch (InterruptedException intx)
+                            {
+                                logger.warn("Interrupted.");
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    cycleMonitor.completeCycle(cycleStats);
+                }
                 break;
 
             case CONFIGURING:
@@ -1461,6 +1751,7 @@ public class DataCollector
                     logger.debug("Got START RUN signal " + canonicalName());
                 }
                 app.beginRun();
+                cycleMonitor.reportRunStart();
                 storeRunStartTime();
                 logger.debug("DOM is running.");
                 setRunLevel(RunLevel.RUNNING);
@@ -1527,6 +1818,9 @@ public class DataCollector
                     app.beginRun();
                 }
                 storeRunStartTime();
+                //todo consider how subruns should interact with
+                //     the cycleMonitor
+                // ??? cycleMonitor.reportRunStart();
                 setRunLevel(RunLevel.RUNNING);
                 break;
 
@@ -1669,4 +1963,19 @@ public class DataCollector
     {
         return rtLCRate.getRate();
     }
+
+    public long getAverageHitAcquisitionLatencyMillis()
+    {
+        return (long)cycleMonitor.avgHitAcquisitionLatencyMillis.getAverage();
+    }
+
+    //NOTE: This is based on the local system clock.
+    public String getAcquisitionStartTime()
+    {
+        synchronized (dateFormat)
+        {
+            return dateFormat.format(new Date(cycleMonitor.runStartTime));
+        }
+    }
+
 }
