@@ -2,7 +2,7 @@
 
 package icecube.daq.domapp;
 
-import icecube.daq.juggler.alert.Alerter;
+import icecube.daq.juggler.alert.AlertQueue;
 import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
@@ -38,7 +38,7 @@ public abstract class AbstractDataCollector extends Thread
     protected DOMConfiguration config;
     protected FlasherboardConfiguration flasherConfig;
     protected boolean alwaysSoftboot = false;
-    protected Alerter alerter;
+    protected AlertQueue alertQueue;
     protected long firstHitTime;
     protected long lastHitTime;
     protected int runNumber = Integer.MIN_VALUE;
@@ -271,9 +271,9 @@ public abstract class AbstractDataCollector extends Thread
         alwaysSoftboot = dcSoftboot;
     }
 
-    public void setAlerter(Alerter alerter)
+    public void setAlertQueue(AlertQueue alertQueue)
     {
-        this.alerter = alerter;
+        this.alertQueue = alertQueue;
     }
 
     public abstract void setLiveMoni(LiveTCalMoni moni);

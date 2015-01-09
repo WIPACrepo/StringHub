@@ -1,6 +1,7 @@
 package icecube.daq.util;
 
 import icecube.daq.juggler.alert.AlertException;
+import icecube.daq.juggler.alert.AlertQueue;
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.impl.UTCTime;
@@ -263,11 +264,13 @@ public class StringHubAlertTest
         MockAlerter alerter = new MockAlerter();
         alerter.setExpected(StringHubAlert.DEFAULT_PRIORITY, condition, vars);
 
-        StringHubAlert.sendDOMAlert(alerter, StringHubAlert.DEFAULT_PRIORITY,
+        AlertQueue aq = new AlertQueue(alerter);
+        StringHubAlert.sendDOMAlert(aq, StringHubAlert.DEFAULT_PRIORITY,
                                     condition, card, pair, dom, mbid, name,
                                     string, position,
                                     StringHubAlert.NO_RUNNUMBER,
                                     StringHubAlert.NO_UTCTIME);
+        aq.stopAndWait();
     }
 
     @Test
@@ -299,10 +302,12 @@ public class StringHubAlertTest
         MockAlerter alerter = new MockAlerter();
         alerter.setExpected(Alerter.Priority.SCP, condition, vars);
 
-        StringHubAlert.sendDOMAlert(alerter, StringHubAlert.DEFAULT_PRIORITY,
+        AlertQueue aq = new AlertQueue(alerter);
+        StringHubAlert.sendDOMAlert(aq, StringHubAlert.DEFAULT_PRIORITY,
                                     condition, card, pair, dom, mbid, name,
                                     string, position, runNumber,
                                     utcTime);
+        aq.stopAndWait();
     }
 
     @Test
@@ -349,9 +354,11 @@ public class StringHubAlertTest
             MockAlerter alerter = new MockAlerter();
             alerter.setExpected(thisPrio, condition, vars);
 
-            StringHubAlert.sendDOMAlert(alerter, thisPrio, condition, card,
-                                        pair, dom, mbid, name, string,
-                                        position, thisRunNum, thisTime);
+            AlertQueue aq = new AlertQueue(alerter);
+            StringHubAlert.sendDOMAlert(aq, thisPrio, condition, card, pair,
+                                        dom, mbid, name, string, position,
+                                        thisRunNum, thisTime);
+            aq.stopAndWait();
         }
     }
 }

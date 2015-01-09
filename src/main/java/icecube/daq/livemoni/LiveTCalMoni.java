@@ -2,6 +2,7 @@ package icecube.daq.livemoni;
 
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.juggler.alert.AlertException;
+import icecube.daq.juggler.alert.AlertQueue;
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.util.DeployedDOM;
 
@@ -17,12 +18,12 @@ public class LiveTCalMoni
 
     private static final Logger LOG = Logger.getLogger(LiveTCalMoni.class);
 
-    private Alerter alerter;
+    private AlertQueue alertQueue;
     private DeployedDOM domInfo;
 
-    public LiveTCalMoni(Alerter alerter, DeployedDOM domInfo)
+    public LiveTCalMoni(AlertQueue alertQueue, DeployedDOM domInfo)
     {
-        this.alerter = alerter;
+        this.alertQueue = alertQueue;
         this.domInfo = domInfo;
     }
 
@@ -40,7 +41,8 @@ public class LiveTCalMoni
         }
 
         try {
-            alerter.send(TCAL_EXCEPTION_NAME, Alerter.Priority.SCP, valueMap);
+            alertQueue.push(TCAL_EXCEPTION_NAME, Alerter.Priority.SCP,
+                            valueMap);
         } catch (AlertException ae) {
             LOG.error("Cannot send " + TCAL_EXCEPTION_NAME, ae);
         }

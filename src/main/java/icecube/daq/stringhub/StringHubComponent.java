@@ -19,6 +19,7 @@ import icecube.daq.io.OutputChannel;
 import icecube.daq.io.PayloadReader;
 import icecube.daq.io.SimpleOutputEngine;
 import icecube.daq.juggler.alert.AlertException;
+import icecube.daq.juggler.alert.AlertQueue;
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.juggler.component.DAQComponent;
@@ -492,7 +493,7 @@ public class StringHubComponent
 
 			DeployedDOM domInfo = domRegistry.getDom(chanInfo.mbid);
 
-			LiveTCalMoni moni = new LiveTCalMoni(getAlerter(), domInfo);
+			LiveTCalMoni moni = new LiveTCalMoni(getAlertQueue(), domInfo);
 
 			// Associate a GPS service to this card, if not already done
 			if (!isSim) {
@@ -507,7 +508,7 @@ public class StringHubComponent
 			moniSort.register(chanInfo.mbid_numerique);
 			scalSort.register(chanInfo.mbid_numerique);
 			tcalSort.register(chanInfo.mbid_numerique);
-			dc.setAlerter(getAlerter());
+			dc.setAlertQueue(getAlertQueue());
 			dc.setLiveMoni(moni);
 			conn.add(dc);
 			if (logger.isDebugEnabled()) {
@@ -568,10 +569,10 @@ public class StringHubComponent
 	private void sendConfiguredDOMs(int runNumber)
 		throws DAQCompException
 	{
-		Alerter alerter = getAlerter();
-		if (!alerter.isActive()) {
-			throw new DAQCompException("Alerter " + alerter +
-									   " is not active");
+		AlertQueue alertQueue = getAlertQueue();
+		if (alertQueue.isStopped()) {
+			throw new DAQCompException("AlertQueue " + alertQueue +
+									   " is stopped");
 		}
 
 		int[] list = new int[configuredDOMs.size()];
@@ -587,7 +588,7 @@ public class StringHubComponent
 		values.put("doms", list);
 
 		try {
-			alerter.send("doms_in_config", Alerter.Priority.EMAIL, values);
+			alertQueue.push("doms_in_config", Alerter.Priority.EMAIL, values);
 		} catch (AlertException ae) {
 			throw new DAQCompException("Cannot send alert", ae);
 		}
@@ -790,7 +791,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15286 2014-12-04 19:37:24Z dglo $";
+		return "$Id: StringHubComponent.java 15333 2015-01-09 22:08:50Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1126,7 +1127,8 @@ public class StringHubComponent
 								hubId + " but not found.");
 
 						StringHubAlert.
-							sendDOMAlert(getAlerter(), Alerter.Priority.EMAIL,
+							sendDOMAlert(getAlertQueue(),
+										 Alerter.Priority.EMAIL,
 										 "Dropped DOM",
 										 StringHubAlert.NO_CARD,
 										 StringHubAlert.NO_PAIR,

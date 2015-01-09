@@ -1,7 +1,8 @@
 package icecube.daq.util;
 
 import icecube.daq.juggler.alert.AlertException;
-import icecube.daq.juggler.alert.Alerter;
+import icecube.daq.juggler.alert.AlertQueue;
+import icecube.daq.juggler.alert.Alerter.Priority;
 import icecube.daq.payload.impl.UTCTime;
 
 import java.util.HashMap;
@@ -15,8 +16,7 @@ public class StringHubAlert
     private static final Log LOG = LogFactory.getLog(StringHubAlert.class);
 
     /** Default alert priority */
-    public static final Alerter.Priority DEFAULT_PRIORITY =
-        Alerter.Priority.SCP;
+    public static final Priority DEFAULT_PRIORITY = Priority.SCP;
 
     /** Placeholder for alerts without a card number */
     public static final int NO_CARD = Integer.MIN_VALUE;
@@ -36,14 +36,14 @@ public class StringHubAlert
     /**
      * Send a DOM alert.
      */
-    public static final void sendDOMAlert(Alerter alerter,
-                                          Alerter.Priority priority,
-                                          String condition, int card, int pair,
-                                          char dom, String mbid, String name,
+    public static final void sendDOMAlert(AlertQueue alertQueue,
+                                          Priority priority, String condition,
+                                          int card, int pair, char dom,
+                                          String mbid, String name,
                                           int string, int position,
                                           int runNumber, long utcTime)
     {
-        if (alerter == null || !alerter.isActive()) {
+        if (alertQueue == null || alertQueue.isStopped()) {
             return;
         }
 
@@ -68,8 +68,14 @@ public class StringHubAlert
             vars.put("exact-time", UTCTime.toDateString(utcTime));
         }
 
+        HashMap values = new HashMap();
+        if (condition != null && condition.length() > 0) {
+            values.put("condition", condition);
+        }
+        values.put("vars", vars);
+
         try {
-            alerter.sendAlert(priority, condition, vars);
+            alertQueue.push("alert", priority, values);
         } catch (AlertException ae) {
             LOG.error("Cannot send " + condition + " alert", ae);
         }
