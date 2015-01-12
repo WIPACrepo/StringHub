@@ -640,6 +640,11 @@ public class StringHubComponent
 			throw new DAQCompException("Couldn't start DOMs", e);
 		}
 
+		AlertQueue alertQueue = getAlertQueue();
+		if (alertQueue.isStopped()) {
+			alertQueue.start();
+		}
+
 		// resend the list of this hub's DOMs which are in the run config
 		sendConfiguredDOMs(runNumber);
 	}
@@ -791,7 +796,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15333 2015-01-09 22:08:50Z dglo $";
+		return "$Id: StringHubComponent.java 15336 2015-01-12 17:30:17Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
