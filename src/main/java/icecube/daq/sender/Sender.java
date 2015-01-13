@@ -327,8 +327,8 @@ public class Sender
                             throw new Error("DOM registry has not been set");
                         }
 
-                        String domStr = DOMID.toString(tinyHit.getDomId());
-                        DeployedDOM domData = domRegistry.getDom(domStr);
+                        DeployedDOM domData =
+                            domRegistry.getDom(tinyHit.getDomId());
 
                         writeTrackEngineHit(tinyHit, domData);
                     }

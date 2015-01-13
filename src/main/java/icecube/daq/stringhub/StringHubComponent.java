@@ -341,8 +341,9 @@ public class StringHubComponent
 			// positive integers, but that test would fail for negative
 			// numbers.
 			if (dom.getStringMinor() % 2 != 0) aorb = 'B';
-			activeDOMs.add(new DOMChannelInfo(dom.getMainboardId(), card,
-											  pair, aorb));
+			activeDOMs.add(new DOMChannelInfo(dom.getMainboardId(),
+											  dom.getNumericMainboardId(),
+											  card, pair, aorb));
 		}
 		return activeDOMs;
 	}
@@ -491,7 +492,7 @@ public class StringHubComponent
 										   " data collector", t);
 			}
 
-			DeployedDOM domInfo = domRegistry.getDom(chanInfo.mbid);
+			DeployedDOM domInfo = domRegistry.getDom(chanInfo.mbid_numerique);
 
 			LiveTCalMoni moni = new LiveTCalMoni(getAlertQueue(), domInfo);
 
@@ -796,7 +797,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15336 2015-01-12 17:30:17Z dglo $";
+		return "$Id: StringHubComponent.java 15339 2015-01-13 19:07:58Z dglo $";
 	}
 
 	public IByteBufferCache getCache()

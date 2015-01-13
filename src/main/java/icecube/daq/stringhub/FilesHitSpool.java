@@ -103,7 +103,7 @@ public class FilesHitSpool implements BufferConsumer
         {
             buf.putShort(0, (short)(0xC000 | (buf.getInt(0)-24)));
             long mbid = buf.getLong(8);
-            short chid = reg.getChannelId(String.format("%012x", mbid));
+            short chid = reg.getChannelId(mbid);
             buf.putShort(2, chid);
             buf.putLong(4, buf.getLong(24));
             // pack in the version (bytes 34-35) and the PED / ATWD-chargestamp flags (36-37)

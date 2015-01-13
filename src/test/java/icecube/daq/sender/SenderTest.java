@@ -297,12 +297,11 @@ class MockTrackEngineChannel
     void addExpectedTEHit(DOMRegistry registry, long domId, long utcTime,
                           int trigMode)
     {
-        String domStr = String.format("%012x", domId);
-
         // find the registry entry for this DOM
-        DeployedDOM dom = registry.getDom(domStr);
+        DeployedDOM dom = registry.getDom(domId);
         if (dom == null) {
-            throw new Error("Cannot find registry entry for DOM " + domStr);
+            throw new Error("Cannot find registry entry for DOM " +
+                            String.format("%012x", domId));
         }
 
         addExpectedData(new ExpectedTEHit(dom.getStringMajor(),
