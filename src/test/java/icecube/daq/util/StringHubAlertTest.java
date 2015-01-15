@@ -1,7 +1,9 @@
 package icecube.daq.util;
 
 import icecube.daq.juggler.alert.AlertException;
+import icecube.daq.juggler.alert.AlertQueue;
 import icecube.daq.juggler.alert.Alerter;
+import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.impl.UTCTime;
 import icecube.daq.util.Leapseconds;
 
@@ -80,12 +82,26 @@ class MockAlerter
                      Map<String, Object> vars)
         throws AlertException
     {
-        send(varname, priority, null, vars);
-
+        throw new Error("Unimplemented");
     }
 
     public void send(String varname, Alerter.Priority priority,
                      Calendar dateTime, Map<String, Object> vars)
+        throws AlertException
+    {
+        throw new Error("Unimplemented");
+    }
+
+    /**
+     * Send a message to IceCube Live.
+     *
+     * @param varname variable name
+     * @param priority priority level
+     * @param utcTime DAQ time
+     * @param values map of names to values
+     */
+    public void send(String varname, Priority priority, IUTCTime utcTime,
+              Map<String, Object> values)
         throws AlertException
     {
         throw new Error("Unimplemented");
@@ -102,7 +118,7 @@ class MockAlerter
                           String notify, Map<String, Object> vars)
         throws AlertException
     {
-        sendAlert(null, priority, condition, notify, vars);
+        sendAlert((Calendar) null, priority, condition, notify, vars);
     }
 
     public void sendAlert(Calendar dateTime, Alerter.Priority priority,
@@ -171,6 +187,20 @@ class MockAlerter
         }
     }
 
+    public void sendAlert(IUTCTime utcTime, Alerter.Priority priority,
+                          String condition, String notify,
+                          Map<String, Object> vars)
+        throws AlertException
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public void sendObject(Object obj)
+        throws AlertException
+    {
+        throw new Error("Unimplemented");
+    }
+
     void setExpected(Alerter.Priority priority, String condition,
                      Map<String, Object> vars)
     {
@@ -195,6 +225,19 @@ public class StringHubAlertTest
         Logger.getRootLogger().setLevel(Level.INFO);
     }
 
+    @Before
+    public void setUp()
+    {
+        // set the Leapseconds config directory so UTCTime.toDateString() works
+        File configDir = new File(getClass().getResource("/config").getPath());
+        if (!configDir.exists()) {
+            throw new IllegalArgumentException("Cannot find config" +
+                                               " directory under " +
+                                               getClass().getResource("/"));
+        }
+        Leapseconds.setConfigDirectory(configDir);
+    }
+
     @Test
     public void testAlert()
         throws Exception
@@ -207,10 +250,11 @@ public class StringHubAlertTest
         final String name = "TestDOM";
         final int string = 12;
         final int position = 34;
+        final int runNumber = 56789;
 
         HashMap<String, Object> vars = new HashMap<String, Object>();
-        vars.put("card", new Integer(card));
-        vars.put("pair", new Integer(pair));
+        vars.put("card", Integer.valueOf(card));
+        vars.put("pair", Integer.valueOf(pair));
         vars.put("dom", dom);
         vars.put("mbid", mbid);
         vars.put("name", name);
@@ -218,25 +262,21 @@ public class StringHubAlertTest
         vars.put("position", position);
 
         MockAlerter alerter = new MockAlerter();
-        alerter.setExpected(Alerter.Priority.SCP, condition, vars);
+        alerter.setExpected(StringHubAlert.DEFAULT_PRIORITY, condition, vars);
 
-        StringHubAlert.sendDOMAlert(alerter, condition, card, pair, dom,
-                                    mbid, name, string, position);
+        AlertQueue aq = new AlertQueue(alerter);
+        StringHubAlert.sendDOMAlert(aq, StringHubAlert.DEFAULT_PRIORITY,
+                                    condition, card, pair, dom, mbid, name,
+                                    string, position,
+                                    StringHubAlert.NO_RUNNUMBER,
+                                    StringHubAlert.NO_UTCTIME);
+        aq.stopAndWait();
     }
 
     @Test
     public void testAlertPlusTime()
         throws Exception
     {
-        // set the Leapseconds config directory to UTCTime.toDateString() works
-        File configDir = new File(getClass().getResource("/config").getPath());
-        if (!configDir.exists()) {
-            throw new IllegalArgumentException("Cannot find config" +
-                                               " directory under " +
-                                               getClass().getResource("/"));
-        }
-        Leapseconds.setConfigDirectory(configDir);
-
         final String condition = "Test DOM alert";
         final int card = 1;
         final int pair = 23;
@@ -245,22 +285,80 @@ public class StringHubAlertTest
         final String name = "TestDOM";
         final int string = 12;
         final int position = 34;
+        final int runNumber = 123456;
         final long utcTime = 123456789L;
 
         HashMap<String, Object> vars = new HashMap<String, Object>();
-        vars.put("card", new Integer(card));
-        vars.put("pair", new Integer(pair));
+        vars.put("card", Integer.valueOf(card));
+        vars.put("pair", Integer.valueOf(pair));
         vars.put("dom", dom);
         vars.put("mbid", mbid);
         vars.put("name", name);
         vars.put("string", string);
         vars.put("position", position);
+        vars.put("runNumber", runNumber);
         vars.put("exact-time", UTCTime.toDateString(utcTime));
 
         MockAlerter alerter = new MockAlerter();
         alerter.setExpected(Alerter.Priority.SCP, condition, vars);
 
-        StringHubAlert.sendDOMAlert(alerter, condition, card, pair, dom,
-                                    mbid, name, string, position, utcTime);
+        AlertQueue aq = new AlertQueue(alerter);
+        StringHubAlert.sendDOMAlert(aq, StringHubAlert.DEFAULT_PRIORITY,
+                                    condition, card, pair, dom, mbid, name,
+                                    string, position, runNumber,
+                                    utcTime);
+        aq.stopAndWait();
+    }
+
+    @Test
+    public void testAlertPermutations()
+        throws Exception
+    {
+        final String condition = "Test DOM alert";
+        final int card = 1;
+        final int pair = 23;
+        final char dom = 'A';
+        final String mbid = "123456789ABC";
+        final String name = "TestDOM";
+        final int string = 12;
+        final int position = 34;
+        final int runNumber = 56789;
+        final long utcTime = 123456789L;
+
+        for (int i = 0; i < 8; i++) {
+            Alerter.Priority thisPrio = StringHubAlert.DEFAULT_PRIORITY;
+            int thisRunNum = StringHubAlert.NO_RUNNUMBER;
+            long thisTime = StringHubAlert.NO_UTCTIME;
+
+            if ((i & 1) == 1) {
+                thisPrio = Alerter.Priority.ITS;
+            }
+
+            HashMap<String, Object> vars = new HashMap<String, Object>();
+            vars.put("card", Integer.valueOf(card));
+            vars.put("pair", Integer.valueOf(pair));
+            vars.put("dom", dom);
+            vars.put("mbid", mbid);
+            vars.put("name", name);
+            vars.put("string", string);
+            vars.put("position", position);
+            if ((i & 2) == 2) {
+                thisRunNum = runNumber;
+                vars.put("runNumber", runNumber);
+            }
+            if ((i & 4) == 4) {
+                thisTime = utcTime;
+                vars.put("exact-time", UTCTime.toDateString(utcTime));
+            }
+
+            MockAlerter alerter = new MockAlerter();
+            alerter.setExpected(thisPrio, condition, vars);
+
+            AlertQueue aq = new AlertQueue(alerter);
+            StringHubAlert.sendDOMAlert(aq, thisPrio, condition, card, pair,
+                                        dom, mbid, name, string, position,
+                                        thisRunNum, thisTime);
+            aq.stopAndWait();
+        }
     }
 }

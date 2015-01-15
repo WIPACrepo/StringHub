@@ -5,6 +5,7 @@ import icecube.daq.util.UTC;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Map;
 
 import org.apache.log4j.Logger;
 
@@ -18,7 +19,6 @@ public class TimeCalib {
 	private short[] domWaveform;
 
 	private static final Logger logger = Logger.getLogger(TimeCalib.class);
-    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
 
 	public TimeCalib(ByteBuffer buf) {
 		buf.order(ByteOrder.LITTLE_ENDIAN);
@@ -32,8 +32,23 @@ public class TimeCalib {
 		domTx = buf.getLong();
 		domWaveform = new short[64];
 		for (int i = 0; i < 64; i++) domWaveform[i] = buf.getShort();
-		if (DEBUG_ENABLED) logger.debug("Decode TCAL record - len: " + bytes + " - flags: " + flags + " dorTx: " + dorTx);
+		if (logger.isDebugEnabled()) logger.debug("Decode TCAL record - len: " + bytes + " - flags: " + flags + " dorTx: " + dorTx);
 	}
+
+    /**
+     * Add raw values to the map for monitoring
+     *
+     * @param map map of raw values reported for monitoring
+     */
+    public void addValues(Map map)
+    {
+        map.put("DORTX", dorTx);
+        map.put("DORRX", dorRx);
+        map.put("DORWF", dorWaveform);
+        map.put("DOMTX", domTx);
+        map.put("DOMRX", domRx);
+        map.put("DOMWF", domWaveform);
+    }
 
 	/**
 	 * Get the DOR TCAL transmit time.

@@ -14,7 +14,6 @@ public class QuadFitLE extends AbstractRAPCal
 {
     private final double threshold;
     private static final Logger logger = Logger.getLogger(QuadFitLE.class);
-    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
 
     public QuadFitLE()
     {
@@ -44,7 +43,7 @@ public class QuadFitLE extends AbstractRAPCal
                 return 50.0e-09 * (i + quadfit(a, b, c) - 48.0);
             }
         }
-        throw new RAPCalException(w);
+        throw new RAPCalException(getClass().getName(), w);
     }
 
     /**
@@ -73,7 +72,7 @@ public class QuadFitLE extends AbstractRAPCal
         final double rd = Math.sqrt(discriminant);
         final double r1 = -(B + rd) / (2.0*A);
         final double r2 = -(B - rd) / (2.0*A);
-        if (DEBUG_ENABLED)
+        if (logger.isDebugEnabled())
         {
             logger.debug("r1: " + r1 + " - r2: " + r2 + " A, B, C = (" +
                     A + ", " + B + ", " + C + ")");

@@ -453,7 +453,7 @@ public class MonitoringData
      */
     public String toString()
     {
-        StringBuffer buf = new StringBuffer("MonitoringData:");
+        StringBuilder buf = new StringBuilder("MonitoringData:");
 
         if (sender == null) {
             buf.append("\n  No sender monitoring data available");

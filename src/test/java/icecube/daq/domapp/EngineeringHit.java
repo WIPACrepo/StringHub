@@ -6,7 +6,7 @@ import org.apache.log4j.Logger;
 
 public class EngineeringHit {
 
-	private int 	format;
+	//private int 	format;
 	private int 	atwdChip;
 	private int 	triggerFlags;
 	private long 	domclk;
@@ -24,7 +24,7 @@ public class EngineeringHit {
 	public EngineeringHit(ByteBuffer buf) {
 	    int pos = buf.position();
 		short len = buf.getShort(pos);
-		format = buf.getShort(pos+2);
+		//format = buf.getShort(pos+2);
 		atwdChip = buf.get(pos+4);
 		EngineeringRecordFormat engRecFmt = new EngineeringRecordFormat(
 			buf.get(pos+5), buf.get(pos+6), buf.get(pos+7)
@@ -40,12 +40,12 @@ public class EngineeringHit {
 		atwd = new short[4][];
 
 		for (int i = 0; i < engRecFmt.fadcSamples(); i++) fadc[i] = buf.getShort();
-		for (int ch = 0; ch < 4; ch++) 
+		for (int ch = 0; ch < 4; ch++)
 		{
 			atwd[ch] = new short[engRecFmt.atwdSamples(ch)];
-			for (int i = 0; i < engRecFmt.atwdSamples(ch); i++) 
+			for (int i = 0; i < engRecFmt.atwdSamples(ch); i++)
 			{
-				if (engRecFmt.atwdWordsize(ch) == 1) 
+				if (engRecFmt.atwdWordsize(ch) == 1)
 				{
 					atwd[ch][i] = buf.get();
 					if (atwd[ch][i] < 0) atwd[ch][i] += 256;

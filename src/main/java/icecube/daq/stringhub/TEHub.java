@@ -136,13 +136,12 @@ public class TEHub
 		InternalHub hub = new InternalHub(hubId);
 
 		hub.setGlobalConfigurationDir(configDir);
-		hub.setRunNumber(runNumber);
 
 		hub.connect(teHost, tePort);
 
 		hub.configure(runConfig, false);
 
-		hub.starting();
+		hub.starting(runNumber);
 
 		hub.startOutput();
 	}

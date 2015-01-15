@@ -137,6 +137,8 @@ public class Sender
 {
     protected static final int DEFAULT_TRIGGER_MODE = 2;
 
+    private static final long DAY_TICKS = 10000000000L * 60L * 60L * 24L;
+
     private static Log log = LogFactory.getLog(Sender.class);
 
     /** Used to sort hits before building readout data payloads. */
@@ -190,6 +192,9 @@ public class Sender
      * 'true' if we've logged an error about missing TE output engine or cache
      */
     private boolean warnedTE;
+
+    // previous hit time (used to detect hits with impossibly huge times)
+    private long prevHitTime;
 
     /**
      * Create a readout request filler.
@@ -291,49 +296,63 @@ public class Sender
                 tinyHit = null;
             }
 
+            // validate hit time
             if (tinyHit != null) {
-
-                // remember most recent time for monitoring
-                latestHitTime = tinyHit.getTimestamp();
-
-                // save hit so it can be sent to event builder
-                try {
-                    addData(tinyHit);
-                } catch (IOException ioe) {
-                    if (log.isErrorEnabled()) {
-                        log.error("Couldn't add data to queue", ioe);
-                    }
-                }
-
-                if (teChan != null) {
-                    if (domRegistry == null) {
-                        throw new Error("DOM registry has not been set");
-                    }
-
-                    DeployedDOM domData =
-                        domRegistry.getDom(DOMID.toString(tinyHit.getDomId()));
-
-                    writeTrackEngineHit(tinyHit, domData);
-                }
-
-                // send some hits to local trigger component
-                if (hitChan != null &&
-                    (forwardLC0Hits ||
-                     tinyHit.getLocalCoincidenceMode() != 0 ||
-                     tinyHit.getTriggerMode() == 4))
+                if (tinyHit.getTimestamp() < 0) {
+                    log.error("Negative time for hit " + tinyHit);
+                    tinyHit = null;
+                } else if (prevHitTime > 0 &&
+                           tinyHit.getTimestamp() > prevHitTime + DAY_TICKS)
                 {
-                    // extract hit's ByteBuffer
-                    ByteBuffer payBuf;
+                    log.error("Bad hit " + tinyHit +
+                              "; previous hit time was " + prevHitTime);
+                    tinyHit = null;
+                } else {
+                    prevHitTime = tinyHit.getTimestamp();
+
+                    // remember most recent time for monitoring
+                    latestHitTime = tinyHit.getTimestamp();
+
+                    // save hit so it can be sent to event builder
                     try {
-                        payBuf = tinyHit.getHitBuffer(hitCache);
-                    } catch (PayloadException pe) {
-                        log.error("Couldn't get buffer for hit " + tinyHit, pe);
-                        payBuf = null;
+                        addData(tinyHit);
+                    } catch (IOException ioe) {
+                        if (log.isErrorEnabled()) {
+                            log.error("Couldn't add data to queue", ioe);
+                        }
                     }
 
-                    // transmit ByteBuffer to local trigger component
-                    if (payBuf != null) {
-                        hitChan.receiveByteBuffer(payBuf);
+                    if (teChan != null) {
+                        if (domRegistry == null) {
+                            throw new Error("DOM registry has not been set");
+                        }
+
+                        String domStr = DOMID.toString(tinyHit.getDomId());
+                        DeployedDOM domData = domRegistry.getDom(domStr);
+
+                        writeTrackEngineHit(tinyHit, domData);
+                    }
+
+                    // send some hits to local trigger component
+                    if (hitChan != null &&
+                        (forwardLC0Hits ||
+                         tinyHit.getLocalCoincidenceMode() != 0 ||
+                         tinyHit.getTriggerMode() == 4))
+                    {
+                        // extract hit's ByteBuffer
+                        ByteBuffer payBuf;
+                        try {
+                            payBuf = tinyHit.getHitBuffer(hitCache);
+                        } catch (PayloadException pe) {
+                            log.error("Couldn't get buffer for hit " +
+                                      tinyHit, pe);
+                            payBuf = null;
+                        }
+
+                        // transmit ByteBuffer to local trigger component
+                        if (payBuf != null) {
+                            hitChan.receiveByteBuffer(payBuf);
+                        }
                     }
                 }
             }
@@ -937,6 +956,7 @@ public class Sender
     public void reset()
     {
         numTEHits = 0;
+        prevHitTime = 0;
 
         super.reset();
     }
@@ -1038,7 +1058,7 @@ public class Sender
     }
 
     /**
-     * Set the starting and engin times for the current request.
+     * Set the starting and ending times for the current request.
      *
      * @param payload readout request payload
      */

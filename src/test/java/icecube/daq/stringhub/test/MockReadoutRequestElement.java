@@ -1,7 +1,6 @@
 package icecube.daq.stringhub.test;
 
 import icecube.daq.payload.IDOMID;
-import icecube.daq.payload.IPayloadDestination;
 import icecube.daq.payload.IReadoutRequestElement;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.IUTCTime;
@@ -9,7 +8,6 @@ import icecube.daq.payload.IWriteablePayloadRecord;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.zip.DataFormatException;
 
 public class MockReadoutRequestElement
     implements IReadoutRequestElement, IWriteablePayloadRecord
@@ -105,9 +103,6 @@ public class MockReadoutRequestElement
      *
      * @param offset the offset into the byte buffer
      * @param buffer ByteBuffer from which to construct the record.
-     *
-     * @exception IOException if errors are detected reading the record
-     * @exception DataFormatException if the record is not of the correct format
      */
     public void loadData(int offset, ByteBuffer buffer)
     {
@@ -120,19 +115,6 @@ public class MockReadoutRequestElement
      * @param offset index of first byte
      */
     public void put(ByteBuffer buf, int offset)
-    {
-        throw new Error("Unimplemented");
-    }
-
-    /**
-     * Write this record to the payload destination.
-     *
-     * @param dest PayloadDestination to which to write this record.
-     *
-     * @return the number of bytes written to this destination.
-     */
-    public int writeData(IPayloadDestination dest)
-        throws IOException
     {
         throw new Error("Unimplemented");
     }

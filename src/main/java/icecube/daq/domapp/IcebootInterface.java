@@ -49,7 +49,7 @@ public class IcebootInterface extends DOMIO
         }
         if (expect == null) return "";
         if (logger.isDebugEnabled()) logger.debug("Echoback from iceboot received - expecting ... " + expect);
-        StringBuffer txt = new StringBuffer();
+        StringBuilder txt = new StringBuilder();
         while (true)
         {
             ByteBuffer ret = recv();

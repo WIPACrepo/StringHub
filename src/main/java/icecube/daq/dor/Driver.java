@@ -5,6 +5,7 @@ import icecube.daq.util.Leapseconds;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -23,7 +24,6 @@ public final class Driver implements IDriver {
     private File driver_root;
     private static final Driver instance = new Driver("/proc/driver/domhub");
     private static final Logger logger = Logger.getLogger(Driver.class);
-    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
 
     private Leapseconds leapsecondObj;
 
@@ -88,7 +88,7 @@ public final class Driver implements IDriver {
     public void commReset(int card, int pair, char dom) throws IOException
     {
         String cwd = card + "" + pair + dom;
-        if (DEBUG_ENABLED) logger.debug("Issuing a communications reset on " + cwd);
+        if (logger.isDebugEnabled()) logger.debug("Issuing a communications reset on " + cwd);
         File file = makeProcfile(cwd, "is-communicating");
         FileOutputStream iscomm = new FileOutputStream(file);
 	try {
@@ -125,7 +125,7 @@ public final class Driver implements IDriver {
      */
     public void softboot(int card, int pair, char dom) throws IOException
     {
-	if (DEBUG_ENABLED) logger.debug("Softbooting " + card + "" + pair + dom);
+	if (logger.isDebugEnabled()) logger.debug("Softbooting " + card + "" + pair + dom);
 	File file = makeProcfile(card + "" + pair + dom, "softboot");
 	FileOutputStream sb = new FileOutputStream(file);
 	try {
@@ -187,7 +187,7 @@ public final class Driver implements IDriver {
 	    for (int pair = 0; pair < 4; pair++) {
 		File pdir = makeProcfileDir("" + card + "" + pair);
 		if (!pdir.exists() || !power(card, pair)) continue;
-		if (DEBUG_ENABLED) {
+		if (logger.isDebugEnabled()) {
 		    logger.debug("Found powered pair on (" + card + ", " + pair + ").");
 		}
 		for (int dom = 0; dom < 2; dom++) {
@@ -195,7 +195,7 @@ public final class Driver implements IDriver {
 		    if (ddir.exists()) {
 			String mbid = getProcfileID(card, pair, ab[dom]);
 			if (mbid.matches("[0-9a-f]{12}") && !mbid.equals("000000000000")) {
-			    if (DEBUG_ENABLED) {
+			    if (logger.isDebugEnabled()) {
 				logger.debug("Found active DOM on (" + card + ", " + pair + ", " + ab[dom] + ")");
 			    }
 			    channelList.add(new DOMChannelInfo(mbid, card, pair, ab[dom]));
@@ -211,19 +211,18 @@ public final class Driver implements IDriver {
 	return makeProcfile("" + card + "" + pair + dom, "tcalib");
     }
 
-
     public TimeCalib readTCAL(File tcalFile) throws IOException, InterruptedException {
 	RandomAccessFile tcalib = new RandomAccessFile(tcalFile, "rw");
 	FileChannel ch = tcalib.getChannel();
 
-	if (DEBUG_ENABLED) logger.debug("Initiating TCAL sequence");
+	if (logger.isDebugEnabled()) logger.debug("Initiating TCAL sequence");
 	tcalib.writeBytes("single\n");
 	for (int iTry = 0; iTry < 5; iTry++)
 	    {
 		Thread.sleep(20);
 		ByteBuffer buf = ByteBuffer.allocate(292);
 		int nr = ch.read(buf);
-		if (DEBUG_ENABLED) logger.debug("Read " + nr + " bytes from " + tcalFile.getAbsolutePath());
+		if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + tcalFile.getAbsolutePath());
 		if (nr == 292)
 		    {
 			ch.close();
@@ -243,32 +242,44 @@ public final class Driver implements IDriver {
 
     public GPSInfo readGPS(File gpsFile) throws GPSException
     {
-	ByteBuffer buf = ByteBuffer.allocate(22);
+        RandomAccessFile syncgps;
+        try {
+            syncgps = new RandomAccessFile(gpsFile, "r");
+        } catch (FileNotFoundException fnfe) {
+            throw new GPSException("Cannot open \"" +
+                                   gpsFile.getAbsolutePath() + "\"", fnfe);
+        }
 
-	try
-	    {
-		RandomAccessFile syncgps = new RandomAccessFile(gpsFile, "r");
-		FileChannel ch = syncgps.getChannel();
-		int nr = ch.read(buf);
-		syncgps.close();
-		if (DEBUG_ENABLED) logger.debug("Read " + nr + " bytes from " + gpsFile.getAbsolutePath());
-		if (nr == 22)
-		    {
-			buf.flip();
-			GPSInfo gpsinfo = new GPSInfo(buf, leapsecondObj);
-			if (DEBUG_ENABLED) logger.debug("GPS read on " + gpsFile.getAbsolutePath() + " - " + gpsinfo);
-			return gpsinfo;
-		    }
-		throw new GPSNotReady(gpsFile.getAbsolutePath(), 0);
-	    }
-	catch (IOException iox)
-	    {
-		throw new GPSException(gpsFile.getAbsolutePath(), iox);
-	    }
-	catch (NumberFormatException nex)
-	    {
-		throw new GPSException(gpsFile.getAbsolutePath(), nex);
-	    }
+        FileChannel ch = syncgps.getChannel();
+
+        ByteBuffer buf = ByteBuffer.allocate(22);
+        int nr;
+        try {
+            nr = ch.read(buf);
+        } catch (IOException ioe) {
+            throw new GPSException("Cannot read \"" +
+                                   gpsFile.getAbsolutePath() + "\"", ioe);
+        }
+
+        try {
+            syncgps.close();
+        } catch (IOException ioe) {
+            // ignore errors on close
+        }
+
+        if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + gpsFile.getAbsolutePath());
+        if (nr != 22)
+        {
+            throw new GPSNotReady(gpsFile.getAbsolutePath(), 0);
+        }
+
+        buf.flip();
+        GPSInfo gpsinfo = new GPSInfo(buf, leapsecondObj);
+        if (logger.isDebugEnabled()) {
+            logger.debug("GPS read on " + gpsFile.getAbsolutePath() + " - " +
+                         gpsinfo);
+        }
+        return gpsinfo;
     }
 
     private String getProcfileText(File file) throws IOException {
@@ -276,7 +287,7 @@ public final class Driver implements IDriver {
 	BufferedReader r = new BufferedReader(new InputStreamReader(fis));
 	try {
 	    String txt = r.readLine();
-	    if (DEBUG_ENABLED) logger.debug(file.getAbsolutePath() + " >> " + txt);
+	    if (logger.isDebugEnabled()) logger.debug(file.getAbsolutePath() + " >> " + txt);
 	    return txt;
 	} finally {
 	    r.close();
@@ -288,11 +299,10 @@ public final class Driver implements IDriver {
 	BufferedReader r = new BufferedReader(new InputStreamReader(fis));
 	try {
 	    StringBuilder strBuild = new StringBuilder();
-	    //String ret = "";
 	    String txt;
 	    while((txt = r.readLine()) != null) {
-		strBuild.append(txt+"\n");
-		if (DEBUG_ENABLED) logger.debug(file.getAbsolutePath() + " >> " + txt);
+		strBuild.append(txt).append("\n");
+		if (logger.isDebugEnabled()) logger.debug(file.getAbsolutePath() + " >> " + txt);
 	    }
 	    return strBuild.toString();
 	} finally {
@@ -321,7 +331,8 @@ public final class Driver implements IDriver {
 			{
 			    String key = m.group(1);
 			    long val   = Long.parseLong(m.group(2), 16);
-			    registerMap.put(key, new Integer((int) (val & 0xffffffffL)));
+			    registerMap.put(key,
+			                    Integer.valueOf((int) (val & 0xffffffffL)));
 			}
 		}
 	    return registerMap;

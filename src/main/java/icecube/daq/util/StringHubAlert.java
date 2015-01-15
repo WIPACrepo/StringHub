@@ -1,7 +1,8 @@
 package icecube.daq.util;
 
 import icecube.daq.juggler.alert.AlertException;
-import icecube.daq.juggler.alert.Alerter;
+import icecube.daq.juggler.alert.AlertQueue;
+import icecube.daq.juggler.alert.Alerter.Priority;
 import icecube.daq.payload.impl.UTCTime;
 
 import java.util.HashMap;
@@ -14,32 +15,40 @@ public class StringHubAlert
     /** Logging object */
     private static final Log LOG = LogFactory.getLog(StringHubAlert.class);
 
-    /**
-     * Send a DOM alert.
-     */
-    public static final void sendDOMAlert(Alerter alerter, String condition,
-                                          int card, int pair, char dom,
-                                          String mbid, String name, int string,
-                                          int position)
-    {
-        sendDOMAlert(alerter, condition, card, pair, dom, mbid, name, string,
-                     position, -1L);
-    }
+    /** Default alert priority */
+    public static final Priority DEFAULT_PRIORITY = Priority.SCP;
+
+    /** Placeholder for alerts without a card number */
+    public static final int NO_CARD = Integer.MIN_VALUE;
+
+    /** Placeholder for alerts without a pair number */
+    public static final int NO_PAIR = Integer.MIN_VALUE;
+
+    /** Placeholder for alerts without an A/B DOM specifier */
+    public static final char NO_SPECIFIER = (char) 0;
+
+    /** Placeholder for alerts without a run number */
+    public static final int NO_RUNNUMBER = Integer.MIN_VALUE;
+
+    /** Placeholder for alerts without a DAQ time */
+    public static final long NO_UTCTIME = Long.MIN_VALUE;
 
     /**
      * Send a DOM alert.
      */
-    public static final void sendDOMAlert(Alerter alerter, String condition,
+    public static final void sendDOMAlert(AlertQueue alertQueue,
+                                          Priority priority, String condition,
                                           int card, int pair, char dom,
-                                          String mbid, String name, int string,
-                                          int position, long utcTime)
+                                          String mbid, String name,
+                                          int string, int position,
+                                          int runNumber, long utcTime)
     {
-        if (alerter == null || !alerter.isActive()) {
+        if (alertQueue == null || alertQueue.isStopped()) {
             return;
         }
 
         HashMap<String, Object> vars = new HashMap<String, Object>();
-        if (dom != (char) 0) {
+        if (dom != NO_SPECIFIER) {
             vars.put("card", card);
             vars.put("pair", pair);
             vars.put("dom", dom);
@@ -52,15 +61,23 @@ public class StringHubAlert
         }
         vars.put("string", string);
         vars.put("position", position);
-        if (utcTime >= 0L) {
+        if (runNumber != NO_RUNNUMBER) {
+            vars.put("runNumber", runNumber);
+        }
+        if (utcTime != NO_UTCTIME) {
             vars.put("exact-time", UTCTime.toDateString(utcTime));
         }
 
+        HashMap values = new HashMap();
+        if (condition != null && condition.length() > 0) {
+            values.put("condition", condition);
+        }
+        values.put("vars", vars);
+
         try {
-            alerter.sendAlert(Alerter.Priority.SCP, condition, vars);
+            alertQueue.push("alert", priority, values);
         } catch (AlertException ae) {
             LOG.error("Cannot send " + condition + " alert", ae);
         }
     }
 }
-

@@ -1,8 +1,8 @@
 package icecube.daq.dor;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
-import java.io.File;
 
 public interface IDriver
 {

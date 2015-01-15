@@ -18,22 +18,21 @@ public class DOMIO {
     private FileChannel channel;
     private ByteBuffer in;
     private static Logger logger = Logger.getLogger(DOMIO.class);
-    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
-    
+
     public DOMIO(int card, int pair, char dom) throws FileNotFoundException {
 	this.card = card;
 	this.pair = pair;
 	this.dom  = dom;
-	
+
 	File devfile = new File("/dev/dhc" + card + 'w' + pair + 'd' + dom);
 	file = new RandomAccessFile(devfile, "rws");
 	channel = file.getChannel();
-	
+
 	// TODO - hack to 4092 - make this better
 	// TODO - do we want Direct or Indirect?
 	in = ByteBuffer.allocateDirect(4092);
     }
-    
+
     /**
      * Close the internal file handles and free system resources.
      */
@@ -41,13 +40,13 @@ public class DOMIO {
 	try {
 	    file.close();
 	    channel.close();
-	    if (DEBUG_ENABLED)
+	    if (logger.isDebugEnabled())
 		logger.debug("Closed file/channel for [" + card + "" + pair + dom + "]");
 	} catch (IOException iox) {
 	    logger.error("Error on close of DOMIO", iox);
 	}
     }
-    
+
     /**
      * Send message to DOMApp
      * @param buf - output buffer going to DOMApp
@@ -56,11 +55,11 @@ public class DOMIO {
      */
     public int send(ByteBuffer buf) throws IOException {
 	int nw = channel.write(buf);
-        if (DEBUG_ENABLED)
+        if (logger.isDebugEnabled())
             logger.debug("dorch=" + card + "" + pair + "" + dom + " - xmit " + nw + " bytes to DOM.");
 	return nw;
     }
-    
+
     /**
      * send a message to DOMApp
      * @param arr - output array going to DOMApp
@@ -70,7 +69,7 @@ public class DOMIO {
     public void send(byte[] arr) throws IOException {
 	file.write(arr);
 
-        if (DEBUG_ENABLED) {
+        if (logger.isDebugEnabled()) {
             logger.debug("dorch=" + card + "" + pair + "" + dom + " - xmit. ");
 	}
     }
@@ -83,13 +82,12 @@ public class DOMIO {
      */
     public ByteBuffer recv() throws IOException {
 	in.clear();
-	
+
 	int nr = channel.read(in);
-	
-        if (DEBUG_ENABLED)
+
+        if (logger.isDebugEnabled())
             logger.debug("dorch=" + card + "" + pair + "" + dom + " - read " + nr + " bytes from DOM.");
 	in.flip();
 	return in;
     }
-
 }

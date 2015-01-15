@@ -34,11 +34,11 @@ public class LeadingEdgeRAPCal extends AbstractRAPCal
                 return 50.0e-09 * (i + (threshold-a) / (b-a) - 48.0);
         }
 
-        StringBuffer txt = new StringBuffer();
+        StringBuilder txt = new StringBuilder();
         txt.append("Past the end of TCAL vector:");
-        for (int i = 0; i < 48; i++) txt.append(" " + w[i]);
+        for (int i = 0; i < 48; i++) txt.append(" ").append(w[i]);
         logger.warn(txt);
-        throw new RAPCalException(w);
+        throw new RAPCalException(getClass().getName(), w);
     }
 
 }

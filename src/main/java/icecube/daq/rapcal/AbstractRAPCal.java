@@ -1,15 +1,24 @@
 package icecube.daq.rapcal;
 
 import icecube.daq.dor.TimeCalib;
+import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.util.UTC;
 
 import java.util.LinkedList;
-import java.util.ListIterator;
 
 import org.apache.log4j.Logger;
 
 public abstract class AbstractRAPCal implements RAPCal
 {
+    public static final String PROP_EXP_WEIGHT =
+    "icecube.daq.rapcal.AbstractRAPCal.expWeight";
+    public static final String PROP_HISTORY =
+        "icecube.daq.rapcal.AbstractRAPCal.history";
+    public static final String PROP_WILD_TCAL_THRESH =
+        "icecube.daq.rapcal.AbstractRAPCal.wildTcalThresh";
+
+    private static final int BASELINE_SAMPLES = 20;
+
     class Isochron
     {
         private UTC[] t0, t1;
@@ -20,35 +29,32 @@ public abstract class AbstractRAPCal implements RAPCal
         private long dorMid;
         private double clen;
         private final double wildTcalThresh = 1.0E-09 * Double.parseDouble(
-        		System.getProperty("icecube.daq.rapcal.AbstractRAPCal.wildTcalThresh", "10")
-    		);
+			System.getProperty(PROP_WILD_TCAL_THRESH, "10")
+		);
 
         Isochron(TimeCalib tcal0, TimeCalib tcal1, UTC gpsOffset) throws RAPCalException
         {
-            t0 = setupVierling(tcal0);
-            t1 = setupVierling(tcal1);
-            proc();
-            this.gpsOffset = gpsOffset;
+            this(setupVierling(tcal0), tcal1, gpsOffset);
         }
 
         Isochron(Isochron prev, TimeCalib tcal, UTC gpsOffset) throws RAPCalException
         {
-            t0 = prev.t1;
-            t1 = setupVierling(tcal);
-            proc();
-            this.gpsOffset = gpsOffset;
+            this(prev.t1, tcal, gpsOffset);
         }
 
-        private UTC[] setupVierling(TimeCalib tcal) throws RAPCalException
+        Isochron(UTC[] utc, TimeCalib tcal, UTC gpsOffset) throws RAPCalException
         {
-            UTC[] t = new UTC[4];
-            t[0] = tcal.getDorTx();
-            t[1] = UTC.add(tcal.getDomRx(), getFineTimeCorrection(tcal.getDomWaveform()));
-            t[2] = tcal.getDomTx();
-            t[3] = UTC.add(tcal.getDorRx(), getFineTimeCorrection(tcal.getDorWaveform()));
-            return t;
+            this.gpsOffset = gpsOffset;
+
+            t0 = utc;
+            t1 = setupVierling(tcal);
+            String errmsg = proc();
+            if (errmsg != null) {
+                logger.warn(errmsg);
+                moni.send(errmsg, tcal);
+            }
         }
-        
+
         /**
          * Check whether give DOM oscillator time is between bounding TCALs
          * @param domclk dom oscillator time in 25 ns ticks
@@ -61,8 +67,10 @@ public abstract class AbstractRAPCal implements RAPCal
             return (domclkUtc.compareTo(t0[2]) > 0) && (domclkUtc.compareTo(t1[2]) <= 0);
         }
 
-        private void proc()
+        private String proc()
         {
+            String errmsg = null;
+
             long dor_dt = UTC.add(t1[0], t1[3]).subtractAsUTC(UTC.add(t0[0], t0[3])).in_0_1ns() / 2L;
             long dom_dt = UTC.add(t1[1], t1[2]).subtractAsUTC(UTC.add(t0[1], t0[2])).in_0_1ns() / 2L;
             epsilon = (double) (dor_dt - dom_dt) / dom_dt;
@@ -77,9 +85,10 @@ public abstract class AbstractRAPCal implements RAPCal
             else
             {
                 // wild TCAL!
-                logger.warn("Wild TCAL - clen: " + clen + " clenAvg: " + clenAvg);
+                errmsg = "Wild TCAL - cable len: " + clen +
+                    " avg. cable len: " + clenAvg;
             }
-            if (DEBUG_ENABLED)
+            if (logger.isDebugEnabled())
             {
                 logger.debug("\n" +
                         " t0: " + t0[0] + ", " + t0[1] + ", " + t0[2] + ", " + t0[3] + "\n" +
@@ -95,6 +104,8 @@ public abstract class AbstractRAPCal implements RAPCal
 	    // these calculations as they never change
 	    domMid = UTC.add(t1[1], t1[2]).in_0_1ns() / 2L;
             dorMid = UTC.add(t1[0], t1[3]).in_0_1ns() / 2L;
+
+            return errmsg;
         }
 
         UTC domToUTC(long domclk)
@@ -102,12 +113,19 @@ public abstract class AbstractRAPCal implements RAPCal
             long dt = 250L*domclk - domMid;
             // Correct for DOM frequency variation
             dt += (long) (epsilon * dt);
-            if (DEBUG_ENABLED)
+            if (logger.isDebugEnabled())
             {
                 logger.debug("Translating DOM time " + domclk + " at distance " +
                         dt / 10L + " ns from isomark.");
             }
             return UTC.add(gpsOffset, new UTC(dorMid + dt));
+        }
+
+        public String toString()
+        {
+            return "Isochron[" + t0 + "," + t1 + ",epsilon=" + epsilon +
+                ",domMid=" + domMid + ",dorMid=" + dorMid + ",clen=" + clen +
+                "]";
         }
     }
 
@@ -118,13 +136,12 @@ public abstract class AbstractRAPCal implements RAPCal
     private double               clenAvg;
     private final double         expWt;
     private final int            MAX_HISTORY;
-    private final int            BASELINE_SAMPLES;
     private static final Logger  logger = Logger.getLogger(AbstractRAPCal.class);
-    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
+    private LiveTCalMoni moni;
 
     public AbstractRAPCal()
     {
-        this(Double.parseDouble(System.getProperty("icecube.daq.rapcal.AbstractRAPCal.expWeight", "0.1")));
+        this(Double.parseDouble(System.getProperty(PROP_EXP_WEIGHT, "0.1")));
     }
 
 	/**
@@ -138,39 +155,53 @@ public abstract class AbstractRAPCal implements RAPCal
 		lastTcal = null;
 		clenAvg = Double.NaN;
 		hist = new LinkedList<Isochron>();
-		BASELINE_SAMPLES = 20;
-		MAX_HISTORY = Integer.getInteger("icecube.daq.rapcal.AbstractRAPCal.history", 10);
+		MAX_HISTORY = Integer.getInteger(PROP_HISTORY, 10);
 	}
 
 	public double getAverageCableLength()
 	{
-		return clenAvg;
+	    return cableLength();
 	}
-	
-	public double getLastCableLength() 
+
+	public double getLastCableLength()
 	{
-		if (hist.size() == 0) return 0.0;
-		return hist.getLast().clen; 
+		if (hist.isEmpty()) return 0.0;
+		return hist.getLast().clen;
 	}
-	
+
 	public void update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException
 	{
-	    if (DEBUG_ENABLED)
+	    if (logger.isDebugEnabled())
 	    {
 	        logger.debug("RAPCal update - history size is " + hist.size());
 	    }
 
-	    if (hist.size() > 0)
-	    {
-	        Isochron prev = hist.getLast();
-	        if (hist.size() > MAX_HISTORY) hist.removeFirst();
-	        hist.add(new Isochron(prev, tcal, gpsOffset));
-	    }
-	    else if (lastTcal != null)
-	    {
-	        hist.add(new Isochron(lastTcal, tcal, gpsOffset));
-	    }
-        lastTcal = tcal;
+            try {
+                if (hist.size() > 0)
+                {
+                    Isochron prev = hist.getLast();
+                    if (hist.size() > MAX_HISTORY) hist.removeFirst();
+                    hist.add(new Isochron(prev, tcal, gpsOffset));
+                }
+                else if (lastTcal != null)
+                {
+                    hist.add(new Isochron(lastTcal, tcal, gpsOffset));
+                }
+            } catch (RAPCalException re) {
+                StringBuilder msgbuf = new StringBuilder(re.getSource());
+                msgbuf.append(':');
+                short[] waveform = re.getWaveform();
+                for (int i = 0; i < waveform.length; i++) {
+                    msgbuf.append(" ").append(waveform[i]);
+                }
+
+                moni.send(msgbuf.toString(), tcal);
+
+                // rethrow the exception so callers can do something with it
+                throw re;
+            }
+
+	    lastTcal = tcal;
 	}
 
 	/**
@@ -182,10 +213,10 @@ public abstract class AbstractRAPCal implements RAPCal
 	 */
 	public boolean laterThan(long domclk)
 	{
-	    final UTC domclkUtc = new UTC(250L * domclk);
 	    if (hist.isEmpty()) return false;
-        Isochron iso = hist.getLast();
-        if (iso.t1[2].compareTo(domclkUtc) >= 0) return true;
+	    final UTC domclkUtc = new UTC(250L * domclk);
+	    Isochron iso = hist.getLast();
+	    if (iso.t1[2].compareTo(domclkUtc) >= 0) return true;
 	    return false;
 	}
 
@@ -199,10 +230,10 @@ public abstract class AbstractRAPCal implements RAPCal
 	 */
 	public double clockRatio()
 	{
+	    if (hist.isEmpty()) return Double.NaN;
 	    Isochron iso = hist.getLast();
-	    if (iso == null) return Double.NaN;
 	    return iso.ratio;
-    }
+	}
 
 	/**
 	 * Translate dom clock space hits to UTC space (global time = seconds since
@@ -235,34 +266,47 @@ public abstract class AbstractRAPCal implements RAPCal
 	{
 	    /*
 	     * Iterate thru list until you find (A) bracketing Isochron, or (B) end of list.
-	     * Since hits are coming in time-ordered you know it is safe to delete old
-	     * elements in the list - hence the it.remove() line.
-	     */
-	    ListIterator<Isochron> it = hist.listIterator();
-	    while (it.hasNext())
+             */
+	    Isochron last = null;
+	    for (Isochron iso : hist)
 	    {
-	        Isochron iso = it.next();
-	        if (iso.containsDomClock(atclk) || !it.hasNext())
+	        if (iso.containsDomClock(atclk)) {
 	            return iso.domToUTC(domclk);
-	        // don't remove - i forgot that moni/hit/tcal/sn aren't synch'd so
-	        // not a safe bet to rely on auto-truncate mechanism
-	        // it.remove();
+	        }
+	        last = iso;
 	    }
-	    return null;
+            if (last == null) {
+                return null;
+            }
+	    return last.domToUTC(domclk);
 	}
 
 	abstract double getFineTimeCorrection(short[] w) throws RAPCalException;
+
+    private UTC[] setupVierling(TimeCalib tcal) throws RAPCalException
+    {
+        UTC[] t = new UTC[4];
+        t[0] = tcal.getDorTx();
+        t[1] = UTC.add(tcal.getDomRx(), getFineTimeCorrection(tcal.getDomWaveform()));
+        t[2] = tcal.getDomTx();
+        t[3] = UTC.add(tcal.getDorRx(), getFineTimeCorrection(tcal.getDorWaveform()));
+        return t;
+    }
 
 	/**
 	 * Provide basic baseline estimator service for derived classes.
 	 * @param w RAPCal waveform
 	 * @return mean baseline computed from head of RAPCal waveform
 	 */
-	protected double getBaseline(short[] w)
+	protected static double getBaseline(short[] w)
 	{
 	    double baseline = 0.0;
 	    for (int i = 0; i < BASELINE_SAMPLES; i++) baseline += w[i];
 	    return baseline / BASELINE_SAMPLES;
 	}
 
+    public void setMoni(LiveTCalMoni moni)
+    {
+        this.moni = moni;
+    }
 }

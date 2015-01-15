@@ -11,20 +11,27 @@ import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.GPSService;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
+import icecube.daq.juggler.alert.AlertQueue;
+import icecube.daq.juggler.alert.Alerter.Priority;
+import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.ZeroCrossingRAPCal;
 import icecube.daq.util.RealTimeRateMeter;
+import icecube.daq.util.SimpleMovingAverage;
 import icecube.daq.util.StringHubAlert;
 import icecube.daq.util.UTC;
 
-import java.io.FileNotFoundException;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -99,9 +106,9 @@ public class DataCollector
 {
     private long                numericMBID;
 
-	// the driver code used to rebuild a path on every call
-	// get the File object ONCE
-	private File tcalFile;
+    // the driver code used to rebuild a path on every call
+    // get the File object ONCE
+    private File tcalFile;
 
     private IDOMApp             app;
     private RAPCal              rapcal;
@@ -115,55 +122,51 @@ public class DataCollector
     private InterruptorTask intTask = new InterruptorTask();
 
     private static final Logger         logger  = Logger.getLogger(DataCollector.class);
-	private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
 
     private static final DecimalFormat  fmt     = new DecimalFormat("#0.000000000");
+
+    private final SimpleDateFormat dateFormat =
+            new SimpleDateFormat ("yyyy-mm-dd HH:mm:ss.SSS");
+
 
     // TODO - replace these with properties-supplied constants
     // for now they are totally reasonable
     private long    threadSleepInterval   = 50;
 
-    //private long    lastDataRead          = 0;
-    //private long    lastMoniRead          = 0;
-	//private long    lastSupernovaRead     = 0;
-    //private long    lastTcalRead          = 0;
-
-	// rewrite the processing loop so instead of
-	// keeping trakc of the last read, figure out
-	// when the next read will be, means fewer
-	// subtractions
-	private long nextSupernovaRead = 0;
-	private long nextTcalRead = 0;
-	private long nextMoniRead = 0;
-	private long nextDataRead = 0;
+    // Note: data, moni and supernova polling intervals are only
+    // relevant when running in non-interval mode.
+    private long nextSupernovaRead = 0;
+    private long nextTcalRead = 0;
+    private long nextMoniRead = 0;
+    private long nextDataRead = 0;
 
     private long    dataReadInterval      = 10;
     private long    moniReadInterval      = 1000;
     private long    tcalReadInterval      = 1000;
-	private long    supernovaReadInterval = 1000;
+    private long    supernovaReadInterval = 1000;
 
-	// statistics on data packet size
-	// welford's method
-	private double data_m_n = 0;
-	private double data_s_n = 0;
-	private long data_count = 0;
-	private long data_max = 0;
-	private long data_min = 4092;
-	private long data_zero_count = 0;
+    // statistics on data packet size
+    // welford's method
+    private double data_m_n = 0;
+    private double data_s_n = 0;
+    private long data_count = 0;
+    private long data_max = 0;
+    private long data_min = 4092;
+    private long data_zero_count = 0;
     private static final DecimalFormat  data_fmt = new DecimalFormat("0.###");
 
     private static final boolean ENABLE_STATS = Boolean.getBoolean(
-            "icecube.daq.domapp.datacollector.enableStats");
+	    "icecube.daq.domapp.datacollector.enableStats");
 
-	// used to be set from a system property, now reads from the runconfig
-	// stringhub[hubId=X] / intervals / enable - True
-	private final boolean disable_intervals;
+    // used to be set from a system property, now reads from the runconfig
+    // intervals / enabled - True
+    private boolean disable_intervals;
+    private boolean supernova_disabled = true;
 
-	private static final long INTERVAL_MIN_DOMAPP_PROD_VERSION = 445;
-	private static final long BASE_TEST_VERSION = 4000;
-	private static final long INTERVAL_MIN_DOMAPP_TEST_VERSION = 4477;
+    private static final long INTERVAL_MIN_DOMAPP_PROD_VERSION = 445;
+    private static final long BASE_TEST_VERSION = 4000;
+    private static final long INTERVAL_MIN_DOMAPP_TEST_VERSION = 4477;
 
-    private int     rapcalExceptionCount  = 0;
     private int     validRAPCalCount;
 
     private int     numHits               = 0;
@@ -274,7 +277,7 @@ public class DataCollector
                 }
                 else
                 {
-                    if (DEBUG_ENABLED) logger.debug("Holding back A hit at " + aclk);
+                    if (logger.isDebugEnabled()) logger.debug("Holding back A hit at " + aclk);
                     return null;
                 }
             }
@@ -282,10 +285,301 @@ public class DataCollector
             {
                 return popB();
             }
-            if (DEBUG_ENABLED) logger.debug("Holding back B hit at " + bclk);
+            if (logger.isDebugEnabled()) logger.debug("Holding back B hit at " + bclk);
             return null;
         }
     }
+
+    /**
+     * Collects diagnostics pertaining to a single data
+     * collection cycle.
+     */
+    private class CycleStats
+    {
+
+        final long sequence;
+
+        final long lastCycleNanos;
+        final long lastCycleDOMClk;
+
+        long cycleStartNano;
+        long cycleStopNano;
+
+        long messagesAcquired;
+        long bytesAcquired;
+        long hitCount;
+
+        long currentMsgRecvNano;
+
+        long firstHitDOMClk = -1;
+        long lastHitDOMClk = -1;
+
+        //calculated at cycle completion
+        long cycleDurationNanos;
+        long cycleGapDurationNanos;
+        long lastHitAgeNanos;
+        long dataSpanNanos;
+        long dataGapNanos;
+
+
+        private CycleStats(long sequence, long lastCycleNanos,
+                           long lastCycleDOMClk)
+        {
+            this.sequence = sequence;
+
+            //NOTE: carrying last cycle timing data forward makes
+            //      gap calculations more compact.
+            this.lastCycleNanos = lastCycleNanos;
+            this.lastCycleDOMClk = lastCycleDOMClk;
+        }
+
+
+        final void reportCycleStart()
+        {
+            cycleStartNano = now();
+        }
+
+        final void reportDataMessageRcv(ByteBuffer data)
+        {
+            currentMsgRecvNano = now();
+
+            bytesAcquired += data.remaining();
+            messagesAcquired++;
+
+            if(ENABLE_STATS)
+            {
+                trackMessageStats(data);
+            }
+        }
+
+        final void reportHitData(ByteBuffer hitBuf)
+        {
+
+            long domclk = hitBuf.getLong(24);
+
+            lastHitDOMClk = domclk;
+            if(firstHitDOMClk == -1)
+            {
+                firstHitDOMClk = domclk;
+            }
+            hitCount++;
+        }
+
+
+        final void reportCycleStop()
+        {
+            cycleStopNano = now();
+
+            // system timer durations
+            cycleDurationNanos = cycleStopNano - cycleStartNano;
+            cycleGapDurationNanos = cycleStartNano -lastCycleNanos;
+
+            // data stream spans
+            if (hitCount > 0)
+            {
+                lastHitAgeNanos = currentMsgRecvNano -
+                        domToSystemTimer.translate(lastHitDOMClk);
+                dataSpanNanos = (lastHitDOMClk - firstHitDOMClk) * 25;
+
+                if(lastCycleDOMClk == -1)
+                {
+                    dataGapNanos = 0;
+                }
+                else
+                {
+                    dataGapNanos = (firstHitDOMClk -lastCycleDOMClk) * 25;
+                }
+            }
+            else
+            {
+                lastHitAgeNanos = 0;
+                dataSpanNanos = 0;
+                dataGapNanos = 0;
+            }
+
+        }
+
+        final void trackMessageStats(ByteBuffer msgBuffer)
+        {
+            // generate some stats as to the average size
+            // of hit bytebuffers
+
+            // Compute the mean and variance of data message sizes
+            // This is an implementation of welfords method
+            // http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+            int remaining = msgBuffer.remaining();
+            if(remaining>0) {
+                double m_new = data_m_n + ( remaining - data_m_n) / ( data_count+1.0);
+                data_s_n = data_s_n + ( remaining - data_m_n) * ( remaining - m_new);
+                data_m_n = m_new;
+                data_count++;
+                if (remaining>data_max) {
+                    data_max = remaining;
+                }
+                if (remaining<data_min) {
+                    data_min = remaining;
+                }
+            } else {
+                data_zero_count++;
+            }
+        }
+
+        final long now()
+        {
+            return System.nanoTime();
+        }
+
+        final StringBuffer verbosePrint()
+        {
+            StringBuffer info = new StringBuffer(256);
+            long durationMillis = cycleDurationNanos / 1000000;
+            long millisSinceLastCycle = cycleGapDurationNanos /1000000;
+            long dataMillisInCycle = (dataSpanNanos/ 1000000);
+            long dataMillisSinceLastCycle = dataGapNanos / 1000000;
+            long lbmBacklogMillis = lastHitAgeNanos / 1000000;
+
+            info.append("cycle [").append(sequence).append("]")
+               .append(" messages [").append(messagesAcquired)
+               .append ("]")
+               .append(" bytes [").append(bytesAcquired / 1024)
+               .append(" kb]")
+               .append(" hits [").append(hitCount).append("]")
+               .append(" duration [").append(durationMillis)
+               .append(" ms]")
+               .append(" gap [").append(millisSinceLastCycle).append(" ms]")
+               .append(" data-span [").append(dataMillisInCycle)
+               .append(" ms]")
+               .append(" data-gap [").append(dataMillisSinceLastCycle)
+               .append(" ms]")
+               .append(" lbm-backlog [").append(lbmBacklogMillis)
+               .append(" ms]");
+
+            return info;
+        }
+
+    }
+
+    /**
+     * Collects data acquisition diagnostics for all
+     * data collection cycles in a run.
+     */
+    class CycleMonitor
+    {
+        long runStartTime; // local system clock
+        long runStartNano; // system timer
+
+        long sequence = -1;
+
+        Queue<CycleStats> history = new LinkedList<CycleStats>();
+
+        SimpleMovingAverage avgCycleDurationMillis =
+                new SimpleMovingAverage(10);
+
+        SimpleMovingAverage avgHitAcquisitionLatencyMillis =
+                new SimpleMovingAverage(10);
+
+        SimpleMovingAverage avgCycleDataSpanMillis = new SimpleMovingAverage
+                (10);
+
+        long lastCycleNanos;
+        long lastCycleDOMClk = -1;
+
+        final void reportRunStart()
+        {
+            runStartNano = now();
+            runStartTime = System.currentTimeMillis();
+            lastCycleNanos = runStartNano;
+        }
+
+        final CycleStats initiateCycle()
+        {
+
+            CycleStats cycleStats =
+                    new CycleStats(++sequence, lastCycleNanos, lastCycleDOMClk);
+            cycleStats.reportCycleStart();
+
+            return cycleStats;
+        }
+
+        void completeCycle(final CycleStats cycle)
+        {
+            cycle.reportCycleStop();
+
+            avgCycleDurationMillis.add(cycle.cycleDurationNanos / 1000000);
+            avgCycleDataSpanMillis.add(cycle.dataSpanNanos / 1000000);
+            lastCycleNanos = cycle.cycleStopNano;
+            lastCycleDOMClk = cycle.lastHitDOMClk;
+
+            //Note: We are really only interested in the
+            //      age of the last hit in the cycle, the
+            //      hits at the beginning have been intentionally
+            //      buffered (via intervals, sleeps) to increase
+            //      throughput. Increasing latency at the end
+            //      of an acquisition cycle is an indication
+            //      that the DOM LMB depth is increasing.
+            //
+            //      A value from a hit-less cycle is discarded.
+            if(cycle.hitCount > 0)
+            {
+                avgHitAcquisitionLatencyMillis.add(cycle
+                        .lastHitAgeNanos / 1000000);
+            }
+
+            history.add(cycle);
+            if( history.size() > 10)
+            {
+                history.remove();
+            }
+
+        }
+
+        final StringBuffer logAverages()
+        {
+            StringBuffer sb = new StringBuffer(128);
+            sb.append("avg-lbm-backlog [").append
+                    (avgHitAcquisitionLatencyMillis.getAverage())
+                    .append(" ms]")
+                    .append(" avg-cycle-duration [").append
+                    (avgCycleDurationMillis.getAverage())
+                    .append(" ms]")
+                    .append(" avg-data-span [").append
+                    (avgCycleDataSpanMillis.getAverage())
+                    .append(" ms]");
+            return sb;
+        }
+
+
+        final long now()
+        {
+            return System.nanoTime();
+        }
+    }
+    private CycleMonitor cycleMonitor = new CycleMonitor();
+
+    /**
+     * Provides a loosely calibrated mapping from the DOM clock
+     * to the system monotonic clock.
+     *
+     * This mapping is for diagnostic use only as the quality of the
+     * calibration is not guaranteed.
+     *
+     */
+    private class DOMToSystemTimer
+    {
+        private long offsetNanos;
+
+        void update(long domclk, long systemNanos)
+        {
+            offsetNanos = systemNanos - (domclk * 25);
+        }
+
+        long translate(long domclk)
+        {
+            return (domclk*25) + offsetNanos;
+        }
+    }
+    private final DOMToSystemTimer domToSystemTimer = new
+            DOMToSystemTimer();
 
     /**
      * Simple hits-only constructor (other channels suppressed)
@@ -297,7 +591,7 @@ public class DataCollector
     public DataCollector(DOMChannelInfo chInfo, BufferConsumer hitsTo)
     throws IOException, MessageException
     {
-        this(chInfo.card, chInfo.pair, chInfo.dom, null, hitsTo, null, null, null, null, null);
+        this(chInfo.card, chInfo.pair, chInfo.dom, null, hitsTo, null, null, null);
     }
 
     public DataCollector(
@@ -306,13 +600,11 @@ public class DataCollector
             BufferConsumer hitsTo,
             BufferConsumer moniTo,
             BufferConsumer supernovaTo,
-            BufferConsumer tcalTo,
-            IDriver driver,
-            RAPCal rapcal) throws IOException, MessageException
+            BufferConsumer tcalTo) throws IOException, MessageException
 	{
 		// support class old signature
 		// but default to disabling intervals
-		this(card, pair, dom, config, hitsTo, moniTo, supernovaTo, tcalTo, driver, rapcal, false);
+		this(card, pair, dom, config, hitsTo, moniTo, supernovaTo, tcalTo, false);
 	}
 
 
@@ -323,8 +615,6 @@ public class DataCollector
             BufferConsumer moniTo,
             BufferConsumer supernovaTo,
             BufferConsumer tcalTo,
-            IDriver driver,
-            RAPCal rapcal,
 			boolean enable_intervals) throws IOException, MessageException
     {
         super(card, pair, dom);
@@ -339,35 +629,25 @@ public class DataCollector
         tcalConsumer = tcalTo;
         supernovaConsumer = supernovaTo;
 
-        if (driver != null)
-            this.driver = driver;
-        else
-            this.driver = Driver.getInstance();
+        this.driver = Driver.getInstance();
 
-		// get and cache the gps file
+        // get and cache the gps file
         // and the tcal file
         tcalFile = this.driver.getTCALFile(card, pair, dom);
 
-        if (rapcal != null)
+        String rapcalClass = System.getProperty(
+                "icecube.daq.domapp.datacollector.rapcal",
+                "icecube.daq.rapcal.ZeroCrossingRAPCal"
+                );
+        try
         {
-            this.rapcal = rapcal;
+            this.rapcal = (RAPCal) Class.forName(rapcalClass).newInstance();
         }
-        else
+        catch (Exception ex)
         {
-            String rapcalClass = System.getProperty(
-                    "icecube.daq.domapp.datacollector.rapcal",
-                    "icecube.daq.rapcal.ZeroCrossingRAPCal"
-                    );
-            try
-            {
-                this.rapcal = (RAPCal) Class.forName(rapcalClass).newInstance();
-            }
-            catch (Exception ex)
-            {
-                logger.warn("Unable to load / instantiate RAPCal class " +
-                        rapcalClass + ".  Loading ZeroCrossingRAPCal instead.");
-                this.rapcal = new ZeroCrossingRAPCal();
-            }
+            logger.warn("Unable to load / instantiate RAPCal class " +
+                    rapcalClass + ".  Loading ZeroCrossingRAPCal instead.");
+            this.rapcal = new ZeroCrossingRAPCal();
         }
         this.app = null;
         this.config = config;
@@ -410,7 +690,7 @@ public class DataCollector
      */
     private void configure(DOMConfiguration config) throws MessageException
     {
-        if (DEBUG_ENABLED) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Configuring DOM on " + canonicalName());
         }
         long configT0 = System.currentTimeMillis();
@@ -473,10 +753,20 @@ public class DataCollector
         app.setLCSpan(lc.getSpan());
         app.setLCWindow(lc.getPreTrigger(), lc.getPostTrigger());
         app.setCableLengths(lc.getCableLengthUp(), lc.getCableLengthDn());
-        if (config.isSupernovaEnabled())
-        	app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
-        else
-        	app.disableSupernova();
+        if (config.isSupernovaEnabled()) {
+			app.enableSupernova(config.getSupernovaDeadtime(), config.isSupernovaSpe());
+			supernova_disabled=false;
+		} else {
+			app.disableSupernova();
+			supernova_disabled=true;
+			ByteBuffer eos = MultiChannelMergeSort.eos(numericMBID);
+			try {
+				if (supernovaConsumer != null) supernovaConsumer.consume(eos.asReadOnlyBuffer());
+			} catch (IOException iox) {
+				logger.warn("Caught IO Exception trying to shut down unused SN channel");
+			}
+		}
+
         app.setScalerDeadtime(config.getScalerDeadtime());
 
         try
@@ -523,7 +813,7 @@ public class DataCollector
         }
 
 
-        if (DEBUG_ENABLED) {
+        if (logger.isDebugEnabled()) {
 			long configT1 = System.currentTimeMillis();
             logger.debug("Finished DOM configuration - " + canonicalName() +
                         "; configuration took " + (configT1 - configT0) +
@@ -554,7 +844,8 @@ public class DataCollector
         return utc;
     }
 
-    private void dispatchHitBuffer(int atwdChip, ByteBuffer hitBuf) throws IOException
+    private void dispatchHitBuffer(CycleStats cycleStats, int atwdChip,
+                                   ByteBuffer hitBuf) throws IOException
     {
         if (atwdChip == 0)
             abBuffer.pushA(hitBuf);
@@ -564,12 +855,13 @@ public class DataCollector
         {
             ByteBuffer buffer = abBuffer.pop();
             if (buffer == null) return;
+            cycleStats.reportHitData(hitBuf);
             dispatchBuffer(buffer, hitsConsumer);
         }
     }
 
-
-    private void dataProcess(ByteBuffer in) throws IOException
+    private void dataProcess(CycleStats cycleStats, ByteBuffer in) throws
+            IOException
     {
         // TODO - I created a number of less-than-elegant hacks to
         // keep performance at acceptable level such as minimal
@@ -612,7 +904,7 @@ public class DataCollector
                 // DO the A/B stuff
                 //
                 ////////
-                dispatchHitBuffer(atwdChip, outputBuffer);
+                dispatchHitBuffer(cycleStats, atwdChip, outputBuffer);
 
                 break;
 
@@ -632,7 +924,7 @@ public class DataCollector
                     int hitSize = word1 & 0x7ff;
                     atwdChip = (word1 >> 11) & 1;
                     domClock = (((long) clkMSB) << 32) | (((long) word2) & 0xffffffffL);
-                    if (DEBUG_ENABLED)
+                    if (logger.isDebugEnabled())
                     {
                         int trigMask = (word1 >> 18) & 0x1fff;
                         logger.debug("DELTA HIT - CLK: " + domClock + " TRIG: " + Integer.toHexString(trigMask));
@@ -661,7 +953,7 @@ public class DataCollector
                     outputBuffer.put(in).flip();
                     in.limit(buffer_limit);
                     // DO the A/B stuff
-                    dispatchHitBuffer(atwdChip, outputBuffer);
+                    dispatchHitBuffer(cycleStats, atwdChip, outputBuffer);
                 }
                 // Restore previous byte order
                 in.order(lastOrder);
@@ -686,8 +978,17 @@ public class DataCollector
                 String moniMsg = monitor.toString();
                 if (moniMsg.contains("LBM OVERFLOW")) {
                     numLBMOverflows++;
-                    logger.error("LBM Overflow");
-                } else if (DEBUG_ENABLED) {
+                    logger.error("LBM Overflow [" + cycleMonitor.sequence +
+                            "] [" + moniMsg +
+                            "]");
+                    logger.error("data collection stats: " +
+                            cycleMonitor.logAverages());
+                    //todo - squelch after mystery LBM overflows are solved
+                    for(CycleStats cycleStats : cycleMonitor.history)
+                    {
+                        logger.error("HISTORY:" + cycleStats.verbosePrint());
+                    }
+                } else if (logger.isDebugEnabled()) {
                     logger.debug(moniMsg);
                 }
             }
@@ -757,6 +1058,11 @@ public class DataCollector
         }
     }
 
+    public void setLiveMoni(LiveTCalMoni moni)
+    {
+        rapcal.setMoni(moni);
+    }
+
     public synchronized void signalShutdown()
     {
         stop_thread = true;
@@ -790,8 +1096,16 @@ public class DataCollector
             if (gps != null) gpsOffset = gps.getOffset();
 
             TimeCalib tcal = driver.readTCAL(tcalFile);
+            long tcalReceivedNanos = System.nanoTime();
+
             rapcal.update(tcal, gpsOffset);
 			nextTcalRead = System.currentTimeMillis() + tcalReadInterval;
+
+            // Calibrating the local clock offset using these values
+            // is the best we can do without relying on local time
+            //  being synchronized.
+            domToSystemTimer.update((tcal.getDomTx().in_0_1ns() / 250),
+                    tcalReceivedNanos);
 
             validRAPCalCount++;
 
@@ -804,7 +1118,6 @@ public class DataCollector
         }
         catch (RAPCalException rcex)
         {
-            rapcalExceptionCount++;
             logger.warn("Got RAPCal exception", rcex);
         }
         catch (IOException iox)
@@ -853,19 +1166,21 @@ public class DataCollector
         {
 			// core common to both intervals AND query
 			// it will decide which method is appropriate and
-			// call runcore_orig or runcore_intervals
+			// call runcore_orig or runcore_interval
 			runcore_universal();
         }
         catch (Exception x)
         {
             logger.error("Intercepted error in DataCollector runcore", x);
             /*
-             * TODO cleanup needed set run level to ZOMBIE so that controller knows
-             * that this channel has expired and does not wait.
+             * TODO cleanup needed set run level to ZOMBIE so that controller
+             * knows that this channel has expired and does not wait.
              */
             setRunLevel(RunLevel.ZOMBIE);
-            StringHubAlert.sendDOMAlert(alerter, "Zombie DOM", card, pair, dom,
-                                        mbid, name, major, minor, lastHitTime);
+			StringHubAlert.sendDOMAlert(alertQueue, Priority.EMAIL,
+										"Zombie DOM", card, pair, dom,
+										mbid, name, major, minor, runNumber,
+										lastHitTime);
         }
         watcher.cancel();
 
@@ -1021,7 +1336,7 @@ public class DataCollector
         setRunLevel(RunLevel.IDLE);
 
         intTask.ping();
-        if (DEBUG_ENABLED) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Found DOM " + mbid + " running " + app.getRelease());
         }
 
@@ -1036,14 +1351,19 @@ public class DataCollector
 		// the original query algorithm
 		String version = app.getRelease();
 		if(!disable_intervals && version_supports_intervals(version)) {
-			if (DEBUG_ENABLED) {
+			if (logger.isDebugEnabled()) {
 				logger.debug("Using intervals run loop!");
 			}
+			// configure is only called inside the following
 			runcore_interval();
 		} else {
-			if (DEBUG_ENABLED) {
+			if (logger.isDebugEnabled()) {
 				logger.debug("Using original run loop!");
 			}
+			// explicitly turn off intervals if the dom-mb version
+			// does not support intervals
+			this.disable_intervals = true;
+			// configure is only called inside the following
 			runcore_orig();
 		}
 	}
@@ -1104,84 +1424,72 @@ public class DataCollector
             /* Do TCAL and GPS -- this always runs regardless of the run state */
             if (t >= nextTcalRead)
             {
-                if (DEBUG_ENABLED) logger.debug("Doing TCAL - runLevel is " + getRunLevel());
+                if (logger.isDebugEnabled()) logger.debug("Doing TCAL - runLevel is " + getRunLevel());
                 execRapCal();
             }
 
             switch (getRunLevel())
             {
             case RUNNING:
-                // Time to do a data collection?
-                if (t>=nextDataRead)
+                CycleStats cycleStats = cycleMonitor.initiateCycle();
+
+                try
                 {
-					nextDataRead = t + dataReadInterval;
-
-                    try
+                    // Time to do a data collection?
+                    if (t>=nextDataRead)
                     {
-                        // Get debug information during Alpaca failures
-                        ByteBuffer data = app.getData();
-                        if (data.remaining() > 0) tired = false;
+                        nextDataRead = t + dataReadInterval;
 
-						// generate some stats as to the average size
-                        // of hit bytebuffers
-						if(ENABLE_STATS) {
-							// Compute the mean and variance of data message sizes
-							// This is an implementation of welfords method
-							// http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-							int remaining = data.remaining();
-							if(remaining>0) {
-								double m_new = data_m_n + ( remaining - data_m_n) / ( data_count+1.0);
-								data_s_n = data_s_n + ( remaining - data_m_n) * ( remaining - m_new);
-								data_m_n = m_new;
-								data_count++;
-								if (remaining>data_max) {
-									data_max = remaining;
-								}
-								if (remaining<data_min) {
-									data_min = remaining;
-								}
-							} else {
-								data_zero_count++;
-							}
-						}
-
-                        dataProcess(data);
-                    }
-                    catch (IllegalArgumentException ex)
-                    {
-                        logger.error("Caught & re-raising IllegalArgumentException");
-                        logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
-                        logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
-                        throw ex;
-                    }
-                }
-
-                // What about monitoring?
-                if (t >= moniReadInterval)
-                {
-					nextMoniRead = t + moniReadInterval;
-
-                    ByteBuffer moni = app.getMoni();
-                    if (moni.remaining() > 0)
-                    {
-                        moniProcess(moni);
-                        tired = false;
-                    }
-                }
-
-                if (t > nextSupernovaRead)
-                {
-					nextSupernovaRead = t + supernovaReadInterval;
-                    while (true)
-                    {
-                        ByteBuffer sndata = app.getSupernova();
-                        if (sndata.remaining() > 0)
+                        try
                         {
-                            supernovaProcess(sndata);
-                            tired = false;
-                            break;
+                            // Get debug information during Alpaca failures
+                            ByteBuffer data = app.getData();
+                            cycleStats.reportDataMessageRcv(data);
+
+                            if (data.remaining() > 0) tired = false;
+
+                            dataProcess(cycleStats, data);
+                        }
+                        catch (IllegalArgumentException ex)
+                        {
+                            logger.error("Caught & re-raising IllegalArgumentException");
+                            logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
+                            logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
+                            throw ex;
                         }
                     }
+
+                    // What about monitoring?
+                    if (t >= nextMoniRead)
+                    {
+                        nextMoniRead = t + moniReadInterval;
+
+                        ByteBuffer moni = app.getMoni();
+                        if (moni.remaining() > 0)
+                        {
+                            moniProcess(moni);
+                            tired = false;
+                        }
+                    }
+
+                    if (t > nextSupernovaRead)
+                    {
+                        nextSupernovaRead = t + supernovaReadInterval;
+                        while (!supernova_disabled)
+                        {
+                            ByteBuffer sndata = app.getSupernova();
+                            if (sndata.remaining() > 0)
+                            {
+                                supernovaProcess(sndata);
+                                tired = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    cycleMonitor.completeCycle(cycleStats);
                 }
                 break;
 
@@ -1194,10 +1502,11 @@ public class DataCollector
                 break;
 
             case STARTING:
-                if (DEBUG_ENABLED) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Got START RUN signal " + canonicalName());
                 }
                 app.beginRun();
+                cycleMonitor.reportRunStart();
                 storeRunStartTime();
                 logger.debug("DOM is running.");
                 setRunLevel(RunLevel.RUNNING);
@@ -1209,8 +1518,8 @@ public class DataCollector
                  * on this DOM and I am just changing the flasher parameters.
                  */
                 logger.info("Starting subrun - flasher config is " +
-                        (flasherConfig == null ? "not" : "") + " null / lately " +
-                        (latelyRunningFlashers ? "" : "not") + " running flashers.");
+                        (flasherConfig == null ? "" : " not ") + "null / lately " +
+                        (latelyRunningFlashers ? "" : "not ") + "running flashers.");
                 if (!(latelyRunningFlashers && flasherConfig != null))
                 {
                     setRunLevel(RunLevel.STOPPING_SUBRUN);
@@ -1263,12 +1572,15 @@ public class DataCollector
                     configure(config);
                     app.beginRun();
                 }
+                //todo consider how subruns should interact with
+                //     the cycleMonitor
+                // ??? cycleMonitor.reportRunStart();
                 storeRunStartTime();
                 setRunLevel(RunLevel.RUNNING);
                 break;
 
             case PAUSING:
-                if (DEBUG_ENABLED) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Got PAUSE RUN signal " + canonicalName());
                 }
                 app.endRun();
@@ -1276,7 +1588,7 @@ public class DataCollector
                 break;
 
             case STOPPING:
-                if (DEBUG_ENABLED) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Got STOP RUN signal " + canonicalName());
                 }
                 app.endRun();
@@ -1297,7 +1609,7 @@ public class DataCollector
 
             if (tired)
             {
-                if (DEBUG_ENABLED) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Runcore loop is tired - sleeping " +
                                  threadSleepInterval + " ms.");
                 }
@@ -1353,7 +1665,7 @@ public class DataCollector
             /* Do TCAL and GPS -- this always runs regardless of the run state */
             if (t >= nextTcalRead)
             {
-                if (DEBUG_ENABLED) logger.debug("Doing TCAL - runLevel is " + getRunLevel());
+                if (logger.isDebugEnabled()) logger.debug("Doing TCAL - runLevel is " + getRunLevel());
                 execRapCal();
             }
 
@@ -1361,80 +1673,70 @@ public class DataCollector
             {
             case RUNNING:
 				app.getInterval();
+                CycleStats cycleStats = cycleMonitor.initiateCycle();
 
-				boolean done = false;
-				while (!done) {
-					tired = true;
-					ByteBuffer msg = app.recvMessage(intervalBuffer);
+                try
+                {
+                    boolean done = false;
+                    while (!done) {
+                        tired = true;
+                        ByteBuffer msg = app.recvMessage(intervalBuffer);
+                        cycleStats.reportDataMessageRcv(msg);
 
-					intTask.ping();
+                        intTask.ping();
 
-					byte msg_type = msg.get(0);
-					byte msg_subtype = msg.get(1);
+                        byte msg_type = msg.get(0);
+                        byte msg_subtype = msg.get(1);
 
-					// past the header
-					msg.position(8);
+                        // past the header
+                        msg.position(8);
 
-					if(MessageType.GET_DATA.equals(msg_type, msg_subtype)) {
-						if (msg.remaining()>0) {
-							tired = false;
-						}
+                        if(MessageType.GET_DATA.equals(msg_type, msg_subtype)) {
+                            if (msg.remaining()>0) {
+                                tired = false;
+                            }
 
-						if(ENABLE_STATS) {
-							// Compute the mean and variance of data message sizes
-							// This is an implementation of welfords method
-							// http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-							int remaining = msg.remaining();
-							if(remaining>0) {
-								double m_new = data_m_n + ( remaining - data_m_n) / ( data_count+1.0);
-								data_s_n = data_s_n + ( remaining - data_m_n) * ( remaining - m_new);
-								data_m_n = m_new;
-								data_count++;
-								if (remaining>data_max) {
-									data_max = remaining;
-								}
-								if (remaining<data_min) {
-									data_min = remaining;
-								}
-							} else {
-								data_zero_count++;
-							}
-						}
-
-						dataProcess(msg.slice());
-					} else if(MessageType.GET_SN_DATA.equals(msg_type, msg_subtype)) {
-						if (msg.remaining()>0) {
-                            supernovaProcess(msg.slice());
-                            tired = false;
+                            dataProcess(cycleStats, msg.slice());
+                        } else if(MessageType.GET_SN_DATA.equals(msg_type, msg_subtype)) {
+                            if (msg.remaining()>0) {
+                                supernovaProcess(msg.slice());
+                                tired = false;
+                            }
+                            done = true;
+                        } else if(MessageType.GET_MONI.equals(msg_type, msg_subtype)) {
+                            if (msg.remaining()>0) {
+                                moniProcess(msg.slice());
+                                tired = false;
+                            }
+                            // If we're not going to get a SN message, this marks the
+                            // end of the interval
+                            done = supernova_disabled;
+                        } else {
+                            // assume a status of one
+                            // as the recv code will have
+                            // thrown an exception if that was not
+                            // true
+                            throw new MessageException(MessageType.GET_DATA,
+                                    msg_type, msg_subtype, 1);
                         }
-						done = true;
-					} else if(MessageType.GET_MONI.equals(msg_type, msg_subtype)) {
-						if (msg.remaining()>0) {
-							moniProcess(msg.slice());
-							tired = false;
-						}
-					} else {
-						// assume a status of one
-						// as the recv code will have
-						// thrown an exception if that was not
-						// true
-						throw new MessageException(MessageType.GET_DATA,
-												   msg_type, msg_subtype, 1);
-					}
 
-					if(tired) {
-						// sleep before next iteration
-						try
-							{
-								Thread.sleep(threadSleepInterval);
-							}
-						catch (InterruptedException intx)
-							{
-								logger.warn("Interrupted.");
-							}
-					}
-				}
-
+                        if(tired) {
+                            // sleep before next iteration
+                            try
+                            {
+                                Thread.sleep(threadSleepInterval);
+                            }
+                            catch (InterruptedException intx)
+                            {
+                                logger.warn("Interrupted.");
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    cycleMonitor.completeCycle(cycleStats);
+                }
                 break;
 
             case CONFIGURING:
@@ -1446,10 +1748,11 @@ public class DataCollector
                 break;
 
             case STARTING:
-                if (DEBUG_ENABLED) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Got START RUN signal " + canonicalName());
                 }
                 app.beginRun();
+                cycleMonitor.reportRunStart();
                 storeRunStartTime();
                 logger.debug("DOM is running.");
                 setRunLevel(RunLevel.RUNNING);
@@ -1516,11 +1819,14 @@ public class DataCollector
                     app.beginRun();
                 }
                 storeRunStartTime();
+                //todo consider how subruns should interact with
+                //     the cycleMonitor
+                // ??? cycleMonitor.reportRunStart();
                 setRunLevel(RunLevel.RUNNING);
                 break;
 
             case PAUSING:
-                if (DEBUG_ENABLED) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Got PAUSE RUN signal " + canonicalName());
                 }
                 app.endRun();
@@ -1528,7 +1834,7 @@ public class DataCollector
                 break;
 
             case STOPPING:
-                if (DEBUG_ENABLED) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Got STOP RUN signal " + canonicalName());
                 }
                 app.endRun();
@@ -1549,7 +1855,7 @@ public class DataCollector
 
             if (tired)
             {
-                if (DEBUG_ENABLED) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Runcore loop is tired - sleeping " +
                                  threadSleepInterval + " ms.");
                 }
@@ -1620,7 +1926,7 @@ public class DataCollector
 
         public void ping()
         {
-            if (DEBUG_ENABLED)
+            if (logger.isDebugEnabled())
             {
                 logger.debug("pinged at " + fmt.format(System.nanoTime() * 1.0E-09));
             }
@@ -1658,4 +1964,19 @@ public class DataCollector
     {
         return rtLCRate.getRate();
     }
+
+    public long getAverageHitAcquisitionLatencyMillis()
+    {
+        return (long)cycleMonitor.avgHitAcquisitionLatencyMillis.getAverage();
+    }
+
+    //NOTE: This is based on the local system clock.
+    public String getAcquisitionStartTime()
+    {
+        synchronized (dateFormat)
+        {
+            return dateFormat.format(new Date(cycleMonitor.runStartTime));
+        }
+    }
+
 }

@@ -46,16 +46,16 @@ public class DOMConnector
 	 */
 	public void configure() throws InterruptedException
 	{
-	    // Wait for data collectors to finish initializing
+		// Wait for data collectors to finish initializing
 		for (AbstractDataCollector dc : collectors)
 		{
-		    while (dc.isInitializing()) Thread.sleep(100);
+			while (dc.isInitializing()) Thread.sleep(100);
 			dc.signalConfigure();
 		}
 
 		// wait for things to configure
 		for (AbstractDataCollector dc : collectors)
-		    while(dc.isConfiguring()) Thread.sleep(100);
+			while(dc.isConfiguring()) Thread.sleep(100);
 
 		logger.debug("Data collector ensemble has been configured.");
 	}
@@ -63,29 +63,29 @@ public class DOMConnector
 	/**
 	 * Destroy this connector.
 	 *
-	 * @throws Exception if there was a problem
+	 * @throws InterruptedException if there was a problem
 	 */
 	public void destroy()
-		throws Exception
+		throws InterruptedException
 	{
-	    stopProcessing();
+		stopProcessing();
 
 		for (AbstractDataCollector dc : collectors) dc.signalShutdown();
 
 		for (AbstractDataCollector dc : collectors)
 		{
-		    while (dc.isAlive()) Thread.sleep(100);
-	        dc.close();
+			while (dc.isAlive()) Thread.sleep(100);
+			dc.close();
 		}
 	}
 
 	/**
 	 * Force engine to stop processing data.
 	 *
-	 * @throws Exception if there is a problem
+	 * @throws InterruptedException if there is a problem
 	 */
 	public void forcedStopProcessing()
-		throws Exception
+		throws InterruptedException
 	{
 		throw new Error("Unimplemented");
 	}
@@ -127,7 +127,7 @@ public class DOMConnector
 	 */
 	public boolean isRunning()
 	{
-	    return !isStopped();
+		return !isStopped();
 	}
 
 	/**
@@ -136,7 +136,6 @@ public class DOMConnector
 	 * @throws Exception if there is a problem
 	 */
 	public void start()
-		throws Exception
 	{
 		// do nothing
 	}
@@ -144,18 +143,18 @@ public class DOMConnector
 	/**
 	 * Start processing data.
 	 *
-	 * @throws Exception if there is a problem
+	 * @throws InterruptedException if there is a problem
 	 */
 	public void startProcessing()
-		throws Exception
+		throws InterruptedException
 	{
 		CLOOP: for (AbstractDataCollector dc : collectors)
 		{
-		    while (!dc.isConfigured())
-	        {
-		        if (dc.isZombie()) continue CLOOP;
-		        Thread.sleep(100);
-	        }
+			while (!dc.isConfigured())
+			{
+				if (dc.isZombie()) continue CLOOP;
+				Thread.sleep(100);
+			}
 			dc.signalStartRun();
 		}
 	}
@@ -163,10 +162,10 @@ public class DOMConnector
 	/**
 	 * Stop DOM data collectors.
 	 *
-	 * @throws Exception if there is a problem
+	 * @throws InterruptedException if there is a problem
 	 */
 	public void stopProcessing()
-		throws Exception
+		throws InterruptedException
 	{
 		for (AbstractDataCollector dc : collectors)
 			dc.signalStopRun();

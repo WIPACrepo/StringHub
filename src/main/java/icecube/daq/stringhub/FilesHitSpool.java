@@ -42,17 +42,20 @@ public class FilesHitSpool implements BufferConsumer
     private byte[] iobuf;
     private boolean isHosed = false;
 
-    private final static Logger logger = Logger.getLogger(FilesHitSpool.class);
+    private static final Logger logger = Logger.getLogger(FilesHitSpool.class);
 
     /**
      * Constructor with full options.
-     * @param out   BufferConsumer object that will receive forwarded hits.  Can be null.
+     * @param out BufferConsumer object that will receive forwarded hits.
+     *            Can be null.
+     * @param configDir directory holding configuration files
      * @param targetDir output directory on filesystem
      * @param hitsPerFile number of hits per file
      * @param fileCount number of files in the spooling ensemble
      * @see BufferConsumer
      */
-    public FilesHitSpool(BufferConsumer out, File targetDir, long fileInterval, int fileCount) throws IOException
+    public FilesHitSpool(BufferConsumer out, File configDir, File targetDir,
+                         long fileInterval, int fileCount)
     {
         this.out = out;
         this.t0  = 0L;
@@ -64,23 +67,6 @@ public class FilesHitSpool implements BufferConsumer
         this.packHeaders        = Boolean.getBoolean("icecube.daq.stringhub.hitspool.packHeaders");
 
         if (packHeaders) {
-            File configDir = null;
-
-            String pcfg = System.getenv("PDAQ_CONFIG");
-            if (pcfg != null) {
-                configDir = new File(pcfg);
-                if (!configDir.exists()) {
-                    configDir = null;
-                }
-            }
-
-            if (configDir == null) {
-                configDir = new File(System.getenv("HOME"), "config");
-                if (!configDir.isDirectory()) {
-                    configDir = null;
-                }
-            }
-
             if (configDir != null) {
                 try
                 {
@@ -94,19 +80,19 @@ public class FilesHitSpool implements BufferConsumer
         }
 
         logger.info("DOM registry " + (reg != null? "" : "NOT") + " found; header packing " +
-                (packHeaders ? "" : "NOT") + " activated.");
+                    (packHeaders ? "" : "NOT") + " activated.");
 
         iobuf = new byte[5000];
     }
 
-    public FilesHitSpool(BufferConsumer out, File targetDir, long hitsPerFile) throws IOException
+    public FilesHitSpool(BufferConsumer out, File configDir, File targetDir, long hitsPerFile)
     {
-        this(out, targetDir, hitsPerFile, 100);
+        this(out, configDir, targetDir, hitsPerFile, 100);
     }
 
-    public FilesHitSpool(BufferConsumer out, File targetDir) throws IOException
+    public FilesHitSpool(BufferConsumer out, File configDir, File targetDir)
     {
-        this(out, targetDir, 100000L);
+        this(out, configDir, targetDir, 100000L);
     }
 
     private int transform(ByteBuffer buf)
@@ -136,6 +122,13 @@ public class FilesHitSpool implements BufferConsumer
     {
         if (null != out) out.consume(buf);
         if (isHosed) return;
+        if (buf.limit() < 38) {
+            if (buf.limit() != 0) {
+                logger.error("Skipping short buffer (" + buf.limit() +
+                             " bytes)");
+            }
+            return;
+        }
 
         // bytes 24 .. 31 hold the 64-bit UTC clock value
         t = buf.getLong(24);
@@ -160,24 +153,17 @@ public class FilesHitSpool implements BufferConsumer
             currentFileIndex = fileNo;
             try
             {
-            	openNewFile();
+                openNewFile();
             }
             catch (IOException iox)
             {
-            	logger.error("openNewFile threw " + iox.getMessage() +
-            			". HitSpooling will be terminated.");
-            	dataOut = null;
-            	isHosed = true;
-            	return;
+                logger.error("openNewFile threw " + iox.getMessage() +
+                             ". HitSpooling will be terminated.");
+                dataOut = null;
+                isHosed = true;
+                return;
             }
         }
-
-        // this buffer wrap fix conflicts with HitSpool code
-        /*
-        byte[] tmpArray = new byte[buf.remaining()];
-        buf.get(tmpArray);
-        dataOut.write(tmpArray);
-        */
 
         // now I should be free to pack the buffer, if that is the
         // behavior desired.
@@ -185,14 +171,14 @@ public class FilesHitSpool implements BufferConsumer
 
         try
         {
-        	dataOut.write(iobuf, 0, nw);
+            dataOut.write(iobuf, 0, nw);
         }
         catch (IOException iox)
         {
-        	logger.error("hit spool writing failed b/c " + iox.getMessage() +
-        			". Hit spooling will be terminated.");
-        	dataOut = null;
-        	isHosed = true;
+            logger.error("hit spool writing failed b/c " + iox.getMessage() +
+                         ". Hit spooling will be terminated.");
+            dataOut = null;
+            isHosed = true;
         }
     }
 

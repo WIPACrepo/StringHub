@@ -6,13 +6,14 @@ import icecube.daq.dor.Driver;
 import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.TimeCalib;
+import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.ZeroCrossingRAPCal;
 import icecube.daq.util.UTC;
 
-import java.io.IOException;
 import java.io.File;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Timer;
@@ -44,16 +45,15 @@ public class AuraDataCollector extends AbstractDataCollector
     private static final int    EVT_TRACR_MATCH_CLK = 40;
     private static final int    EVT_TRACR_CLK       = 106;
 
-    private short[][]           radioDACs           = { 
+    private short[][]           radioDACs           = {
             { 2000, 3000, 3200, 3250 },
-            { 2000, 3000, 3200, 3250 }, 
-            { 2000, 3000, 3200, 3250 }, 
+            { 2000, 3000, 3200, 3250 },
+            { 2000, 3000, 3200, 3250 },
             { 2000, 3000, 3200, 3250 } };
 
     // This is the default : 3/4 ch and 3/4 bands
-    private int                 triggerSetting      = 68;   
+    private int                 triggerSetting      = 68;
     private static final Logger logger              = Logger.getLogger(AuraDataCollector.class);
-    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
 
     public AuraDataCollector(int card, int pair, char dom, BufferConsumer hits)
     {
@@ -204,7 +204,7 @@ public class AuraDataCollector extends AbstractDataCollector
             tracr_clk = tracr_clk & 0xffffffffffL;
             buf.order(ByteOrder.LITTLE_ENDIAN);
             utc = rapcal.domToUTC(2 * tracr_clk + tracr_clock_offset).in_0_1ns();
-            if (DEBUG_ENABLED)
+            if (logger.isDebugEnabled())
             {
                 logger.debug("DOMClk: " + domclk + " TracrMatchClk: " + tracr_match_clk
                         + " TracrClk: " + tracr_clk + " - UTC: " + utc);
@@ -214,7 +214,7 @@ public class AuraDataCollector extends AbstractDataCollector
         else
         {
             utc = rapcal.domToUTC(domclk).in_0_1ns();
-            if (DEBUG_ENABLED)
+            if (logger.isDebugEnabled())
                 logger.debug("No tracr clock (beacon?): DOMClk: " + domclk + " - UTC: " + utc);
         }
         ByteBuffer xtb = ByteBuffer.allocate(xtbSize);
@@ -227,7 +227,7 @@ public class AuraDataCollector extends AbstractDataCollector
         xtb.rewind();
         try
         {
-            if (DEBUG_ENABLED)
+            if (logger.isDebugEnabled())
                 logger.debug("Sending buffer of size " + xtb.remaining());
             hits.consume(xtb);
         }
@@ -266,6 +266,11 @@ public class AuraDataCollector extends AbstractDataCollector
     public void setRadioDACs(short[][] dacs)
     {
         this.radioDACs = dacs;
+    }
+
+    public void setLiveMoni(LiveTCalMoni moni)
+    {
+        rapcal.setMoni(moni);
     }
 
     @Override
