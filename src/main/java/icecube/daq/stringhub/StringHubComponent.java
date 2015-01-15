@@ -47,6 +47,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -67,7 +69,6 @@ public class StringHubComponent
 	extends DAQComponent
 	implements StringHubComponentMBean
 {
-
 	private static final Logger logger =
 		Logger.getLogger(StringHubComponent.class);
 
@@ -103,9 +104,9 @@ public class StringHubComponent
 
 	private int hitSpoolNumFiles = 100;
 
-	/** map of configured DOMs filled during configuring() */
-	private HashMap<String, DeployedDOM> configuredDOMs =
-		new HashMap<String, DeployedDOM>();
+	/** list of configured DOMs filled during configuring() */
+	private ArrayList<DeployedDOM> configuredDOMs =
+		new ArrayList<DeployedDOM>();
 
 	public StringHubComponent(int hubId)
 	{
@@ -576,10 +577,62 @@ public class StringHubComponent
 									   " is stopped");
 		}
 
+		if (getNumber() % 1000 < SourceIdRegistry.ICETOP_ID_OFFSET) {
+			sendConfiguredIniceDOMs(runNumber, alertQueue);
+		} else {
+			sendConfiguredIcetopDOMs(runNumber, alertQueue);
+		}
+	}
+
+	/**
+	 * Send the list(s) of configured icetop DOMs
+	 *
+	 * @param runNumber run number
+	 * @param alertQueue alert sender
+	 *
+	 * @throws DAQCompException if the alert cannot be sent
+	 */
+	private void sendConfiguredIcetopDOMs(int runNumber, AlertQueue alertQueue)
+		throws DAQCompException
+	{
+		int strnum = -1;
+		int first = 0;
+		for (int i = 0; i < configuredDOMs.size(); i++) {
+			DeployedDOM dom = configuredDOMs.get(i);
+			if (dom.getStringMajor() == strnum) {
+				// this DOM is on the same string
+				continue;
+			}
+
+			if (strnum > 0) {
+				sendOneIcetopReport(runNumber, alertQueue, strnum, first,
+									i - first);
+			}
+
+			strnum = dom.getStringMajor();
+			first = i;
+		}
+
+		if (strnum > 0) {
+			sendOneIcetopReport(runNumber, alertQueue, strnum, first,
+								configuredDOMs.size() - first);
+		}
+	}
+
+	/**
+	 * Send the list of configured in-ice DOMs for this hub.
+	 *
+	 * @param runNumber run number
+	 *
+	 * @throws DAQCompException if the alert cannot be sent
+	 */
+	private void sendConfiguredIniceDOMs(int runNumber, AlertQueue alertQueue)
+		throws DAQCompException
+	{
 		int[] list = new int[configuredDOMs.size()];
 
 		int idx = 0;
-		for (DeployedDOM dom : configuredDOMs.values()) {
+		for (DeployedDOM dom : configuredDOMs) {
 			list[idx++] = dom.getStringMinor();
 		}
 
@@ -590,6 +643,39 @@ public class StringHubComponent
 
 		try {
 			alertQueue.push("doms_in_config", Alerter.Priority.EMAIL, values);
+		} catch (AlertException ae) {
+			throw new DAQCompException("Cannot send alert", ae);
+		}
+	}
+
+	/**
+	 * Send a single list of configured icetop DOMs for the specified tank
+	 *
+	 * @param runNumber run number
+	 * @param alertQueue alert sender
+	 * @param strnum original string number
+	 * @param first first index into configuredDOMs
+	 * @param len number of DOMs in list
+	 *
+	 * @throws DAQCompException if the alert cannot be sent
+	 */
+	private void sendOneIcetopReport(int runNumber, AlertQueue alertQueue,
+									 int strnum, int first, int len)
+		throws DAQCompException
+	{
+		int[] list = new int[len];
+		for (int i = 0; i < len; i++) {
+			list[i] = configuredDOMs.get(first + i).getStringMinor();
+		}
+
+		HashMap<String, Object> values = new HashMap<String, Object>();
+		values.put("string", strnum);
+		values.put("runNumber", runNumber);
+		values.put("doms", list);
+
+		try {
+			alertQueue.push("doms_in_config", Alerter.Priority.EMAIL,
+							values);
 		} catch (AlertException ae) {
 			throw new DAQCompException("Cannot send alert", ae);
 		}
@@ -797,7 +883,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15339 2015-01-13 19:07:58Z dglo $";
+		return "$Id: StringHubComponent.java 15352 2015-01-15 18:12:19Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1148,9 +1234,11 @@ public class StringHubComponent
 				}
 
 					// add to the list of configured DOMs
-					configuredDOMs.put(mbid, deployedDOM);
+					configuredDOMs.add(deployedDOM);
 				}
 			}
+
+			new DOMSorter().sort(configuredDOMs);
 		}
 
 		DOMConfiguration getDOMConfig(String mbid)
@@ -1262,6 +1350,47 @@ public class StringHubComponent
 			}
 
 			return true;
+		}
+	}
+
+	class DOMSorter
+		implements Comparator<DeployedDOM>
+	{
+		/**
+		 * Compare two DOMs.
+		 *
+		 * @param d1 first DOM
+		 * @param d2 second DOM
+		 *
+		 * @return the usual comparison values
+		 */
+		public int compare(DeployedDOM d1, DeployedDOM d2)
+		{
+			int val = d1.getStringMajor() - d2.getStringMajor();
+			if (val == 0) {
+				val = d2.getStringMinor() - d2.getStringMinor();
+			}
+			return (val == 0 ? 0 : (val < 0 ? -1 : 1));
+		}
+
+		/**
+		 * Do the objects implement the same class?
+		 *
+		 * @return <tt>true</tt> if they are the same class
+		 */
+		public boolean equals(Object obj)
+		{
+			return obj.getClass().getName().equals(getClass().getName());
+		}
+
+		/**
+		 * Sort the list of files.
+		 *
+		 * @param files list of files
+		 */
+		public void sort(List<DeployedDOM> doms)
+		{
+			Collections.sort(doms, this);
 		}
 	}
 }
