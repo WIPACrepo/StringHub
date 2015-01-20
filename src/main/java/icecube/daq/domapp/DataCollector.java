@@ -1352,15 +1352,22 @@ public class DataCollector
 		// determine if we should use get_intervals or
 		// fallback to the original query algorithm
 		String version = app.getRelease();
-        boolean interval_override = !disable_intervals &&
-                version_supports_intervals(version);
-
-        if(interval_override != disable_intervals)
+        if(!disable_intervals)
         {
-            logger.warn("Overriding interval setting, dom " +
-                    "software version" + version + " does not support " +
-                    "intervals");
-            disable_intervals = interval_override;
+            if(!version_supports_intervals(version))
+            {
+                logger.warn("Overriding interval setting, dom " +
+                        "software version [" + version + "] does not support " +
+                        "" +
+                        "intervals");
+                disable_intervals = true;
+            }
+        }
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("Using data acquisition mode [" +
+                    (disable_intervals ? "QUERY" : "INTERVAL") +
+                    "]");
         }
 
         runcore(!disable_intervals);
