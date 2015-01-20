@@ -1257,17 +1257,16 @@ public class DataCollector
 
 
 	/**
-	 * As there are two versions of runcore now ( both for the original query
-	 * method and the get_interval method ), this is contains code common to both
-	 * methods.  In addiiton it will decide which method to use.
-	 *
-	 * If the user explicitly disables intervals setting
-	 * runConfig/Stringhub[id=X]/intervals/enable/false
-	 * or the domapp version is not high enough to support
-	 * intervals it will default to the query method.  Otherwise, intervals
-	 * will be used.
+     * Initiate the core data acquisition run loop.
+     *
+     * NOTES:
+     * If the user explicitly disables intervals setting
+     * runConfig/Stringhub[id=X]/intervals/enable/false
+     * or the domapp version is not high enough to support
+     * intervals it will default to the query method.  Otherwise, intervals
+     * will be used.
 	*/
-	private void runcore_universal() throws Exception
+	private void launch_runcore() throws Exception
 	{
 
         driver.resetComstat(card, pair, dom);
@@ -1347,25 +1346,24 @@ public class DataCollector
             execRapCal();
         }
 
+        //todo Reconsider the interval setting override. A hard
+        //     error may be preferable.
+        //
 		// determine if we should use get_intervals or
-		// the original query algorithm
+		// fallback to the original query algorithm
 		String version = app.getRelease();
-		if(!disable_intervals && version_supports_intervals(version)) {
-			if (logger.isDebugEnabled()) {
-				logger.debug("Using intervals run loop!");
-			}
-			// configure is only called inside the following
-			runcore_interval();
-		} else {
-			if (logger.isDebugEnabled()) {
-				logger.debug("Using original run loop!");
-			}
-			// explicitly turn off intervals if the dom-mb version
-			// does not support intervals
-			this.disable_intervals = true;
-			// configure is only called inside the following
-			runcore_orig();
-		}
+        boolean interval_override = !disable_intervals &&
+                version_supports_intervals(version);
+
+        if(interval_override != disable_intervals)
+        {
+            logger.warn("Overriding interval setting, dom " +
+                    "software version" + version + " does not support " +
+                    "intervals");
+            disable_intervals = interval_override;
+        }
+
+        runcore(!disable_intervals);
 	}
 
 	/**
@@ -1401,256 +1399,12 @@ public class DataCollector
 		return results;
 	}
 
-
     /**
-	 * The guts of this method use the DOM query algorithm.
-	 * A 'GET_DATA' message is sent down to the dom every 10ms followed by
-	 * a get_moni and get_sn message wrapping up with a tcal every second.
-	 *
+     * The core acquisition loop.
+     *
+     * @throws Exception
      */
-    private void runcore_orig() throws Exception
-    {
-
-        while (!stop_thread && !interrupted())
-        {
-            long t = System.currentTimeMillis();
-            boolean tired = true;
-
-            // Ping the watchdog task
-            intTask.ping();
-
-            loopCounter++;
-
-            /* Do TCAL and GPS -- this always runs regardless of the run state */
-            if (t >= nextTcalRead)
-            {
-                if (logger.isDebugEnabled()) logger.debug("Doing TCAL - runLevel is " + getRunLevel());
-                execRapCal();
-            }
-
-            switch (getRunLevel())
-            {
-            case RUNNING:
-                CycleStats cycleStats = cycleMonitor.initiateCycle();
-
-                try
-                {
-                    // Time to do a data collection?
-                    if (t>=nextDataRead)
-                    {
-                        nextDataRead = t + dataReadInterval;
-
-                        try
-                        {
-                            // Get debug information during Alpaca failures
-                            ByteBuffer data = app.getData();
-                            cycleStats.reportDataMessageRcv(data);
-
-                            if (data.remaining() > 0) tired = false;
-
-                            dataProcess(cycleStats, data);
-                        }
-                        catch (IllegalArgumentException ex)
-                        {
-                            logger.error("Caught & re-raising IllegalArgumentException");
-                            logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
-                            logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
-                            throw ex;
-                        }
-                    }
-
-                    // What about monitoring?
-                    if (t >= nextMoniRead)
-                    {
-                        nextMoniRead = t + moniReadInterval;
-
-                        ByteBuffer moni = app.getMoni();
-                        if (moni.remaining() > 0)
-                        {
-                            moniProcess(moni);
-                            tired = false;
-                        }
-                    }
-
-                    if (t > nextSupernovaRead)
-                    {
-                        nextSupernovaRead = t + supernovaReadInterval;
-                        while (!supernova_disabled)
-                        {
-                            ByteBuffer sndata = app.getSupernova();
-                            if (sndata.remaining() > 0)
-                            {
-                                supernovaProcess(sndata);
-                                tired = false;
-                                break;
-                            }
-                        }
-                    }
-                }
-                finally
-                {
-                    cycleMonitor.completeCycle(cycleStats);
-                }
-                break;
-
-            case CONFIGURING:
-                /* Need to handle a configure */
-                logger.debug("Got CONFIGURE signal.");
-                configure(config);
-                logger.debug("DOM is configured.");
-                setRunLevel(RunLevel.CONFIGURED);
-                break;
-
-            case STARTING:
-                if (logger.isDebugEnabled()) {
-                    logger.debug("Got START RUN signal " + canonicalName());
-                }
-                app.beginRun();
-                cycleMonitor.reportRunStart();
-                storeRunStartTime();
-                logger.debug("DOM is running.");
-                setRunLevel(RunLevel.RUNNING);
-                break;
-
-            case STARTING_SUBRUN:
-                /*
-                 * I must stop the current run unless I was just running a flasher run
-                 * on this DOM and I am just changing the flasher parameters.
-                 */
-                logger.info("Starting subrun - flasher config is " +
-                        (flasherConfig == null ? "" : " not ") + "null / lately " +
-                        (latelyRunningFlashers ? "" : "not ") + "running flashers.");
-                if (!(latelyRunningFlashers && flasherConfig != null))
-                {
-                    setRunLevel(RunLevel.STOPPING_SUBRUN);
-                    app.endRun();
-                    setRunLevel(RunLevel.CONFIGURING);
-                    latelyRunningFlashers = false;
-                }
-                if (flasherConfig != null)
-                {
-                    logger.info("Starting flasher subrun");
-                    if (latelyRunningFlashers)
-                    {
-                        logger.info("Only changing flasher board configuration");
-                        app.changeFlasherSettings(
-                                (short) flasherConfig.getBrightness(),
-                                (short) flasherConfig.getWidth(),
-                                (short) flasherConfig.getDelay(),
-                                (short) flasherConfig.getMask(),
-                                (short) flasherConfig.getRate()
-                                );
-                    }
-                    else
-                    {
-                        DOMConfiguration tempConfig = new DOMConfiguration(config);
-                        tempConfig.setHV(-1);
-                        tempConfig.setTriggerMode(TriggerMode.FB);
-                        LocalCoincidenceConfiguration lcX = new LocalCoincidenceConfiguration();
-                        lcX.setRxMode(RxMode.RXNONE);
-                        tempConfig.setLC(lcX);
-                        tempConfig.setEngineeringFormat(
-                                new EngineeringRecordFormat((short) 0, new short[] { 0, 0, 0, 64 })
-                                );
-                        tempConfig.setMux(MuxState.FB_CURRENT);
-                        configure(tempConfig);
-                        sleep(new Random().nextInt(250));
-                        logger.info("Beginning new flasher board run");
-                        app.beginFlasherRun(
-                                (short) flasherConfig.getBrightness(),
-                                (short) flasherConfig.getWidth(),
-                                (short) flasherConfig.getDelay(),
-                                (short) flasherConfig.getMask(),
-                                (short) flasherConfig.getRate()
-                                );
-                    }
-                    latelyRunningFlashers = true;
-                }
-                else
-                {
-                    logger.info("Returning to non-flashing state");
-                    configure(config);
-                    app.beginRun();
-                }
-                //todo consider how subruns should interact with
-                //     the cycleMonitor
-                // ??? cycleMonitor.reportRunStart();
-                storeRunStartTime();
-                setRunLevel(RunLevel.RUNNING);
-                break;
-
-            case PAUSING:
-                if (logger.isDebugEnabled()) {
-                    logger.debug("Got PAUSE RUN signal " + canonicalName());
-                }
-                app.endRun();
-                setRunLevel(RunLevel.CONFIGURED);
-                break;
-
-            case STOPPING:
-                if (logger.isDebugEnabled()) {
-                    logger.debug("Got STOP RUN signal " + canonicalName());
-                }
-                app.endRun();
-                ByteBuffer eos = MultiChannelMergeSort.eos(numericMBID);
-                if (hitsConsumer != null) hitsConsumer.consume(eos.asReadOnlyBuffer());
-                if (moniConsumer != null) moniConsumer.consume(eos.asReadOnlyBuffer());
-                if (tcalConsumer != null) tcalConsumer.consume(eos.asReadOnlyBuffer());
-                if (supernovaConsumer != null) supernovaConsumer.consume(eos.asReadOnlyBuffer());
-                logger.debug("Wrote EOS to streams.");
-
-				if(ENABLE_STATS) {
-					System.out.println(card+"/"+pair+"/"+dom+": rate: "+config.getPulserRate()+" max: "+data_max+" min:"+data_min+" mean: "+data_fmt.format(data_m_n)+" var: "+data_fmt.format((data_s_n / ( data_count - 1.0 )))+" count: "+data_count+" zero count: "+data_zero_count+ " lbm overflows: "+numLBMOverflows+" hit rate: "+rtHitRate.getRate()+" hit rate LC: "+rtLCRate.getRate());
-				}
-
-                setRunLevel(RunLevel.CONFIGURED);
-                break;
-            }
-
-            if (tired)
-            {
-                if (logger.isDebugEnabled()) {
-                    logger.debug("Runcore loop is tired - sleeping " +
-                                 threadSleepInterval + " ms.");
-                }
-                try
-                {
-                    Thread.sleep(threadSleepInterval);
-                }
-                catch (InterruptedException intx)
-                {
-                    logger.warn("Interrupted.");
-                }
-            }
-        } /* END RUN LOOP */
-    } /* END METHOD */
-
-
-    /**
-	 * This is an updated version of the original runcore method.
-	 * It requires domapp version 4477 or above.
-	 *
-	 * Instead of sending query messages down to the dom every 10 ms one
-	 * "GET_INTERVAL" message is sent.  The results from that message are that all
-	 * data for the next second is returned followed by a moni and supernova message.
-	 * If supernova messages are disabled get interval will not work.
-	 *
-	 * In addition when statistics where run on the original method it appears that
-	 * the original code did not efficiently use the entire amount of space available
-	 * in messages.  Resulting in lots of small messages being returned from the dom.
-	 * The required domapp release 4477 packs the responses as tightly as possible
-	 * before sending the results to the stringhub for processing.  Further on
-	 * an LBM overflow the original code returned a zero length message to the surface
-	 * which causes the stringhub code to wait for one second before querying father.
-	 * This code is not effected by that decision.
-	 *
-	 * The following algorithm runs inside the domapp eventloop:
-	 *
-	 * if one second interval has expired, return any available data.
-	 * If the second has not expired and we have a full message send it
-	 * otherwise continue
-     */
-    private void runcore_interval() throws Exception
+    private void runcore(final boolean useIntervals) throws Exception
     {
         while (!stop_thread && !interrupted())
         {
@@ -1672,70 +1426,13 @@ public class DataCollector
 			switch (getRunLevel())
             {
             case RUNNING:
-				app.getInterval();
-                CycleStats cycleStats = cycleMonitor.initiateCycle();
-
-                try
+                if(useIntervals)
                 {
-                    boolean done = false;
-                    while (!done) {
-                        tired = true;
-                        ByteBuffer msg = app.recvMessage(intervalBuffer);
-                        cycleStats.reportDataMessageRcv(msg);
-
-                        intTask.ping();
-
-                        byte msg_type = msg.get(0);
-                        byte msg_subtype = msg.get(1);
-
-                        // past the header
-                        msg.position(8);
-
-                        if(MessageType.GET_DATA.equals(msg_type, msg_subtype)) {
-                            if (msg.remaining()>0) {
-                                tired = false;
-                            }
-
-                            dataProcess(cycleStats, msg.slice());
-                        } else if(MessageType.GET_SN_DATA.equals(msg_type, msg_subtype)) {
-                            if (msg.remaining()>0) {
-                                supernovaProcess(msg.slice());
-                                tired = false;
-                            }
-                            done = true;
-                        } else if(MessageType.GET_MONI.equals(msg_type, msg_subtype)) {
-                            if (msg.remaining()>0) {
-                                moniProcess(msg.slice());
-                                tired = false;
-                            }
-                            // If we're not going to get a SN message, this marks the
-                            // end of the interval
-                            done = supernova_disabled;
-                        } else {
-                            // assume a status of one
-                            // as the recv code will have
-                            // thrown an exception if that was not
-                            // true
-                            throw new MessageException(MessageType.GET_DATA,
-                                    msg_type, msg_subtype, 1);
-                        }
-
-                        if(tired) {
-                            // sleep before next iteration
-                            try
-                            {
-                                Thread.sleep(threadSleepInterval);
-                            }
-                            catch (InterruptedException intx)
-                            {
-                                logger.warn("Interrupted.");
-                            }
-                        }
-                    }
+                    tired = doInterval();
                 }
-                finally
+                else
                 {
-                    cycleMonitor.completeCycle(cycleStats);
+                    tired = doPolling(t);
                 }
                 break;
 
@@ -1870,6 +1567,193 @@ public class DataCollector
             }
         } /* END RUN LOOP */
     } /* END METHOD */
+
+
+    /**
+     * Execute a single polling data collection cycle.
+     *
+     * The guts of this method use the DOM query algorithm.
+     * A 'GET_DATA' message is sent down to the dom every 10ms followed by
+     * a get_moni and get_sn message wrapping up with a tcal every second.
+     *
+     * @return True if polling did not receive data, an indication for caller
+     *         to throttle down.
+     */
+    private boolean doPolling(final long systemTimMillis) throws
+            MessageException, IOException
+    {
+        boolean tired = true;
+
+        CycleStats cycleStats = cycleMonitor.initiateCycle();
+
+        try
+        {
+            // Time to do a data collection?
+            if (systemTimMillis >= nextDataRead)
+            {
+                nextDataRead = systemTimMillis + dataReadInterval;
+
+                try
+                {
+                    // Get debug information during Alpaca failures
+                    ByteBuffer data = app.getData();
+                    cycleStats.reportDataMessageRcv(data);
+
+                    if (data.remaining() > 0) tired = false;
+
+                    dataProcess(cycleStats, data);
+                }
+                catch (IllegalArgumentException ex)
+                {
+                    logger.error("Caught & re-raising IllegalArgumentException");
+                    logger.error("Driver comstat for "+card+""+pair+dom+":\n"+driver.getComstat(card,pair,dom));
+                    logger.error("FPGA regs for card "+card+":\n"+driver.getFPGARegs(card));
+                    throw ex;
+                }
+            }
+
+            // What about monitoring?
+            if (systemTimMillis >= nextMoniRead)
+            {
+                nextMoniRead = systemTimMillis + moniReadInterval;
+
+                ByteBuffer moni = app.getMoni();
+                if (moni.remaining() > 0)
+                {
+                    moniProcess(moni);
+                    tired = false;
+                }
+            }
+
+            if (systemTimMillis > nextSupernovaRead)
+            {
+                nextSupernovaRead = systemTimMillis + supernovaReadInterval;
+                while (!supernova_disabled)
+                {
+                    ByteBuffer sndata = app.getSupernova();
+                    if (sndata.remaining() > 0)
+                    {
+                        supernovaProcess(sndata);
+                        tired = false;
+                        break;
+                    }
+                }
+            }
+        }
+        finally
+        {
+            cycleMonitor.completeCycle(cycleStats);
+        }
+
+        return tired;
+    }
+
+    /**
+     * Execute a single interval data collection cycle.
+     *
+     * NOTES:
+     *
+     * Requires domapp version 445 or above. (test version 4477).
+     *
+     * Prior to domapp release 446, supernova messages must be enabled.
+     *
+     * HISTORY:
+     * This is an updated version of the original polling method.
+     *
+     * Instead of sending query messages down to the dom every 10 ms one
+     * "GET_INTERVAL" message is sent.  The results from that message are that all
+     * data for the next second is returned followed by a moni and supernova message.
+     *
+     * In addition when statistics where run on the original method it appears that
+     * the original code did not efficiently use the entire amount of space available
+     * in messages.  Resulting in lots of small messages being returned from the dom.
+     * The required domapp release 4477 packs the responses as tightly as possible
+     * before sending the results to the stringhub for processing.  Further on
+     * an LBM overflow the original code returned a zero length message to the surface
+     * which causes the stringhub code to wait for one second before querying father.
+     * This code is not effected by that decision.
+     *
+     * The following algorithm runs inside the domapp eventloop:
+     *
+     * if one second interval has expired, return any available data.
+     * If the second has not expired and we have a full message send it
+     * otherwise continue
+     *
+     * @return True if polling did not receive data, an indication for caller
+     *         to throttle down.
+     *
+     */
+    private boolean doInterval() throws MessageException, IOException
+    {
+        boolean tired = true;
+
+        CycleStats cycleStats = cycleMonitor.initiateCycle();
+        try
+        {
+            boolean done = false;
+            app.getInterval();
+
+            while (!done) {
+                ByteBuffer msg = app.recvMessage(intervalBuffer);
+                cycleStats.reportDataMessageRcv(msg);
+
+                intTask.ping();
+
+                byte msg_type = msg.get(0);
+                byte msg_subtype = msg.get(1);
+
+                // past the header
+                msg.position(8);
+
+                if(MessageType.GET_DATA.equals(msg_type, msg_subtype)) {
+                    if (msg.remaining()>0) {
+                        tired = false;
+                    }
+
+                    dataProcess(cycleStats, msg.slice());
+                } else if(MessageType.GET_SN_DATA.equals(msg_type, msg_subtype)) {
+                    if (msg.remaining()>0) {
+                        supernovaProcess(msg.slice());
+                        tired = false;
+                    }
+                    done = true;
+                } else if(MessageType.GET_MONI.equals(msg_type, msg_subtype)) {
+                    if (msg.remaining()>0) {
+                        moniProcess(msg.slice());
+                        tired = false;
+                    }
+                    // If we're not going to get a SN message, this marks the
+                    // end of the interval
+                    done = supernova_disabled;
+                } else {
+                    // assume a status of one
+                    // as the recv code will have
+                    // thrown an exception if that was not
+                    // true
+                    throw new MessageException(MessageType.GET_DATA,
+                            msg_type, msg_subtype, 1);
+                }
+
+                if(tired) {
+                    // sleep before next iteration
+                    try
+                    {
+                        Thread.sleep(threadSleepInterval);
+                    }
+                    catch (InterruptedException intx)
+                    {
+                        logger.warn("Interrupted.");
+                    }
+                }
+            }
+        }
+        finally
+        {
+            cycleMonitor.completeCycle(cycleStats);
+        }
+
+        return tired;
+    }
 
     public long getRunStartTime()
     {
