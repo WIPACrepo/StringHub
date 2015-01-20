@@ -1167,7 +1167,7 @@ public class DataCollector
 			// core common to both intervals AND query
 			// it will decide which method is appropriate and
 			// call runcore_orig or runcore_interval
-			runcore_universal();
+			launch_runcore();
         }
         catch (Exception x)
         {
