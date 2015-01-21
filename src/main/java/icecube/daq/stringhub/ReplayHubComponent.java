@@ -571,7 +571,8 @@ public class ReplayHubComponent
      *
      * @throws DAQCompException if there is a problem
      */
-    public void starting()
+    @Override
+    public void starting(int runNumber)
         throws DAQCompException
     {
         sender.reset();
@@ -598,6 +599,7 @@ public class ReplayHubComponent
      *
      * @throws DAQCompException always, because this is not yet implemented!
      */
+    @Override
     public long startSubrun(List<FlasherboardConfiguration> flasherConfigs)
         throws DAQCompException
     {
@@ -607,6 +609,7 @@ public class ReplayHubComponent
     /**
      * Stop sending data.
      */
+    @Override
     public void stopping()
     {
         if (fileThread == null) {
