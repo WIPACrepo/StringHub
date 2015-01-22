@@ -11,7 +11,6 @@ import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.GPSService;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
-import icecube.daq.juggler.alert.AlertQueue;
 import icecube.daq.juggler.alert.Alerter.Priority;
 import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.rapcal.RAPCal;
@@ -35,7 +34,6 @@ import java.util.Queue;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import org.apache.log4j.Logger;
@@ -113,13 +111,13 @@ public class DataCollector
     private IDOMApp             app;
     private RAPCal              rapcal;
     private IDriver             driver;
-    private boolean             stop_thread;
+    private volatile boolean    stop_thread;
     private BufferConsumer      hitsConsumer;
     private BufferConsumer      moniConsumer;
     private BufferConsumer      tcalConsumer;
     private BufferConsumer      supernovaConsumer;
 
-    private InterruptorTask intTask = new InterruptorTask();
+    private final InterruptorTask watchdog = new InterruptorTask();
 
     private static final Logger         logger  = Logger.getLogger(DataCollector.class);
 
@@ -173,7 +171,7 @@ public class DataCollector
     private int     numMoni               = 0;
     private int     numSupernova          = 0;
     private int     loopCounter           = 0;
-    private long    lastTcalUT;
+    private volatile long       lastTcalUT;
     private volatile long       runStartUT = 0L;
     private int     numLBMOverflows       = 0;
 
@@ -493,7 +491,6 @@ public class DataCollector
 
         final CycleStats initiateCycle()
         {
-
             CycleStats cycleStats =
                     new CycleStats(++sequence, lastCycleNanos, lastCycleDOMClk);
             cycleStats.reportCycleStart();
@@ -1126,7 +1123,7 @@ public class DataCollector
         }
         catch (InterruptedException intx)
         {
-            logger.warn("Got interrupted exception", intx);
+            watchdog.handleInterrupted(intx);
         }
 	    return null;
     }
@@ -1151,58 +1148,30 @@ public class DataCollector
      */
     public void run()
     {
-	synchronized (this) {
 	    lastTcalUT = 0L;
-	}
         nextSupernovaDomClock = 0L;
         numSupernovaGaps = 0;
 
-        logger.debug("Begin data collection thread");
 
-        // Create a watcher timer
-        Timer watcher = new Timer(getName() + "-timer");
-        watcher.schedule(intTask, 20000L, 5000L);
+        // Defines the activation point of the data collector thread.
+        // Arrange for a watchdog that monitors liveliness as well
+        // as providing logic that reports unrequested exits and executes
+        // cleanup.
         try
         {
-			// core common to both intervals AND query
-			// it will decide which method is appropriate and
-			// call runcore_orig or runcore_interval
+            logger.debug("Begin data collection thread");
+            watchdog.enable();
 			launch_runcore();
         }
-        catch (Exception x)
+        catch (Throwable th)
         {
-            logger.error("Intercepted error in DataCollector runcore", x);
-            /*
-             * TODO cleanup needed set run level to ZOMBIE so that controller
-             * knows that this channel has expired and does not wait.
-             */
-            setRunLevel(RunLevel.ZOMBIE);
-			StringHubAlert.sendDOMAlert(alertQueue, Priority.EMAIL,
-										"Zombie DOM", card, pair, dom,
-										mbid, name, major, minor, runNumber,
-										lastHitTime);
+            watchdog.reportAbnormalExit(th);
         }
-        watcher.cancel();
-
-        // clear interrupted flag if it is set
-        interrupted();
-
-        // Make sure EoS (end-of-stream symbol) is written
-        try
+        finally
         {
-            ByteBuffer eos = MultiChannelMergeSort.eos(numericMBID);
-            if (hitsConsumer != null) hitsConsumer.consume(eos.asReadOnlyBuffer());
-            if (moniConsumer != null) moniConsumer.consume(eos.asReadOnlyBuffer());
-            if (tcalConsumer != null) tcalConsumer.consume(eos.asReadOnlyBuffer());
-            if (supernovaConsumer != null) supernovaConsumer.consume(eos.asReadOnlyBuffer());
-            logger.info("Wrote EOS to streams.");
+            watchdog.handleExit();
+            logger.info("End data collection thread.");
         }
-        catch (IOException iox)
-        {
-            logger.error(iox);
-        }
-
-        logger.info("End data collection thread.");
 
     } /* END OF run() METHOD */
 
@@ -1219,28 +1188,28 @@ public class DataCollector
             try
             {
                 driver.commReset(card, pair, dom);
-                intTask.ping();
+                watchdog.ping();
                 driver.softboot (card, pair, dom);
                 break;
             }
             catch (IOException iox)
             {
                 logger.warn("Softboot attempt failed - retrying after 5 sec");
-                Thread.sleep(5000L);
+                watchdog.sleep(5000L);
             }
         }
 
         for (int i = 0; i < 2; i++)
         {
-            Thread.sleep(20);
+            watchdog.sleep(20);
             driver.commReset(card, pair, dom);
-            Thread.sleep(20);
+            watchdog.sleep(20);
 
             try
             {
-                intTask.ping();
+                watchdog.ping();
                 app = new DOMApp(this.card, this.pair, this.dom);
-                Thread.sleep(20);
+                watchdog.sleep(20);
                 break;
             }
             catch (FileNotFoundException ex)
@@ -1308,7 +1277,7 @@ public class DataCollector
             {
                 logger.warn("DOM is not responding to DOMApp query - will attempt to softboot");
                 // Clear this thread's interrupted status
-                intTask.ping();
+                watchdog.ping();
                 interrupted();
             }
         }
@@ -1327,6 +1296,9 @@ public class DataCollector
                 {
                     if (iTry == 1) throw ex2;
                     logger.error("Failure to softboot to DOMApp - will retry one time.");
+
+                    //todo: Consider handling interrupt exception through the
+                    //      watchdog for graceful abort during softboot.
                 }
             }
         }
@@ -1334,7 +1306,7 @@ public class DataCollector
 
         setRunLevel(RunLevel.IDLE);
 
-        intTask.ping();
+        watchdog.ping();
         if (logger.isDebugEnabled()) {
             logger.debug("Found DOM " + mbid + " running " + app.getRelease());
         }
@@ -1342,7 +1314,7 @@ public class DataCollector
         // Grab 2 RAPCal data points to get started
         for (int nTry = 0; nTry < 10 && validRAPCalCount < 2; nTry++)
         {
-            Thread.sleep(100);
+            watchdog.sleep(100);
             execRapCal();
         }
 
@@ -1413,13 +1385,13 @@ public class DataCollector
      */
     private void runcore(final boolean useIntervals) throws Exception
     {
-        while (!stop_thread && !interrupted())
+        while (!stop_thread)
         {
             long t = System.currentTimeMillis();
             boolean tired = true;
 
             // Ping the watchdog task
-            intTask.ping();
+            watchdog.ping();
 
             loopCounter++;
 
@@ -1504,7 +1476,7 @@ public class DataCollector
                                 );
                         tempConfig.setMux(MuxState.FB_CURRENT);
                         configure(tempConfig);
-                        sleep(new Random().nextInt(250));
+                        watchdog.sleep(new Random().nextInt(250));
                         logger.info("Beginning new flasher board run");
                         app.beginFlasherRun(
                                 (short) flasherConfig.getBrightness(),
@@ -1561,16 +1533,9 @@ public class DataCollector
             {
                 if (logger.isDebugEnabled()) {
                     logger.debug("Runcore loop is tired - sleeping " +
-                                 threadSleepInterval + " ms.");
+                            threadSleepInterval + " ms.");
                 }
-                try
-                {
-                    Thread.sleep(threadSleepInterval);
-                }
-                catch (InterruptedException intx)
-                {
-                    logger.warn("Interrupted.");
-                }
+                watchdog.sleep(threadSleepInterval);
             }
         } /* END RUN LOOP */
     } /* END METHOD */
@@ -1704,7 +1669,7 @@ public class DataCollector
                 ByteBuffer msg = app.recvMessage(intervalBuffer);
                 cycleStats.reportDataMessageRcv(msg);
 
-                intTask.ping();
+                watchdog.ping();
 
                 byte msg_type = msg.get(0);
                 byte msg_subtype = msg.get(1);
@@ -1743,14 +1708,7 @@ public class DataCollector
 
                 if(tired) {
                     // sleep before next iteration
-                    try
-                    {
-                        Thread.sleep(threadSleepInterval);
-                    }
-                    catch (InterruptedException intx)
-                    {
-                        logger.warn("Interrupted.");
-                    }
+                    watchdog.sleep(threadSleepInterval);
                 }
             }
         }
@@ -1794,35 +1752,199 @@ public class DataCollector
 
     /**
      * A watchdog timer task to make sure data stream does not die.
+     *
+     * The Data Collector thread enables the watchdog at activation and
+     * notifies at exit.  In addition, methods running on the collector
+     * thread which are interruptable route InterruptedException handling
+     * here.
      */
     class InterruptorTask extends TimerTask
     {
-        private AtomicBoolean pinged;
+        private volatile boolean pinged = false;
+        private volatile boolean aborting = false;
+        private volatile boolean abnormalExit = false;
+
+        private volatile long lastPingNano = System.nanoTime();
+
+        private final Timer watcher;
 
         InterruptorTask()
         {
-            pinged = new AtomicBoolean(false);
+            watcher = new Timer(DataCollector.this.getName() + "-timer");
+        }
+
+        public void enable()
+        {
+            watcher.schedule(this, 20000L, 5000L);
         }
 
         public void run()
         {
-            if (!pinged.get())
+            synchronized (this)
             {
-                logger.error("data collection thread has become non-responsive - aborting.");
-                if (app != null) app.close();
-                interrupt();
+                if (!pinged)
+                {
+                    long silentPeriodNano = System.nanoTime() - lastPingNano;
+
+                    aborting = true;
+                    stop_thread = true;
+
+                    logger.error("data collection thread has become " +
+                            "non-responsive for ["+(silentPeriodNano/1000000)+" " +
+                            "ms] - aborting.");
+                    if (app != null) app.close();
+                    DataCollector.this.interrupt();
+                    setRunLevel(RunLevel.ZOMBIE);
+                }
+                pinged = false;
             }
-            pinged.set(false);
         }
 
         public void ping()
         {
-            if (logger.isDebugEnabled())
+            synchronized (this)
             {
-                logger.debug("pinged at " + fmt.format(System.nanoTime() * 1.0E-09));
+                long now = System.nanoTime();
+                if (logger.isDebugEnabled())
+                {
+                    long silentPeriodNano = now - lastPingNano;
+                    logger.debug("pinged at " + fmt.format(silentPeriodNano * 1.0E-09));
+                }
+                pinged = true;
+                lastPingNano = now;
             }
-            pinged.set(true);
         }
+
+        public boolean isAborting()
+        {
+            return aborting;
+        }
+
+        /**
+         * Defines sleeping behavior for code subjected to watchdog
+         * control.
+         */
+        public void sleep(final long millis)
+        {
+            try
+            {
+                Thread.sleep(millis);
+            }
+            catch (InterruptedException ie)
+            {
+                if(aborting)
+                {
+                    // expected
+                }
+                else
+                {
+                    logger.error("Unexpected Interrupt", ie);
+                }
+            }
+        }
+
+        /**
+         * Defines interrupt logging behavior for code subjected to watchdog
+         * control.
+         */
+        public void handleInterrupted(final InterruptedException ie)
+        {
+            if(aborting)
+            {
+                //expected
+            }
+            else
+            {
+                logger.error("Unexpected Interrupt", ie);
+            }
+        }
+
+        /**
+         * Reports abnormal data collector exit, resolving races between
+         * watchdog abort and other exceptions in favor of the
+         * watchdog.
+         */
+        public void reportAbnormalExit(Throwable reason)
+        {
+            if(aborting)
+            {
+                logger.error("DataCollector aborted at:", reason);
+            }
+            else
+            {
+                abnormalExit = true;
+                logger.error("Intercepted error in DataCollector runcore",
+                        reason);
+            }
+        }
+
+        /**
+         * Defines behavior at data collector exit.
+         *
+         * Handles the potential race conditions between the the data
+         * collector thread, the watchdog and external control by
+         * ensuring that any unrequested exit results in an alert
+         * and a run level of ZOMBIE.
+         */
+        public void handleExit()
+        {
+            // Note: The watchgdog timer remains in effect within this method.
+            //       If exit is blocked by the buffer consumers, the watchdog
+            //       timer will free it with an interrupt.
+            try
+            {
+                // clear interrupted flag if it is set
+                Thread.interrupted();
+
+                // Generate an alert if this was an unrequested exit
+                if(aborting || abnormalExit)
+                {
+                    setRunLevel(RunLevel.ZOMBIE);
+                    StringHubAlert.sendDOMAlert(alertQueue, Priority.EMAIL,
+                            "Zombie DOM", card, pair, dom,
+                            mbid, name, major, minor, runNumber,
+                            lastHitTime);
+
+                    //todo - squelch after mystery LBM overflows are solved
+                    for(CycleStats cycleStats : cycleMonitor.history)
+                    {
+                        logger.error("HISTORY:" + cycleStats.verbosePrint());
+                    }
+                }
+                else
+                {
+                    //clean exit
+                }
+
+                // Make sure EoS (end-of-stream symbol) is written
+                try
+                {
+                    ByteBuffer eos = MultiChannelMergeSort.eos(numericMBID);
+                    if (hitsConsumer != null) hitsConsumer.consume(eos.asReadOnlyBuffer());
+                    if (moniConsumer != null) moniConsumer.consume(eos.asReadOnlyBuffer());
+                    if (tcalConsumer != null) tcalConsumer.consume(eos.asReadOnlyBuffer());
+                    if (supernovaConsumer != null) supernovaConsumer.consume(eos.asReadOnlyBuffer());
+                    logger.info("Wrote EOS to streams.");
+                }
+                catch (IOException iox)
+                {
+                    logger.error("Error while writing EOS to consumers.", iox);
+                }
+
+            }
+            catch (Throwable th)
+            {
+                // This is a truly uncontrolled exit and should be considered
+                // a coding error.
+                logger.error("Error encountered while shutting down " +
+                        "collection thread.", th);
+            }
+            finally
+            {
+                watcher.cancel();
+            }
+        }
+
     }
 
     @Override
