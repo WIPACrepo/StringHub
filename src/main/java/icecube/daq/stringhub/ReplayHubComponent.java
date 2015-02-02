@@ -114,10 +114,14 @@ public class ReplayHubComponent
 
     /** Hit reader */
     private CachingHitSpoolReader payloadReader;
+    /** time of first hit */
+    private long firstTime;
 
     /** Offset to apply to every hit time */
     private long timeOffset;
-    /** File reader thread */
+    /** Hit reader thread */
+    private InputThread inThread;
+    /** Hit processor thread */
     private PayloadFileThread fileThread;
     /** Hit writer thread */
     private OutputThread outThread;
@@ -186,7 +190,8 @@ public class ReplayHubComponent
         try {
             reqIn = new RequestReader(COMPONENT_NAME, sender, rdoutReqFactory);
         } catch (IOException ioe) {
-            throw new Error("Couldn't create RequestReader", ioe);
+            throw new Error("Couldn't create hub#" + hubId + " RequestReader",
+                            ioe);
         }
         addMonitoredEngine(DAQConnector.TYPE_READOUT_REQUEST, reqIn);
 
@@ -242,7 +247,7 @@ public class ReplayHubComponent
     {
         if (configurationPath == null) {
             throw new DAQCompException("Global configuration directory has" +
-                                       " not been set");
+                                       " not been set for hub#" + hubId);
         }
 
         // clear hit file name
@@ -252,7 +257,7 @@ public class ReplayHubComponent
         try {
             doc = JAXPUtil.loadXMLDocument(configurationPath, configName);
         } catch (JAXPUtilException jux) {
-            throw new DAQCompException(jux);
+            throw new DAQCompException("Hub#" + hubId + " config failed", jux);
         }
 
         final String replayFilesStr = "runConfig/replayFiles";
@@ -263,11 +268,12 @@ public class ReplayHubComponent
             replayFiles =
                 (Element) JAXPUtil.extractNode(doc, replayFilesStr);
         } catch (JAXPUtilException jux) {
-            throw new DAQCompException(jux);
+            throw new DAQCompException("Hub#" + hubId +
+                                       " <replayFiles> parse failed", jux);
         }
         if (replayFiles == null) {
-            throw new DAQCompException("No replayFiles entry found in " +
-                                       configName);
+            throw new DAQCompException("No replayFiles entry found for hub#" +
+                                       hubId + " in " + configName);
         }
 
         // save base directory name
@@ -279,7 +285,8 @@ public class ReplayHubComponent
         try {
             hubNode = (Element) JAXPUtil.extractNode(doc, hubNodeStr);
         } catch (JAXPUtilException jux) {
-            throw new DAQCompException(jux);
+            throw new DAQCompException("Hub#" + hubId + " <hits> parse failed",
+                                       jux);
         }
         if (hubNode == null) {
             throw new DAQCompException("No replayFiles entry for hub#" +
@@ -300,6 +307,17 @@ public class ReplayHubComponent
         } catch (IOException ioe) {
             throw new DAQCompException("Cannot open " + hitFile, ioe);
         }
+
+        // save first time so CnCServer can calculate the run start time
+        firstTime = payloadReader.peekTime();
+        if (firstTime == Long.MIN_VALUE) {
+            throw new DAQCompException("Cannot get first payload time" +
+                                       " for hub#" + hubId);
+        }
+
+        // give the input thread a running start
+        inThread = new InputThread("InputThread#" + hubId, payloadReader);
+        inThread.start();
     }
 
     /**
@@ -320,7 +338,8 @@ public class ReplayHubComponent
     public long getEarliestLastChannelHitTime()
     {
         if (fileThread == null) {
-            LOG.error("No active thread for getEarliestLastChannelHitTime");
+            LOG.error("No active hub#" + hubId +
+                      " thread for getEarliestLastChannelHitTime");
             return 0L;
         }
 
@@ -354,7 +373,8 @@ public class ReplayHubComponent
     public long getLatestFirstChannelHitTime()
     {
         if (fileThread == null) {
-            LOG.error("No active thread for getLatestFirstChannelHitTime");
+            LOG.error("No active hub#" + hubId +
+                      " thread for getLatestFirstChannelHitTime");
             return 0L;
         }
 
@@ -362,11 +382,25 @@ public class ReplayHubComponent
     }
 
     /**
-     * Return the number of requests queued for writing.
+     * Return the number of payloads queued for reading.
+     *
+     * @return input queue size
+     */
+    public long getNumInputsQueued()
+    {
+        if (inThread == null) {
+            return 0L;
+        }
+
+        return inThread.getNumQueued();
+    }
+
+    /**
+     * Return the number of payloads queued for writing.
      *
      * @return output queue size
      */
-    public long getNumQueued()
+    public long getNumOutputsQueued()
     {
         if (outThread == null) {
             return 0L;
@@ -416,16 +450,7 @@ public class ReplayHubComponent
     public long getReplayStartTime()
         throws DAQCompException
     {
-        if (payloadReader == null) {
-            throw new DAQCompException("HitSpoolReader is null");
-        }
-
-        final long time = payloadReader.peekTime();
-        if (time == Long.MIN_VALUE) {
-            throw new DAQCompException("Cannot get next payload time");
-        }
-
-        return time;
+        return firstTime;
     }
 
     /**
@@ -436,21 +461,6 @@ public class ReplayHubComponent
     public Sender getSender()
     {
         return sender;
-    }
-
-    /**
-     * Get the current gap between DAQ time and system time
-     *
-     * @return gap between DAQ and system time
-     */
-    public double getTimeGap()
-    {
-        if (fileThread == null) {
-            LOG.error("No active thread for getTimeGap");
-            return 0L;
-        }
-
-        return fileThread.getTimeGap();
     }
 
     /**
@@ -472,6 +482,21 @@ public class ReplayHubComponent
     }
 
     /**
+     * Get the total time (in nanoseconds) behind the DAQ time.
+     *
+     * @return total nanoseconds behind the current DAQ time
+     */
+    public long getTotalBehind()
+    {
+        if (fileThread == null) {
+            LOG.error("No active hub#" + hubId + " thread for getTotalBehind");
+            return 0L;
+        }
+
+        return fileThread.getTotalBehind();
+    }
+
+    /**
      * Return the number of LBM overflows inside this string
      * @return 0
      */
@@ -488,7 +513,8 @@ public class ReplayHubComponent
     public long getTotalPayloads()
     {
         if (fileThread == null) {
-            LOG.error("No active thread for getTotalPayloads");
+            LOG.error("No active hub#" + hubId +
+                      " thread for getTotalPayloads");
             return 0L;
         }
 
@@ -504,7 +530,7 @@ public class ReplayHubComponent
     public long getTotalSleep()
     {
         if (fileThread == null) {
-            LOG.error("No active thread for getTotalSleep");
+            LOG.error("No active hub#" + hubId + " thread for getTotalSleep");
             return 0L;
         }
 
@@ -534,7 +560,7 @@ public class ReplayHubComponent
         configurationPath = new File(dirName);
         if (!configurationPath.exists()) {
             throw new Error("Configuration directory \"" + configurationPath +
-                            "\" does not exist");
+                            "\" does not exist for hub#" + hubId);
         }
 
         if (LOG.isInfoEnabled()) {
@@ -548,11 +574,11 @@ public class ReplayHubComponent
             domRegistry = DOMRegistry.loadRegistry(configurationPath);
             sender.setDOMRegistry(domRegistry);
         } catch (ParserConfigurationException e) {
-            LOG.error("Cannot load DOM registry", e);
+            LOG.error("Cannot load hub#" + hubId + " DOM registry", e);
         } catch (SAXException e) {
-            LOG.error("Cannot load DOM registry", e);
+            LOG.error("Cannot load hub#" + hubId + " DOM registry", e);
         } catch (IOException e) {
-            LOG.error("Cannot load DOM registry", e);
+            LOG.error("Cannot load hub#" + hubId + " DOM registry", e);
         }
     }
 
@@ -578,15 +604,15 @@ public class ReplayHubComponent
         sender.reset();
 
         if (payloadReader == null) {
-            throw new DAQCompException("Hit reader has not been initialized");
+            throw new DAQCompException("Hit reader has not been initialized" +
+                                       " for hub#" + hubId);
         }
 
         outThread = new OutputThread("OutputThread#" + hubId, sender);
         outThread.start();
 
-        fileThread = new PayloadFileThread("ReplayThread#" + hubId,
-                                           payloadReader, timeOffset,
-                                           outThread);
+        fileThread = new PayloadFileThread("ReplayThread#" + hubId, inThread,
+                                           timeOffset, outThread);
         fileThread.start();
     }
 
@@ -613,7 +639,7 @@ public class ReplayHubComponent
     public void stopping()
     {
         if (fileThread == null) {
-            LOG.error("No active thread for stopping");
+            LOG.error("No active hub#" + hubId + " thread for stopping");
         }
 
         fileThread.stopping();
@@ -662,8 +688,10 @@ class PayloadFileThread
     /** Nanoseconds per second */
     private static final long NS_PER_SEC = 1000000000L;
 
-    /** hit spool reader */
-    private CachingHitSpoolReader rdr;
+    /** Thread name */
+    private String name;
+    /** hit reader thread */
+    private InputThread inThread;
     /** Offset to apply to every hit time */
     private long timeOffset;
     /** hit writer thread */
@@ -680,10 +708,10 @@ class PayloadFileThread
     private HashMap<Long, DOMTimes> domTimes =
         new HashMap<Long, DOMTimes>();
 
-    /** Gap between DAQ time and system time */
-    private long timeGap;
     /** Total time spent sleeping so payload time matches system time */
     private long totalSleep;
+    /** Total time spent behind the original stream */
+    private long totalBehind;
     /** total number of payloads read */
     private long totPayloads;
 
@@ -692,10 +720,11 @@ class PayloadFileThread
      *
      * @param name thread name
      */
-    PayloadFileThread(String name, CachingHitSpoolReader rdr, long timeOffset,
+    PayloadFileThread(String name, InputThread inThread, long timeOffset,
                       OutputThread outThread)
     {
-        this.rdr = rdr;
+        this.name = name;
+        this.inThread = inThread;
         this.timeOffset = timeOffset;
         this.outThread = outThread;
 
@@ -766,13 +795,13 @@ class PayloadFileThread
     }
 
     /**
-     * Get the current gap between DAQ time and system time
+     * Get the total time (in nanoseconds) behind the DAQ time.
      *
-     * @return gap between DAQ and system time
+     * @return total nanoseconds behind the current DAQ time
      */
-    public double getTimeGap()
+    public long getTotalBehind()
     {
-        return ((double) timeGap) / ((double) NS_PER_SEC);
+        return totalBehind;
     }
 
     /**
@@ -806,9 +835,7 @@ class PayloadFileThread
 
         int gapCount = 0;
         while (!stopping) {
-            if (!rdr.hasNext()) break;
-
-            ByteBuffer buf = rdr.next();
+            ByteBuffer buf = inThread.next();
             if (buf == null) {
                 break;
             }
@@ -816,11 +843,11 @@ class PayloadFileThread
             numHits++;
             totPayloads++;
 
-            final long rawTime = rdr.getUTCTime(buf);
+            final long rawTime = BBUTC.get(buf);
             if (rawTime == Long.MIN_VALUE) {
                 final String fmtStr =
-                    "Ignoring short hit buffer#%d (%d bytes)";
-                LOG.error(String.format(fmtStr, numHits, buf.limit()));
+                    "Ignoring %s short hit buffer#%d (%d bytes)";
+                LOG.error(String.format(fmtStr, name, numHits, buf.limit()));
                 continue;
             }
 
@@ -832,7 +859,7 @@ class PayloadFileThread
 
             // update the raw buffer's hit time
             if (timeOffset != 0) {
-                rdr.setUTCTime(buf, daqTime.get());
+                BBUTC.set(buf, daqTime.get());
             }
 
             // set system time
@@ -841,9 +868,11 @@ class PayloadFileThread
                 continue;
             }
 
+            long timeGap;
             if (firstPayload) {
                 // don't need to recalibrate the first payload
                 firstPayload = false;
+                timeGap = 0;
             } else {
                 // try to deliver payloads at the rate they were created
 
@@ -853,18 +882,18 @@ class PayloadFileThread
 
                 // whine if the time gap is greater than one second
                 if (timeGap > NS_PER_SEC * 2) {
-                    if (rdr.getNumberOfPayloads() < 10) {
+                    if (numHits < 10) {
                         // minimize gap for first few payloads
                         timeGap = NS_PER_SEC / 10L;
                     } else {
                         // complain about gap
                         final String fmtStr =
-                            "Huge time gap (%.2f sec) for payload #%d from %s";
-                        LOG.error(String.format(fmtStr, getTimeGap(),
-                                                rdr.getNumberOfPayloads(),
-                                                rdr.getFile()));
+                            "Huge time gap (%.2f sec) for  %s payload #%d";
+                        LOG.error(String.format(fmtStr, timeGap, name,
+                                                numHits));
                         if (++gapCount > 20) {
-                            LOG.error("Too many huge gaps ... aborting");
+                            LOG.error("Too many huge gaps for " + name +
+                                      " ... aborting");
                             break;
                         }
                     }
@@ -886,6 +915,8 @@ class PayloadFileThread
                     } catch (InterruptedException ie) {
                         // ignore interrupts
                     }
+                } else {
+                    totalBehind -= timeGap;
                 }
             }
 
@@ -900,19 +931,18 @@ class PayloadFileThread
 
             outThread.push(buf);
 
-            // don't overwhelm other threads
-            Thread.yield();
+            if (timeGap >= 0) {
+                // if we're ahead of the stream, don't overwhelm other threads
+                Thread.yield();
+            }
         }
 
         outThread.stop();
+        inThread.stop();
 
-        try {
-            rdr.close();
-        } catch (IOException ioe) {
-            // ignore errors on close
-        }
+        stopping = false;
 
-        LOG.error("Finished queuing " + numHits + " hits");
+        LOG.error("Finished queuing " + numHits + " hits on " + name);
     }
 
     /**
@@ -923,7 +953,8 @@ class PayloadFileThread
         try {
             process();
         } catch (Throwable thr) {
-            LOG.error("Processing failed after " + totPayloads + " hits");
+            LOG.error("Processing failed on " + name + " after " +
+                      totPayloads + " hits");
         }
 
         finishThreadCleanup();
@@ -957,12 +988,157 @@ class PayloadFileThread
 }
 
 /**
+ * Class which reads payloads from a set of hitspool files.
+ */
+class InputThread
+    implements Runnable
+{
+    private static final Logger LOG = Logger.getLogger(InputThread.class);
+
+    private static final int MAX_QUEUED = 100000;
+
+    /** Thread name */
+    private String name;
+    /** Hit reader */
+    private CachingHitSpoolReader rdr;
+    /** Thread */
+    private Thread thread;
+
+    private boolean waiting;
+    private boolean stopping;
+    private boolean stopped;
+
+    /** Input queue. */
+    private Deque<ByteBuffer> inputQueue =
+        new ArrayDeque<ByteBuffer>();
+
+    InputThread(String name, CachingHitSpoolReader rdr)
+    {
+        this.name = name;
+        this.rdr = rdr;
+
+        thread = new Thread(this);
+        thread.setName(name);
+
+        stopped = true;
+    }
+
+    /**
+     * Return the number of payloads queued for reading.
+     *
+     * @return input queue size
+     */
+    public long getNumQueued()
+    {
+        return inputQueue.size();
+    }
+
+    public boolean isStopped()
+    {
+        return stopped;
+    }
+
+    public boolean isWaiting()
+    {
+        return waiting;
+    }
+
+    public ByteBuffer next()
+    {
+        synchronized (inputQueue) {
+            while (!stopping && !stopped) {
+                if (inputQueue.size() != 0) {
+                    break;
+                }
+
+                try {
+                    inputQueue.wait();
+                } catch (InterruptedException ie) {
+                    // if we got interrupted, restart the loop and
+                    //  we'll exit if we're stopping or out of data
+                    continue;
+                }
+            }
+
+            if (inputQueue.size() == 0) {
+                return null;
+            }
+
+            ByteBuffer buf = inputQueue.removeFirst();
+            inputQueue.notify();
+            return buf;
+        }
+     }
+
+    /**
+     * Main input loop.
+     */
+    public void run()
+    {
+        stopped = false;
+
+        while (!stopping && !stopped) {
+            synchronized (inputQueue) {
+                if (!stopping && inputQueue.size() >= MAX_QUEUED) {
+                    try {
+                        waiting = true;
+                        inputQueue.wait();
+                    } catch (InterruptedException ie) {
+                        LOG.error("Interrupt while waiting for " + name +
+                                  " input queue", ie);
+                    }
+                    waiting = false;
+                }
+
+                if (inputQueue.size() >= MAX_QUEUED) {
+                    continue;
+                }
+            }
+
+            ByteBuffer buf = rdr.next();
+            if (buf == null) {
+                break;
+            }
+
+            synchronized (inputQueue) {
+                inputQueue.addLast(buf);
+                inputQueue.notify();
+            }
+        }
+
+        synchronized (inputQueue) {
+            stopping = false;
+            stopped = true;
+        }
+    }
+
+
+    public void start()
+    {
+        thread.start();
+    }
+
+    public void stop()
+    {
+        synchronized (inputQueue) {
+            stopping = true;
+            inputQueue.notify();
+        }
+    }
+}
+
+/**
  * Class which writes payloads to an output channel.
  */
 class OutputThread
     implements Runnable
 {
     private static final Logger LOG = Logger.getLogger(OutputThread.class);
+
+    /** Thread name */
+    private String name;
+    /** Hit sender */
+    private Sender sender;
 
     private Thread thread;
     private boolean waiting;
@@ -973,9 +1149,6 @@ class OutputThread
     private Deque<ByteBuffer> outputQueue =
         new ArrayDeque<ByteBuffer>();
 
-    /** Hit sender */
-    private Sender sender;
-
     /**
      * Create and start output thread.
      *
@@ -985,10 +1158,13 @@ class OutputThread
      */
     public OutputThread(String name, Sender sender)
     {
+        this.name = name;
+        this.sender = sender;
+
         thread = new Thread(this);
         thread.setName(name);
 
-        this.sender = sender;
+        stopped = true;
     }
 
     /**
@@ -1011,7 +1187,7 @@ class OutputThread
     }
 
     /**
-     * Return the number of requests queued for writing.
+     * Return the number of payloads queued for writing.
      *
      * @return output queue size
      */
@@ -1052,11 +1228,14 @@ class OutputThread
      */
     public void run()
     {
+        stopped = false;
+
         // sleep for a second so detector has a chance to get first good time
         try {
             Thread.sleep(1000);
         } catch (InterruptedException ie) {
-            LOG.error("Initial output thread sleep interrupted", ie);
+            LOG.error("Initial " + name + " output thread sleep interrupted",
+                      ie);
         }
 
         ByteBuffer buf;
@@ -1067,8 +1246,8 @@ class OutputThread
                         waiting = true;
                         outputQueue.wait();
                     } catch (InterruptedException ie) {
-                        LOG.error("Interrupt while waiting for output" +
-                                  " queue", ie);
+                        LOG.error("Interrupt while waiting for " + name +
+                                  " output queue", ie);
                     }
                     waiting = false;
                 }
@@ -1089,9 +1268,10 @@ class OutputThread
 
         sender.consume(buildStopMessage());
 
+        stopping = false;
         stopped = true;
 
-        LOG.error("Finished writing hits");
+        LOG.error("Finished writing " + name + " hits");
     }
 
     public void start()
@@ -1195,9 +1375,9 @@ class TimeKeeper
             }
 
             final String fmtStr =
-                "%s hit#%d went back %d in time! (cur %d, prev %d)";
-            LOG.error(String.format(fmtStr, hitNum, lastTime - time, time,
-                                    lastTime));
+                "Hit#%d went back %d in time! (cur %d, prev %d)";
+            LOG.error(String.format(fmtStr, hitNum, lastTime - time,
+                                    time, lastTime));
             return false;
         }
 
@@ -1282,18 +1462,6 @@ class CachingHitSpoolReader
     }
 
     /**
-     * Get the hit time from the buffer
-     */
-    static long getUTCTime(ByteBuffer buf)
-    {
-        if (buf.limit() < 32) {
-            return Long.MIN_VALUE;
-        }
-
-        return buf.getLong(24);
-    }
-
-    /**
      * Is there another hit?
      *
      * @return <tt>true</tt> if there's another hit
@@ -1334,7 +1502,27 @@ class CachingHitSpoolReader
             cachedBuf = rdr.next();
         }
 
-        return getUTCTime(cachedBuf);
+        return BBUTC.get(cachedBuf);
+    }
+}
+
+/**
+ * Get/set UTC time at standard loncation in ByteBuffer
+ */
+final class BBUTC
+{
+    private static final Logger LOG = Logger.getLogger(BBUTC.class);
+
+    /**
+     * Get the hit time from the buffer
+     */
+    static long get(ByteBuffer buf)
+    {
+        if (buf.limit() < 32) {
+            return Long.MIN_VALUE;
+        }
+
+        return buf.getLong(24);
     }
 
     /**
@@ -1343,7 +1531,7 @@ class CachingHitSpoolReader
      * @param buf hit buffer
      * @param nextTime time to write to hit buffer
      */
-    static void setUTCTime(ByteBuffer buf, long newTime)
+    static void set(ByteBuffer buf, long newTime)
     {
         if (buf.limit() < 32) {
             LOG.error(String.format("Cannot modify %d byte buffer",

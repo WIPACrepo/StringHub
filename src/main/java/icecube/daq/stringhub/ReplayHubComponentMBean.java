@@ -7,18 +7,25 @@ public interface ReplayHubComponentMBean
     extends StringHubComponentMBean
 {
     /**
-     * Return the number of requests queued for writing.
+     * Return the number of payloads queued for reading.
+     *
+     * @return input queue size
+     */
+    long getNumInputsQueued();
+
+    /**
+     * Return the number of payloads queued for writing.
      *
      * @return output queue size
      */
-    long getNumQueued();
+    long getNumOutputsQueued();
 
     /**
-     * Get the current gap between DAQ time and system time
+     * Get the total time (in nanoseconds) behind the DAQ time.
      *
-     * @return gap between DAQ and system time
+     * @return total nanoseconds behind the current DAQ time
      */
-    double getTimeGap();
+    long getTotalBehind();
 
     /**
      * Get the total number of payloads read.
