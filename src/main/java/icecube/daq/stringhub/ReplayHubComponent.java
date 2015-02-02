@@ -1507,7 +1507,7 @@ class CachingHitSpoolReader
 }
 
 /**
- * Get/set UTC time at standard loncation in ByteBuffer
+ * Get/set UTC time at standard location in ByteBuffer.
  */
 final class BBUTC
 {
