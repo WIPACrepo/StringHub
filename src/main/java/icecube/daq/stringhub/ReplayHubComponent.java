@@ -21,6 +21,7 @@ import icecube.daq.util.JAXPUtilException;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -272,12 +273,9 @@ public class ReplayHubComponent
                                        " <replayFiles> parse failed", jux);
         }
         if (replayFiles == null) {
-            throw new DAQCompException("No replayFiles entry found for hub#" +
-                                       hubId + " in " + configName);
+            throw new DAQCompException("No <replayFiles> entry found for" +
+                                       "  hub#" + hubId + " in " + configName);
         }
-
-        // save base directory name
-        String baseDir = replayFiles.getAttribute("baseDir");
 
         // extract this hub's entry
         String hubNodeStr = replayFilesStr + "/hits[@hub='" + hubId + "']";
@@ -285,17 +283,64 @@ public class ReplayHubComponent
         try {
             hubNode = (Element) JAXPUtil.extractNode(doc, hubNodeStr);
         } catch (JAXPUtilException jux) {
-            throw new DAQCompException("Hub#" + hubId + " <hits> parse failed",
-                                       jux);
+            throw new DAQCompException("Hub#" + hubId +
+                                       " <hits> parse failed", jux);
         }
         if (hubNode == null) {
-            throw new DAQCompException("No replayFiles entry for hub#" +
-                                       hubId + " found in " +
-                                       configName);
+            throw new DAQCompException("No <hits> entry for hub#" + hubId +
+                                       " found in " + configName);
         }
 
-        // get file paths
-        File hitFile = getFile(baseDir, hubNode, "source");
+        File hitFile;
+        String topdir;
+        String subdir;
+
+        // try to get file path
+        topdir = replayFiles.getAttribute("dir");
+        if (topdir != null && topdir.length() > 0) {
+            // build subdirectory name
+            if (hubId < 200) {
+                subdir = String.format("ichub%02d", hubId);
+            } else {
+                subdir = String.format("ithub%02d", hubId - 200);
+            }
+        } else {
+            // try to get old-style file path
+            topdir = replayFiles.getAttribute("baseDir");
+            if (topdir == null || topdir.length() == 0) {
+                throw new DAQCompException("Neither 'dir' nor 'baseDir'" +
+                                           " attribute found for hub#" +
+                                           hubId + " <replayFiles> entry in " +
+                                           configName);
+            }
+
+            // get subdirectory name
+            subdir = hubNode.getAttribute("source");
+            if (subdir == null || subdir == "") {
+                throw new DAQCompException("Hub#" + hubId + " <replayFiles>" +
+                                           " does not specify 'source'" +
+                                           " attribute");
+            }
+        }
+
+        // build path to replay directory
+        if (topdir == null) {
+            hitFile = new File(subdir);
+        } else {
+            hitFile = new File(topdir, subdir);
+        }
+
+        // make sure path exists
+        if (!hitFile.exists()) {
+            String hostname;
+            try {
+                hostname = InetAddress.getLocalHost().getHostName();
+            } catch (Exception ex) {
+                hostname = "unknown";
+            }
+            throw new DAQCompException(hitFile.toString() +
+                                       " does not exist on " + hostname);
+        }
 
         // done configuring
         if (LOG.isInfoEnabled()) {
@@ -379,6 +424,15 @@ public class ReplayHubComponent
         }
 
         return fileThread.getLatestFirstChannelHitTime();
+    }
+
+    public int getNumFiles()
+    {
+        if (payloadReader == null) {
+            return 0;
+        }
+
+        return payloadReader.getNumberOfFiles();
     }
 
     /**
@@ -1443,6 +1497,16 @@ class CachingHitSpoolReader
     File getFile()
     {
         return rdr.getFile();
+    }
+
+    /**
+     * Get the number of files opened for reading.
+     *
+     * @return number of files opened for reading.
+     */
+    public int getNumberOfFiles()
+    {
+        return rdr.getNumberOfFiles();
     }
 
     /**

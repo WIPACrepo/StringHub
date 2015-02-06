@@ -7,6 +7,13 @@ public interface ReplayHubComponentMBean
     extends StringHubComponentMBean
 {
     /**
+     * Return the number of hitspool files read so far.
+     *
+     * @return number of files
+     */
+    int getNumFiles();
+
+    /**
      * Return the number of payloads queued for reading.
      *
      * @return input queue size
