@@ -877,7 +877,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15353 2015-01-15 18:12:43Z dglo $";
+		return "$Id: StringHubComponent.java 15407 2015-02-11 15:06:54Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1136,8 +1136,7 @@ public class StringHubComponent
 				if (hsNode == null) {
 					// if there is no hitspool child of the stringHub tag
 					// look for a default node
-					hsNode =
-						JAXPUtil.extractNode(hubNode, "runConfig/hitspool");
+					hsNode = JAXPUtil.extractNode(doc, "runConfig/hitspool");
 				}
 
 				hitSpooling=false;
