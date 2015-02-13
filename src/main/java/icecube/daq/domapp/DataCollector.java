@@ -28,8 +28,10 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Timer;
@@ -124,7 +126,7 @@ public class DataCollector
     private static final DecimalFormat  fmt     = new DecimalFormat("#0.000000000");
 
     private final SimpleDateFormat dateFormat =
-            new SimpleDateFormat ("yyyy-mm-dd HH:mm:ss.SSS");
+            new SimpleDateFormat ("yyyy-MM-dd HH:mm:ss.SSS");
 
 
     // TODO - replace these with properties-supplied constants
@@ -307,8 +309,6 @@ public class DataCollector
         long bytesAcquired;
         long hitCount;
 
-        long currentMsgRecvNano;
-
         long firstHitDOMClk = -1;
         long lastHitDOMClk = -1;
 
@@ -318,6 +318,98 @@ public class DataCollector
         long lastHitAgeNanos;
         long dataSpanNanos;
         long dataGapNanos;
+
+        MessageStats currentMessage;
+        private class MessageStats
+        {
+            final long cycleNumber;
+            final long messageNumber;
+
+            long messageReadStartNano;
+            long messageRecvNano;
+            long messageStopNano;
+
+            int messageByteCount;
+            int messageHitCount;
+
+            long messageFirstHitDOMClk = -1;
+            long messageLastHitDOMClk = -1;
+
+            //calculated at message processing completion
+            long messageReadDurationNanos;
+            long messageDurationNano;
+            long messageDataSpanNanos;
+
+            public MessageStats(long cycleNumber, long messageNumber)
+            {
+                this.cycleNumber = cycleNumber;
+                this.messageNumber = messageNumber;
+            }
+
+            final void reportHitData(final ByteBuffer hitBuf)
+            {
+                long domclk = hitBuf.getLong(24);
+
+                messageLastHitDOMClk = domclk;
+                if(messageFirstHitDOMClk == -1)
+                {
+                    messageFirstHitDOMClk = domclk;
+                }
+                messageHitCount++;
+            }
+
+            final void reportMessageDataReceived(ByteBuffer data)
+            {
+                messageRecvNano = now();
+                messageByteCount = data.remaining();
+            }
+
+            final void reportMessageProcessingComplete(final long stopTimeNanos)
+            {
+                messageStopNano = stopTimeNanos;
+
+                // system timer durations
+                messageReadDurationNanos = messageRecvNano - messageReadStartNano;
+                messageDurationNano = messageStopNano - messageReadStartNano;
+
+                // data stream spans
+                if (messageHitCount > 0)
+                {
+                    messageDataSpanNanos = (messageLastHitDOMClk - messageFirstHitDOMClk) * 25;
+                }
+                else
+                {
+                    messageDataSpanNanos = 0;
+                }
+            }
+
+            final StringBuffer verbosePrint()
+            {
+                StringBuffer info = new StringBuffer(256);
+                long durationMillis = messageDurationNano / 1000000;
+                long readMillis = messageReadDurationNanos / 1000000;
+                long processMillis = (messageDurationNano-messageReadDurationNanos) / 1000000;
+                long dataMillisInMessage = (messageDataSpanNanos / 1000000);
+
+                info.append("[").append(card).append(pair).append(dom).append
+                        ("]")
+                        .append(" message [").append(cycleNumber)
+                        .append(".").append(messageNumber).append("]")
+                        .append(" bytes [").append(messageByteCount)
+                        .append(" b]")
+                        .append(" hits [").append(messageHitCount).append("]")
+                        .append(" duration [").append(durationMillis)
+                        .append(" ms]")
+                        .append(" read-time [").append(readMillis).append(" ms]")
+                        .append(" process-time [").append(processMillis)
+                        .append(" ms]")
+                        .append(" data-span [").append(dataMillisInMessage)
+                        .append(" ms]");
+
+                return info;
+            }
+        }
+        List<MessageStats> messageStatsList = new LinkedList<MessageStats>();
 
 
         private CycleStats(long sequence, long lastCycleNanos,
@@ -337,11 +429,37 @@ public class DataCollector
             cycleStartNano = now();
         }
 
+        /**
+         * For tracking time spent in driver
+         */
+        final void initiateMessageRead()
+        {
+            // Arbitrary, but close. Using one timestamp
+            // makes message durations contiguous.
+            long newMessageStartTime = now();
+
+            // manage previous message
+            final long messageNumber;
+            if(currentMessage != null)
+            {
+                currentMessage.reportMessageProcessingComplete(newMessageStartTime);
+                messageStatsList.add(currentMessage);
+                messageNumber = currentMessage.messageNumber + 1;
+            }
+            else
+            {
+                messageNumber = 0;
+            }
+
+            currentMessage = new MessageStats(sequence, messageNumber);
+            currentMessage.messageReadStartNano = newMessageStartTime;
+        }
+
         final void reportDataMessageRcv(ByteBuffer data)
         {
-            currentMsgRecvNano = now();
+            currentMessage.reportMessageDataReceived(data);
 
-            bytesAcquired += data.remaining();
+            bytesAcquired += currentMessage.messageByteCount;
             messagesAcquired++;
 
             if(ENABLE_STATS)
@@ -361,12 +479,21 @@ public class DataCollector
                 firstHitDOMClk = domclk;
             }
             hitCount++;
+
+            currentMessage.reportHitData(hitBuf);
         }
 
 
         final void reportCycleStop()
         {
             cycleStopNano = now();
+
+            //manage last message of cycle
+            if(currentMessage != null)
+            {
+                currentMessage.reportMessageProcessingComplete(cycleStopNano);
+                messageStatsList.add(currentMessage);
+            }
 
             // system timer durations
             cycleDurationNanos = cycleStopNano - cycleStartNano;
@@ -375,7 +502,7 @@ public class DataCollector
             // data stream spans
             if (hitCount > 0)
             {
-                lastHitAgeNanos = currentMsgRecvNano -
+                lastHitAgeNanos = currentMessage.messageRecvNano -
                         domToSystemTimer.translate(lastHitDOMClk);
                 dataSpanNanos = (lastHitDOMClk - firstHitDOMClk) * 25;
 
@@ -427,8 +554,19 @@ public class DataCollector
             return System.nanoTime();
         }
 
-        final StringBuffer verbosePrint()
+        final List<StringBuffer> verbosePrint()
         {
+            List<StringBuffer> lines = new ArrayList<StringBuffer>
+                    (INCLUDE_MESSAGE_DETAILS ? 25 : 1);
+
+            if(INCLUDE_MESSAGE_DETAILS)
+            {
+                for (CycleStats.MessageStats messageStats: messageStatsList)
+                {
+                    lines.add(messageStats.verbosePrint());
+                }
+            }
+
             StringBuffer info = new StringBuffer(256);
             long durationMillis = cycleDurationNanos / 1000000;
             long millisSinceLastCycle = cycleGapDurationNanos /1000000;
@@ -436,7 +574,8 @@ public class DataCollector
             long dataMillisSinceLastCycle = dataGapNanos / 1000000;
             long lbmBacklogMillis = lastHitAgeNanos / 1000000;
 
-            info.append("cycle [").append(sequence).append("]")
+            info.append("[").append(card).append(pair).append(dom).append("]")
+               .append(" cycle [").append(sequence).append("]")
                .append(" messages [").append(messagesAcquired)
                .append ("]")
                .append(" bytes [").append(bytesAcquired / 1024)
@@ -452,7 +591,9 @@ public class DataCollector
                .append(" lbm-backlog [").append(lbmBacklogMillis)
                .append(" ms]");
 
-            return info;
+            lines.add(info);
+
+            return lines;
         }
 
     }
@@ -482,6 +623,8 @@ public class DataCollector
         long lastCycleNanos;
         long lastCycleDOMClk = -1;
 
+        boolean isLBMReported;
+
         final void reportRunStart()
         {
             runStartNano = now();
@@ -497,6 +640,12 @@ public class DataCollector
 
             return cycleStats;
         }
+
+        void reportLBMOverflow()
+        {
+            isLBMReported = true;
+        }
+
 
         void completeCycle(final CycleStats cycle)
         {
@@ -528,6 +677,29 @@ public class DataCollector
                 history.remove();
             }
 
+            // we let the monitor handle LBM logging at the
+            // end of the cycle rather than at lbm detection so that the
+            // diagnostics include the current cycle
+            if(VERBOSE_LBM_LOGGING && isLBMReported)
+            {
+                isLBMReported = false;
+                List<StringBuffer> lines = logHistory();
+                for(StringBuffer line: lines)
+                {
+                    logger.error(line);
+                }
+            }
+
+            //debug mode, print details for every cycle
+            if(VERBOSE_CYCLE_LOGGING)
+            {
+                List<StringBuffer> message = cycle.verbosePrint();
+                for(StringBuffer line : message)
+                {
+                    logger.info(line);
+                }
+            }
+
         }
 
         final StringBuffer logAverages()
@@ -545,6 +717,19 @@ public class DataCollector
             return sb;
         }
 
+        final List<StringBuffer> logHistory()
+        {
+            final List<StringBuffer> lines = new ArrayList<StringBuffer>
+                    (INCLUDE_MESSAGE_DETAILS ? 250 : 10);
+            lines.add(logAverages());
+
+            for(CycleStats cycleStats : history)
+            {
+                lines.addAll(cycleStats.verbosePrint());
+            }
+
+            return lines;
+        }
 
         final long now()
         {
@@ -552,6 +737,24 @@ public class DataCollector
         }
     }
     private CycleMonitor cycleMonitor = new CycleMonitor();
+
+    // Log cycle diagnostics when LBM Overflow is reported
+    private static final boolean VERBOSE_LBM_LOGGING = Boolean.getBoolean
+            ("icecube.daq.domapp.datacollector.verbose-lbm-logging");
+
+    // Log cycle diagnostics when acquisition is aborted by the watchdog
+    private static final boolean VERBOSE_TIMEOUT_LOGGING = Boolean.getBoolean
+            ("icecube.daq.domapp.datacollector.verbose-timeout-logging");
+
+    // Log cycle diagnostics for every cycle
+    private static final boolean VERBOSE_CYCLE_LOGGING = Boolean.getBoolean
+            ("icecube.daq.domapp.datacollector.verbose-cycle-logging");
+
+    // Log message diagnostics in addition to the cycle diagnostics
+    private static final boolean INCLUDE_MESSAGE_DETAILS = Boolean.getBoolean
+            ("icecube.daq.domapp.datacollector.include-message-details");
+
+
 
     /**
      * Provides a loosely calibrated mapping from the DOM clock
@@ -978,13 +1181,9 @@ public class DataCollector
                     logger.error("LBM Overflow [" + cycleMonitor.sequence +
                             "] [" + moniMsg +
                             "]");
-                    logger.error("data collection stats: " +
-                            cycleMonitor.logAverages());
-                    //todo - squelch after mystery LBM overflows are solved
-                    for(CycleStats cycleStats : cycleMonitor.history)
-                    {
-                        logger.error("HISTORY:" + cycleStats.verbosePrint());
-                    }
+
+                    cycleMonitor.reportLBMOverflow();
+
                 } else if (logger.isDebugEnabled()) {
                     logger.debug(moniMsg);
                 }
@@ -1039,8 +1238,12 @@ public class DataCollector
             SupernovaPacket spkt = SupernovaPacket.createFromBuffer(in);
             // Check for gaps in SN data
             if ((nextSupernovaDomClock != 0L) && (spkt.getClock() != nextSupernovaDomClock) && numSupernovaGaps++ < 100)
+            {
+                long gapMillis = ((spkt.getClock() - nextSupernovaDomClock) *
+                        25) / 1000000;
                 logger.warn("Gap or overlap in SN rec: next = " + nextSupernovaDomClock
-                        + " - current = " + spkt.getClock());
+                        + " - current = " + spkt.getClock() + ", gap = " + gapMillis + " ms");
+            }
 
             nextSupernovaDomClock = spkt.getClock() + (spkt.getScalers().length << 16);
             numSupernova++;
@@ -1568,6 +1771,7 @@ public class DataCollector
                 try
                 {
                     // Get debug information during Alpaca failures
+                    cycleStats.initiateMessageRead();
                     ByteBuffer data = app.getData();
                     cycleStats.reportDataMessageRcv(data);
 
@@ -1589,7 +1793,9 @@ public class DataCollector
             {
                 nextMoniRead = systemTimMillis + moniReadInterval;
 
+                cycleStats.initiateMessageRead();
                 ByteBuffer moni = app.getMoni();
+                cycleStats.reportDataMessageRcv(moni);
                 if (moni.remaining() > 0)
                 {
                     moniProcess(moni);
@@ -1602,7 +1808,9 @@ public class DataCollector
                 nextSupernovaRead = systemTimMillis + supernovaReadInterval;
                 while (!supernova_disabled)
                 {
+                    cycleStats.initiateMessageRead();
                     ByteBuffer sndata = app.getSupernova();
+                    cycleStats.reportDataMessageRcv(sndata);
                     if (sndata.remaining() > 0)
                     {
                         supernovaProcess(sndata);
@@ -1666,6 +1874,7 @@ public class DataCollector
             app.getInterval();
 
             while (!done) {
+                cycleStats.initiateMessageRead();
                 ByteBuffer msg = app.recvMessage(intervalBuffer);
                 cycleStats.reportDataMessageRcv(msg);
 
@@ -1794,7 +2003,6 @@ public class DataCollector
                             "ms] - aborting.");
                     if (app != null) app.close();
                     DataCollector.this.interrupt();
-                    setRunLevel(RunLevel.ZOMBIE);
                 }
                 pinged = false;
             }
@@ -1906,9 +2114,13 @@ public class DataCollector
                             lastHitTime);
 
                     //todo - squelch after mystery LBM overflows are solved
-                    for(CycleStats cycleStats : cycleMonitor.history)
+                    if(VERBOSE_TIMEOUT_LOGGING)
                     {
-                        logger.error("HISTORY:" + cycleStats.verbosePrint());
+                        List<StringBuffer> lines = cycleMonitor.logHistory();
+                        for(StringBuffer line : lines)
+                        {
+                            logger.error(line);
+                        }
                     }
                 }
                 else
