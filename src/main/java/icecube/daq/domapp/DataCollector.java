@@ -114,10 +114,19 @@ public class DataCollector
     private RAPCal              rapcal;
     private IDriver             driver;
     private volatile boolean    stop_thread;
-    private BufferConsumer      hitsConsumer;
-    private BufferConsumer      moniConsumer;
-    private BufferConsumer      tcalConsumer;
-    private BufferConsumer      supernovaConsumer;
+    private final UTCMessageStream hitStream;
+    private final UTCMessageStream moniStream;
+    private final UTCMessageStream tcalStream;
+    private final UTCMessageStream supernovaStream;
+
+    /*
+     * Message time-order is enforce within this epsilon, in 1/10 nano.
+     * Defaults to 10 microseconds.
+     */
+    private final long MESSAGE_ORDERING_EPSILON =
+            Integer.getInteger("icecube.daq.domapp.datacollector" +
+                    ".message-ordering-epsilon",
+                    10000);
 
     private final InterruptorTask watchdog = new InterruptorTask();
 
@@ -824,10 +833,10 @@ public class DataCollector
 
 		//System.out.println("Enable stats: "+ENABLE_STATS+" intervals: "+ENABLE_INTERVAL);
 
-        hitsConsumer = hitsTo;
-        moniConsumer = moniTo;
-        tcalConsumer = tcalTo;
-        supernovaConsumer = supernovaTo;
+        hitStream = new UTCMessageStream(hitsTo, "hit", MESSAGE_ORDERING_EPSILON);
+        moniStream = new UTCMessageStream(moniTo, "moni", MESSAGE_ORDERING_EPSILON);
+        tcalStream = new UTCMessageStream(tcalTo, "tcal", MESSAGE_ORDERING_EPSILON);
+        supernovaStream = new UTCMessageStream(supernovaTo, "supernova", MESSAGE_ORDERING_EPSILON);
 
         this.driver = Driver.getInstance();
 
@@ -961,7 +970,7 @@ public class DataCollector
 			supernova_disabled=true;
 			ByteBuffer eos = MultiChannelMergeSort.eos(numericMBID);
 			try {
-				if (supernovaConsumer != null) supernovaConsumer.consume(eos.asReadOnlyBuffer());
+				supernovaStream.eos(eos.asReadOnlyBuffer());
 			} catch (IOException iox) {
 				logger.warn("Caught IO Exception trying to shut down unused SN channel");
 			}
@@ -1021,27 +1030,130 @@ public class DataCollector
         }
     }
 
-    private long dispatchBuffer(ByteBuffer buf, BufferConsumer target) throws IOException
+    /**
+     * binds a UTC time-adjusted buffer consumer to state about the stream of
+     * messages being delivered
+     */
+    class UTCMessageStream
     {
-        long domclk = buf.getLong(24);
-        long utc    = rapcal.domToUTC(domclk).in_0_1ns();
-        buf.putLong(24, utc);
 
-        target.consume(buf);
+        private final BufferConsumer target;
+        private final String type; //[hit | moni | sn
 
-        // Collect HLC / SLC hit statistics ...
-        switch ( buf.getInt(4) )
+        private final long orderingEpsilon;
+
+        private long lastDOMClock = 0;
+        private long lastUTCClock = 0;
+
+        // if the clock jumps significantly, we will see many out-of-order
+        // messages, so throttle logging.
+        private final int MAX_LOGGING = 10;
+        int num_logged = 0;
+
+
+        UTCMessageStream(final BufferConsumer target, final String type,
+                         final long orderingEpsilon)
         {
-        case MAGIC_COMPRESSED_HIT_FMTID:
-            int flagsLC = (buf.getInt(46) & 0x30000) >> 16;
-            if (flagsLC != 0) rtLCRate.recordEvent(utc);
-            // intentional fall-through
-        case MAGIC_ENGINEERING_HIT_FMTID:
-            rtHitRate.recordEvent(utc);
-            lastHitTime = utc;
-            if (firstHitTime < 0L) firstHitTime = utc;
+            this.target = target;
+            this.type = type;
+            this.orderingEpsilon = orderingEpsilon;
         }
-        return utc;
+
+        // used to truncate message processing, a cpu saver in
+        // some configurations.
+        private boolean hasConsumer()
+        {
+            return target != null;
+        }
+
+        private void eos(final ByteBuffer eos) throws IOException
+        {
+            if(target != null)
+            {
+                target.consume(eos);
+            }
+        }
+
+        // we are passing rapcal as an argument to support unit testing this
+        // class.
+        private long dispatchBuffer(final RAPCal localRapCal,
+                                    final ByteBuffer buf)
+                throws
+                IOException
+        {
+            long domclk = buf.getLong(24);
+            long utc    = localRapCal.domToUTC(domclk).in_0_1ns();
+
+            if(enforceOrdering(domclk, utc))
+            {
+                buf.putLong(24, utc);
+                target.consume(buf);
+
+                //Note: last clocks refer to propagated messages, we will
+                //      log and drop messages until the timestamp is current
+                //      to within epsilon
+                lastDOMClock = domclk;
+                lastUTCClock = utc;
+            }
+            else
+            {
+                 //todo Increase logging and consider dropping dom as the
+                //      timestamp is off by more than epsilon.
+            }
+
+
+            return utc;
+        }
+
+        /**
+         * Enforce an ordering policy on the message stream.
+         *
+         * @return true if UTC time ordering is within some epsilon.
+         */
+        private boolean enforceOrdering(long domclk, long utc)
+        {
+            //handle out-of-order hits. This could originate at the DOM, or be
+            // induced by tcal updates or errors.
+            if (lastUTCClock > utc)
+            {
+                long utcClockBackStep_0_1_nanos = (lastUTCClock-utc);
+                boolean accept = utcClockBackStep_0_1_nanos < orderingEpsilon;
+
+                // detect if the ordering violation initiated at the dom or
+                // is a result of applying the rapcal.
+                final String reason;
+                if(lastDOMClock > domclk)
+                {
+                    reason = "Non-Contiguous " + type + " stream from DOM";
+                }
+                else
+                {
+                    reason = "Non-Contiguous rapcal for DOM";
+                }
+
+                if(num_logged < MAX_LOGGING)
+                {
+                    num_logged++;
+                    String action = accept ? "deliver" : "drop";
+                    logger.error("Out-of-order "+ type +": " +
+                            "last-utc [" + lastUTCClock  + "]" +
+                            " current-utc [" +utc +"]" +
+                            " last-dom-clock [" + lastDOMClock + "]" +
+                            " current-dom-clock [" + domclk + "]" +
+                            " utc-diff [" + utcClockBackStep_0_1_nanos + "]" +
+                            " (reason: " + reason + ", action: "+ action + ")");
+                }
+
+                return accept;
+            }
+            else
+            {
+                num_logged=0;
+                return true;
+            }
+
+        }
+
     }
 
     private void dispatchHitBuffer(CycleStats cycleStats, int atwdChip,
@@ -1056,7 +1168,20 @@ public class DataCollector
             ByteBuffer buffer = abBuffer.pop();
             if (buffer == null) return;
             cycleStats.reportHitData(hitBuf);
-            dispatchBuffer(buffer, hitsConsumer);
+            long utc = hitStream.dispatchBuffer(rapcal, buffer);
+
+            // Collect HLC / SLC hit statistics ...
+            switch ( hitBuf.getInt(4) )
+            {
+                case MAGIC_COMPRESSED_HIT_FMTID:
+                    int flagsLC = (hitBuf.getInt(46) & 0x30000) >> 16;
+                    if (flagsLC != 0) rtLCRate.recordEvent(utc);
+                    // intentional fall-through
+                case MAGIC_ENGINEERING_HIT_FMTID:
+                    rtHitRate.recordEvent(utc);
+                    lastHitTime = utc;
+                    if (firstHitTime < 0L) firstHitTime = utc;
+            }
         }
     }
 
@@ -1067,7 +1192,7 @@ public class DataCollector
         // keep performance at acceptable level such as minimal
         // decoding of hit records. This should be cleaned up.
 
-        if (hitsConsumer == null) return;
+        if (!hitStream.hasConsumer()) return;
 
         int buffer_limit = in.limit();
 
@@ -1168,7 +1293,7 @@ public class DataCollector
 
     private void moniProcess(ByteBuffer in) throws IOException
     {
-        if (moniConsumer == null) return;
+        if (!moniStream.hasConsumer()) return;
 
         while (in.remaining() > 0)
         {
@@ -1196,21 +1321,22 @@ public class DataCollector
             moniBuffer.putLong(0L);
             moniBuffer.putLong(monitor.getClock());
             moniBuffer.put(monitor.getBuffer());
-            dispatchBuffer((ByteBuffer) moniBuffer.flip(), moniConsumer);
+            moniBuffer.flip();
+            moniStream.dispatchBuffer(rapcal, moniBuffer);
         }
     }
 
     /**
-     * Send the TCAL data out.  UTC time for TCAL is defined herein as the DOR Tx time.
-     * Note that the {@link #dispatchBuffer} method is not called since the domClock to
-     * UTC mapping does not take place for these types of record.
+     * Send the TCAL data out.
+     * DOM clock timestamp assignment for TCAL messages is defined herein as
+     * the DOR Tx time.
      * @param tcal the input {@link TimeCalib} object
      * @param gps the {@link GPSInfo} record is tacked onto the tail of the buffer
      * @throws IOException
      */
     private void tcalProcess(TimeCalib tcal, GPSInfo gps) throws IOException
     {
-        if (tcalConsumer == null) return;
+        if (!tcalStream.hasConsumer()) return;
         ByteBuffer tcalBuffer = ByteBuffer.allocate(500);
         tcalBuffer.putInt(0).putInt(MAGIC_TCAL_FMTID);
         tcalBuffer.putLong(numericMBID);
@@ -1228,7 +1354,7 @@ public class DataCollector
         }
         tcalBuffer.flip();
         tcalBuffer.putInt(0, tcalBuffer.remaining());
-        dispatchBuffer(tcalBuffer, tcalConsumer);
+        tcalStream.dispatchBuffer(rapcal, tcalBuffer);
     }
 
     private void supernovaProcess(ByteBuffer in) throws IOException
@@ -1247,13 +1373,14 @@ public class DataCollector
 
             nextSupernovaDomClock = spkt.getClock() + (spkt.getScalers().length << 16);
             numSupernova++;
-            if (supernovaConsumer != null)
+            if (supernovaStream.hasConsumer())
             {
                 int len = spkt.getLength() + 32;
                 ByteBuffer snBuf = ByteBuffer.allocate(len);
                 snBuf.putInt(len).putInt(MAGIC_SUPERNOVA_FMTID).putLong(numericMBID).putLong(0L);
                 snBuf.putLong(spkt.getClock()).put(spkt.getBuffer());
-                dispatchBuffer((ByteBuffer) snBuf.flip(), supernovaConsumer);
+                snBuf.flip();
+                supernovaStream.dispatchBuffer(rapcal, snBuf);
             }
         }
     }
@@ -1718,10 +1845,10 @@ public class DataCollector
                 }
                 app.endRun();
                 ByteBuffer eos = MultiChannelMergeSort.eos(numericMBID);
-                if (hitsConsumer != null) hitsConsumer.consume(eos.asReadOnlyBuffer());
-                if (moniConsumer != null) moniConsumer.consume(eos.asReadOnlyBuffer());
-                if (tcalConsumer != null) tcalConsumer.consume(eos.asReadOnlyBuffer());
-                if (supernovaConsumer != null) supernovaConsumer.consume(eos.asReadOnlyBuffer());
+                hitStream.eos(eos.asReadOnlyBuffer());
+                moniStream.eos(eos.asReadOnlyBuffer());
+                tcalStream.eos(eos.asReadOnlyBuffer());
+                supernovaStream.eos(eos.asReadOnlyBuffer());
                 logger.debug("Wrote EOS to streams.");
                 setRunLevel(RunLevel.CONFIGURED);
 
@@ -2132,10 +2259,10 @@ public class DataCollector
                 try
                 {
                     ByteBuffer eos = MultiChannelMergeSort.eos(numericMBID);
-                    if (hitsConsumer != null) hitsConsumer.consume(eos.asReadOnlyBuffer());
-                    if (moniConsumer != null) moniConsumer.consume(eos.asReadOnlyBuffer());
-                    if (tcalConsumer != null) tcalConsumer.consume(eos.asReadOnlyBuffer());
-                    if (supernovaConsumer != null) supernovaConsumer.consume(eos.asReadOnlyBuffer());
+                    hitStream.eos(eos.asReadOnlyBuffer());
+                    moniStream.eos(eos.asReadOnlyBuffer());
+                    tcalStream.eos(eos.asReadOnlyBuffer());
+                    supernovaStream.eos(eos.asReadOnlyBuffer());
                     logger.info("Wrote EOS to streams.");
                 }
                 catch (IOException iox)
