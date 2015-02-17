@@ -1034,7 +1034,7 @@ public class DataCollector
      * binds a UTC time-adjusted buffer consumer to state about the stream of
      * messages being delivered
      */
-    class UTCMessageStream
+    static class UTCMessageStream
     {
 
         private final BufferConsumer target;
@@ -1051,7 +1051,7 @@ public class DataCollector
         int num_logged = 0;
 
 
-        UTCMessageStream(final BufferConsumer target, final String type,
+        public UTCMessageStream(final BufferConsumer target, final String type,
                          final long orderingEpsilon)
         {
             this.target = target;
@@ -1061,12 +1061,12 @@ public class DataCollector
 
         // used to truncate message processing, a cpu saver in
         // some configurations.
-        private boolean hasConsumer()
+        public boolean hasConsumer()
         {
             return target != null;
         }
 
-        private void eos(final ByteBuffer eos) throws IOException
+        public void eos(final ByteBuffer eos) throws IOException
         {
             if(target != null)
             {
@@ -1076,7 +1076,7 @@ public class DataCollector
 
         // we are passing rapcal as an argument to support unit testing this
         // class.
-        private long dispatchBuffer(final RAPCal localRapCal,
+        public long dispatchBuffer(final RAPCal localRapCal,
                                     final ByteBuffer buf)
                 throws
                 IOException
@@ -1088,19 +1088,13 @@ public class DataCollector
             {
                 buf.putLong(24, utc);
                 target.consume(buf);
-
-                //Note: last clocks refer to propagated messages, we will
-                //      log and drop messages until the timestamp is current
-                //      to within epsilon
-                lastDOMClock = domclk;
-                lastUTCClock = utc;
             }
             else
             {
-                 //todo Increase logging and consider dropping dom as the
-                //      timestamp is off by more than epsilon.
+                 //todo  After in-field discovery, Increase logging and
+                 //      consider dropping dom as the timestamp is off by more
+                 //      than epsilon.
             }
-
 
             return utc;
         }
@@ -1117,7 +1111,7 @@ public class DataCollector
             if (lastUTCClock > utc)
             {
                 long utcClockBackStep_0_1_nanos = (lastUTCClock-utc);
-                boolean accept = utcClockBackStep_0_1_nanos < orderingEpsilon;
+                boolean accept = utcClockBackStep_0_1_nanos <= orderingEpsilon;
 
                 // detect if the ordering violation initiated at the dom or
                 // is a result of applying the rapcal.
@@ -1148,6 +1142,12 @@ public class DataCollector
             }
             else
             {
+                //Note: last clocks refer to latest-in-time messages,
+                //      we will log or  lgo/drop messages until the
+                //      retrograde timestamp condition is over.
+                lastDOMClock = domclk;
+                lastUTCClock = utc;
+
                 num_logged=0;
                 return true;
             }
