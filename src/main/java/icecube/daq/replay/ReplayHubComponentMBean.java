@@ -1,4 +1,6 @@
-package icecube.daq.stringhub;
+package icecube.daq.replay;
+
+import icecube.daq.stringhub.StringHubComponentMBean;
 
 /**
  * MBeans for ReplayHubComponent
