@@ -50,7 +50,7 @@
               <classifier>replay</classifier>
               <archive>
                 <manifest>
-                  <mainClass>icecube.daq.stringhub.ReplayHubComponent</mainClass>
+                  <mainClass>icecube.daq.replay.ReplayHubComponent</mainClass>
                   <addClasspath>true</addClasspath>
                   <classpathPrefix>../lib</classpathPrefix>
                 </manifest>
