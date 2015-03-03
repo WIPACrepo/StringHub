@@ -92,33 +92,6 @@ class DOMTimes
     }
 }
 
-enum DataStreamType
-{
-    HIT("hit", 0),
-    MONI("moni", 1),
-    SN("sn", 2),
-    TCAL("tcal", 3);
-
-    private final String filename;
-    private final int index;
-
-    DataStreamType(String filename, int index)
-    {
-        this.filename = filename;
-        this.index = index;
-    }
-
-    int index()
-    {
-        return index;
-    }
-
-    String filename()
-    {
-        return filename;
-    }
-}
-
 /**
  * Replay hitspooled data
  */
@@ -395,29 +368,29 @@ public class ReplayHubComponent
         }
 
         for (DataStreamType dst : DataStreamType.values()) {
+            final Iterator<ByteBuffer> fileReader;
             if (dst == DataStreamType.HIT) {
-                handlers[dst.index()] =
-                    new FileHandler(hubId, dst.filename(), hitReader);
-                continue;
+                fileReader = hitReader;
+            } else {
+                File f = new File(dataDir, dst.filename() + "-0.dat");
+                if (!f.exists()) {
+                    LOG.warn("No " + dst.filename() +
+                             " data available for hub#" + hubId + " (" + f +
+                             "); closing stream");
+                    outputProc[dst.index()].stop();
+                    handlers[dst.index()] = null;
+                    continue;
+                }
+
+                try {
+                    fileReader = new PayloadByteReader(f);
+                } catch (IOException ioe) {
+                    throw new DAQCompException("Cannot create " + dst +
+                                               " file handler", ioe);
+                }
             }
 
-            File f = new File(dataDir, dst.filename() + "-0.out");
-            if (!f.exists()) {
-                LOG.warn("No " + dst.filename() + " data available for hub#" +
-                         hubId + " in " + dataDir + "; closing stream");
-                outputProc[dst.index()].stop();
-                handlers[dst.index()] = null;
-                continue;
-            }
-
-            try {
-                handlers[dst.index()] =
-                    new FileHandler(hubId, dst.filename(),
-                                    new PayloadByteReader(f));
-            } catch (IOException ioe) {
-                throw new DAQCompException("Cannot create " + dst.filename() +
-                                           " file handler", ioe);
-            }
+            handlers[dst.index()] = new FileHandler(hubId, dst, fileReader);
         }
 
         // done configuring
@@ -712,8 +685,14 @@ public class ReplayHubComponent
      */
     public void setReplayOffset(long offset)
     {
-        final int idx = DataStreamType.HIT.index();
-        handlers[idx].setReplayOffset(offset);
+        for (DataStreamType dst : DataStreamType.values()) {
+            if (handlers[dst.index()] == null) {
+                LOG.error("Cannot set replay offset for hub#" + hubId + " " +
+                          dst.filename() + "; handler is null");
+            } else {
+                handlers[dst.index()].setReplayOffset(offset);
+            }
+        }
     }
 
     /**
@@ -929,42 +908,6 @@ class CachingPayloadReader
     public void remove()
     {
         throw new Error("Unimplemented");
-    }
-}
-
-/**
- * Get/set UTC time at the standard payload header location in ByteBuffer.
- */
-final class BBUTC
-{
-    private static final Logger LOG = Logger.getLogger(BBUTC.class);
-
-    /**
-     * Get the hit time from the buffer
-     */
-    static long get(ByteBuffer buf)
-    {
-        if (buf.limit() < 32) {
-            return Long.MIN_VALUE;
-        }
-
-        return buf.getLong(24);
-    }
-
-    /**
-     * Set the hit time
-     *
-     * @param buf hit buffer
-     * @param nextTime time to write to hit buffer
-     */
-    static void set(ByteBuffer buf, long newTime)
-    {
-        if (buf.limit() < 32) {
-            LOG.error(String.format("Cannot modify %d byte buffer",
-                                    buf.limit()));
-        } else {
-            buf.putLong(24, newTime);
-        }
     }
 }
 

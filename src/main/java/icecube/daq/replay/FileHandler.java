@@ -17,23 +17,33 @@ public class FileHandler
 
     /** ID of this replay hub */
     private int hubId;
+    /** Type of files handled by this object */
+    private DataStreamType dataType;
 
     /** Offset to apply to every hit time */
     private long timeOffset;
     /** Reader thread */
     private InputThread inThread;
     /** Processor thread */
-    private PayloadFileThread fileThread;
+    private DataThread dataThread;
     /** Writer thread */
     private OutputThread outThread;
 
-    FileHandler(int hubId, String fileType, Iterator<ByteBuffer> fileReader)
+    /**
+     * Object which reads in, recalibrates and sends payloads
+     *
+     * @param hubId replay hub ID
+     * @param dataType replay file type
+     * @param fileReader source of payloads
+     */
+    FileHandler(int hubId, DataStreamType dataType,
+                Iterator<ByteBuffer> fileReader)
     {
         this.hubId = hubId;
+        this.dataType = dataType;
 
         // give the input thread a running start
-        inThread =
-            new InputThread(fileType + "InputThread#" + hubId, fileReader);
+        inThread = new InputThread(hubId, dataType, fileReader);
         inThread.start();
     }
 
@@ -44,13 +54,13 @@ public class FileHandler
      */
     public long getEarliestLastChannelHitTime()
     {
-        if (fileThread == null) {
+        if (dataThread == null) {
             LOG.error("No active hub#" + hubId +
                       " thread for getEarliestLastChannelHitTime");
             return 0L;
         }
 
-        return fileThread.getEarliestLastChannelHitTime();
+        return dataThread.getEarliestLastChannelHitTime();
     }
 
     /**
@@ -61,13 +71,13 @@ public class FileHandler
      */
     public long getLatestFirstChannelHitTime()
     {
-        if (fileThread == null) {
+        if (dataThread == null) {
             LOG.error("No active hub#" + hubId +
                       " thread for getLatestFirstChannelHitTime");
             return 0L;
         }
 
-        return fileThread.getLatestFirstChannelHitTime();
+        return dataThread.getLatestFirstChannelHitTime();
     }
 
     /**
@@ -105,12 +115,12 @@ public class FileHandler
      */
     public long getTotalBehind()
     {
-        if (fileThread == null) {
+        if (dataThread == null) {
             LOG.error("No active hub#" + hubId + " thread for getTotalBehind");
             return 0L;
         }
 
-        return fileThread.getTotalBehind();
+        return dataThread.getTotalBehind();
     }
 
     /**
@@ -120,13 +130,13 @@ public class FileHandler
      */
     public long getTotalPayloads()
     {
-        if (fileThread == null) {
+        if (dataThread == null) {
             LOG.error("No active hub#" + hubId +
                       " thread for getTotalPayloads");
             return 0L;
         }
 
-        return fileThread.getTotalPayloads();
+        return dataThread.getTotalPayloads();
     }
 
     /**
@@ -137,12 +147,12 @@ public class FileHandler
      */
     public long getTotalSleep()
     {
-        if (fileThread == null) {
+        if (dataThread == null) {
             LOG.error("No active hub#" + hubId + " thread for getTotalSleep");
             return 0L;
         }
 
-        return fileThread.getTotalSleep();
+        return dataThread.getTotalSleep();
     }
 
     /**
@@ -157,17 +167,23 @@ public class FileHandler
 
     public void startThreads(HandlerOutputProcessor out)
     {
-        outThread = new OutputThread("OutputThread#" + hubId, out);
+        outThread = new OutputThread(hubId, dataType, out);
         outThread.start();
 
-        fileThread = new PayloadFileThread("ReplayThread#" + hubId, inThread,
+        dataThread = new DataThread(hubId, dataType, inThread,
                                            timeOffset, outThread);
-        fileThread.start();
+        dataThread.start();
     }
 
     public void stopThreads()
     {
-        fileThread.stopping();
+        dataThread.stopping();
+    }
+
+    public String toString()
+    {
+        return String.format("Hub#%d %s[%s|%s|%s]", hubId, dataType, inThread,
+                             dataThread, outThread);
     }
 }
 
@@ -181,8 +197,11 @@ class InputThread
 
     private static final int MAX_QUEUED = 100000;
 
-    /** Thread name */
-    private String name;
+    /** ID of this replay hub */
+    private int hubId;
+    /** Type of files handled by this object */
+    private DataStreamType dataType;
+
     /** Hit reader */
     private Iterator<ByteBuffer> rdr;
     /** Thread */
@@ -196,13 +215,14 @@ class InputThread
     private Deque<ByteBuffer> inputQueue =
         new ArrayDeque<ByteBuffer>();
 
-    InputThread(String name, Iterator<ByteBuffer> rdr)
+    InputThread(int hubId, DataStreamType dataType, Iterator<ByteBuffer> rdr)
     {
-        this.name = name;
+        this.hubId = hubId;
+        this.dataType = dataType;
         this.rdr = rdr;
 
         thread = new Thread(this);
-        thread.setName(name);
+        thread.setName(dataType + "InputThread#" + hubId);
 
         stopped = true;
     }
@@ -268,8 +288,8 @@ class InputThread
                         waiting = true;
                         inputQueue.wait();
                     } catch (InterruptedException ie) {
-                        LOG.error("Interrupt while waiting for " + name +
-                                  " input queue", ie);
+                        LOG.error("Interrupt while waiting for hub#" + hubId +
+                                  " " + dataType + " input queue", ie);
                     }
                     waiting = false;
                 }
@@ -309,23 +329,32 @@ class InputThread
             inputQueue.notify();
         }
     }
+
+    public String toString()
+    {
+        String sstr = (stopped ? ",stopped" : stopping ? ",stopping" : "");
+        return "InputThread[hub#" + hubId + "," + dataType + ",in=" +
+            inputQueue.size() + sstr + "]";
+    }
 }
 
 /**
  * Payload file writer thread.
  */
-class PayloadFileThread
+class DataThread
     implements Runnable
 {
     /** error logger */
     private static final Logger LOG =
-        Logger.getLogger(PayloadFileThread.class);
+        Logger.getLogger(DataThread.class);
 
     /** Nanoseconds per second */
     private static final long NS_PER_SEC = 1000000000L;
 
-    /** Thread name */
-    private String name;
+    /** ID of this replay hub */
+    private int hubId;
+    /** Type of files handled by this object */
+    private DataStreamType dataType;
     /** hit reader thread */
     private InputThread inThread;
     /** Offset to apply to every hit time */
@@ -352,20 +381,25 @@ class PayloadFileThread
     private long totPayloads;
 
     /**
-     * Create payload file writer thread.
+     * Create payload rewriter thread.
      *
-     * @param name thread name
+     * @param hubId replay hub ID
+     * @param dataType replay file type
+     * @param inThread thread which reads data from file(s)
+     * @param timeOffset offset to use for recalibrating payload times
+     * @param outThread thread which writes data to the sender
      */
-    PayloadFileThread(String name, InputThread inThread, long timeOffset,
-                      OutputThread outThread)
+    DataThread(int hubId, DataStreamType dataType, InputThread inThread,
+               long timeOffset, OutputThread outThread)
     {
-        this.name = name;
+        this.hubId = hubId;
+        this.dataType = dataType;
         this.inThread = inThread;
         this.timeOffset = timeOffset;
         this.outThread = outThread;
 
         realThread = new Thread(this);
-        realThread.setName(name);
+        realThread.setName(dataType + "DataThread#" + hubId);
     }
 
     /**
@@ -464,10 +498,8 @@ class PayloadFileThread
     private void process()
     {
         boolean firstPayload = true;
-        TimeKeeper sysTime = new TimeKeeper(true);
-        TimeKeeper daqTime = new TimeKeeper(false);
-
-        long numHits = 0;
+        TimeKeeper sysTime = new TimeKeeper(hubId, dataType, true);
+        TimeKeeper daqTime = new TimeKeeper(hubId, dataType, false);
 
         int gapCount = 0;
         while (!stopping) {
@@ -476,19 +508,19 @@ class PayloadFileThread
                 break;
             }
 
-            numHits++;
             totPayloads++;
 
             final long rawTime = BBUTC.get(buf);
             if (rawTime == Long.MIN_VALUE) {
                 final String fmtStr =
-                    "Ignoring %s short hit buffer#%d (%d bytes)";
-                LOG.error(String.format(fmtStr, name, numHits, buf.limit()));
+                    "Ignoring hub#%d short %s buffer#%d (%d bytes)";
+                LOG.error(String.format(fmtStr, hubId, dataType, totPayloads,
+                                        buf.limit()));
                 continue;
             }
 
             // set the DAQ time
-            if (!daqTime.set(rawTime + timeOffset, numHits)) {
+            if (!daqTime.set(rawTime + timeOffset, totPayloads)) {
                 // if the current time if before the previous time, skip it
                 continue;
             }
@@ -499,7 +531,7 @@ class PayloadFileThread
             }
 
             // set system time
-            if (!sysTime.set(System.nanoTime(), numHits)) {
+            if (!sysTime.set(System.nanoTime(), totPayloads)) {
                 // if the current time if before the previous time, skip it
                 continue;
             }
@@ -518,18 +550,20 @@ class PayloadFileThread
 
                 // whine if the time gap is greater than one second
                 if (timeGap > NS_PER_SEC * 2) {
-                    if (numHits < 10) {
+                    if (totPayloads < 10) {
                         // minimize gap for first few payloads
                         timeGap = NS_PER_SEC / 10L;
                     } else {
                         // complain about gap
-                        final String fmtStr =
-                            "Huge time gap (%.2f sec) for  %s payload #%d";
-                        LOG.error(String.format(fmtStr, timeGap, name,
-                                                numHits));
+                        final String fmtStr = "Huge time gap (%.2f sec) for" +
+                            " hub#%d %s payload #%d";
+                        final double dblGap =
+                            ((double) timeGap / 10000000000.0);
+                        LOG.error(String.format(fmtStr, dblGap, hubId,
+                                                dataType, totPayloads));
                         if (++gapCount > 20) {
-                            LOG.error("Too many huge gaps for " + name +
-                                      " ... aborting");
+                            LOG.error("Too many huge gaps for hub#" + hubId +
+                                      " " + dataType + " ... aborting");
                             break;
                         }
                     }
@@ -578,9 +612,11 @@ class PayloadFileThread
 
         stopping = false;
 
-        LOG.error("Finished queuing " + numHits + " hits on " + name);
+        LOG.error("Finished queuing " + totPayloads + " " + dataType +
+                  " on hub#" + hubId);
     }
 
+private icecube.daq.payload.impl.PayloadFactory factory = new icecube.daq.payload.impl.PayloadFactory(null);
     /**
      * Main file writer loop.
      */
@@ -589,11 +625,13 @@ class PayloadFileThread
         try {
             process();
         } catch (Throwable thr) {
-            LOG.error("Processing failed on " + name + " after " +
-                      totPayloads + " hits");
+            LOG.error("Processing failed on hub#" + hubId + " after " +
+                      totPayloads + " " + dataType, thr);
         }
 
         finishThreadCleanup();
+
+        started = false;
     }
 
     /**
@@ -621,6 +659,14 @@ class PayloadFileThread
         stopping = true;
         realThread.interrupt();
     }
+
+    public String toString()
+    {
+        String sstr = (stopping ? ",stopping" : started ? "" : ",stopped");
+        return "DataThread[hub#" + hubId + "," + dataType + ",off=" +
+            timeOffset + ",sleep=" + totalSleep + ",behind=" + totalBehind +
+            ",tot=" + totPayloads + sstr + "]";
+    }
 }
 
 /**
@@ -631,8 +677,10 @@ class OutputThread
 {
     private static final Logger LOG = Logger.getLogger(OutputThread.class);
 
-    /** Thread name */
-    private String name;
+    /** ID of this replay hub */
+    private int hubId;
+    /** Type of files handled by this object */
+    private DataStreamType dataType;
     /** Hit sender */
     private HandlerOutputProcessor out;
 
@@ -646,19 +694,21 @@ class OutputThread
         new ArrayDeque<ByteBuffer>();
 
     /**
-     * Create and start output thread.
+     * Create output thread.
      *
-     * @param name thread name
-     * @param srcId trigger handler ID (used when creating merged triggers)
-     * @param sender hit sender
+     * @param hubId replay hub ID
+     * @param dataType replay file type
+     * @param out output processor
      */
-    public OutputThread(String name, HandlerOutputProcessor out)
+    public OutputThread(int hubId, DataStreamType dataType,
+                        HandlerOutputProcessor out)
     {
-        this.name = name;
+        this.hubId = hubId;
+        this.dataType = dataType;
         this.out = out;
 
         thread = new Thread(this);
-        thread.setName(name);
+        thread.setName(dataType + "OutputThread#" + hubId);
 
         stopped = true;
     }
@@ -711,8 +761,8 @@ class OutputThread
         try {
             Thread.sleep(1000);
         } catch (InterruptedException ie) {
-            LOG.error("Initial " + name + " output thread sleep interrupted",
-                      ie);
+            LOG.error("Initial hub#" + hubId + " " + dataType +
+                      " output thread sleep interrupted", ie);
         }
 
         ByteBuffer buf;
@@ -723,8 +773,8 @@ class OutputThread
                         waiting = true;
                         outputQueue.wait();
                     } catch (InterruptedException ie) {
-                        LOG.error("Interrupt while waiting for " + name +
-                                  " output queue", ie);
+                        LOG.error("Interrupt while waiting for hub#" + hubId +
+                                  " " + dataType + " output queue", ie);
                     }
                     waiting = false;
                 }
@@ -748,7 +798,7 @@ class OutputThread
         stopping = false;
         stopped = true;
 
-        LOG.error("Finished writing " + name + " hits");
+        LOG.error("Finished writing hub#" + hubId + " " + dataType + " data");
     }
 
     public void start()
@@ -763,6 +813,13 @@ class OutputThread
             outputQueue.notify();
         }
     }
+
+    public String toString()
+    {
+        String sstr = (stopped ? ",stopped" : stopping ? ",stopping" : "");
+        return "OutputThread[hub#" + hubId + "," + dataType + ",q=" +
+            outputQueue.size() + ",out=" + out + sstr + "]";
+    }
 }
 
 /**
@@ -772,6 +829,8 @@ class TimeKeeper
 {
     private static final Logger LOG = Logger.getLogger(TimeKeeper.class);
 
+    private int hubId;
+    private DataStreamType dataType;
     private boolean isSystemTime;
     private boolean initialized;
     private long firstTime;
@@ -781,11 +840,14 @@ class TimeKeeper
     /**
      * Create a time keeper
      *
+     * @param dataType - file type
      * @param isSystemTime - <tt>true</tt> if this is for the system time,
      *                       <tt>false</tt> for DAQ time
      */
-    TimeKeeper(boolean isSystemTime)
+    TimeKeeper(int hubId, DataStreamType dataType, boolean isSystemTime)
     {
+        this.hubId = hubId;
+        this.dataType = dataType;
         this.isSystemTime = isSystemTime;
     }
 
@@ -852,9 +914,9 @@ class TimeKeeper
             }
 
             final String fmtStr =
-                "Hit#%d went back %d in time! (cur %d, prev %d)";
-            LOG.error(String.format(fmtStr, hitNum, lastTime - time,
-                                    time, lastTime));
+                "Hub#%d %s %s#%d went back %d in time! (cur %d, prev %d)";
+            LOG.error(String.format(fmtStr, hubId, timeType, dataType, hitNum,
+                                    lastTime - time, time, lastTime));
             return false;
         }
 
