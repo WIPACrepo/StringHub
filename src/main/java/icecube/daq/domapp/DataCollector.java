@@ -1159,6 +1159,8 @@ public class DataCollector
     private void dispatchHitBuffer(CycleStats cycleStats, int atwdChip,
                                    ByteBuffer hitBuf) throws IOException
     {
+        cycleStats.reportHitData(hitBuf);
+
         if (atwdChip == 0)
             abBuffer.pushA(hitBuf);
         else
@@ -1167,14 +1169,13 @@ public class DataCollector
         {
             ByteBuffer buffer = abBuffer.pop();
             if (buffer == null) return;
-            cycleStats.reportHitData(hitBuf);
             long utc = hitStream.dispatchBuffer(rapcal, buffer);
 
             // Collect HLC / SLC hit statistics ...
-            switch ( hitBuf.getInt(4) )
+            switch ( buffer.getInt(4) )
             {
                 case MAGIC_COMPRESSED_HIT_FMTID:
-                    int flagsLC = (hitBuf.getInt(46) & 0x30000) >> 16;
+                    int flagsLC = (buffer.getInt(46) & 0x30000) >> 16;
                     if (flagsLC != 0) rtLCRate.recordEvent(utc);
                     // intentional fall-through
                 case MAGIC_ENGINEERING_HIT_FMTID:
