@@ -5,6 +5,7 @@ import icecube.daq.dor.TimeCalib;
 import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
+import icecube.daq.stringhub.test.MockAppender;
 import icecube.daq.util.UTC;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
@@ -401,11 +402,113 @@ public class DataOrderingTest
         {
         }
 
-        public void update(final TimeCalib tcal, final UTC gpsOffset) throws RAPCalException
+        public void update(final TimeCalib tcal, final UTC gpsOffset)
+                throws RAPCalException
         {
         }
     }
 
+
+    @Test
+    public void testLoggingThrottling() throws IOException
+    {
+        RapCalMock rapcal = new RapCalMock(500);
+        BufferConsumerMock sink = new BufferConsumerMock();
+
+        DataCollector.UTCMessageStream stream = new DataCollector
+                .UTCMessageStream(sink, "test", 0);
+
+        long CURRENT_TIME=100000;
+        long BACKWARDS_TIME=1234;
+        stream.dispatchBuffer(rapcal, generateBuffer(CURRENT_TIME));
+
+        //install a countable logger
+        MockAppender mockLogger = new MockAppender(Level.ERROR);
+        BasicConfigurator.resetConfiguration();
+        BasicConfigurator.configure(mockLogger);
+
+        //should only log MAX_LOGGING+1 in a row
+        mockLogger.setVerbose(true);
+        for (int i=1; i<10000; i++)
+        {
+            stream.dispatchBuffer(rapcal, generateBuffer(BACKWARDS_TIME));
+            int numSeen = mockLogger.getNumberOfMessages();
+            if(i<stream.MAX_LOGGING)
+            {
+                assertEquals("Expect one log per occurrence", i, numSeen);
+            }
+            else if( i == stream.MAX_LOGGING)
+            {
+                assertEquals("Expect one log per occurrence," +
+                        " plus dampening message", i+1, numSeen);
+            }
+            else
+            {
+                assertEquals("Expect max logging plus dampen message",
+                        stream.MAX_LOGGING+1, numSeen);
+            }
+        }
+
+
+        //should log LOGGED_OCCURRENCES_PERIOD, followed by
+        //MAX_LOGGING+1 every LOGGED_OCCURRENCES_PERIOD
+        mockLogger.clear();
+        mockLogger.setVerbose(false);
+        stream = new DataCollector.UTCMessageStream(sink, "test", 0);
+        for (int i=1; i<100000; i++)
+        {
+            stream.dispatchBuffer(rapcal, generateBuffer(CURRENT_TIME));
+            stream.dispatchBuffer(rapcal, generateBuffer(BACKWARDS_TIME));
+
+            int numSeen = mockLogger.getNumberOfMessages();
+
+            if(i< stream.LOGGED_OCCURRENCES_PERIOD + stream.MAX_LOGGING)
+            {
+                assertEquals("Expect one log per occurrence", i, numSeen);
+            }
+            else if( i == stream.LOGGED_OCCURRENCES_PERIOD + stream.MAX_LOGGING)
+            {
+                assertEquals("Expect one log per occurrence," +
+                        " plus dampening message", i+1, numSeen);
+            }
+            else
+            {
+                //now we expect a run of MAX_LOGGING+1 once every
+                //LOGGED_OCCURRENCE_PERIOD
+
+                int periodNumber = i/stream.LOGGED_OCCURRENCES_PERIOD;
+                int occurrenceCount = i % stream.LOGGED_OCCURRENCES_PERIOD;
+
+
+                if(occurrenceCount < stream.MAX_LOGGING)
+                {
+                    int expected = stream.LOGGED_OCCURRENCES_PERIOD +
+                            (stream.MAX_LOGGING +1) *  (periodNumber-1) +
+                            occurrenceCount;
+                    assertEquals("Expect one log per occurrence",
+                            expected, numSeen);
+
+                }
+                else if(occurrenceCount == stream.MAX_LOGGING)
+                {
+                    int expected = stream.LOGGED_OCCURRENCES_PERIOD +
+                            (stream.MAX_LOGGING +1) *  (periodNumber-1) +
+                            occurrenceCount + 1;
+                    assertEquals("Expect one log per occurrence," +
+                            " plus dampening message", expected, numSeen);
+                }
+                else
+                {
+                    int expected = stream.LOGGED_OCCURRENCES_PERIOD +
+                            (stream.MAX_LOGGING +1) *  periodNumber;
+                assertEquals("Expect max logging during period",
+                        expected, numSeen);
+                }
+            }
+
+        }
+
+    }
 
     private static class BufferConsumerMock implements BufferConsumer
     {

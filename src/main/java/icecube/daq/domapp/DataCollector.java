@@ -1047,8 +1047,12 @@ public class DataCollector
 
         // if the clock jumps significantly, we will see many out-of-order
         // messages, so throttle logging.
-        private final int MAX_LOGGING = 10;
+        public final int MAX_LOGGING = 10;
         int num_logged = 0;
+        // A persistent, repeating every-other situation warrants additional
+        // throttling mechanism.
+        public final int LOGGED_OCCURRENCES_PERIOD = 1000;
+        private int occurrence_count = 0;
 
 
         public UTCMessageStream(final BufferConsumer target, final String type,
@@ -1110,6 +1114,8 @@ public class DataCollector
             // induced by tcal updates or errors.
             if (lastUTCClock > utc)
             {
+                occurrence_count++;
+
                 long utcClockBackStep_0_1_nanos = (lastUTCClock-utc);
                 boolean accept = utcClockBackStep_0_1_nanos <= orderingEpsilon;
 
@@ -1135,7 +1141,13 @@ public class DataCollector
                             " last-dom-clock [" + lastDOMClock + "]" +
                             " current-dom-clock [" + domclk + "]" +
                             " utc-diff [" + utcClockBackStep_0_1_nanos + "]" +
-                            " (reason: " + reason + ", action: "+ action + ")");
+                            " (occurrence: " + occurrence_count +
+                            ", reason: " + reason + ", action: "+ action + ")");
+
+                    if(num_logged == MAX_LOGGING)
+                    {
+                        logger.error("Dampening Out-of-order logging.");
+                    }
                 }
 
                 return accept;
@@ -1148,7 +1160,14 @@ public class DataCollector
                 lastDOMClock = domclk;
                 lastUTCClock = utc;
 
-                num_logged=0;
+                // For short periods we want detailed logging, but for
+                // a persistent, repeating condition we want to dampen
+                // the logging
+                if(occurrence_count < LOGGED_OCCURRENCES_PERIOD ||
+                        occurrence_count%LOGGED_OCCURRENCES_PERIOD == 0)
+                {
+                   num_logged=0;
+                }
                 return true;
             }
 
@@ -1180,7 +1199,7 @@ public class DataCollector
                     // intentional fall-through
                 case MAGIC_ENGINEERING_HIT_FMTID:
                     rtHitRate.recordEvent(utc);
-                    lastHitTime = utc;
+                    lastHitTime = Math.max(lastHitTime, utc);
                     if (firstHitTime < 0L) firstHitTime = utc;
             }
         }
