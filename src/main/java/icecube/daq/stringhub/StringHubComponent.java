@@ -883,7 +883,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15409 2015-02-11 15:09:44Z dglo $";
+		return "$Id: StringHubComponent.java 15476 2015-03-16 19:29:32Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1003,50 +1003,14 @@ public class StringHubComponent
 
 	public long getLatestFirstChannelHitTime()
 	{
-		long latestFirst = 0L;
-		boolean found = true;
-
-		for (AbstractDataCollector adc : conn.getCollectors()) {
-			if (!adc.isZombie()) {
-				long val = adc.getFirstHitTime();
-				if (val < 0L) {
-					found = false;
-					break;
-				} else if (val > latestFirst) {
-					latestFirst = val;
-				}
-			}
-		}
-
-		if (!found) {
-			return 0L;
-		}
-
-		return latestFirst;
+		GoodTimeCalculator gtc = new GoodTimeCalculator(conn, true);
+		return gtc.getTime();
 	}
 
 	public long getEarliestLastChannelHitTime()
 	{
-		long earliestLast = Long.MAX_VALUE;
-		boolean found = true;
-
-		for (AbstractDataCollector adc : conn.getCollectors()) {
-			if (!adc.isZombie()) {
-				long val = adc.getLastHitTime();
-				if (val < 0L) {
-					found = false;
-					break;
-				} else if (val < earliestLast) {
-					earliestLast = val;
-				}
-			}
-		}
-
-		if (!found) {
-			return 0L;
-		}
-
-		return earliestLast;
+		GoodTimeCalculator gtc = new GoodTimeCalculator(conn, false);
+		return gtc.getTime();
 	}
 
 	class ConfigData
