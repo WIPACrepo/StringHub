@@ -813,12 +813,13 @@ public class DataCollector
 	{
 		// support class old signature
 		// but default to disabling intervals
-		this(card, pair, dom, config, hitsTo, moniTo, supernovaTo, tcalTo, false);
+		this(card, pair, dom, null, config, hitsTo, moniTo, supernovaTo, tcalTo, false);
 	}
 
 
     public DataCollector(
             int card, int pair, char dom,
+            String mbid,
             DOMConfiguration config,
             BufferConsumer hitsTo,
             BufferConsumer moniTo,
@@ -830,6 +831,13 @@ public class DataCollector
         this.card = card;
         this.pair = pair;
         this.dom = dom;
+
+        //NOTE: Leave the initial value as null for clients without
+        //      prior knowledge of the DOM mbid
+        if(mbid != null)
+        {
+            setMainboardID(mbid);
+        }
 
 		//System.out.println("Enable stats: "+ENABLE_STATS+" intervals: "+ENABLE_INTERVAL);
 
@@ -1526,6 +1534,35 @@ public class DataCollector
     } /* END OF run() METHOD */
 
     /**
+     * Idempotent setter for the DOM mainboard ID related members.
+     *
+     * This method detects alterations of the mbid emanating from
+     * a mis-behaving DOMApp.
+     *
+     */
+    private void setMainboardID(String mainboardID)
+    {
+       if(mbid != null)
+       {
+           //once set, mbid values must be invariant
+           if( !mbid.equals(mainboardID) )
+           {
+               throw new IllegalArgumentException("Attempt to change mbid" +
+                       " from [" + mbid + "] to [" + mainboardID + "]");
+           }
+           else
+           {
+              // noop, the values agree
+           }
+       }
+        else
+       {
+           mbid = mainboardID;
+           numericMBID = Long.parseLong(mbid, 16);
+       }
+    }
+
+    /**
      * Wrap up softboot -> domapp behavior
      * */
     private void softbootToDomapp() throws IOException, InterruptedException
@@ -1593,10 +1630,13 @@ public class DataCollector
         /*
          * I need the MBID right now just in case I have to shut this stream down.
          */
-        mbid = driver.getProcfileID(card, pair, dom);
-        numericMBID = Long.parseLong(mbid, 16);
+        setMainboardID(driver.getProcfileID(card, pair, dom));
         boolean needSoftboot = true;
 
+        // Note: DOMApp implements its own access to the mbid, this will be
+        //       checked after initialization to ensure agreement with the
+        //       driver.
+        String reportedMbid = mbid;
         if (!alwaysSoftboot)
         {
             logger.debug("Autodetecting DOMApp");
@@ -1615,7 +1655,7 @@ public class DataCollector
                         // this is normally what one would expect from a
                         // DOMApp not currently in running mode, ignore
                     }
-                    mbid = app.getMainboardID();
+                    reportedMbid = app.getMainboardID();
                 }
                 else
                 {
@@ -1639,7 +1679,7 @@ public class DataCollector
                 try
                 {
                     softbootToDomapp();
-                    mbid = app.getMainboardID();
+                    reportedMbid = app.getMainboardID();
 					break;
                 }
                 catch (Exception ex2)
@@ -1652,7 +1692,7 @@ public class DataCollector
                 }
             }
         }
-        numericMBID = Long.parseLong(mbid, 16);
+        setMainboardID(reportedMbid);
 
         setRunLevel(RunLevel.IDLE);
 

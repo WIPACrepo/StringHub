@@ -544,8 +544,8 @@ public class StringHubComponent
 		if (!isSim) {
 			DataCollector dc =
 				new DataCollector(chanInfo.card, chanInfo.pair, chanInfo.dom,
-								  config, hitsSort, moniSort, scalSort,
-								  tcalSort, enable_intervals);
+								  chanInfo.mbid, config, hitsSort, moniSort,
+                                  scalSort, tcalSort, enable_intervals);
 			addMBean("DataCollectorMonitor-" + chanInfo, dc);
 			return dc;
 		}
@@ -883,7 +883,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15476 2015-03-16 19:29:32Z dglo $";
+		return "$Id: StringHubComponent.java 15482 2015-03-24 15:22:39Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()

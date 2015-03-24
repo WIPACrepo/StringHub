@@ -121,8 +121,8 @@ public class Omicron {
 			GPSService.getInstance().startService(chInfo.card, null);
 
 			DataCollector dc = new DataCollector(
-					chInfo.card, chInfo.pair, chInfo.dom, config,
-					hitsSort, moniSort, scalSort, tcalSort,
+					chInfo.card, chInfo.pair, chInfo.dom, chInfo.mbid, config,
+                    hitsSort, moniSort, scalSort, tcalSort,
 					!DISABLE_INTERVAL);
 			collectors.add(dc);
 			if (logger.isDebugEnabled()) logger.debug("Starting new DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ").");
