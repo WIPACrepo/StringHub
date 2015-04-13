@@ -798,7 +798,6 @@ public class DataCollector
      * @throws MessageException
      */
     public DataCollector(DOMChannelInfo chInfo, BufferConsumer hitsTo)
-    throws IOException, MessageException
     {
         this(chInfo.card, chInfo.pair, chInfo.dom, null, hitsTo, null, null, null);
     }
@@ -809,7 +808,7 @@ public class DataCollector
             BufferConsumer hitsTo,
             BufferConsumer moniTo,
             BufferConsumer supernovaTo,
-            BufferConsumer tcalTo) throws IOException, MessageException
+            BufferConsumer tcalTo)
 	{
 		// support class old signature
 		// but default to disabling intervals
@@ -825,7 +824,7 @@ public class DataCollector
             BufferConsumer moniTo,
             BufferConsumer supernovaTo,
             BufferConsumer tcalTo,
-			boolean enable_intervals) throws IOException, MessageException
+			boolean enable_intervals)
     {
         super(card, pair, dom);
         this.card = card;
