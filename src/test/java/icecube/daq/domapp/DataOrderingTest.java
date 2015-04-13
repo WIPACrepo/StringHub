@@ -1,6 +1,10 @@
 package icecube.daq.domapp;
 
 import icecube.daq.bindery.BufferConsumer;
+import icecube.daq.domapp.dataprocessor.DataDispatcher;
+import icecube.daq.domapp.dataprocessor.DataProcessor;
+import icecube.daq.domapp.dataprocessor.DataStats;
+import icecube.daq.domapp.dataprocessor.UTCDispatcher;
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.rapcal.RAPCal;
@@ -29,6 +33,11 @@ public class DataOrderingTest
 {
 
 
+    // This class tests two code lines, the original
+    // and the class that the original code migrated to.
+    private static final int ORIGINAL_IMPLEMENTATION = 1;
+    private static final int MIGRATED_IMPLEMENTATION = 2;
+
     @BeforeClass
     public static void setupLogging()
     {
@@ -44,17 +53,23 @@ public class DataOrderingTest
     @Test
     public void testNullInstantiation() throws IOException
     {
+        testNullInstantiation(ORIGINAL_IMPLEMENTATION);
+        testNullInstantiation(MIGRATED_IMPLEMENTATION);
+    }
+    public void testNullInstantiation(int whichVersion) throws IOException
+    {
         // must support null consumer modes
         BufferConsumer nullConsumer = null;
 
-        DataCollector.UTCMessageStream stream = new DataCollector
-                .UTCMessageStream(nullConsumer, "test", 10000);
+        DataDispatcher dispatcher = constructDispatcher(null, nullConsumer, "test",10000,whichVersion);
+//        DataCollector.UTCMessageStream stream = new DataCollector
+//                .UTCMessageStream(nullConsumer, "test", 10000);
 
-        assertFalse("Null consumer not supported", stream.hasConsumer());
+        assertFalse("Null consumer not supported", dispatcher.hasConsumer());
 
         try
         {
-            stream.eos(ByteBuffer.allocate(24));
+            dispatcher.eos(ByteBuffer.allocate(24));
         }
         catch (Exception e)
         {
@@ -65,18 +80,24 @@ public class DataOrderingTest
     @Test
     public void testConsumerManagement() throws IOException
     {
+        testConsumerManagement(ORIGINAL_IMPLEMENTATION);
+        testConsumerManagement(MIGRATED_IMPLEMENTATION);
+    }
+    public void testConsumerManagement(int whichVersion) throws IOException
+    {
         // must support ad hoc consumer methods
         BufferConsumerMock consumerMock = new BufferConsumerMock();
 
-        DataCollector.UTCMessageStream stream = new DataCollector
-                .UTCMessageStream(consumerMock, "test", 10000);
+        DataDispatcher dispatcher = constructDispatcher(null, consumerMock, "test",10000,whichVersion);
+//        DataCollector.UTCMessageStream stream = new DataCollector
+//                .UTCMessageStream(consumerMock, "test", 10000);
 
-        assertTrue("Consumer existence not supported", stream.hasConsumer());
+        assertTrue("Consumer existence not supported", dispatcher.hasConsumer());
 
 
         ByteBuffer eos = ByteBuffer.allocate(32);
         eos.putLong(24, Long.MAX_VALUE);
-        stream.eos(eos);
+        dispatcher.eos(eos);
 
         assertEquals("EOS not delivered", Long.MAX_VALUE,
                 consumerMock.getReceivedTimes()[0]);
@@ -86,12 +107,17 @@ public class DataOrderingTest
     @Test
     public void testInOrderCondition()
     {
+        testInOrderCondition(ORIGINAL_IMPLEMENTATION);
+        testInOrderCondition(MIGRATED_IMPLEMENTATION);
+    }
+    public void testInOrderCondition(int whichVersion)
+    {
 
         try
         {
-            internalTestInOrderCondition(10000);  // 10 microseconds
-            internalTestInOrderCondition(0);      // zero epsilon
-            internalTestInOrderCondition(-1);     // negative epsilon
+            internalTestInOrderCondition(whichVersion, 10000);  // 10 microseconds
+            internalTestInOrderCondition(whichVersion, 0);      // zero epsilon
+            internalTestInOrderCondition(whichVersion, -1);     // negative epsilon
         }
         catch (IOException e)
         {
@@ -99,15 +125,16 @@ public class DataOrderingTest
         }
     }
 
-    public void internalTestInOrderCondition(long epsilon) throws IOException
+    public void internalTestInOrderCondition(int whichVersion, long epsilon) throws IOException
     {
         // generate data payloads in time order
         // this is the predominate condition
         RapCalMock rapcal = new RapCalMock(500);
       BufferConsumerMock sink = new BufferConsumerMock();
 
-        DataCollector.UTCMessageStream stream = new DataCollector
-                .UTCMessageStream(sink, "test", epsilon);
+        DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test", epsilon, whichVersion);
+//        DataCollector.UTCMessageStream stream = new DataCollector
+//                .UTCMessageStream(sink, "test", epsilon);
 
         long domclockSeed = 123556678;
         long[] domTimestamps = new long[]
@@ -132,7 +159,7 @@ public class DataOrderingTest
 
         for (int i = 0; i < domTimestamps.length; i++)
         {
-            stream.dispatchBuffer(rapcal, generateBuffer(domTimestamps[i]));
+            dispatcher.dispatchBuffer(generateBuffer(domTimestamps[i]));
         }
 
         assertArrayEquals("in-order payloads not delivered",
@@ -143,11 +170,18 @@ public class DataOrderingTest
     @Test
     public void testRetrogradeWithinEpsilon() throws IOException
     {
+        testRetrogradeWithinEpsilon(ORIGINAL_IMPLEMENTATION);
+        testRetrogradeWithinEpsilon(MIGRATED_IMPLEMENTATION);
+    }
+    public void testRetrogradeWithinEpsilon(int whichVersion) throws IOException
+    {
         RapCalMock rapcal = new RapCalMock(500);
         BufferConsumerMock sink = new BufferConsumerMock();
 
-        DataCollector.UTCMessageStream stream = new DataCollector
-                .UTCMessageStream(sink, "test", 10000);
+        DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test", 10000, whichVersion);
+
+//        DataCollector.UTCMessageStream stream = new DataCollector
+//                .UTCMessageStream(sink, "test", 10000);
 
 
         // test retrograde within epsilon
@@ -191,7 +225,7 @@ public class DataOrderingTest
             {
                 rapcal.adjustOffset(-10000);
             }
-            stream.dispatchBuffer(rapcal, generateBuffer(domTimestamps[i]));
+            dispatcher.dispatchBuffer(generateBuffer(domTimestamps[i]));
         }
 
         assertArrayEquals("payloads within epsilon ordered not delivered",
@@ -203,11 +237,17 @@ public class DataOrderingTest
     @Test
     public void testRetrogradeBeyondEpsilon() throws IOException
     {
+        testRetrogradeBeyondEpsilon(ORIGINAL_IMPLEMENTATION);
+        testRetrogradeBeyondEpsilon(MIGRATED_IMPLEMENTATION);
+    }
+    public void testRetrogradeBeyondEpsilon(int whichVersion) throws IOException
+    {
         RapCalMock rapcal = new RapCalMock(500);
         BufferConsumerMock sink = new BufferConsumerMock();
 
-        DataCollector.UTCMessageStream stream = new DataCollector
-                .UTCMessageStream(sink, "test", 10000);
+        DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test", 10000, whichVersion);
+//        DataCollector.UTCMessageStream stream = new DataCollector
+//                .UTCMessageStream(sink, "test", 10000);
 
 
         // test retrograde beyond epsilon
@@ -261,7 +301,7 @@ public class DataOrderingTest
             {
                 rapcal.adjustOffset(-25000);
             }
-            stream.dispatchBuffer(rapcal, generateBuffer(domTimestamps[i]));
+            dispatcher.dispatchBuffer(generateBuffer(domTimestamps[i]));
         }
 
         assertArrayEquals("out-of-order payloads mis-handled ",
@@ -273,11 +313,17 @@ public class DataOrderingTest
     @Test
     public void testRetrogradeZeroEpsilon() throws IOException
     {
+        testRetrogradeZeroEpsilon(ORIGINAL_IMPLEMENTATION);
+        testRetrogradeZeroEpsilon(MIGRATED_IMPLEMENTATION);
+    }
+    public void testRetrogradeZeroEpsilon(int whichVersion) throws IOException
+    {
         RapCalMock rapcal = new RapCalMock(500);
         BufferConsumerMock sink = new BufferConsumerMock();
 
-        DataCollector.UTCMessageStream stream = new DataCollector
-                .UTCMessageStream(sink, "test", 0);
+        DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test", 0 ,  whichVersion);
+//        DataCollector.UTCMessageStream stream = new DataCollector
+//                .UTCMessageStream(sink, "test", 0);
 
 
         // test retrograde wit epsilon at zero
@@ -331,7 +377,7 @@ public class DataOrderingTest
             {
                 rapcal.adjustOffset(-25000);
             }
-            stream.dispatchBuffer(rapcal, generateBuffer(domTimestamps[i]));
+            dispatcher.dispatchBuffer(generateBuffer(domTimestamps[i]));
         }
 
         assertArrayEquals("out-of-order payloads mis-handled ",
@@ -412,15 +458,40 @@ public class DataOrderingTest
     @Test
     public void testLoggingThrottling() throws IOException
     {
+        testLoggingThrottling(ORIGINAL_IMPLEMENTATION);
+        testLoggingThrottling(MIGRATED_IMPLEMENTATION);
+    }
+    public void testLoggingThrottling(int whichVersion) throws IOException
+    {
         RapCalMock rapcal = new RapCalMock(500);
         BufferConsumerMock sink = new BufferConsumerMock();
 
-        DataCollector.UTCMessageStream stream = new DataCollector
-                .UTCMessageStream(sink, "test", 0);
+        DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test", 0 ,  whichVersion);
+
+        int MAX_LOGGING = 0;
+        int LOGGED_OCCURRENCES_PERIOD = 0;
+        if(dispatcher instanceof UTCDispatchAdapter)
+        {
+            MAX_LOGGING = ((UTCDispatchAdapter)dispatcher).original.MAX_LOGGING;
+            LOGGED_OCCURRENCES_PERIOD = ((UTCDispatchAdapter)dispatcher).original.LOGGED_OCCURRENCES_PERIOD;
+        }
+        else if(dispatcher instanceof UTCDispatcher)
+        {
+            MAX_LOGGING = ((UTCDispatcher)dispatcher).MAX_LOGGING;
+            LOGGED_OCCURRENCES_PERIOD = ((UTCDispatcher)dispatcher).LOGGED_OCCURRENCES_PERIOD;
+
+        }
+        else
+        {
+            fail("Test does not support class" + dispatcher.getClass());
+        }
+
+//        DataCollector.UTCMessageStream stream = new DataCollector
+//                .UTCMessageStream(sink, "test", 0);
 
         long CURRENT_TIME=100000;
         long BACKWARDS_TIME=1234;
-        stream.dispatchBuffer(rapcal, generateBuffer(CURRENT_TIME));
+        dispatcher.dispatchBuffer(generateBuffer(CURRENT_TIME));
 
         //install a countable logger
         MockAppender mockLogger = new MockAppender(Level.ERROR);
@@ -431,13 +502,13 @@ public class DataOrderingTest
         mockLogger.setVerbose(true);
         for (int i=1; i<10000; i++)
         {
-            stream.dispatchBuffer(rapcal, generateBuffer(BACKWARDS_TIME));
+            dispatcher.dispatchBuffer(generateBuffer(BACKWARDS_TIME));
             int numSeen = mockLogger.getNumberOfMessages();
-            if(i<stream.MAX_LOGGING)
+            if(i<MAX_LOGGING)
             {
                 assertEquals("Expect one log per occurrence", i, numSeen);
             }
-            else if( i == stream.MAX_LOGGING)
+            else if( i == MAX_LOGGING)
             {
                 assertEquals("Expect one log per occurrence," +
                         " plus dampening message", i+1, numSeen);
@@ -445,7 +516,7 @@ public class DataOrderingTest
             else
             {
                 assertEquals("Expect max logging plus dampen message",
-                        stream.MAX_LOGGING+1, numSeen);
+                        MAX_LOGGING+1, numSeen);
             }
         }
 
@@ -454,19 +525,20 @@ public class DataOrderingTest
         //MAX_LOGGING+1 every LOGGED_OCCURRENCES_PERIOD
         mockLogger.clear();
         mockLogger.setVerbose(false);
-        stream = new DataCollector.UTCMessageStream(sink, "test", 0);
+        dispatcher = constructDispatcher(rapcal, sink, "test", 0 ,  whichVersion);
+       // stream = new DataCollector.UTCMessageStream(sink, "test", 0);
         for (int i=1; i<100000; i++)
         {
-            stream.dispatchBuffer(rapcal, generateBuffer(CURRENT_TIME));
-            stream.dispatchBuffer(rapcal, generateBuffer(BACKWARDS_TIME));
+            dispatcher.dispatchBuffer(generateBuffer(CURRENT_TIME));
+            dispatcher.dispatchBuffer(generateBuffer(BACKWARDS_TIME));
 
             int numSeen = mockLogger.getNumberOfMessages();
 
-            if(i< stream.LOGGED_OCCURRENCES_PERIOD + stream.MAX_LOGGING)
+            if(i< LOGGED_OCCURRENCES_PERIOD + MAX_LOGGING)
             {
                 assertEquals("Expect one log per occurrence", i, numSeen);
             }
-            else if( i == stream.LOGGED_OCCURRENCES_PERIOD + stream.MAX_LOGGING)
+            else if( i == LOGGED_OCCURRENCES_PERIOD + MAX_LOGGING)
             {
                 assertEquals("Expect one log per occurrence," +
                         " plus dampening message", i+1, numSeen);
@@ -476,31 +548,31 @@ public class DataOrderingTest
                 //now we expect a run of MAX_LOGGING+1 once every
                 //LOGGED_OCCURRENCE_PERIOD
 
-                int periodNumber = i/stream.LOGGED_OCCURRENCES_PERIOD;
-                int occurrenceCount = i % stream.LOGGED_OCCURRENCES_PERIOD;
+                int periodNumber = i/LOGGED_OCCURRENCES_PERIOD;
+                int occurrenceCount = i % LOGGED_OCCURRENCES_PERIOD;
 
 
-                if(occurrenceCount < stream.MAX_LOGGING)
+                if(occurrenceCount < MAX_LOGGING)
                 {
-                    int expected = stream.LOGGED_OCCURRENCES_PERIOD +
-                            (stream.MAX_LOGGING +1) *  (periodNumber-1) +
+                    int expected = LOGGED_OCCURRENCES_PERIOD +
+                            (MAX_LOGGING +1) *  (periodNumber-1) +
                             occurrenceCount;
                     assertEquals("Expect one log per occurrence",
                             expected, numSeen);
 
                 }
-                else if(occurrenceCount == stream.MAX_LOGGING)
+                else if(occurrenceCount == MAX_LOGGING)
                 {
-                    int expected = stream.LOGGED_OCCURRENCES_PERIOD +
-                            (stream.MAX_LOGGING +1) *  (periodNumber-1) +
+                    int expected = LOGGED_OCCURRENCES_PERIOD +
+                            (MAX_LOGGING +1) *  (periodNumber-1) +
                             occurrenceCount + 1;
                     assertEquals("Expect one log per occurrence," +
                             " plus dampening message", expected, numSeen);
                 }
                 else
                 {
-                    int expected = stream.LOGGED_OCCURRENCES_PERIOD +
-                            (stream.MAX_LOGGING +1) *  periodNumber;
+                    int expected = LOGGED_OCCURRENCES_PERIOD +
+                            (MAX_LOGGING +1) *  periodNumber;
                 assertEquals("Expect max logging during period",
                         expected, numSeen);
                 }
@@ -530,6 +602,74 @@ public class DataOrderingTest
         }
 
 
+    }
+
+
+    /**
+     * factory for creating test instances based on both the original
+     * an migrated implementation.
+     */
+    private static DataDispatcher constructDispatcher(final RAPCal rapcal,
+                                                      final BufferConsumer target,
+                                                      String type,
+                                                      long orderingEpsilon,
+                                                      int implementation)
+    {
+        switch (implementation)
+        {
+            case ORIGINAL_IMPLEMENTATION:
+                DataCollector.UTCMessageStream original =
+                        new DataCollector.UTCMessageStream(target,
+                                type, orderingEpsilon);
+                return new UTCDispatchAdapter(original, rapcal);
+            case MIGRATED_IMPLEMENTATION:
+                return new UTCDispatcher(target,
+                        DataProcessor.StreamType.MONI, rapcal,orderingEpsilon);
+            default:
+                throw new Error("Test Fail");
+
+        }
+    }
+
+    /**
+     * Adapt the original implementation to the UTCDispatcherInterface
+     */
+    private static class UTCDispatchAdapter implements DataDispatcher
+    {
+        private final DataCollector.UTCMessageStream original;
+        private final RAPCal rapcal;
+
+
+        private UTCDispatchAdapter(final DataCollector.UTCMessageStream original, final RAPCal rapcal)
+        {
+            this.original = original;
+            this.rapcal = rapcal;
+        }
+
+        @Override
+        public boolean hasConsumer()
+        {
+            return original.hasConsumer();
+        }
+
+        @Override
+        public void eos(final ByteBuffer eos) throws IOException
+        {
+            original.eos(eos);
+        }
+
+        @Override
+        public long dispatchBuffer(final ByteBuffer buf) throws IOException
+        {
+            original.dispatchBuffer(rapcal, buf);
+            return 0;
+        }
+
+        @Override
+        public void dispatchHitBuffer(final int atwdChip, final ByteBuffer hitBuf, final DataStats counters) throws IOException
+        {
+            throw new Error("Not Implemented in Original");
+        }
     }
 
 }
