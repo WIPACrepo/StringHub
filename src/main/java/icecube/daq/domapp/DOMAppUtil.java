@@ -18,7 +18,7 @@ public class DOMAppUtil
 	 * the Buffer position will be advanced by 6 units.
 	 * @return 48-bit clock word (high 2 bytes are 0)
 	 */
-	static long decodeClock6B(ByteBuffer buf, int pos)
+	public static long decodeClock6B(ByteBuffer buf, int pos)
 	{
 		long domclk = 0L;
 		for (int itb = 0; itb < 6; itb++)
