@@ -18,7 +18,6 @@ import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.ZeroCrossingRAPCal;
 import icecube.daq.util.RealTimeRateMeter;
 import icecube.daq.util.SimpleMovingAverage;
-import icecube.daq.util.StringHubAlert;
 import icecube.daq.util.UTC;
 
 import java.io.File;
