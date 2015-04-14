@@ -88,8 +88,7 @@ import java.util.TimerTask;
  *
  */
 public class NewDataCollector
-    extends AbstractDataCollector
-    implements DataCollectorMBean
+    extends DataCollector
 {
     private static final Logger logger = Logger.getLogger(NewDataCollector.class);
 

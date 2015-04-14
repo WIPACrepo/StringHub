@@ -6,6 +6,7 @@ import icecube.daq.domapp.BadEngineeringFormat;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.DataCollector;
 import icecube.daq.domapp.EngineeringRecordFormat;
+import icecube.daq.domapp.LegacyDataCollector;
 import icecube.daq.domapp.LocalCoincidenceConfiguration.RxMode;
 import icecube.daq.domapp.LocalCoincidenceConfiguration.Type;
 import icecube.daq.domapp.MuxState;
@@ -335,7 +336,9 @@ public class CollectorShell
         }
         else
         {
-    		csh.collector = new DataCollector(card, pair, dom, csh.config,
+            //Note: The new data collector does not support CollectorShell as
+            //      it requires the knowledge of the device mbid on construction
+    		csh.collector = new LegacyDataCollector(card, pair, dom, csh.config,
     		        hitsConsumer, moniConsumer, scalConsumer, tcalConsumer);
         }
 

@@ -7,6 +7,7 @@ import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.AbstractDataCollector;
 import icecube.daq.domapp.DOMConfiguration;
+import icecube.daq.domapp.DataCollector;
 import icecube.daq.domapp.DataCollectorFactory;
 import icecube.daq.domapp.MessageException;
 import icecube.daq.domapp.RunLevel;
@@ -542,12 +543,10 @@ public class StringHubComponent
 		throws IOException, MessageException
 	{
 		if (!isSim) {
-            AbstractDataCollector dc =
+            DataCollector dc =
                     DataCollectorFactory.buildDataCollector(chanInfo.card, chanInfo.pair, chanInfo.dom,
 								  chanInfo.mbid, config, hitsSort, moniSort,
                                   scalSort, tcalSort, enable_intervals);
-
-            //Note, availability of mbean interface on dc is assumed
 			addMBean("DataCollectorMonitor-" + chanInfo, dc);
 			return dc;
 		}
@@ -885,7 +884,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15498 2015-04-13 19:28:46Z bendfelt $";
+		return "$Id: StringHubComponent.java 15500 2015-04-14 16:25:29Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()

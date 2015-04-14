@@ -13,7 +13,7 @@ public class DataCollectorFactory
     private static final boolean USE_ORIGINAL_IMPLEMENTATION =
             Boolean.getBoolean("icecube.daq.domapp.datacollector.use-original-impl");
 
-    public static AbstractDataCollector buildDataCollector(int card,
+    public static DataCollector buildDataCollector(int card,
                                                            int pair,
                                                            char dom,
                                                            String mbid,
@@ -26,7 +26,7 @@ public class DataCollectorFactory
     {
         if(USE_ORIGINAL_IMPLEMENTATION)
         {
-            return new DataCollector(card, pair, dom, mbid, config,
+            return new LegacyDataCollector(card, pair, dom, mbid, config,
                     hitsTo, moniTo, supernovaTo, tcalTo, enable_intervals);
         }
         else

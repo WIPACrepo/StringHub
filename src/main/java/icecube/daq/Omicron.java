@@ -3,8 +3,8 @@ package icecube.daq;
 import icecube.daq.bindery.BufferConsumerBuffered;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.configuration.XMLConfig;
-import icecube.daq.domapp.AbstractDataCollector;
 import icecube.daq.domapp.DOMConfiguration;
+import icecube.daq.domapp.DataCollector;
 import icecube.daq.domapp.DataCollectorFactory;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.dor.DOMChannelInfo;
@@ -25,7 +25,7 @@ import org.apache.log4j.PropertyConfigurator;
 public class Omicron {
 
     private static Driver driver = Driver.getInstance();
-    private static ArrayList<AbstractDataCollector> collectors;
+    private static ArrayList<DataCollector> collectors;
     //private static ByteBuffer drain;
     private static final Logger logger = Logger.getLogger(Omicron.class);
     private static final boolean DISABLE_INTERVAL = Boolean.getBoolean("icecube.daq.domapp.datacollector.disable_intervals");
@@ -84,7 +84,7 @@ public class Omicron {
 		if (logger.isInfoEnabled()) {
 			logger.info("Begin logging at " + new java.util.Date());
 		}
-		collectors = new ArrayList<AbstractDataCollector>();
+		collectors = new ArrayList<DataCollector>();
 
 		// Must first count intersection of configured and discovered DOMs
 		int nDOM = 0;
@@ -121,7 +121,7 @@ public class Omicron {
 			// Associate a GPS service to this card, if not already done
 			GPSService.getInstance().startService(chInfo.card, null);
 
-			AbstractDataCollector dc =
+			DataCollector dc =
                     DataCollectorFactory.buildDataCollector(
 					chInfo.card, chInfo.pair, chInfo.dom, chInfo.mbid, config,
                     hitsSort, moniSort, scalSort, tcalSort,
@@ -140,12 +140,12 @@ public class Omicron {
 		long t0 = System.currentTimeMillis();
 
 		// List of objects that need removal
-		HashSet<AbstractDataCollector> reaper = new HashSet<AbstractDataCollector>();
+		HashSet<DataCollector> reaper = new HashSet<DataCollector>();
 
 		if (logger.isInfoEnabled()) {
 			logger.info("Waiting for collectors to initialize");
 		}
-		for (AbstractDataCollector dc : collectors)
+		for (DataCollector dc : collectors)
 		{
 		    // Note that if you turn SN data off on all doms the extra
 		    // messaging pushed the us over the timeout here
@@ -163,7 +163,7 @@ public class Omicron {
 
 		logger.info("Sending CONFIGURE signal to DataCollectors");
 
-		for (AbstractDataCollector dc : collectors)
+		for (DataCollector dc : collectors)
 		{
 			if (!dc.isAlive())
 			{
@@ -182,7 +182,7 @@ public class Omicron {
 		logger.info("Waiting on DOMs to configure...");
 
 		// Wait until configured
-		for (AbstractDataCollector dc : collectors)
+		for (DataCollector dc : collectors)
 		{
 			if (!dc.isAlive())
 			{
@@ -211,7 +211,7 @@ public class Omicron {
 		logger.info("Starting run...");
 
 		// Quickly fire off a run start now that all are ready
-		for (AbstractDataCollector dc : collectors)
+		for (DataCollector dc : collectors)
 			if (dc.isAlive()) dc.signalStartRun();
 
 		t0 = System.currentTimeMillis() + runLengthMsec;
@@ -221,13 +221,13 @@ public class Omicron {
 			long time = System.currentTimeMillis();
 			if (time > t0)
 			{
-				for (AbstractDataCollector dc : collectors) if (dc.isAlive()) dc.signalStopRun();
+				for (DataCollector dc : collectors) if (dc.isAlive()) dc.signalStopRun();
 				break;
 			}
 			Thread.sleep(1000);
 		}
 
-		for (AbstractDataCollector dc : collectors) {
+		for (DataCollector dc : collectors) {
 			while (dc.isAlive() && !dc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(100);
 			dc.signalShutdown();
 		}
