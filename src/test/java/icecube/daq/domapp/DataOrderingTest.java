@@ -618,8 +618,8 @@ public class DataOrderingTest
         switch (implementation)
         {
             case ORIGINAL_IMPLEMENTATION:
-                DataCollector.UTCMessageStream original =
-                        new DataCollector.UTCMessageStream(target,
+                LegacyDataCollector.UTCMessageStream original =
+                        new LegacyDataCollector.UTCMessageStream(target,
                                 type, orderingEpsilon);
                 return new UTCDispatchAdapter(original, rapcal);
             case MIGRATED_IMPLEMENTATION:
@@ -636,11 +636,11 @@ public class DataOrderingTest
      */
     private static class UTCDispatchAdapter implements DataDispatcher
     {
-        private final DataCollector.UTCMessageStream original;
+        private final LegacyDataCollector.UTCMessageStream original;
         private final RAPCal rapcal;
 
 
-        private UTCDispatchAdapter(final DataCollector.UTCMessageStream original, final RAPCal rapcal)
+        private UTCDispatchAdapter(final LegacyDataCollector.UTCMessageStream original, final RAPCal rapcal)
         {
             this.original = original;
             this.rapcal = rapcal;
