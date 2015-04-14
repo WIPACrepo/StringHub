@@ -3,6 +3,7 @@ package icecube.daq.domapp.dataprocessor;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -35,6 +36,7 @@ public class ClientThreadExecutor extends AbstractExecutorService
     @Override
     public List<Runnable> shutdownNow()
     {
+        isShutdown = true;
         return new LinkedList<Runnable>();
     }
 
@@ -68,6 +70,10 @@ public class ClientThreadExecutor extends AbstractExecutorService
     @Override
     public void execute(final Runnable command)
     {
+        if(isShutdown)
+        {
+            throw new RejectedExecutionException("Executor is shut down.");
+        }
         command.run();
     }
 }
