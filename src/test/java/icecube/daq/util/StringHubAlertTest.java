@@ -311,6 +311,42 @@ public class StringHubAlertTest
     }
 
     @Test
+    public void testAlertNegativeTime()
+        throws Exception
+    {
+        final String condition = "Test DOM alert";
+        final int card = 1;
+        final int pair = 23;
+        final char dom = 'A';
+        final String mbid = "123456789ABC";
+        final String name = "TestDOM";
+        final int string = 12;
+        final int position = 34;
+        final int runNumber = 123456;
+        final long utcTime = -1;
+
+        HashMap<String, Object> vars = new HashMap<String, Object>();
+        vars.put("card", Integer.valueOf(card));
+        vars.put("pair", Integer.valueOf(pair));
+        vars.put("dom", dom);
+        vars.put("mbid", mbid);
+        vars.put("name", name);
+        vars.put("string", string);
+        vars.put("position", position);
+        vars.put("runNumber", runNumber);
+
+        MockAlerter alerter = new MockAlerter();
+        alerter.setExpected(Alerter.Priority.SCP, condition, vars);
+
+        AlertQueue aq = new AlertQueue(alerter);
+        StringHubAlert.sendDOMAlert(aq, StringHubAlert.DEFAULT_PRIORITY,
+                                    condition, card, pair, dom, mbid, name,
+                                    string, position, runNumber,
+                                    utcTime);
+        aq.stopAndWait();
+    }
+
+    @Test
     public void testAlertPermutations()
         throws Exception
     {
