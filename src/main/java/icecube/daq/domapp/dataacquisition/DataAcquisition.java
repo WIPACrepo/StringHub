@@ -403,6 +403,12 @@ public class DataAcquisition
             throw new AcquisitionError("Error ending run on " +
                     canonicalName(), me);
         }
+
+        //this is a legacy development feature
+        if(AcquisitionMonitor.ENABLE_STATS)
+        {
+            monitor.printWelfordStats(dataProcessor.getDataCounters());
+        }
     }
 
     /**

@@ -1,5 +1,6 @@
 package icecube.daq.domapp.dataacquisition;
 
+import icecube.daq.domapp.dataprocessor.DataStats;
 import icecube.daq.util.SimpleMovingAverage;
 import org.apache.log4j.Logger;
 
@@ -28,7 +29,7 @@ public class AcquisitionMonitor
             ("icecube.daq.domapp.datacollector.include-message-details");
 
 
-    private static final boolean ENABLE_STATS = Boolean.getBoolean(
+    public static final boolean ENABLE_STATS = Boolean.getBoolean(
             "icecube.daq.domapp.datacollector.enableStats");
 
 
@@ -54,6 +55,44 @@ public class AcquisitionMonitor
 
     long lastCycleNanos;
 
+
+    // statistics on data packet size
+    // welford's method
+    private class WelfordData
+    {
+        private double data_m_n = 0;
+        private double data_s_n = 0;
+        private long data_count = 0;
+        private long data_max = 0;
+        private long data_min = 4092;
+        private long data_zero_count = 0;
+
+        private final void trackMessageStats(ByteBuffer msgBuffer)
+        {
+            // generate some stats as to the average size
+            // of hit bytebuffers
+
+            // Compute the mean and variance of data message sizes
+            // This is an implementation of welfords method
+            // http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+            int remaining = msgBuffer.remaining();
+            if(remaining>0) {
+                double m_new = data_m_n + ( remaining - data_m_n) / ( data_count+1.0);
+                data_s_n = data_s_n + ( remaining - data_m_n) * ( remaining - m_new);
+                data_m_n = m_new;
+                data_count++;
+                if (remaining>data_max) {
+                    data_max = remaining;
+                }
+                if (remaining<data_min) {
+                    data_min = remaining;
+                }
+            } else {
+                data_zero_count++;
+            }
+        }
+    }
+    private WelfordData welford = new WelfordData();
 
     public AcquisitionMonitor(final String id)
     {
@@ -81,6 +120,11 @@ public class AcquisitionMonitor
     public void reportDataMessageRcv(ByteBuffer buffer)
     {
         currentCycle.reportDataMessageRcv(buffer);
+
+        if(ENABLE_STATS)
+        {
+            welford.trackMessageStats(buffer);
+        }
     }
 
     public void initiateMessageRead()
@@ -140,7 +184,26 @@ public class AcquisitionMonitor
         return lines;
     }
 
-    final long now()
+    /**
+     * Support printing legacy-style message stats to console.
+     */
+    final void printWelfordStats(DataStats stats)
+    {
+        System.out.println(id+":" +
+               // " rate: " + config.getPulserRate()+ //not available
+                " max: " + welford.data_max+
+                " min:" + welford.data_min+
+                " mean: " + data_fmt.format(welford.data_m_n)+
+                " var: " + data_fmt.format((welford.data_s_n /
+                        ( welford.data_count - 1.0 )))+
+                " count: " + welford.data_count+
+                " zero count: " + welford.data_zero_count+
+                " lbm overflows: "+ stats.getNumLBMOverflows()+
+                " hit rate: " + stats.getHitRate()+
+                " hit rate LC: " + stats.getLCHitRate());
+    }
+
+    private final long now()
     {
         return System.nanoTime();
     }
@@ -151,16 +214,6 @@ public class AcquisitionMonitor
      */
     private class CycleStats
     {
-
-        // statistics on data packet size
-        // welford's method
-        private double data_m_n = 0;
-        private double data_s_n = 0;
-        private long data_count = 0;
-        private long data_max = 0;
-        private long data_min = 4092;
-        private long data_zero_count = 0;
-
 
         final AcquisitionMonitor parent;
 
@@ -289,11 +342,6 @@ public class AcquisitionMonitor
 
             bytesAcquired += currentMessage.messageByteCount;
             messagesAcquired++;
-
-            if(ENABLE_STATS)
-            {
-                trackMessageStats(data);
-            }
         }
 
         final void reportCycleStop()
@@ -312,30 +360,7 @@ public class AcquisitionMonitor
             cycleGapDurationNanos = cycleStartNano -lastCycleNanos;
         }
 
-        final void trackMessageStats(ByteBuffer msgBuffer)
-        {
-            // generate some stats as to the average size
-            // of hit bytebuffers
 
-            // Compute the mean and variance of data message sizes
-            // This is an implementation of welfords method
-            // http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-            int remaining = msgBuffer.remaining();
-            if(remaining>0) {
-                double m_new = data_m_n + ( remaining - data_m_n) / ( data_count+1.0);
-                data_s_n = data_s_n + ( remaining - data_m_n) * ( remaining - m_new);
-                data_m_n = m_new;
-                data_count++;
-                if (remaining>data_max) {
-                    data_max = remaining;
-                }
-                if (remaining<data_min) {
-                    data_min = remaining;
-                }
-            } else {
-                data_zero_count++;
-            }
-        }
 
         final long now()
         {
