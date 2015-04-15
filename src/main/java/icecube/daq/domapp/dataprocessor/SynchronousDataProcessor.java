@@ -35,9 +35,9 @@ public class SynchronousDataProcessor implements DataProcessor
      * Constructor.
      *
      * @param hitProcessor The target for hit messages.
-     * @param snProcessor The target for hit messages.
-     * @param moniProcessor The target for hit messages.
-     * @param tcalProcessor The target for hit messages.
+     * @param snProcessor The target for supernova messages.
+     * @param moniProcessor The target for moni messages.
+     * @param tcalProcessor The target for tcal messages.
      * @param rapcal The rapcal instance that will be updated by the tcal
      *               stream and utilized by all streams.
      * @param dataStats Object responsible for maintaining data counts.

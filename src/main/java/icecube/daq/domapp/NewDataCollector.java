@@ -86,6 +86,8 @@ import java.util.TimerTask;
  *
  * @author krokodil
  *
+ * Note:
+ * Initial implementation was taken from DataCollector.java revision 15482.
  */
 public class NewDataCollector
     extends DataCollector
@@ -101,7 +103,7 @@ public class NewDataCollector
     /**
      * Acquisition and processing workload is separated to
      * support multi-threaded mode with processing offloaded
-     * from the thread serviceing the device.
+     * from the thread servicing the device.
      */
     private final DataAcquisition dataAcquisition;
     private final DataProcessor dataProcessor;
@@ -141,37 +143,9 @@ public class NewDataCollector
             new SimpleDateFormat ("yyyy-MM-dd HH:mm:ss.SSS");
 
 
-    // Log cycle diagnostics when acquisition is aborted by the watchdog
+    // Log acquisition diagnostics when acquisition is aborted by the watchdog
     private static final boolean VERBOSE_TIMEOUT_LOGGING = Boolean.getBoolean
             ("icecube.daq.domapp.datacollector.verbose-timeout-logging");
-
-
-    /**
-     * Simple hits-only constructor (other channels suppressed)
-     * @param chInfo structure containing DOM channel information
-     * @param hitsTo BufferConsumer target for hits
-     * @throws java.io.IOException
-     * @throws icecube.daq.domapp.MessageException
-     */
-    public NewDataCollector(DOMChannelInfo chInfo, BufferConsumer hitsTo)
-    throws IOException, MessageException
-    {
-        this(chInfo.card, chInfo.pair, chInfo.dom, null, hitsTo, null, null, null);
-    }
-
-    public NewDataCollector(
-            int card, int pair, char dom,
-            DOMConfiguration config,
-            BufferConsumer hitsTo,
-            BufferConsumer moniTo,
-            BufferConsumer supernovaTo,
-            BufferConsumer tcalTo) throws IOException, MessageException
-	{
-		// support class old signature
-		// but default to disabling intervals
-		this(card, pair, dom, null, config,
-                hitsTo, moniTo, supernovaTo, tcalTo, false);
-	}
 
 
     public NewDataCollector(
@@ -189,12 +163,7 @@ public class NewDataCollector
         this.pair = pair;
         this.dom = dom;
 
-        //NOTE: Leave the initial value as null for clients without
-        //      prior knowledge of the DOM mbid
-        if(mbid != null)
-        {
-            setMainboardID(mbid);
-        }
+        setMainboardID(mbid);
 
         this.config = config;
 
@@ -202,9 +171,11 @@ public class NewDataCollector
         runLevel = RunLevel.INITIALIZING;
 
 
-        //todo In some use cases, the mbid is not valid at this point as the dom
-        //     needs to be queried for it.  Strictly speaking, there should
-        //     be no dispatching until we reach the RUNNING state anyhow.
+        // Note: At this point the dom config and mbid are disseminated
+        //       to the processing stack. This is a departure from past
+        //       implementations that supported late binding of these
+        //       members.  If this use case re-emerges, processor
+        //       will need to support setters for these members.
         dataProcessor = DataProcessorFactory.buildProcessor(
                 (card+""+pair+dom),
                 config,
@@ -256,7 +227,6 @@ public class NewDataCollector
 
     public void close()
     {
-       // if (app != null) app.close();
         dataAcquisition.doClose();
     }
 
@@ -381,12 +351,10 @@ public class NewDataCollector
 	private void launch_runcore() throws Exception
 	{
 
-
         /*
          * I need the MBID right now just in case I have to shut this stream
           * down.
          */
-        //mbid = driver.getProcfileID(card, pair, dom);
         mbid = dataAcquisition.getMBID();
         numericMBID = Long.parseLong(mbid, 16);
 
@@ -413,8 +381,6 @@ public class NewDataCollector
             watchdog.sleep(100);
             execRapCal();
         }
-
-        //todo interval support checking removed was from here
 
         runcore(!disable_intervals);
 	}
@@ -507,7 +473,6 @@ public class NewDataCollector
                 if (!(latelyRunningFlashers && flasherConfig != null))
                 {
                     setRunLevel(RunLevel.STOPPING_SUBRUN);
-                    //app.endRun();
                     dataAcquisition.doEndRun();
                     setRunLevelInternal(RunLevel.CONFIGURING);
                     latelyRunningFlashers = false;
@@ -518,13 +483,6 @@ public class NewDataCollector
                     if (latelyRunningFlashers)
                     {
                         logger.info("Only changing flasher board configuration");
-//                        app.changeFlasherSettings(
-//                                (short) flasherConfig.getBrightness(),
-//                                (short) flasherConfig.getWidth(),
-//                                (short) flasherConfig.getDelay(),
-//                                (short) flasherConfig.getMask(),
-//                                (short) flasherConfig.getRate()
-//                                );
                         runStartUT = dataAcquisition.doChangeFlasherRun(flasherConfig);
                     }
                     else
@@ -542,13 +500,6 @@ public class NewDataCollector
                         configure(tempConfig);
                         watchdog.sleep(new Random().nextInt(250));
                         logger.info("Beginning new flasher board run");
-//                        app.beginFlasherRun(
-//                                (short) flasherConfig.getBrightness(),
-//                                (short) flasherConfig.getWidth(),
-//                                (short) flasherConfig.getDelay(),
-//                                (short) flasherConfig.getMask(),
-//                                (short) flasherConfig.getRate()
-//                                );
                         runStartUT = dataAcquisition.doBeginFlasherRun(flasherConfig);
                     }
                     latelyRunningFlashers = true;
@@ -557,11 +508,9 @@ public class NewDataCollector
                 {
                     logger.info("Returning to non-flashing state");
                     configure(config);
-                    //app.beginRun();
                     runStartUT = dataAcquisition.doBeginRun(watchdog);
 
                 }
-                ///storeRunStartTime();
                 setRunLevelInternal(RunLevel.RUNNING);
                 break;
 
@@ -569,7 +518,6 @@ public class NewDataCollector
                 if (logger.isDebugEnabled()) {
                     logger.debug("Got PAUSE RUN signal " + canonicalName());
                 }
-                //app.endRun();
                 dataAcquisition.doPauseRun();
                 setRunLevelInternal(RunLevel.CONFIGURED);
                 break;
@@ -578,7 +526,6 @@ public class NewDataCollector
                 if (logger.isDebugEnabled()) {
                     logger.debug("Got STOP RUN signal " + canonicalName());
                 }
-                //app.endRun();
                 dataAcquisition.doEndRun();
                 dataProcessor.eos();
                 setRunLevelInternal(RunLevel.CONFIGURED);
@@ -783,7 +730,9 @@ public class NewDataCollector
                             mbid, name, major, minor, runNumber,
                             lastHitTime);
 
-                    //todo - squelch after mystery LBM overflows are solved
+                    //Note: recent acquisition performance may be useful
+                    //      to diagnose unexplained timeouts, but is just
+                    //      log file noise in most typical cases.
                     if(VERBOSE_TIMEOUT_LOGGING)
                     {
                         List<StringBuffer> lines = dataAcquisition.logHistory();
