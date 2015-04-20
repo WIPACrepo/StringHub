@@ -364,8 +364,8 @@ public final class Driver implements IDriver {
 
 	/**
 	 * This makes a 'top-level' procfile File
-	 * @param cwd
-	 * @return
+	 * @param filename
+	 * @return top-level /proc file
 	 */
 	public File makeProcfile(String filename)
 	{

@@ -26,9 +26,9 @@ public class DOMApp implements IDOMApp
     /**
      * Create a new DOMApp connection object for DOR channel provided
      *
-     * @param ch -
-     *            DOR channel serial # - for 'standard' DOR = 8*card + 2*pair +
-     *            dom
+     * @param card
+     * @param pair
+     * @param dom
      */
     public DOMApp(int card, int pair, char dom) throws IOException
     {
@@ -381,7 +381,7 @@ public class DOMApp implements IDOMApp
      * Enable charge stamp histogramming.
      * These histograms will be emitted in the monitoring records.  The histogram
      * length is 127 bytes so the prescale argument is used to set the range.
-     * @param interval interval in clock ticks (> 40M) or seconds (< 40M)
+     * @param interval interval in clock ticks (&gt; 40M) or seconds (&lt; 40M)
      * @param prescale divisor for the chargestamp.
      * @throws MessageException
      */

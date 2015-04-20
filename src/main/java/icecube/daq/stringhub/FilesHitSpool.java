@@ -50,7 +50,7 @@ public class FilesHitSpool implements BufferConsumer
      *            Can be null.
      * @param configDir directory holding configuration files
      * @param targetDir output directory on filesystem
-     * @param hitsPerFile number of hits per file
+     * @param fileInterval number of objects in each file
      * @param fileCount number of files in the spooling ensemble
      * @see BufferConsumer
      */

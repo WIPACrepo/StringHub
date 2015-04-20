@@ -63,7 +63,6 @@ public class DOMIO {
     /**
      * send a message to DOMApp
      * @param arr - output array going to DOMApp
-     * @return Nothing
      * @throws IOException
     */
     public void send(byte[] arr) throws IOException {

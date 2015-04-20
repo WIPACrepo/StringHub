@@ -39,7 +39,7 @@ import java.util.TimerTask;
  * time and can be anything that supports the WritableByteChannel
  * interface.  The streaming data is output in 'TestDAQ' format
  * for all outputs with the structure:
- * <table>
+ * <table summary="TestDAQ format">
  * <tr>
  * <th>Offset</th>
  * <th>Size</th>

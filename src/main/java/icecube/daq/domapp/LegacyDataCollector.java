@@ -52,7 +52,7 @@ import org.apache.log4j.Logger;
  * time and can be anything that supports the WritableByteChannel
  * interface.  The streaming data is output in 'TestDAQ' format
  * for all outputs with the structure:
- * <table>
+ * <table summary="TestDAQ hit format">
  * <tr>
  * <th>Offset</th>
  * <th>Size</th>
@@ -793,8 +793,6 @@ public class LegacyDataCollector
      * Simple hits-only constructor (other channels suppressed)
      * @param chInfo structure containing DOM channel information
      * @param hitsTo BufferConsumer target for hits
-     * @throws IOException
-     * @throws MessageException
      */
     public LegacyDataCollector(DOMChannelInfo chInfo, BufferConsumer hitsTo)
     {

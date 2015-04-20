@@ -50,8 +50,8 @@ public class AuraDRM extends IcebootInterface
      * Hagar's <b>Toffset</b> iceboot function.  This offset
      * is to be used to turn the 20 MHz TRACR clock into the
      * equivalent 40 MHz DOM mainboard clock so that the
-     * standard RAPCal transformation can be used:<br/>
-     *  UTC = 2*TRACR + Toffset<br/>
+     * standard RAPCal transformation can be used:<br>
+     *  UTC = 2*TRACR + Toffset<br>
      * The method used contains inherent ambiguity because
      * of random latencies - it returns the <em>minimum</em>
      * of the population in an attempt to mitigate.

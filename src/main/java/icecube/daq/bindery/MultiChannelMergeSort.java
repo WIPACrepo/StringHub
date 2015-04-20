@@ -44,7 +44,6 @@ import org.apache.log4j.Logger;
  * @see #register
  * @see BufferConsumer
  * @see Thread
- * @see DataCollector
  *
  *
  * @author kael
@@ -91,7 +90,7 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
      * This method will take the ByteBuffer supplied as argument
      * and insert into the queue of buffers to process.
      *
-     * @throws InterruptedException
+     * @throws IOException
      *
      */
     public void consume(ByteBuffer buf) throws IOException

@@ -62,7 +62,8 @@ public class UTC implements Comparable<UTC> {
 
 	/**
 	 * Return the difference time in seconds between two UTCs (this - other)
-	 * @param utc - the other UTC
+	 * @param utc1 - first UTC time
+	 * @param utc0 - zeroth UTC time
 	 * @return difference in seconds
 	 */
 	public static double subtract(UTC utc1, UTC utc0) {
