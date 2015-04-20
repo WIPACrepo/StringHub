@@ -735,8 +735,8 @@ public class NewDataCollector
                     //      log file noise in most typical cases.
                     if(VERBOSE_TIMEOUT_LOGGING)
                     {
-                        List<StringBuffer> lines = dataAcquisition.logHistory();
-                        for(StringBuffer line : lines)
+                        List<StringBuilder> lines = dataAcquisition.logHistory();
+                        for(StringBuilder line : lines)
                         {
                             logger.error(line);
                         }

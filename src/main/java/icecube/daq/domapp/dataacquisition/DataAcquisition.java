@@ -741,7 +741,7 @@ public class DataAcquisition
      * This may be useful for diagnosing watchdog-initiated shutdowns.
      * @return A list of lings that log recent acquisition history.
      */
-    public List<StringBuffer> logHistory()
+    public List<StringBuilder> logHistory()
     {
         return monitor.logHistory();
     }

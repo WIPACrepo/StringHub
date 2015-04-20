@@ -127,7 +127,7 @@ public class DataProcessingMonitor extends DataStats
 
         String verbose()
         {
-            StringBuffer info = new StringBuffer(256);
+            StringBuilder info = new StringBuilder(256);
             long durationMillis = intervalDurationNanos / 1000000;
             long dataMillis = intervalDataSpanDOMClkNanos / 1000000;
             //long dataMillis = intervalDataSpanUTCNanos / 1000000;

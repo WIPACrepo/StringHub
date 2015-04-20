@@ -391,9 +391,9 @@ public class LegacyDataCollector
                 }
             }
 
-            final StringBuffer verbosePrint()
+            final StringBuilder verbosePrint()
             {
-                StringBuffer info = new StringBuffer(256);
+                StringBuilder info = new StringBuilder(256);
                 long durationMillis = messageDurationNano / 1000000;
                 long readMillis = messageReadDurationNanos / 1000000;
                 long processMillis = (messageDurationNano-messageReadDurationNanos) / 1000000;
@@ -562,9 +562,9 @@ public class LegacyDataCollector
             return System.nanoTime();
         }
 
-        final List<StringBuffer> verbosePrint()
+        final List<StringBuilder> verbosePrint()
         {
-            List<StringBuffer> lines = new ArrayList<StringBuffer>
+            List<StringBuilder> lines = new ArrayList<StringBuilder>
                     (INCLUDE_MESSAGE_DETAILS ? 25 : 1);
 
             if(INCLUDE_MESSAGE_DETAILS)
@@ -575,7 +575,7 @@ public class LegacyDataCollector
                 }
             }
 
-            StringBuffer info = new StringBuffer(256);
+            StringBuilder info = new StringBuilder(256);
             long durationMillis = cycleDurationNanos / 1000000;
             long millisSinceLastCycle = cycleGapDurationNanos /1000000;
             long dataMillisInCycle = (dataSpanNanos/ 1000000);
@@ -691,8 +691,8 @@ public class LegacyDataCollector
             if(VERBOSE_LBM_LOGGING && isLBMReported)
             {
                 isLBMReported = false;
-                List<StringBuffer> lines = logHistory();
-                for(StringBuffer line: lines)
+                List<StringBuilder> lines = logHistory();
+                for(StringBuilder line: lines)
                 {
                     logger.error(line);
                 }
@@ -701,8 +701,8 @@ public class LegacyDataCollector
             //debug mode, print details for every cycle
             if(VERBOSE_CYCLE_LOGGING)
             {
-                List<StringBuffer> message = cycle.verbosePrint();
-                for(StringBuffer line : message)
+                List<StringBuilder> message = cycle.verbosePrint();
+                for(StringBuilder line : message)
                 {
                     logger.info(line);
                 }
@@ -710,9 +710,9 @@ public class LegacyDataCollector
 
         }
 
-        final StringBuffer logAverages()
+        final StringBuilder logAverages()
         {
-            StringBuffer sb = new StringBuffer(128);
+            StringBuilder sb = new StringBuilder(128);
             sb.append("avg-lbm-backlog [").append
                     (avgHitAcquisitionLatencyMillis.getAverage())
                     .append(" ms]")
@@ -725,9 +725,9 @@ public class LegacyDataCollector
             return sb;
         }
 
-        final List<StringBuffer> logHistory()
+        final List<StringBuilder> logHistory()
         {
-            final List<StringBuffer> lines = new ArrayList<StringBuffer>
+            final List<StringBuilder> lines = new ArrayList<StringBuilder>
                     (INCLUDE_MESSAGE_DETAILS ? 250 : 10);
             lines.add(logAverages());
 
@@ -2299,8 +2299,8 @@ public class LegacyDataCollector
                     //todo - squelch after mystery LBM overflows are solved
                     if(VERBOSE_TIMEOUT_LOGGING)
                     {
-                        List<StringBuffer> lines = cycleMonitor.logHistory();
-                        for(StringBuffer line : lines)
+                        List<StringBuilder> lines = cycleMonitor.logHistory();
+                        for(StringBuilder line : lines)
                         {
                             logger.error(line);
                         }

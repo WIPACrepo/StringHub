@@ -150,8 +150,8 @@ public class AcquisitionMonitor
         //debug mode, print details for every cycle
         if(VERBOSE_CYCLE_LOGGING)
         {
-            List<StringBuffer> message = currentCycle.verbosePrint();
-            for(StringBuffer line : message)
+            List<StringBuilder> message = currentCycle.verbosePrint();
+            for(StringBuilder line : message)
             {
                 logger.info(line);
             }
@@ -161,18 +161,18 @@ public class AcquisitionMonitor
 
     }
 
-    final StringBuffer logAverages()
+    final StringBuilder logAverages()
     {
-        StringBuffer sb = new StringBuffer(128);
+        StringBuilder sb = new StringBuilder(128);
         sb.append("avg-cycle-duration [").append
                 (avgCycleDurationMillis.getAverage())
                 .append(" ms]");
         return sb;
     }
 
-    final List<StringBuffer> logHistory()
+    final List<StringBuilder> logHistory()
     {
-        final List<StringBuffer> lines = new ArrayList<StringBuffer>
+        final List<StringBuilder> lines = new ArrayList<StringBuilder>
                 (INCLUDE_MESSAGE_DETAILS ? 250 : 10);
         lines.add(logAverages());
 
@@ -268,9 +268,9 @@ public class AcquisitionMonitor
                 messageDurationNano = messageStopNano - messageReadStartNano;
             }
 
-            final StringBuffer verbosePrint()
+            final StringBuilder verbosePrint()
             {
-                StringBuffer info = new StringBuffer(256);
+                StringBuilder info = new StringBuilder(256);
                 long durationMillis = messageDurationNano / 1000000;
                 long readMillis = messageReadDurationNanos / 1000000;
                 long processMillis = (messageDurationNano-messageReadDurationNanos) / 1000000;
@@ -367,9 +367,9 @@ public class AcquisitionMonitor
             return System.nanoTime();
         }
 
-        final List<StringBuffer> verbosePrint()
+        final List<StringBuilder> verbosePrint()
         {
-            List<StringBuffer> lines = new ArrayList<StringBuffer>
+            List<StringBuilder> lines = new ArrayList<StringBuilder>
                     (AcquisitionMonitor.INCLUDE_MESSAGE_DETAILS ? 25 : 1);
 
             if(AcquisitionMonitor.INCLUDE_MESSAGE_DETAILS)
@@ -380,7 +380,7 @@ public class AcquisitionMonitor
                 }
             }
 
-            StringBuffer info = new StringBuffer(256);
+            StringBuilder info = new StringBuilder(256);
             long durationMillis = cycleDurationNanos / 1000000;
             long millisSinceLastCycle = cycleGapDurationNanos /1000000;
 
@@ -402,5 +402,3 @@ public class AcquisitionMonitor
 
 
 }
-
-
