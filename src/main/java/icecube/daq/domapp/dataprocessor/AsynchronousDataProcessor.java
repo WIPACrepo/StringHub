@@ -375,12 +375,12 @@ public class AsynchronousDataProcessor implements DataProcessor
         catch (RejectedExecutionException ree)
         {
             throw new DataProcessorError("Error submitting work to" +
-                    " the proccessor", ree);
+                    " the processor", ree);
         }
         catch (Throwable th)
         {
             throw new DataProcessorError("Error submitting work to" +
-                    " the proccessor", th);
+                    " the processor", th);
         }
     }
 
