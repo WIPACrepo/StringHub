@@ -483,6 +483,16 @@ public class StringHubComponent
 
 			String cwd = chanInfo.card + "" + chanInfo.pair + chanInfo.dom;
 
+            DeployedDOM domInfo = domRegistry.getDom(chanInfo.mbid_numerique);
+
+            LiveTCalMoni moni = new LiveTCalMoni(getAlertQueue(), domInfo);
+
+            // Associate a GPS service to this card, if not already done
+            if (!isSim) {
+                GPSService inst = GPSService.getInstance();
+                inst.startService(chanInfo.card, moni);
+            }
+
 			AbstractDataCollector dc;
 			try {
 				dc = createDataCollector(isSim, chanInfo, config, hitsSort,
@@ -492,16 +502,6 @@ public class StringHubComponent
 			} catch (Throwable t) {
 				throw new DAQCompException("Cannot create " + hubId +
 										   " data collector", t);
-			}
-
-			DeployedDOM domInfo = domRegistry.getDom(chanInfo.mbid_numerique);
-
-			LiveTCalMoni moni = new LiveTCalMoni(getAlertQueue(), domInfo);
-
-			// Associate a GPS service to this card, if not already done
-			if (!isSim) {
-				GPSService inst = GPSService.getInstance();
-				inst.startService(chanInfo.card, moni);
 			}
 
 			dc.setDomInfo(domInfo);
@@ -884,7 +884,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15500 2015-04-14 16:25:29Z bendfelt $";
+		return "$Id: StringHubComponent.java 15526 2015-04-23 16:28:20Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
