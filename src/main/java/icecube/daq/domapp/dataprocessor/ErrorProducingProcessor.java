@@ -33,6 +33,11 @@ public class ErrorProducingProcessor implements DataProcessor
             Integer.getInteger("icecube.daq.domapp.dataprocessor.inject-tcal-error-on-message", -1);
 
 
+    /** drop rap cal processing, as if GPS or tcal was broken. */
+    private static final boolean SIMULATE_BROKEN_RAPCAL =
+            Boolean.getBoolean("icecube.daq.domapp.dataprocessor.no-rapcal");
+
+
     /** Injects an unchecked exception */
     private static final boolean INJECT_UNCHECKED =
             Boolean.getBoolean("icecube.daq.domapp.dataprocessor.inject-unchecked");
@@ -90,6 +95,10 @@ public class ErrorProducingProcessor implements DataProcessor
                 if(++tcalMessagelCount == INJECT_TCAL_ERROR_ON_MESSAGE)
                 {
                     generateException(INJECT_TCAL_ERROR_ON_MESSAGE);
+                }
+                if(SIMULATE_BROKEN_RAPCAL)
+                {
+                    return;
                 }
                 break;
             default:
