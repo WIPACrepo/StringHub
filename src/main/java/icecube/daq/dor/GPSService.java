@@ -3,6 +3,8 @@ package icecube.daq.dor;
 import icecube.daq.livemoni.LiveTCalMoni;
 
 import java.io.File;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
@@ -30,6 +32,9 @@ public class GPSService
         private GPSInfo gps;
         private AtomicBoolean running;
         private File gpsFile;
+
+        /** support clients waiting for an available reading. */
+        private CountDownLatch initializationLatch = new CountDownLatch(1);
 
         GPSCollector(Driver driver, int card)
         {
@@ -91,7 +96,11 @@ public class GPSService
                     }
                     else
                     {
-                        synchronized (this) { gps = newGPS; }
+                        synchronized (this)
+                        {
+                            gps = newGPS;
+                            initializationLatch.countDown();
+                        }
                     }
                 }
                 catch (InterruptedException intx)
@@ -121,6 +130,12 @@ public class GPSService
 
         synchronized GPSInfo getGps() { return gps; }
 
+        synchronized boolean waitForReady(long waitMillis)
+                throws InterruptedException
+        {
+            return initializationLatch.await(waitMillis, TimeUnit.MILLISECONDS);
+        }
+
         public boolean isRunning()
         {
             return running.get();
@@ -139,6 +154,19 @@ public class GPSService
     public static GPSService getInstance() { return instance; }
 
     public GPSInfo getGps(int card) { return coll[card].getGps(); }
+
+    /**
+     * Wait for a valid gps info reading ready to be available.
+     *
+     * @param waitMillis Time period to wait.
+     * @return True if a valid gps infor reading is available.
+     * @throws InterruptedException
+     */
+    public boolean waitForReady(int card, int waitMillis)
+            throws InterruptedException
+    {
+        return coll[card].waitForReady(waitMillis);
+    }
 
     public void startService(Driver drv, int card, LiveTCalMoni moni)
     {
