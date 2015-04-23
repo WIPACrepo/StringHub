@@ -45,7 +45,7 @@ public class ErrorProducingProcessor implements DataProcessor
 
     /** Inject a processing delay into each message */
     private static final int DELAY_HIT_PROCESSING_MILLIS =
-            Integer.getInteger("icecube.daq.domapp.dataprocessor.hit-processing-delay", -1);
+            Integer.getInteger("icecube.daq.domapp.dataprocessor.hit-processing-delay", 0);
 
 
     public ErrorProducingProcessor(final DataProcessor delegate)
