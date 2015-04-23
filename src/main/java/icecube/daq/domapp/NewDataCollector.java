@@ -12,13 +12,12 @@ import icecube.daq.domapp.dataprocessor.DataProcessor;
 import icecube.daq.domapp.dataprocessor.DataProcessorError;
 import icecube.daq.domapp.dataprocessor.DataProcessorFactory;
 import icecube.daq.domapp.dataprocessor.GPSProvider;
-import icecube.daq.dor.DOMChannelInfo;
+import icecube.daq.dor.GPSService;
 import icecube.daq.juggler.alert.Alerter.Priority;
 import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.util.StringHubAlert;
 import org.apache.log4j.Logger;
 
-import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -374,6 +373,9 @@ public class NewDataCollector
 //                          app.getRelease());
 //        }
 
+        // prohibit running without a gps reading
+        ensureGPSReady();
+
         // Grab 2 RAPCal data points to get started
         for (int nTry = 0;
              nTry < 10 && dataStats.getValidRAPCalCount() < 2; nTry++)
@@ -385,6 +387,28 @@ public class NewDataCollector
         runcore(!disable_intervals);
 	}
 
+    /**
+     * Wait for the gps service to obtain a valid reading. The expectation
+     * for a well behaved hub is to be ready quickly, so this method warns
+     * if it takes time.
+     *
+     * @throws Exception Exceeded the time allowed.  This can be judged by
+     * the watchdog via interruption or by exceeding the limits
+     * defined in the function.
+     */
+    private void ensureGPSReady() throws Exception
+    {
+        int attempts = 0;
+        while (!GPSService.getInstance().waitForReady(card, 3000))
+        {
+            if( ++attempts> 4 )
+            {
+                throw new Exception("GPS service is not available.");
+            }
+            logger.warn("GPS service on card " + card +
+                    " is slow to start, waiting...");
+        }
+    }
 
     /**
      * A wrapper around the setRunLevel for run level changes
@@ -599,7 +623,7 @@ public class NewDataCollector
 
         public void enable()
         {
-            watcher.schedule(this, 20000L, 5000L);
+            watcher.schedule(this, 30000L, 5000L);
         }
 
         public void run()

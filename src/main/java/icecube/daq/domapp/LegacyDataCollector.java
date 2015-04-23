@@ -1443,13 +1443,11 @@ public class LegacyDataCollector
         {
             GPSService gps_serv = GPSService.getInstance();
             GPSInfo gps = gps_serv.getGps(card);
-            UTC gpsOffset = new UTC(0L);
-            if (gps != null) gpsOffset = gps.getOffset();
 
             TimeCalib tcal = driver.readTCAL(tcalFile);
             long tcalReceivedNanos = System.nanoTime();
 
-            rapcal.update(tcal, gpsOffset);
+            rapcal.update(tcal, gps.getOffset());
 			nextTcalRead = System.currentTimeMillis() + tcalReadInterval;
 
             // Calibrating the local clock offset using these values
@@ -1697,6 +1695,10 @@ public class LegacyDataCollector
             logger.debug("Found DOM " + mbid + " running " + app.getRelease());
         }
 
+        // prohibit running without a gps reading
+        ensureGPSReady();
+
+
         // Grab 2 RAPCal data points to get started
         for (int nTry = 0; nTry < 10 && validRAPCalCount < 2; nTry++)
         {
@@ -1731,12 +1733,35 @@ public class LegacyDataCollector
         runcore(!disable_intervals);
 	}
 
-	/**
-	 * XXX This is massively over-engineered.  If you're reading this in 2012
-	 * and we're still using intervals, you should probably just assume that
-	 * we always want intervals and just rip all the code related to checking
-	 * the DOM-MB version.
-	 *
+    /**
+     * Wait for the gps service to obtain a valid reading. The expectation
+     * for a well behaved hub is to be ready quickly, so this method warns
+     * if it takes time.
+     *
+     * @throws Exception Exceeded the time allowed.  This can be judged by
+     * the watchdog via interruption or by exceeding the limits
+     * defined in the function.
+     */
+    private void ensureGPSReady() throws Exception
+    {
+        int attempts = 0;
+        while (!GPSService.getInstance().waitForReady(card, 3000))
+        {
+            if( ++attempts> 4 )
+            {
+                throw new Exception("GPS service is not available.");
+            }
+            logger.warn("GPS service on card " + card +
+                    " is slow to start, waiting...");
+        }
+    }
+
+    /**
+     * XXX This is massively over-engineered.  If you're reading this in 2012
+     * and we're still using intervals, you should probably just assume that
+     * we always want intervals and just rip all the code related to checking
+     * the DOM-MB version.
+     *
 	 * @param versionStr DOM-MB version string
 	 *
 	 * @return <tt>true</tt> if the mainboard supports intervals
@@ -2167,7 +2192,7 @@ public class LegacyDataCollector
 
         public void enable()
         {
-            watcher.schedule(this, 20000L, 5000L);
+            watcher.schedule(this, 30000L, 5000L);
         }
 
         public void run()
