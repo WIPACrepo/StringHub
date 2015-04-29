@@ -62,6 +62,7 @@ public class FilesHitSpoolTest
         long fileInterval = 10000000000L;
         int fileCount = 5;
         FilesHitSpool hitspool = new FilesHitSpool(null, configDir, targetDir, fileInterval, fileCount);
+        hitspool.startRun(123456);
 
         // regular buffers 100 bytes long 0.3 s apart starting at 0.1195 s
         ByteBuffer buf = ByteBuffer.allocate(100);

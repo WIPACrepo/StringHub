@@ -102,8 +102,8 @@ public class StringHubComponent
 	private boolean hitSpooling;
 	private String hitSpoolDir;
 	private long hitSpoolIval;
-
 	private int hitSpoolNumFiles = 100;
+	private FilesHitSpool hitSpooler;
 
 	/** list of configured DOMs filled during configuring() */
 	private ArrayList<DeployedDOM> configuredDOMs =
@@ -436,38 +436,9 @@ public class StringHubComponent
 			hitsSort = new MultiChannelMergeSort(cfgData.nch, sender);
 		} else {
 			// send hits to hit spooler which forwards them to the sorter
-
-			// Rotate hit spooling directories : current <==> last
-			File hitSpoolCurrent = new File(hitSpoolDir, "currentRun");
-			File hitSpoolLast = new File(hitSpoolDir, "lastRun");
-			File hitSpoolTemp = new File(hitSpoolDir, "HitSpool" +
-										 runNumber + ".tmp");
-
-			// Note that renameTo and mkdir return false on failure
-			if (hitSpoolLast.exists()) {
-				if (!hitSpoolLast.renameTo(hitSpoolTemp)) {
-					logger.debug("hitSpoolLast renameTo failed");
-				}
-			}
-			if (hitSpoolCurrent.exists()) {
-				if (!hitSpoolCurrent.renameTo(hitSpoolLast)) {
-					logger.debug("hitSpoolCurrent renameTo failed!");
-				}
-			}
-			if (hitSpoolTemp.exists()) {
-				if(!hitSpoolTemp.renameTo(hitSpoolCurrent)) {
-					logger.debug("hitSpoolTemp renameTo failed!");
-				}
-			}
-			if (!hitSpoolCurrent.exists()) {
-				if(!hitSpoolCurrent.mkdir()) {
-					logger.debug("hitSpoolCurrent mkdir failed!");
-				}
-			}
-
-			FilesHitSpool hitSpooler =
-				new FilesHitSpool(sender, configurationPath, hitSpoolCurrent,
-								  hitSpoolIval, hitSpoolNumFiles);
+			hitSpooler = new FilesHitSpool(sender, configurationPath,
+										   new File(hitSpoolDir), hitSpoolIval,
+										   hitSpoolNumFiles);
 			hitsSort = new MultiChannelMergeSort(cfgData.nch, hitSpooler);
 		}
 
@@ -709,6 +680,13 @@ public class StringHubComponent
 		throws DAQCompException
 	{
 		setRunNumber(runNumber);
+		if (hitSpooling) {
+			try {
+				hitSpooler.startRun(runNumber);
+			} catch (IOException ioe) {
+				throw new DAQCompException("Cannot switch hitspool", ioe);
+			}
+		}
 
 		logger.info("StringHub is starting the run.");
 
@@ -875,6 +853,15 @@ public class StringHubComponent
 
 		// resend the list of this hub's DOMs which are in the run config
 		sendConfiguredDOMs(runNumber);
+
+		if (hitSpooling) {
+			// switch to a new run
+			try {
+				hitSpooler.switchRun(runNumber);
+			} catch (IOException ioe) {
+				throw new DAQCompException("Cannot switch hitspool", ioe);
+			}
+		}
 	}
 
 	/**
@@ -884,7 +871,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15526 2015-04-23 16:28:20Z bendfelt $";
+		return "$Id: StringHubComponent.java 15552 2015-04-29 17:17:47Z dglo $";
 	}
 
 	public IByteBufferCache getCache()

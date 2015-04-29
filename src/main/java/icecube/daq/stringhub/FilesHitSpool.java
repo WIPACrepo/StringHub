@@ -32,6 +32,7 @@ public class FilesHitSpool implements BufferConsumer
     private BufferConsumer out;
     private int  maxNumberOfFiles;
     private int  currentFileIndex;
+    private File hitSpoolDir;
     private File targetDirectory;
     private OutputStream dataOut;
     private long t;
@@ -49,8 +50,8 @@ public class FilesHitSpool implements BufferConsumer
      * @param out BufferConsumer object that will receive forwarded hits.
      *            Can be null.
      * @param configDir directory holding configuration files
-     * @param targetDir output directory on filesystem
-     * @param fileInterval number of objects in each file
+     * @param hitSpoolDir top-level directory which holds hitspool directories
+     * @param fileInterval number of DAQ ticks of objects in each file
      * @param fileCount number of files in the spooling ensemble
      * @see BufferConsumer
      */
@@ -58,11 +59,9 @@ public class FilesHitSpool implements BufferConsumer
                          long fileInterval, int fileCount)
     {
         this.out = out;
-        this.t0  = 0L;
         this.dataOut            = null;
-        this.currentFileIndex   = -1;
         this.fileInterval       = fileInterval;
-        this.targetDirectory    = targetDir;
+        this.hitSpoolDir        = targetDir;
         this.maxNumberOfFiles   = fileCount;
         this.packHeaders        = Boolean.getBoolean("icecube.daq.stringhub.hitspool.packHeaders");
 
@@ -182,7 +181,7 @@ public class FilesHitSpool implements BufferConsumer
         }
     }
 
-    private void openNewFile() throws IOException
+    private synchronized void openNewFile() throws IOException
     {
         String fileName = "HitSpool-" + currentFileIndex + ".dat";
         File newFile = new File(targetDirectory, fileName);
@@ -206,6 +205,96 @@ public class FilesHitSpool implements BufferConsumer
             lock.release();
             info.close();
         }
-        dataOut = new BufferedOutputStream(new FileOutputStream(newFile), 32768);
+        dataOut =
+            new BufferedOutputStream(new FileOutputStream(newFile), 32768);
+    }
+
+    /**
+     * Swap current and last directories.
+     *
+     * synchronized to avoid clashes with openNewFile()
+     *
+     * @throws IOException if temporary file cannot be created
+     */
+    private synchronized void rotateDirectories()
+        throws IOException
+    {
+        // Rotate hit spooling directories : current <==> last
+        File hitSpoolCurrent = new File(hitSpoolDir, "currentRun");
+        File hitSpoolLast = new File(hitSpoolDir, "lastRun");
+
+        File hitSpoolTemp = File.createTempFile("HitSpool", ".tmp",
+                                                hitSpoolDir);
+        if (!hitSpoolTemp.delete()) {
+            throw new IOException("Could not delete temporary file " +
+                                  hitSpoolTemp);
+        } else if (!hitSpoolTemp.mkdir()) {
+            throw new IOException("Could not create temporary directory " +
+                                  hitSpoolTemp);
+        }
+
+        // Note that renameTo and mkdir return false on failure
+        if (hitSpoolLast.exists()) {
+            if (!hitSpoolLast.renameTo(hitSpoolTemp)) {
+                logger.error("hitSpoolLast renameTo failed");
+            }
+        }
+        if (hitSpoolCurrent.exists()) {
+            if (!hitSpoolCurrent.renameTo(hitSpoolLast)) {
+                logger.error("hitSpoolCurrent renameTo failed!");
+            }
+        }
+        if (hitSpoolTemp.exists()) {
+            if(!hitSpoolTemp.renameTo(hitSpoolCurrent)) {
+                logger.debug("hitSpoolTemp renameTo failed!");
+            }
+        }
+        if (!hitSpoolCurrent.exists()) {
+            if(!hitSpoolCurrent.mkdir()) {
+                logger.error("hitSpoolCurrent mkdir failed!");
+            }
+        }
+
+        targetDirectory = hitSpoolCurrent;
+
+        // directory has changed, reset time/file counters
+        reset();
+    }
+
+    /**
+     * Start a new run
+     *
+     * @param runNumber run number
+     *
+     * @throws IOException if hitspool directories cannot be created
+     */
+    public void startRun(int runNumber)
+        throws IOException
+    {
+        rotateDirectories();
+        reset();
+    }
+
+    /**
+     * Switch to a new run
+     *
+     * @param runNumber run number
+     *
+     * @throws IOException if hitspool directories cannot be created
+     */
+    public void switchRun(int runNumber)
+        throws IOException
+    {
+        rotateDirectories();
+        reset();
+    }
+
+    /**
+     * Reset internal counters
+     */
+    private void reset()
+    {
+        t0  = 0L;
+        currentFileIndex   = -1;
     }
 }
