@@ -6,7 +6,6 @@ import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.rapcal.RAPCal;
 import org.apache.log4j.Logger;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
 
@@ -48,7 +47,7 @@ public class UTCHitDispatcher extends UTCDispatcher
     @Override
     public void dispatchHitBuffer(final int atwdChip, final ByteBuffer hitBuf,
                            final DataStats counters)
-            throws IOException
+            throws DataProcessorError
     {
         if (atwdChip == 0)
             abBuffer.pushA(hitBuf);
@@ -79,7 +78,7 @@ public class UTCHitDispatcher extends UTCDispatcher
                     counters.reportHit(isLCHit, domclk, utc);
                     break;
                 default:
-                    throw new IOException("Unrecognized hit format: [" +
+                    throw new DataProcessorError("Unrecognized hit format: [" +
                             formatID + "]");
             }
 

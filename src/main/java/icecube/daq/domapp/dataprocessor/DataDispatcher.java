@@ -1,6 +1,5 @@
 package icecube.daq.domapp.dataprocessor;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
@@ -26,9 +25,9 @@ public interface DataDispatcher
      *
      * @param eos The EOS marker.
      *
-     * @throws IOException Error dispatching the eos.
+     * @throws DataProcessorError Error dispatching the eos.
      */
-    void eos(ByteBuffer eos) throws IOException;
+    void eos(ByteBuffer eos) throws DataProcessorError;
 
     /**
      * Dispatch the buffer to the consumer, performing UTC timestamp
@@ -38,10 +37,10 @@ public interface DataDispatcher
      *            on input is a dom clock value.
      * @return The reconstructed UTC timestamp value that was applied.
      *
-     * @throws IOException Error dispatching the buffer.
+     * @throws DataProcessorError Error dispatching the buffer.
      */
     long dispatchBuffer(ByteBuffer buf)
-            throws IOException;
+            throws DataProcessorError;
 
 
     /**
@@ -53,7 +52,9 @@ public interface DataDispatcher
      * @param atwdChip Identifies the source chip.
      * @param hitBuf The hit data.
      * @param counters Parameter object for maintaining dispatch counters.
+     *
+     * @throws DataProcessorError Error dispatching the buffer.
      */
     void dispatchHitBuffer(final int atwdChip, final ByteBuffer hitBuf,
-                           final DataStats counters) throws IOException;
+                           final DataStats counters) throws DataProcessorError;
 }

@@ -4,7 +4,6 @@ import icecube.daq.domapp.RunLevel;
 import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.util.UTC;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 
 
@@ -46,8 +45,9 @@ public interface DataProcessor
      */
     interface StreamProcessor
     {
-        void process(ByteBuffer data, DataStats counters) throws IOException;
-        void eos() throws IOException;
+        void process(ByteBuffer data, DataStats counters)
+                throws DataProcessorError;
+        void eos() throws DataProcessorError;
         void runLevel(RunLevel runLevel);
     }
 

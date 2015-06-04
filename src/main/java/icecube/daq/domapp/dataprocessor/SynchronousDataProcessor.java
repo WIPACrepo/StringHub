@@ -5,7 +5,6 @@ import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.util.UTC;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
@@ -99,10 +98,6 @@ public class SynchronousDataProcessor implements DataProcessor
                             " for type [" + streamType + "]");
             }
         }
-        catch (IOException ioe)
-        {
-            throw new DataProcessorError(ioe);
-        }
         finally
         {
             dataStats.reportProcessingEnd(streamType);
@@ -112,47 +107,33 @@ public class SynchronousDataProcessor implements DataProcessor
     @Override
     public void eos(final StreamType streamType) throws DataProcessorError
     {
-        try
+        switch(streamType)
         {
-            switch(streamType)
-            {
-                case HIT:
-                    hitProcessor.eos();
-                    break;
-                case SUPERNOVA:
-                    snProcessor.eos();
-                    break;
-                case MONI:
-                    moniProcessor.eos();
-                    break;
-                case TCAL:
-                    tcalProcessor.eos();
-                    break;
-                default:
-                    throw new DataProcessorError("No stream defined" +
-                            " for type [" + streamType + "]");
-            }
-        }
-        catch (IOException ioe)
-        {
-            throw new DataProcessorError(ioe);
+            case HIT:
+                hitProcessor.eos();
+                break;
+            case SUPERNOVA:
+                snProcessor.eos();
+                break;
+            case MONI:
+                moniProcessor.eos();
+                break;
+            case TCAL:
+                tcalProcessor.eos();
+                break;
+            default:
+                throw new DataProcessorError("No stream defined" +
+                        " for type [" + streamType + "]");
         }
     }
 
     @Override
     public void eos() throws DataProcessorError
     {
-        try
-        {
-            hitProcessor.eos();
-            snProcessor.eos();
-            moniProcessor.eos();
-            tcalProcessor.eos();
-        }
-        catch (IOException ioe)
-        {
-            throw new DataProcessorError("Error processing EOS ", ioe);
-        }
+        hitProcessor.eos();
+        snProcessor.eos();
+        moniProcessor.eos();
+        tcalProcessor.eos();
     }
 
     @Override

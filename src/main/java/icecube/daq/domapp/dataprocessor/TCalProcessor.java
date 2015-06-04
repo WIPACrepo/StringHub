@@ -8,7 +8,6 @@ import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import org.apache.log4j.Logger;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
@@ -41,14 +40,14 @@ class TCalProcessor implements DataProcessor.StreamProcessor
     interface ProcessingBehavior
     {
         long process(final TimeCalib tcal, final GPSInfo gps)
-                throws IOException;
+                throws DataProcessorError;
     }
 
 
     interface DispatchingBehavior
     {
         void dispatch(final TimeCalib tcal, final GPSInfo gps)
-                throws IOException;
+                throws DataProcessorError;
     }
 
     private ProcessingBehavior processingState;
@@ -83,7 +82,7 @@ class TCalProcessor implements DataProcessor.StreamProcessor
 
     @Override
     public void process(final ByteBuffer data, final DataStats counters)
-            throws IOException
+            throws DataProcessorError
     {
         TimeCalib tcal = new TimeCalib(data);
         GPSInfo gps = gpsProvider.getGPSInfo();
@@ -96,7 +95,7 @@ class TCalProcessor implements DataProcessor.StreamProcessor
     }
 
     @Override
-    public void eos() throws IOException
+    public void eos() throws DataProcessorError
     {
         dispatcher.eos(MultiChannelMergeSort.eos(mbid));
     }
@@ -156,7 +155,7 @@ class TCalProcessor implements DataProcessor.StreamProcessor
 
         @Override
         public long process(final TimeCalib tcal, final GPSInfo gps)
-                throws IOException
+                throws DataProcessorError
         {
             if(gps != null)
             {
@@ -193,7 +192,7 @@ class TCalProcessor implements DataProcessor.StreamProcessor
 
         @Override
         public long process(final TimeCalib tcal, final GPSInfo gps)
-                throws IOException
+                throws DataProcessorError
         {
             if(gps != null)
             {
@@ -213,7 +212,7 @@ class TCalProcessor implements DataProcessor.StreamProcessor
     {
         @Override
         public void dispatch(final TimeCalib tcal, final GPSInfo gps)
-                throws IOException
+                throws DataProcessorError
         {
             //noop
         }
@@ -231,7 +230,7 @@ class TCalProcessor implements DataProcessor.StreamProcessor
          *
          */
         public void dispatch(final TimeCalib tcal, final GPSInfo gps)
-                throws IOException
+                throws DataProcessorError
         {
             //generate and dispatch the daq formatted record
             if (!dispatcher.hasConsumer()) return;

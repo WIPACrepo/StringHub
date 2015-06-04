@@ -34,6 +34,14 @@ public class UTCDispatcher implements DataDispatcher
                     ".message-ordering-epsilon",
                     10000);
 
+    /**
+     * The number of out-of-order messages to drop before throwing
+     * an error and dropping the DOM.
+     */
+    private final static int MAX_OUT_OF_ORDER_DROPS =
+            Integer.getInteger("icecube.daq.domapp.datacollector" +
+                    ".max-out-of-order",
+                    1000);
 
     /** consumer. */
     private final BufferConsumer target;
@@ -44,7 +52,11 @@ public class UTCDispatcher implements DataDispatcher
     /** Source of UTC time reconstruction. */
     protected final RAPCal rapcal;
 
+    /** Time-ordering epsilon for an instance.*/
     private final long orderingEpsilon;
+
+    /** Max dropped message threshold for the instance. */
+    private final long maxDroppedMessages;
 
     /** Holders for timestamp progression. */
     private long lastDOMClock = 0;
@@ -60,6 +72,8 @@ public class UTCDispatcher implements DataDispatcher
     public final int LOGGED_OCCURRENCES_PERIOD = 1000;
     private int occurrence_count = 0;
 
+    /** Count of messages dropped due to ordering violation. */
+    private int droppedDataCount = 0;
 
     public UTCDispatcher(final BufferConsumer target,
                          final DataProcessor.StreamType type,
@@ -72,10 +86,19 @@ public class UTCDispatcher implements DataDispatcher
                          final DataProcessor.StreamType type,
                          final RAPCal rapcal, final long orderingEpsilon)
     {
+        this(target, type, rapcal, orderingEpsilon, MAX_OUT_OF_ORDER_DROPS);
+    }
+
+    public UTCDispatcher(final BufferConsumer target,
+                         final DataProcessor.StreamType type,
+                         final RAPCal rapcal, final long orderingEpsilon,
+                         final long maxDroppedMessages)
+    {
         this.target = target;
         this.type = type;
         this.rapcal = rapcal;
         this.orderingEpsilon = orderingEpsilon;
+        this.maxDroppedMessages = maxDroppedMessages;
     }
 
     @Override
@@ -86,18 +109,18 @@ public class UTCDispatcher implements DataDispatcher
 
 
     @Override
-    public void eos(final ByteBuffer eos) throws IOException
+    public void eos(final ByteBuffer eos) throws DataProcessorError
     {
         if(target != null)
         {
-            target.consume(eos);
+            internalDispatchBuffer(eos);
         }
     }
 
 
     @Override
     public long dispatchBuffer(final ByteBuffer buf)
-            throws IOException
+            throws DataProcessorError
     {
         return dispatchBuffer(rapcal, buf);
     }
@@ -107,7 +130,7 @@ public class UTCDispatcher implements DataDispatcher
     // class.
     public long dispatchBuffer(final RAPCal localRapCal,
                                final ByteBuffer buf)
-            throws IOException
+            throws DataProcessorError
     {
         long domclk = buf.getLong(24);
         long utc    = localRapCal.domToUTC(domclk).in_0_1ns();
@@ -115,16 +138,20 @@ public class UTCDispatcher implements DataDispatcher
         if(enforceOrdering(domclk, utc))
         {
             buf.putLong(24, utc);
-            target.consume(buf);
+            internalDispatchBuffer(buf);
         }
         else
         {
-            //todo  After in-field discovery, Increase logging and
-            //      consider dropping dom as the timestamp is off by more
-            //      than epsilon.
+            // A persistent out-of-order condition is a symptom of a problem
+            // channel. Drop the DOM after a certain number of drops.
             //
-            //Note: See run 126217 for one example. eventually the
-            //      dom is dropped.
+            droppedDataCount++;
+
+            if(droppedDataCount > maxDroppedMessages)
+            {
+                throw new DataProcessorError("Too many Out-of-order " + type +
+                        " drops [" + droppedDataCount + "]");
+            }
         }
 
         return utc;
@@ -134,9 +161,29 @@ public class UTCDispatcher implements DataDispatcher
     @Override
     public void dispatchHitBuffer(final int atwdChip, final ByteBuffer hitBuf,
                                   final DataStats counters)
-            throws IOException
+            throws DataProcessorError
     {
         throw new Error("Unimplemented");
+    }
+
+    /**
+     * Dispatch the buffer to the consumer, converting exceptions to
+     * package standard error type.
+     *
+     * @param buf
+     * @throws DataProcessorError Error dispatching the buffer.
+     */
+    private void internalDispatchBuffer(final ByteBuffer buf)
+            throws DataProcessorError
+    {
+        try
+        {
+            target.consume(buf);
+        }
+        catch (IOException ioe)
+        {
+            throw new DataProcessorError("Error dispatching buffer", ioe);
+        }
     }
 
     /**

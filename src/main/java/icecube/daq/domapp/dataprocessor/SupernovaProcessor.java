@@ -5,7 +5,6 @@ import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SupernovaPacket;
 import org.apache.log4j.Logger;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
@@ -42,7 +41,7 @@ class SupernovaProcessor implements DataProcessor.StreamProcessor
 
     @Override
     public void process(final ByteBuffer in, final DataStats counters)
-            throws IOException
+            throws DataProcessorError
     {
         while (in.remaining() > 0)
         {
@@ -73,7 +72,7 @@ class SupernovaProcessor implements DataProcessor.StreamProcessor
     }
 
     @Override
-    public void eos() throws IOException
+    public void eos() throws DataProcessorError
     {
         dispatcher.eos(MultiChannelMergeSort.eos(mbid));
     }

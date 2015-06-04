@@ -5,7 +5,6 @@ import icecube.daq.domapp.DOMAppUtil;
 import icecube.daq.domapp.RunLevel;
 import org.apache.log4j.Logger;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -48,7 +47,7 @@ class HitProcessor implements DataProcessor.StreamProcessor
 
     @Override
     public void process(final ByteBuffer in, final DataStats counters)
-            throws IOException
+            throws DataProcessorError
     {
 
         // an optimization when there is no consumer.
@@ -150,7 +149,7 @@ class HitProcessor implements DataProcessor.StreamProcessor
     }
 
     @Override
-    public void eos() throws IOException
+    public void eos() throws DataProcessorError
     {
         dispatcher.eos(MultiChannelMergeSort.eos(mbid));
     }
