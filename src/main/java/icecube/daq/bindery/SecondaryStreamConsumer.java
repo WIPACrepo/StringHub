@@ -6,6 +6,7 @@ import icecube.daq.payload.IByteBufferCache;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
 import java.util.HashMap;
 
@@ -52,11 +53,12 @@ public class SecondaryStreamConsumer implements BufferConsumer
 	 */
 	public void consume(ByteBuffer buf) throws IOException
 	{
-		int recl  = buf.getInt();
-		int	fmtid = buf.getInt();
-		long mbid = buf.getLong();
-		buf.position(buf.position() + 8);
-		long utc  = buf.getLong();
+        buf.order(ByteOrder.BIG_ENDIAN);
+        int recl  = buf.getInt();
+        int fmtid = buf.getInt();
+        long mbid = buf.getLong();
+        buf.position(buf.position() + 8);
+        long utc  = buf.getLong();
 
         if (recl == 32 && utc == Long.MAX_VALUE)
         {
@@ -65,9 +67,17 @@ public class SecondaryStreamConsumer implements BufferConsumer
         }
         else
         {
-    		ByteBuffer payloadBuffer = cacheMgr.acquireBuffer(recl-8);
+            int id;
+            if (idMap.containsKey(fmtid)) {
+                id = idMap.get(fmtid);
+            } else {
+                logger.error("Unknown format ID " + id);
+                id = -1;
+            }
+
+            ByteBuffer payloadBuffer = cacheMgr.acquireBuffer(recl-8);
             payloadBuffer.putInt(recl-8);
-            payloadBuffer.putInt(idMap.get(fmtid));
+            payloadBuffer.putInt(id);
             payloadBuffer.putLong(utc);
             payloadBuffer.putLong(mbid);
             payloadBuffer.put(buf);
