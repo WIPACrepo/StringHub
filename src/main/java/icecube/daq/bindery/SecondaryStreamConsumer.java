@@ -71,7 +71,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
             if (idMap.containsKey(fmtid)) {
                 id = idMap.get(fmtid);
             } else {
-                logger.error("Unknown format ID " + id);
+                logger.error("Unknown format ID " + fmtid);
                 id = -1;
             }
 
