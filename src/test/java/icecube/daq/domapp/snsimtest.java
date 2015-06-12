@@ -297,4 +297,8 @@ public class snsimtest implements BufferConsumer {
        }
     }
 
+    public void endOfStream(long mbid)
+    {
+        throw new Error("Only used by PrioritySort");
+    }
 }

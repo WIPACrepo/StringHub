@@ -2,10 +2,12 @@
 package icecube.daq.stringhub;
 
 import icecube.daq.bindery.MultiChannelMergeSort;
+import icecube.daq.bindery.PrioritySort;
 import icecube.daq.bindery.SecondaryStreamConsumer;
 import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.AbstractDataCollector;
+import icecube.daq.bindery.ChannelSorter;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.DataCollector;
 import icecube.daq.domapp.DataCollectorFactory;
@@ -33,6 +35,8 @@ import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.impl.ReadoutRequestFactory;
 import icecube.daq.payload.impl.VitreousBufferCache;
+import icecube.daq.priority.AdjustmentTask;
+import icecube.daq.priority.SorterException;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
 import icecube.daq.util.DOMRegistry;
@@ -53,6 +57,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -91,10 +96,10 @@ public class StringHubComponent
 	private SimpleOutputEngine teOut;
 	private SimpleOutputEngine dataOut;
 	private DOMConnector conn;
-	private MultiChannelMergeSort hitsSort;
-	private MultiChannelMergeSort moniSort;
-	private MultiChannelMergeSort tcalSort;
-	private MultiChannelMergeSort scalSort;
+	private ChannelSorter hitsSort;
+	private ChannelSorter moniSort;
+	private ChannelSorter tcalSort;
+	private ChannelSorter scalSort;
 	private File configurationPath;
 
 	private int runNumber;
@@ -108,6 +113,8 @@ public class StringHubComponent
 	/** list of configured DOMs filled during configuring() */
 	private ArrayList<DeployedDOM> configuredDOMs =
 		new ArrayList<DeployedDOM>();
+
+	private ArrayList<PrioritySort> prioList = new ArrayList<PrioritySort>();
 
 	public StringHubComponent(int hubId)
 	{
@@ -431,9 +438,24 @@ public class StringHubComponent
 											cfgData.tcalPrescale);
 		}
 
+		final boolean usePriority =
+			System.getProperty("usePrioritySort") != null;
+
 		if (!hitSpooling) {
 			// Start the hit merger-sorter
-			hitsSort = new MultiChannelMergeSort(cfgData.nch, sender);
+			if (usePriority) {
+				PrioritySort tmp;
+				try {
+					tmp = new PrioritySort("HitsSort", cfgData.nch, sender);
+				} catch (SorterException se) {
+					throw new DAQCompException("Cannot create hit sorter", se);
+				}
+
+				prioList.add(tmp);
+				hitsSort = tmp;
+			} else {
+				hitsSort = new MultiChannelMergeSort(cfgData.nch, sender);
+			}
 		} else {
 			// send hits to hit spooler which forwards them to the sorter
 			hitSpooler = new FilesHitSpool(sender, configurationPath,
@@ -443,9 +465,39 @@ public class StringHubComponent
 		}
 
 		// start remaining merger-sorter objects
-		moniSort = new MultiChannelMergeSort(cfgData.nch, monitorConsumer);
-		scalSort = new MultiChannelMergeSort(cfgData.nch, supernovaConsumer);
-		tcalSort = new MultiChannelMergeSort(cfgData.nch, tcalConsumer);
+		if (usePriority) {
+			PrioritySort tmp;
+
+			try {
+				tmp = new PrioritySort("MoniSort", cfgData.nch,
+									   monitorConsumer);
+				prioList.add(tmp);
+				moniSort = tmp;
+
+				tmp = new PrioritySort("SNSort", cfgData.nch,
+									   supernovaConsumer);
+				prioList.add(tmp);
+				scalSort = tmp;
+
+				tmp = new PrioritySort("TCalSort", cfgData.nch, tcalConsumer);
+				prioList.add(tmp);
+				tcalSort = tmp;
+			} catch (SorterException se) {
+				throw new DAQCompException("Cannot create sorter", se);
+			}
+		} else {
+			moniSort = new MultiChannelMergeSort(cfgData.nch, monitorConsumer);
+			scalSort = new MultiChannelMergeSort(cfgData.nch,
+												 supernovaConsumer);
+			tcalSort = new MultiChannelMergeSort(cfgData.nch, tcalConsumer);
+		}
+
+		if (prioList.size() > 0) {
+			// monitor all PrioritySort objects
+			for (PrioritySort ps : prioList) {
+				addMBean(ps.getName(), ps);
+			}
+		}
 
 		for (DOMChannelInfo chanInfo : activeDOMs)
 		{
@@ -506,10 +558,10 @@ public class StringHubComponent
 	private AbstractDataCollector
 		createDataCollector(boolean isSim, DOMChannelInfo chanInfo,
 							DOMConfiguration config,
-							MultiChannelMergeSort hitsSort,
-							MultiChannelMergeSort moniSort,
-							MultiChannelMergeSort tcalSort,
-							MultiChannelMergeSort scalSort,
+							ChannelSorter hitsSort,
+							ChannelSorter moniSort,
+							ChannelSorter tcalSort,
+							ChannelSorter scalSort,
 							boolean enable_intervals, double snDistance)
 		throws IOException, MessageException
 	{
@@ -697,6 +749,15 @@ public class StringHubComponent
 		scalSort.start();
 		tcalSort.start();
 
+		if (prioList.size() > 0) {
+			// start adjustment thread for priority sorters
+			AdjustmentTask task = new AdjustmentTask();
+			for (PrioritySort ps : prioList) {
+				ps.registerSorter(task);
+			}
+			task.start();
+		}
+
 		try
 		{
 			conn.startProcessing();
@@ -871,7 +932,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15552 2015-04-29 17:17:47Z dglo $";
+		return "$Id: StringHubComponent.java 15570 2015-06-12 16:19:32Z dglo $";
 	}
 
 	public IByteBufferCache getCache()

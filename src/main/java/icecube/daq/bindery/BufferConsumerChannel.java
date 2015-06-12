@@ -32,7 +32,16 @@ public class BufferConsumerChannel
      */
     public void consume(ByteBuffer buf)
         throws IOException
-   {
-       out.write(buf);
-   }
+    {
+        out.write(buf);
+    }
+
+    /**
+     * There will be no more data.
+     */
+    public void endOfStream(long mbid)
+        throws IOException
+    {
+        consume(MultiChannelMergeSort.eos(mbid));
+    }
 }

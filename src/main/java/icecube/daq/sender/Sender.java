@@ -1,6 +1,7 @@
 package icecube.daq.sender;
 
 import icecube.daq.bindery.BufferConsumer;
+import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.common.EventVersion;
 import icecube.daq.io.DAQOutputChannelManager;
@@ -388,6 +389,14 @@ public class Sender
                           obj.getClass().getName() + ")");
             }
         }
+    }
+
+    /**
+     * There will be no more data.
+     */
+    public void endOfStream(long mbid)
+    {
+        consume(MultiChannelMergeSort.eos(mbid));
     }
 
     /**
@@ -927,7 +936,7 @@ public class Sender
      *
      * @param payloadList list of payloads
      */
-    public void recycleAll(Collection payloadList)
+    private void recycleAll(Collection payloadList)
     {
         Iterator iter = payloadList.iterator();
         while (iter.hasNext()) {

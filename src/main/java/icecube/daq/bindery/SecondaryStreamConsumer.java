@@ -1,4 +1,4 @@
-/* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
+/* -*- mode: java; indent-tabs-mode:f; tab-width:4 -*- */
 package icecube.daq.bindery;
 
 import icecube.daq.io.OutputChannel;
@@ -23,7 +23,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
     private IByteBufferCache cacheMgr           = null;
     private static final Logger logger          = Logger.getLogger(SecondaryStreamConsumer.class);
     private WritableByteChannel dbgChan = null;
-    /** 
+    /**
      * Set a prescale of N on the output
      */
     private int prescale;
@@ -33,7 +33,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
     {
         this(hubId, cacheMgr, outputChannel, 1);
     }
-    
+
 	public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, OutputChannel outputChannel, int prescale)
     {
         this.outputChannel = outputChannel;
@@ -84,5 +84,13 @@ public class SecondaryStreamConsumer implements BufferConsumer
             }
         }
     }
-}
 
+    /**
+     * There will be no more data.
+     */
+    public void endOfStream(long mbid)
+        throws IOException
+    {
+        consume(MultiChannelMergeSort.eos(mbid));
+    }
+}

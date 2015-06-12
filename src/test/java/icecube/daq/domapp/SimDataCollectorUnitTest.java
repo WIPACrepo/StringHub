@@ -25,19 +25,19 @@ public class SimDataCollectorUnitTest implements BufferConsumer
     private IDriver driver;
     AbstractDataCollector dc;
     LinkedBlockingQueue<ByteBuffer> q;
-    
+
     public SimDataCollectorUnitTest()
     {
         q = new LinkedBlockingQueue<ByteBuffer>(1000);
     }
-    
+
     @BeforeClass
     public static void setupLogging()
     {
         BasicConfigurator.configure();
         Logger.getRootLogger().setLevel(Level.INFO);
     }
-    
+
     @Before
     public void setUp() throws InterruptedException
     {
@@ -65,10 +65,15 @@ public class SimDataCollectorUnitTest implements BufferConsumer
         }
         catch (InterruptedException intx)
         {
-        
+            // ignore interrupts
         }
     }
-    
+
+    public void endOfStream(long mbid)
+    {
+        throw new Error("Only used by PrioritySort");
+    }
+
     @Test
     public void testLCSim() throws Exception
     {
@@ -84,5 +89,5 @@ public class SimDataCollectorUnitTest implements BufferConsumer
         assertTrue(sawHLC);
         assertTrue(sawSLC);
     }
-    
+
 }

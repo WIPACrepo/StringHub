@@ -49,7 +49,9 @@ import org.apache.log4j.Logger;
  * @author kael
  *
  */
-public class MultiChannelMergeSort extends Thread implements BufferConsumer
+public class MultiChannelMergeSort
+    extends Thread
+    implements BufferConsumer, ChannelSorter
 {
     private LinkedBlockingQueue<ByteBuffer> q;
     private BufferConsumer out;
@@ -57,7 +59,8 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     private Node<DAQBuffer> terminalNode;
     private final DAQBufferComparator bufferCmp = new DAQBufferComparator();
     private boolean running;
-    private static final Logger logger = Logger.getLogger(MultiChannelMergeSort.class);
+    private static final Logger logger =
+        Logger.getLogger(MultiChannelMergeSort.class);
     private volatile long lastInputUT;
     private volatile long lastUT;
     private int inputCounter;
@@ -68,7 +71,8 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
         this(nch, out, "g");
     }
 
-    public MultiChannelMergeSort(int nch, BufferConsumer out, String channelType, int maxQueue)
+    public MultiChannelMergeSort(int nch, BufferConsumer out,
+                                 String channelType, int maxQueue)
     {
         super("MultiChannelMergeSort-" + channelType);
         this.out = out;
@@ -81,7 +85,8 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
         outputCounter = 0;
     }
 
-    public MultiChannelMergeSort(int nch, BufferConsumer out, String channelType)
+    public MultiChannelMergeSort(int nch, BufferConsumer out,
+                                 String channelType)
     {
         this(nch, out, channelType, 100000);
     }
@@ -105,8 +110,14 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
         }
     }
 
-    public synchronized int getNumberOfInputs() { return inputCounter; }
-    public synchronized int getNumberOfOutputs() { return outputCounter; }
+    public void endOfStream(long mbid)
+        throws IOException
+    {
+        consume(eos(mbid));
+    }
+
+    public synchronized long getNumberOfInputs() { return inputCounter; }
+    public synchronized long getNumberOfOutputs() { return outputCounter; }
     public synchronized int getQueueSize() { return q.size(); }
 
     /**
@@ -138,7 +149,14 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
                             )
                         );
                 }
-                if (inputMap.containsKey(daqBuffer.mbid))
+                if (!inputMap.containsKey(daqBuffer.mbid))
+                {
+                    final String errmsg =
+                        String.format("Dropping hit from unknown MBID %012x",
+                                      daqBuffer.mbid);
+                    logger.error(errmsg);
+                }
+                else
                 {
                     inputCounter++;
                     if (logger.isDebugEnabled() && inputCounter % 1000 == 0)
@@ -186,34 +204,5 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
 
     public long getLastInputTime() { return lastInputUT; }
     public long getLastOutputTime() { return lastUT; }
-
-}
-
-class DAQBuffer
-{
-    ByteBuffer buf;
-    long mbid;
-    long timestamp;
-
-    DAQBuffer(ByteBuffer buf)
-    {
-        this.buf = buf;
-        mbid = buf.getLong(8);
-        timestamp = buf.getLong(24);
-    }
-}
-
-class DAQBufferComparator implements Comparator<DAQBuffer>
-{
-
-    public int compare(DAQBuffer left, DAQBuffer right)
-    {
-        if (left.timestamp < right.timestamp)
-            return -1;
-        else if (left.timestamp > right.timestamp)
-            return 1;
-        else
-            return 0;
-    }
 
 }

@@ -679,6 +679,11 @@ public class DataOrderingTest
             receivedTimes.add(buf.getLong(24));
         }
 
+        public void endOfStream(long mbid)
+        {
+            throw new Error("Only used by PrioritySort");
+        }
+
         public long[] getReceivedTimes()
         {
             return unbox(receivedTimes);
@@ -777,5 +782,3 @@ public class DataOrderingTest
     }
 
 }
-
-

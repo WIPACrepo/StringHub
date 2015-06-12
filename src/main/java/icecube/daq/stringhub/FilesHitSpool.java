@@ -1,6 +1,7 @@
 package icecube.daq.stringhub;
 
 import icecube.daq.bindery.BufferConsumer;
+import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.util.DOMRegistry;
 
 import java.io.BufferedOutputStream;
@@ -50,7 +51,7 @@ public class FilesHitSpool implements BufferConsumer
      * @param out BufferConsumer object that will receive forwarded hits.
      *            Can be null.
      * @param configDir directory holding configuration files
-     * @param hitSpoolDir top-level directory which holds hitspool directories
+     * @param targetDir top-level directory which holds hitspool directories
      * @param fileInterval number of DAQ ticks of objects in each file
      * @param fileCount number of files in the spooling ensemble
      * @see BufferConsumer
@@ -179,6 +180,15 @@ public class FilesHitSpool implements BufferConsumer
             dataOut = null;
             isHosed = true;
         }
+    }
+
+    /**
+     * There will be no more data.
+     */
+    public void endOfStream(long mbid)
+        throws IOException
+    {
+        consume(MultiChannelMergeSort.eos(mbid));
     }
 
     private synchronized void openNewFile() throws IOException

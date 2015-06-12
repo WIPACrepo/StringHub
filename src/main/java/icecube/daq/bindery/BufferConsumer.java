@@ -1,5 +1,7 @@
 package icecube.daq.bindery;
 
+import icecube.daq.priority.DataConsumer;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -7,6 +9,7 @@ import java.nio.ByteBuffer;
  * Consume DOM messages from StreamBinder.
  */
 public interface BufferConsumer
+    extends DataConsumer<ByteBuffer>
 {
     /**
      * Consume a single DOM message.

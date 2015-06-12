@@ -1,6 +1,5 @@
 package icecube.daq.bindery;
 
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -16,21 +15,22 @@ import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class MultiChannelMergeSortTest implements BufferConsumer
+public class PrioritySortTest implements BufferConsumer
 {
     private double rate;
     private int    nch;
 
-    private MultiChannelMergeSort mms;
+    private PrioritySort prio;
     private boolean timeOrdered;
     private int numBuffersSeen;
     private long lastUT;
-    private final static Logger logger = Logger.getLogger(MultiChannelMergeSortTest.class);
+    private final static Logger logger =
+        Logger.getLogger(PrioritySortTest.class);
 
-    public MultiChannelMergeSortTest()
+    public PrioritySortTest()
     {
         final String prop =
-            "icecube.daq.bindery.MultiChannelMergeSortTest.channels";
+            "icecube.daq.bindery.PrioritySortTest.channels";
         nch = Integer.getInteger(prop, 16);
         rate = 500.0;
     }
@@ -49,15 +49,15 @@ public class MultiChannelMergeSortTest implements BufferConsumer
     public static void loggingSetUp()
     {
         BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.INFO);
+        Logger.getRootLogger().setLevel(Level.WARN);
     }
 
     @Before
     public void setUp() throws Exception
     {
-        mms = new MultiChannelMergeSort(nch, this);
-        for (int ch = 0; ch < nch; ch++) mms.register(ch);
-        mms.start();
+        prio = new PrioritySort("Test", nch, this);
+        for (int ch = 0; ch < nch; ch++) prio.register(ch);
+        prio.start();
         numBuffersSeen = 0;
         lastUT = 0;
         timeOrdered = true;
@@ -70,7 +70,7 @@ public class MultiChannelMergeSortTest implements BufferConsumer
 
         for (int ch = 0; ch < nch; ch++)
         {
-            genArr[ch] = new BufferGenerator(ch, rate, mms);
+            genArr[ch] = new BufferGenerator(ch, rate, prio);
             genArr[ch].start();
         }
 
@@ -79,15 +79,15 @@ public class MultiChannelMergeSortTest implements BufferConsumer
             Thread.sleep(1000L);
             if (logger.isInfoEnabled()) {
                 logger.info(
-                        "MMS in: " + mms.getNumberOfInputs() +
-                        " out: " + mms.getNumberOfOutputs() +
-                        " queue size " + mms.getQueueSize()
+                        "PRIO in: " + prio.getNumberOfInputs() +
+                        " out: " + prio.getNumberOfOutputs() +
+                        " queue size " + prio.getQueueSize()
                         );
             }
         }
 
         for (int ch = 0; ch < nch; ch++) genArr[ch].signalStop();
-        mms.join();
+        prio.join();
 
         assertTrue(timeOrdered);
     }
@@ -106,7 +106,7 @@ public class MultiChannelMergeSortTest implements BufferConsumer
     public void endOfStream(long mbid)
         throws IOException
     {
-        throw new Error("Only used by PrioritySort");
+        System.err.println("Saw end-of-stream!");
     }
 
     public static void main(String[] args) throws Exception
@@ -116,7 +116,7 @@ public class MultiChannelMergeSortTest implements BufferConsumer
         double rate = 500.0;
         if (args.length > 0) nch = Integer.parseInt(args[0]);
         if (args.length > 1) rate = Double.parseDouble(args[1]);
-        MultiChannelMergeSortTest mcmt = new MultiChannelMergeSortTest();
+        PrioritySortTest mcmt = new PrioritySortTest();
         mcmt.setNumChannels(nch);
         mcmt.setRate(rate);
         mcmt.setUp();

@@ -12,13 +12,13 @@ public class BufferConsumerBuffered
 {
     // buffered output stream
     BufferedOutputStream bos;
-   
+
 
     private byte[] buffer_data;
     // on scube the average scal message
     // is 681.25 bytes ( round up )
     private static final int BUFFER_INITIAL_SIZE = 682;
-    
+
     /**
      * Create the consumer channel.
      *
@@ -39,17 +39,26 @@ public class BufferConsumerBuffered
      */
     public void consume(ByteBuffer buf)
         throws IOException
-   {
+    {
 
-       while (buf.remaining() > buffer_data.length) {
-	   buffer_data = new byte[buffer_data.length * 2 ];
-       }
+        while (buf.remaining() > buffer_data.length) {
+            buffer_data = new byte[buffer_data.length * 2 ];
+        }
 
-       // transfer the data
-       int remaining = buf.remaining();
-       buf.get(buffer_data, 0, remaining);
+        // transfer the data
+        int remaining = buf.remaining();
+        buf.get(buffer_data, 0, remaining);
 
-       // write the data to disk
-       this.bos.write(buffer_data, 0, remaining);
-   }
+        // write the data to disk
+        this.bos.write(buffer_data, 0, remaining);
+    }
+
+    /**
+     * There will be no more data.
+     */
+    public void endOfStream(long mbid)
+        throws IOException
+    {
+        consume(MultiChannelMergeSort.eos(mbid));
+    }
 }
