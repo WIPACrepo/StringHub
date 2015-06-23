@@ -278,6 +278,19 @@ public class ReplayHubComponent
                                        "  hub#" + hubId + " in " + configName);
         }
 
+
+        final String fwdProp = "sender/forwardIsolatedHitsToTrigger";
+        try {
+            final String fwdText = JAXPUtil.extractText(replayFiles, fwdProp);
+            if (fwdText.equalsIgnoreCase("true")) {
+                LOG.error("Enabled hit forwarding");
+                sender.forwardIsolatedHitsToTrigger();
+            }
+        } catch (JAXPUtilException jux) {
+            throw new DAQCompException("Hub#" + hubId + " config failed", jux);
+        }
+
+
         // extract this hub's entry
         Element hubNode;
 
@@ -344,14 +357,20 @@ public class ReplayHubComponent
 
         // make sure path exists
         if (!dataDir.exists()) {
-            String hostname;
-            try {
-                hostname = InetAddress.getLocalHost().getHostName();
-            } catch (Exception ex) {
-                hostname = "unknown";
+            // it could be a compressed file
+            File dd2 = new File(topdir, subdir + ".gz");
+            if (dd2.exists()) {
+                dataDir = dd2;
+            } else {
+                String hostname;
+                try {
+                    hostname = InetAddress.getLocalHost().getHostName();
+                } catch (Exception ex) {
+                    hostname = "unknown";
+                }
+                throw new DAQCompException(dataDir.toString() +
+                                           " does not exist on " + hostname);
             }
-            throw new DAQCompException(dataDir.toString() +
-                                       " does not exist on " + hostname);
         }
 
         try {
@@ -418,8 +437,6 @@ public class ReplayHubComponent
     {
         final int idx = DataStreamType.HIT.index();
         if (handlers[idx] == null) {
-            LOG.error("No active hub#" + hubId +
-                      " handler for getEarliestLastChannelHitTime");
             return 0L;
         }
 
@@ -454,8 +471,6 @@ public class ReplayHubComponent
     {
         final int idx = DataStreamType.HIT.index();
         if (handlers[idx] == null) {
-            LOG.error("No active hub#" + hubId +
-                      " handler for getLatestFirstChannelHitTime");
             return 0L;
         }
 
@@ -582,8 +597,6 @@ public class ReplayHubComponent
     {
         final int idx = DataStreamType.HIT.index();
         if (handlers[idx] == null) {
-            LOG.error("No active hub#" + hubId +
-                      " handler for getTotalBehind");
             return 0L;
         }
 
@@ -608,8 +621,6 @@ public class ReplayHubComponent
     {
         final int idx = DataStreamType.HIT.index();
         if (handlers[idx] == null) {
-            LOG.error("No active hub#" + hubId +
-                      " handler for getTotalPayloads");
             return 0L;
         }
 
@@ -626,7 +637,6 @@ public class ReplayHubComponent
     {
         final int idx = DataStreamType.HIT.index();
         if (handlers[idx] == null) {
-            LOG.error("No active hub#" + hubId + " handler for getTotalSleep");
             return 0L;
         }
 
@@ -686,10 +696,7 @@ public class ReplayHubComponent
     public void setReplayOffset(long offset)
     {
         for (DataStreamType dst : DataStreamType.values()) {
-            if (handlers[dst.index()] == null) {
-                LOG.error("Cannot set replay offset for hub#" + hubId + " " +
-                          dst.filename() + "; handler is null");
-            } else {
+            if (handlers[dst.index()] != null) {
                 handlers[dst.index()].setReplayOffset(offset);
             }
         }
