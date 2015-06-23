@@ -170,8 +170,8 @@ public class FileHandler
         outThread = new OutputThread(hubId, dataType, out);
         outThread.start();
 
-        dataThread = new DataThread(hubId, dataType, inThread,
-                                           timeOffset, outThread);
+        dataThread = new DataThread(hubId, dataType, inThread, timeOffset,
+                                    outThread);
         dataThread.start();
     }
 
@@ -364,10 +364,10 @@ class DataThread
 
     /** The actual thread object */
     private Thread realThread;
-    /** 'true' if this thread has been started */
-    private boolean started;
     /** 'true' if this thread is stopping */
     private boolean stopping;
+    /** 'true' if this thread has been stopped */
+    private boolean stopped;
 
     /** first and last times for every DOM */
     private HashMap<Long, DOMTimes> domTimes =
@@ -397,9 +397,6 @@ class DataThread
         this.inThread = inThread;
         this.timeOffset = timeOffset;
         this.outThread = outThread;
-
-        realThread = new Thread(this);
-        realThread.setName(dataType + "DataThread#" + hubId);
     }
 
     /**
@@ -520,7 +517,7 @@ class DataThread
             }
 
             // set the DAQ time
-            if (!daqTime.set(rawTime + timeOffset, totPayloads)) {
+            if (!daqTime.set(rawTime, timeOffset, totPayloads)) {
                 // if the current time if before the previous time, skip it
                 continue;
             }
@@ -531,7 +528,7 @@ class DataThread
             }
 
             // set system time
-            if (!sysTime.set(System.nanoTime(), totPayloads)) {
+            if (!sysTime.set(System.nanoTime(), 0L, totPayloads)) {
                 // if the current time if before the previous time, skip it
                 continue;
             }
@@ -548,7 +545,7 @@ class DataThread
                 //  the next payload time
                 timeGap = daqTime.baseDiff() - sysTime.baseDiff();
 
-                // whine if the time gap is greater than one second
+                // whine if the time gap is too long
                 if (timeGap > NS_PER_SEC * 2) {
                     if (totPayloads < 10) {
                         // minimize gap for first few payloads
@@ -616,7 +613,6 @@ class DataThread
                   " on hub#" + hubId);
     }
 
-private icecube.daq.payload.impl.PayloadFactory factory = new icecube.daq.payload.impl.PayloadFactory(null);
     /**
      * Main file writer loop.
      */
@@ -629,9 +625,12 @@ private icecube.daq.payload.impl.PayloadFactory factory = new icecube.daq.payloa
                       totPayloads + " " + dataType, thr);
         }
 
-        finishThreadCleanup();
-
-        started = false;
+        try {
+            finishThreadCleanup();
+        } finally {
+            stopping = false;
+            stopped = true;
+        }
     }
 
     /**
@@ -639,12 +638,15 @@ private icecube.daq.payload.impl.PayloadFactory factory = new icecube.daq.payloa
      */
     public void start()
     {
-        if (started) {
-            throw new Error("Thread has already been started!");
+        if (realThread != null && realThread.isAlive() &&
+            (!stopping || !stopped))
+        {
+            throw new Error("Thread is already running!");
         }
 
+        realThread = new Thread(this);
+        realThread.setName(dataType + "DataThread#" + hubId);
         realThread.start();
-        started = true;
     }
 
     /**
@@ -652,17 +654,15 @@ private icecube.daq.payload.impl.PayloadFactory factory = new icecube.daq.payloa
      */
     public void stopping()
     {
-        if (!started) {
-            throw new Error("Thread has not been started!");
+        if (realThread != null && realThread.isAlive() && !stopped) {
+            stopping = true;
+            realThread.interrupt();
         }
-
-        stopping = true;
-        realThread.interrupt();
     }
 
     public String toString()
     {
-        String sstr = (stopping ? ",stopping" : started ? "" : ",stopped");
+        String sstr = (stopping ? ",stopping" : stopped ? "" : ",stopped");
         return "DataThread[hub#" + hubId + "," + dataType + ",off=" +
             timeOffset + ",sleep=" + totalSleep + ",behind=" + totalBehind +
             ",tot=" + totPayloads + sstr + "]";
@@ -832,10 +832,13 @@ class TimeKeeper
     private int hubId;
     private DataStreamType dataType;
     private boolean isSystemTime;
+    private String timeType;
     private boolean initialized;
     private long firstTime;
     private long baseTime;
     private long lastTime;
+    private long lastRaw;
+    private long lastOffset;
 
     /**
      * Create a time keeper
@@ -849,6 +852,12 @@ class TimeKeeper
         this.hubId = hubId;
         this.dataType = dataType;
         this.isSystemTime = isSystemTime;
+
+        if (isSystemTime) {
+            timeType = "System";
+        } else {
+            timeType = "DAQ";
+        }
     }
 
     /**
@@ -899,28 +908,32 @@ class TimeKeeper
      *
      * @return <tt>false</tt> if <tt>time</tt> preceeds the previous time
      */
-    boolean set(long time, long hitNum)
+    boolean set(long rawTime, long offset, long hitNum)
     {
+        final long time = rawTime + offset;
         if (!initialized) {
             firstTime = time;
             baseTime = time;
             initialized = true;
-        } else if (time < lastTime) {
-            String timeType;
-            if (isSystemTime) {
-                timeType = "System";
-            } else {
-                timeType = "DAQ";
-            }
-
+        } else if (rawTime < lastRaw) {
             final String fmtStr =
-                "Hub#%d %s %s#%d went back %d in time! (cur %d, prev %d)";
+                "Hub#%d %s %s#%d rawval went back %d in time! (cur %d, prev %d)";
             LOG.error(String.format(fmtStr, hubId, timeType, dataType, hitNum,
-                                    lastTime - time, time, lastTime));
+                                    lastRaw - rawTime, rawTime, lastRaw));
+            return false;
+        } else if (time < lastTime) {
+            final String fmtStr = "Hub#%d %s %s#%d offset went back %d" +
+                " in time! (cur %d offset %d, prev %d off %d)";
+            LOG.error(String.format(fmtStr, hubId, timeType, dataType, hitNum,
+                                    lastOffset - offset, time, offset,
+                                    lastTime, lastOffset));
             return false;
         }
 
         lastTime = time;
+        lastRaw = rawTime;
+        lastOffset = offset;
+
         return true;
     }
 
