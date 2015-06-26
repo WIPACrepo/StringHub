@@ -58,7 +58,11 @@ public class GPSInfo {
     public int getQuality() { return quality; }
     
     public UTC getOffset() { return offset; }
-    
+
+    /** provide access to raw internals. */
+    public String getTimestring() { return timestring; }
+    public long getDorclk() { return dorclk; }
+
     /**
      * This method returns a read-only view of the
      * underlying 22-byte GPS record.
