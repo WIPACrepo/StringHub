@@ -150,6 +150,12 @@
       <groupId>javax.xml.parsers</groupId>
       <artifactId>jaxp-api</artifactId>
     </dependency>
+
+    <dependency>
+      <groupId>commons-net</groupId>
+      <artifactId>commons-net</artifactId>
+    </dependency>
+
   </dependencies>
 
 </project>
