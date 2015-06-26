@@ -39,6 +39,7 @@ import icecube.daq.priority.AdjustmentTask;
 import icecube.daq.priority.SorterException;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
+import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
@@ -499,7 +500,12 @@ public class StringHubComponent
 			}
 		}
 
-		for (DOMChannelInfo chanInfo : activeDOMs)
+        //start up the clock monitoring subsystem
+        final Object mbean =
+         ClockMonitoringSubsystem.Factory.subsystem().startup(getAlertQueue());
+        addMBean("ClockMonitor", mbean);
+
+        for (DOMChannelInfo chanInfo : activeDOMs)
 		{
 			DOMConfiguration config = cfgData.getDOMConfig(chanInfo.mbid);
 			if (config == null) continue;
@@ -895,6 +901,8 @@ public class StringHubComponent
 		}
 
 		GPSService.getInstance().shutdownAll();
+        ClockMonitoringSubsystem.Factory.subsystem().shutdown();
+
 		logger.info("Returning from stop.");
 	}
 
@@ -932,7 +940,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15570 2015-06-12 16:19:32Z dglo $";
+		return "$Id: StringHubComponent.java 15608 2015-06-26 22:42:16Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
