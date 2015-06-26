@@ -7,6 +7,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
+import icecube.daq.time.monitoring.ClockProcessor;
 import org.apache.log4j.Logger;
 
 /**
@@ -26,6 +28,7 @@ public class GPSService
 
     private class GPSCollector extends Thread
     {
+        private final int card;
         private Driver driver;
         //private int card;
         private int cons_gpsx_count;
@@ -36,8 +39,13 @@ public class GPSService
         /** support clients waiting for an available reading. */
         private CountDownLatch initializationLatch = new CountDownLatch(1);
 
+        /** monitoring consumer. */
+        private ClockProcessor gpsConsumer =
+                ClockMonitoringSubsystem.Factory.processor();
+
         GPSCollector(Driver driver, int card)
         {
+            this.card = card;
             this.driver = driver;
             //this.card = card;
             this.gpsFile = driver.getGPSFile(card);
@@ -100,6 +108,8 @@ public class GPSService
                         {
                             gps = newGPS;
                             initializationLatch.countDown();
+
+                            gpsConsumer.process(new ClockProcessor.GPSSnapshot(gps, card));
                         }
                     }
                 }
