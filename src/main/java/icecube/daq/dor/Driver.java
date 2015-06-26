@@ -215,25 +215,30 @@ public final class Driver implements IDriver {
 	RandomAccessFile tcalib = new RandomAccessFile(tcalFile, "rw");
 	FileChannel ch = tcalib.getChannel();
 
-	if (logger.isDebugEnabled()) logger.debug("Initiating TCAL sequence");
-	tcalib.writeBytes("single\n");
-	for (int iTry = 0; iTry < 5; iTry++)
-	    {
-		Thread.sleep(20);
-		ByteBuffer buf = ByteBuffer.allocate(292);
-		int nr = ch.read(buf);
-		if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + tcalFile.getAbsolutePath());
-		if (nr == 292)
-		    {
-			ch.close();
-			tcalib.close();
-			buf.flip();
-			return new TimeCalib(buf);
-		    }
-	    }
-	ch.close();
-	tcalib.close();
-	throw new IOException("TCAL read failed.");
+        if (logger.isDebugEnabled()) logger.debug("Initiating TCAL sequence");
+        tcalib.writeBytes("single\n");
+
+        // Arbitrary moment to establish the correlation between the
+        // DOR TCAL TX and the system monotonic clock
+        final long txNano = System.nanoTime();
+
+        for (int iTry = 0; iTry < 5; iTry++)
+        {
+            Thread.sleep(20);
+            ByteBuffer buf = ByteBuffer.allocate(292);
+            int nr = ch.read(buf);
+            if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + tcalFile.getAbsolutePath());
+            if (nr == 292)
+            {
+                ch.close();
+                tcalib.close();
+                buf.flip();
+                return new TimeCalib(buf, txNano);
+            }
+        }
+        ch.close();
+        tcalib.close();
+        throw new IOException("TCAL read failed.");
     }
 
     public File getGPSFile(int card) {
