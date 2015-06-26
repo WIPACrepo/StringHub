@@ -142,7 +142,7 @@ class MasterClockMonitor
         // Calculate the gps snap monotonic point-in-time by way of the tcal
         // monotonic point-in-time adjusted by the dor clock difference.
         long gps_point_nano =
-        tcal.tcal_point_nano + ((gps.dorclk - tcal.tcal_point_dor) * 50);
+        tcal.tcal_point_nano + ((gps.getDorclk() - tcal.tcal_point_dor) * 50);
 
         // calculate where the GPS snap claims to be
         long claimedMasterClockMillisAtSnap = GPSToMillis(gps);
@@ -183,7 +183,7 @@ class MasterClockMonitor
                             double offset)
     {
         String msg = String.format(verboseFormat, card, offset,
-                gps.timestring, GPSToMillis(gps), gps.dorclk,
+                gps.getTimestring(), GPSToMillis(gps), gps.getDorclk(),
                 tcal.cwd, tcal.tcal_point_nano,
                 tcal.tcal_point_dor, tcal.tcal_exec_nano/1000000,
                 ntp.ntp_system_time, ntp.ntp_point_nano,
