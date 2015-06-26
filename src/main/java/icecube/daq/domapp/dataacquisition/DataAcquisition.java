@@ -12,6 +12,8 @@ import icecube.daq.domapp.dataprocessor.DataProcessorError;
 import icecube.daq.dor.Driver;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
+import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
+import icecube.daq.time.monitoring.ClockProcessor;
 import icecube.daq.util.FlasherboardConfiguration;
 import org.apache.log4j.Logger;
 
@@ -69,6 +71,10 @@ public class DataAcquisition
     /** Target of acquired data. */
     private final DataProcessor dataProcessor;
 
+
+    /** Monitoring consumer of tcals. */
+    private ClockProcessor tcalConsumer =
+            ClockMonitoringSubsystem.Factory.processor();
 
     public DataAcquisition(final int card, final int pair, final char dom,
                            final DataProcessor dataProcessor)
@@ -697,7 +703,9 @@ public class DataAcquisition
     {
         try
         {
+            long before = System.nanoTime();
             TimeCalib tcal = driver.readTCAL(tcalFile);
+            long after = System.nanoTime();
 
             // re-synthesize a data buffer.
             ByteBuffer buf = ByteBuffer.allocate(314);
@@ -705,6 +713,17 @@ public class DataAcquisition
             buf.flip();
 
             dataProcessor.process(DataProcessor.StreamType.TCAL, buf);
+
+            // Tee readings to clock monitoring for GPS clock triangulation
+            //
+            // Note: This is the point at which we associate a dor timestamp
+            //       with a monotonic nano timestamp. We are choosing the dor
+            //       tx time.
+            final long dortxDor = tcal.getDorTxInDorUnits();
+            final long dortxNano = tcal.getDorTXPointInTimeNano();
+            tcalConsumer.process(new ClockProcessor.TCALMeasurement(dortxDor,
+                    dortxNano, (after - before), card, id));
+
         }
         catch (InterruptedException e)
         {
