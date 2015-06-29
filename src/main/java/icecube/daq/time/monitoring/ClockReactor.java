@@ -5,6 +5,7 @@ import org.apache.log4j.Logger;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -24,7 +25,7 @@ class ClockReactor implements ClockProcessor
     private ScheduledExecutorService executor;
 
     /** Running status. */
-    private boolean running = false;
+    private volatile boolean running = false;
 
 
     /**
@@ -47,7 +48,8 @@ class ClockReactor implements ClockProcessor
         {
             if(!running)
             {
-                executor = Executors.newScheduledThreadPool(1);
+                executor = Executors.newScheduledThreadPool(1,
+                        new ReactorThreadFactory());
                 running = true;
             }
         }
@@ -206,6 +208,23 @@ class ClockReactor implements ClockProcessor
                 logger.error("Error processing NTP");
             }
         }
+    }
+
+
+    /**
+     * Factory for defining the reactor thread.
+     */
+    private static class ReactorThreadFactory implements ThreadFactory
+    {
+
+        @Override
+        public Thread newThread(final Runnable runnable)
+        {
+            Thread thread = new Thread(runnable);
+            thread.setName("Clock Monitor");
+            return thread;
+        }
+
     }
 
 
