@@ -503,7 +503,11 @@ public class StringHubComponent
         //start up the clock monitoring subsystem
         final Object mbean =
          ClockMonitoringSubsystem.Factory.subsystem().startup(getAlertQueue());
-        addMBean("ClockMonitor", mbean);
+
+        if(mbean != null)
+        {
+            addMBean("ClockMonitor", mbean);
+        }
 
         for (DOMChannelInfo chanInfo : activeDOMs)
 		{
@@ -940,7 +944,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15608 2015-06-26 22:42:16Z bendfelt $";
+		return "$Id: StringHubComponent.java 15616 2015-06-29 22:55:09Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
