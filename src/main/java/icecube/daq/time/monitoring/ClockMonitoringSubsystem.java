@@ -15,7 +15,7 @@ import org.apache.log4j.Logger;
  *
  *    icecube.daq.time.monitoring.enable-clock-monitoring = [false]
  *
- *        Enable/Disable cock monitoring.
+ *        Enable/Disable clock monitoring.
  *
  *</pre><p>
  * If monitoring is enabled, a reachable NTP server must be defined.
@@ -45,14 +45,14 @@ import org.apache.log4j.Logger;
  *
  *       Defines the polling period of NTP server queries.</dt>
  *
- *    icecube.daq.time.monitoring.max-tcal-duration-millis = [5]
+ *    icecube.daq.time.monitoring.max-tcal-duration-millis = [50]
  *
- *       Defines a upper bound on the execution time of a tcal, measurements
+ *       Defines na upper bound on the execution time of a tcal, measurements
  *       exceeding this time are considered outliers and dropped.
  *
  *    icecube.daq.time.monitoring.max-ntp-duration-millis = [25]
  *
- *       Defines a upper bound on the execution time of a tcal, measurements
+ *       Defines an upper bound on the execution time of a tcal, measurements
  *       exceeding this time are considered outliers and dropped.
  *
  *    icecube.daq.time.monitoring.max-consec-ntp-rejects = [20]
@@ -68,17 +68,17 @@ import org.apache.log4j.Logger;
  *
  *       The offset between NTP and master clock time that initiates an alert.
  *
- *    icecube.daq.time.monitoring.local-clock-sample-window = [1]
+ *    icecube.daq.time.monitoring.local-clock-sample-window = [5]
  *
  *       The number of successive over-threshold local clock readings that
  *       must occur to trigger an alert.
  *
- *    icecube.daq.time.monitoring.master-clock-sample-window = [1]
+ *    icecube.daq.time.monitoring.master-clock-sample-window = [5]
  *
  *       The number of successive over-threshold master clock readings that
  *       must occur to trigger an alert.
  *
- *    icecube.daq.time.monitoring.alert-interval-minutes = [30]
+ *    icecube.daq.time.monitoring.alert-interval-minutes = [60]
  *
  *       The minimum interval between two successive alerts of the same type.
  *
@@ -171,7 +171,7 @@ public interface ClockMonitoringSubsystem extends ClockProcessor
     public static final int ALERT_INTERVAL_MINUTES =
             Integer.getInteger(
                     "icecube.daq.time.monitoring.alert-interval-minutes",
-                    30);
+                    60);
 
     /** An email address that will receive alerts. */
     public static final String ALERT_EMAIL =
