@@ -54,6 +54,12 @@ class MasterClockMonitor
     /** The current year. Note that this breaks at year-end. */
     private final int currentYear;
 
+    /** Number of nanoseconds in a dor tick. */
+    private static final int NANOS_PER_DOR_TICK = 50;
+
+    /** Number of nanos in a millisecond, as a double. */
+    private static final double NANOS_PER_MILLI_DOUBLE = 1000000D;
+
     /** Debugging aid. */
     private boolean VERBOSE_LOGGING =
             Boolean.getBoolean("icecube.daq.time.monitoring.verbose-logging");
@@ -79,28 +85,32 @@ class MasterClockMonitor
                    final ClockProcessor.GPSSnapshot gpssnap)
     {
 
+        // factor out the GPS string-to-millis calculation
+        // from the loop.
+        final long gpsMillis = GPSToMillis(gpssnap.gps);
+        final long gpsDor = gpssnap.gps.getDorclk();
+
         // calculate an offset for each tcal source.
-        double[] offsets = new double[currentTCALs.size()];
-        int idx = 0;
+        int numSamples = 0;
         double sum = 0;
         for(ClockProcessor.TCALMeasurement tcal : currentTCALs.values())
         {
-            double offset = estimateOffset(ntp, gpssnap.gps, tcal);
+            double offset = estimateOffset(ntp, gpsMillis, gpsDor, tcal);
 
             if(VERBOSE_LOGGING)
             {
                 logVerbose(ntp, gpssnap.gps, tcal, offset);
             }
 
-            offsets[idx++] = offset;
             sum += offset;
+            numSamples++;
         }
 
-        if(offsets.length > 0)
+        if(numSamples > 0)
         {
             // Average the readings to form a single offset
             // for the card.
-            masterClockOffsetMillis = sum/offsets.length;
+            masterClockOffsetMillis = sum/numSamples;
         }
         else
         {
@@ -123,8 +133,20 @@ class MasterClockMonitor
         currentTCALs.put(tcal.cwd, tcal);
     }
 
+    /**
+     * Estimate the difference between the NTP source and the Master Clock.
+     *
+     * @param ntp An NTP reading.
+     * @param gps_point_millis The GPS PPS timestamp, converted to the system
+     *                         timescale of milliseconds since the unix epoch.
+     * @param gps_point_dor The DOR clock timestamp from the GPS snapshot.
+     *
+     * @return The number of milliseconds that the GPS clock is offset from the
+     *         NTP source.
+     */
     private double estimateOffset(final ClockProcessor.NTPMeasurement ntp,
-                                  final GPSInfo gps,
+                                  final long gps_point_millis,
+                                  final long gps_point_dor,
                                   final ClockProcessor.TCALMeasurement tcal)
     {
         // NOTE: Mildly convoluted.
@@ -142,20 +164,16 @@ class MasterClockMonitor
         // Calculate the gps snap monotonic point-in-time by way of the tcal
         // monotonic point-in-time adjusted by the dor clock difference.
         long gps_point_nano =
-        tcal.tcal_point_nano + ((gps.getDorclk() - tcal.tcal_point_dor) * 50);
-
-        // calculate where the GPS snap claims to be
-        long claimedMasterClockMillisAtSnap = GPSToMillis(gps);
+        tcal.tcal_point_nano +
+                ((gps_point_dor - tcal.tcal_point_dor) * NANOS_PER_DOR_TICK);
 
         // calculate where the GPS snap occurred with respect to the NTP
         // reading by adding the elapsed system time to the ntp time.
         double estimatedMasterClockMillisAtSnap = (ntp.ntp_system_time) +
-                (gps_point_nano - ntp.ntp_point_nano)/1000000D;
-
+                (gps_point_nano - ntp.ntp_point_nano)/ NANOS_PER_MILLI_DOUBLE;
 
         // calculate the offset from the Master Clock to the NTP clock
-        return estimatedMasterClockMillisAtSnap -
-                claimedMasterClockMillisAtSnap;
+        return estimatedMasterClockMillisAtSnap - gps_point_millis;
     }
 
     private long GPSToMillis(GPSInfo gps)
