@@ -1,63 +1,18 @@
 package icecube.daq.configuration;
 
-import icecube.daq.bindery.MultiChannelMergeSort;
-import icecube.daq.bindery.PrioritySort;
-import icecube.daq.bindery.SecondaryStreamConsumer;
-import icecube.daq.common.DAQCmdInterface;
-import icecube.daq.domapp.AbstractDataCollector;
-import icecube.daq.bindery.ChannelSorter;
 import icecube.daq.domapp.DOMConfiguration;
-import icecube.daq.domapp.DataCollector;
-import icecube.daq.domapp.DataCollectorFactory;
-import icecube.daq.domapp.MessageException;
-import icecube.daq.domapp.RunLevel;
-import icecube.daq.domapp.SimDataCollector;
-import icecube.daq.dor.DOMChannelInfo;
-import icecube.daq.dor.Driver;
-import icecube.daq.dor.GPSService;
-import icecube.daq.io.DAQComponentOutputProcess;
-import icecube.daq.io.OutputChannel;
-import icecube.daq.io.PayloadReader;
-import icecube.daq.io.SimpleOutputEngine;
-import icecube.daq.juggler.alert.AlertException;
-import icecube.daq.juggler.alert.AlertQueue;
-import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.juggler.component.DAQCompException;
-import icecube.daq.juggler.component.DAQComponent;
-import icecube.daq.juggler.component.DAQConnector;
-import icecube.daq.juggler.mbean.MemoryStatistics;
-import icecube.daq.juggler.mbean.SystemStatistics;
-import icecube.daq.livemoni.LiveTCalMoni;
-import icecube.daq.monitoring.MonitoringData;
-import icecube.daq.payload.IByteBufferCache;
-import icecube.daq.payload.SourceIdRegistry;
-import icecube.daq.payload.impl.ReadoutRequestFactory;
-import icecube.daq.payload.impl.VitreousBufferCache;
-import icecube.daq.priority.AdjustmentTask;
-import icecube.daq.priority.SorterException;
-import icecube.daq.sender.RequestReader;
-import icecube.daq.sender.Sender;
 import icecube.daq.util.DeployedDOM;
-import icecube.daq.util.FlasherboardConfiguration;
 import icecube.daq.util.JAXPUtil;
 import icecube.daq.util.JAXPUtilException;
-import icecube.daq.util.StringHubAlert;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
-
-import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.log4j.Logger;
 
@@ -65,8 +20,6 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-
-import org.xml.sax.SAXException;
 
 public class ConfigData
 {
@@ -172,7 +125,7 @@ public class ConfigData
                 }
                 }
 
-                parseDOMHubConfig(domConfigsDir, hubNode);
+                parseDOMHubConfig(hubNode);
 
                 Node hsNode = JAXPUtil.extractNode(hubNode, "hitspool");
                 if (hsNode == null) {
@@ -185,7 +138,7 @@ public class ConfigData
         }
     }
 
-    private void parseDOMHubConfig(File domConfigsDir, Node hubNode)
+    private void parseDOMHubConfig(Node hubNode)
         throws JAXPUtilException
     {
         if (JAXPUtil.extractText(hubNode, "trigger/enabled").

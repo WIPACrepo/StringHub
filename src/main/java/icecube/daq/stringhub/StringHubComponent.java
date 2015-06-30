@@ -44,13 +44,10 @@ import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
-import icecube.daq.util.JAXPUtil;
 import icecube.daq.util.JAXPUtilException;
 import icecube.daq.util.StringHubAlert;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -59,17 +56,11 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.log4j.Logger;
-
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
 import org.xml.sax.SAXException;
 
@@ -103,8 +94,6 @@ public class StringHubComponent
 	private ChannelSorter scalSort;
 	private File configurationPath;
 	private int numConfigured;
-
-	private int runNumber;
 
 	private FilesHitSpool hitSpooler;
 
@@ -821,8 +810,6 @@ public class StringHubComponent
      */
 	public void setRunNumber(int runNumber)
 	{
-		this.runNumber = runNumber;
-
 		logger.info("Set run number");
 		if (conn == null) {
 			logger.error("DOMConnector has not been initialized!");
@@ -1043,7 +1030,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15624 2015-06-30 18:27:51Z dglo $";
+		return "$Id: StringHubComponent.java 15626 2015-06-30 22:11:44Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
