@@ -84,7 +84,6 @@ public class StringHubComponent
 		DAQCmdInterface.DAQ_STRING_HUB;
 
 	private int hubId;
-	private boolean isSim;
 	private Driver driver = Driver.getInstance();
 	private IByteBufferCache cache;
 	private Sender sender;
@@ -115,17 +114,14 @@ public class StringHubComponent
 
 	private ArrayList<PrioritySort> prioList = new ArrayList<PrioritySort>();
 
+	private boolean forceRandom;
+
 	public StringHubComponent(int hubId)
 	{
-		this(hubId, (hubId >= 1000 && hubId < 2000));
+		this(hubId, true, true, true, true, true, true, true);
 	}
 
-	public StringHubComponent(int hubId, boolean isSim)
-	{
-		this(hubId, isSim, true, true, true, true, true, true, true);
-	}
-
-	public StringHubComponent(int hubId, boolean isSim, boolean includeHitOut,
+	public StringHubComponent(int hubId, boolean includeHitOut,
 							  boolean includeTEOut, boolean includeReqIn,
 							  boolean includeDataOut, boolean includeMoniOut,
 							  boolean includeTCalOut, boolean includeSNOut)
@@ -133,7 +129,6 @@ public class StringHubComponent
 		super(COMPONENT_NAME, hubId);
 
 		this.hubId = hubId;
-		this.isSim = isSim;
 
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
@@ -449,10 +444,14 @@ public class StringHubComponent
 
 		ConfigData cfgData;
 		try {
-			cfgData = new ConfigData(configurationPath, configName, hubId);
+			cfgData = new ConfigData(configurationPath, configName, hubId,
+									 deployedDOMs);
 		} catch (JAXPUtilException jux) {
 			throw new DAQCompException(jux);
 		}
+
+		final boolean isSim = cfgData.isRandom || forceRandom ||
+			(hubId >= 1000 && hubId < 2000);
 
 		// Lookup the connected DOMs
 		List<DOMChannelInfo> activeDOMs;
@@ -477,7 +476,7 @@ public class StringHubComponent
 
 		configOutput(cfgData, openSecondary);
 
-		createDataCollectors(cfgData, activeDOMs);
+		createDataCollectors(cfgData, activeDOMs, isSim);
 
 		// Still need to get the data collectors to pick up
 		// and do something with the config
@@ -609,7 +608,7 @@ public class StringHubComponent
 	}
 
 	private AbstractDataCollector
-		createDataCollector(DOMChannelInfo chanInfo,
+		createDataCollector(boolean isSim, DOMChannelInfo chanInfo,
 							DOMConfiguration config,
 							ChannelSorter hitsSort,
 							ChannelSorter moniSort,
@@ -639,9 +638,9 @@ public class StringHubComponent
 	}
 
 	private void createDataCollectors(ConfigData cfgData,
-									  List<DOMChannelInfo> activeDOMs)
+									  List<DOMChannelInfo> activeDOMs,
+									  boolean isSim)
 		throws DAQCompException
-
 	{
 		for (DOMChannelInfo chanInfo : activeDOMs) {
 			DOMConfiguration config = cfgData.getDOMConfig(chanInfo.mbid);
@@ -661,7 +660,7 @@ public class StringHubComponent
 
 			AbstractDataCollector dc;
 			try {
-				dc = createDataCollector(chanInfo, config, hitsSort,
+				dc = createDataCollector(isSim, chanInfo, config, hitsSort,
 										 moniSort, tcalSort, scalSort,
 										 cfgData.enable_intervals,
 										 cfgData.snDistance);
@@ -685,8 +684,14 @@ public class StringHubComponent
 							 ").");
 			}
 		}
+	}
 
-		logger.debug("Starting up HKN1 sorting trees...");
+	/**
+	 * Used for testing StringHub without real DOMs
+	 */
+	public void forceRandomMode()
+	{
+		forceRandom = true;
 	}
 
 	/**
@@ -1038,7 +1043,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15620 2015-06-30 18:08:38Z dglo $";
+		return "$Id: StringHubComponent.java 15624 2015-06-30 18:27:51Z dglo $";
 	}
 
 	public IByteBufferCache getCache()

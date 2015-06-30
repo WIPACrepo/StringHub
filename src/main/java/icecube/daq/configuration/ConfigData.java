@@ -37,7 +37,6 @@ import icecube.daq.priority.AdjustmentTask;
 import icecube.daq.priority.SorterException;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
-import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
 import icecube.daq.util.JAXPUtil;
@@ -73,6 +72,9 @@ public class ConfigData
 {
     private static final Logger logger = Logger.getLogger(ConfigData.class);
 
+    // default noise rate for random configs
+    private static final double DEFAULT_NOISE_RATE = 25.0;
+
     /** configuration name to be used in error messages */
     private String name;
 
@@ -88,9 +90,13 @@ public class ConfigData
     public long hitSpoolIval = 100000000000L; // Default 10s hit spool interval
     public int hitSpoolNumFiles = 100;
 
+    // random hit configuration
+    public boolean isRandom;
+
     private XMLConfig xmlConfig;
 
-    public ConfigData(File configurationPath, String configName, int hubId)
+    public ConfigData(File configurationPath, String configName, int hubId,
+                      Collection<DeployedDOM> deployedDOMs)
         throws DAQCompException, JAXPUtilException
     {
         this.name = configName;
@@ -111,7 +117,7 @@ public class ConfigData
             JAXPUtil.extractNode(doc, "runConfig/intervals/enabled");
         enable_intervals = parseIntervals(intvlNode, true);
 
-        parseDOMConfig(configurationPath, doc, hubId);
+        parseDOMConfig(configurationPath, doc, hubId, deployedDOMs);
     }
 
     public Set<String> getConfiguredDomIds()
@@ -135,9 +141,14 @@ public class ConfigData
     }
 
     private void parseDOMConfig(File configurationPath, Document doc,
-                                int hubId)
+                                int hubId,
+                                Collection<DeployedDOM> deployedDOMs)
         throws DAQCompException, JAXPUtilException
     {
+        Node rndNode = JAXPUtil.extractNode(doc, "runConfig/randomConfig");
+        if (rndNode != null) {
+            parseDOMRandomConfig(rndNode, hubId, deployedDOMs);
+        } else {
         File domConfigsDir = new File(configurationPath, "domconfigs");
 
         // Lookup <stringHub hubId='x'> node - if any - and process
@@ -158,6 +169,7 @@ public class ConfigData
                 {
                     throw new DAQCompException("Cannot read DOM config" +
                                                " file for hub " + hubId);
+                }
                 }
 
                 parseDOMHubConfig(domConfigsDir, hubNode);
@@ -219,6 +231,55 @@ public class ConfigData
             if (shList.getLength() > 0) {
                 readAllDOMConfigs(domConfigsDir, shList, false);
             }
+        }
+    }
+
+    private void parseDOMRandomConfig(Node topNode, int hubId,
+                                      Collection<DeployedDOM> deployedDOMs)
+        throws JAXPUtilException
+    {
+        isRandom = true;
+
+        double noiseRate = DEFAULT_NOISE_RATE;
+
+        String noiseStr = JAXPUtil.extractText(topNode, "noiseRate");
+        if (noiseStr != null && noiseStr.length() > 0) {
+            try {
+                noiseRate = Double.parseDouble(noiseStr);
+            } catch (NumberFormatException nfe) {
+                throw new JAXPUtilException("Bad noiseRate '" +
+                                            noiseStr + "'");
+            }
+        }
+
+        Node hubNode =
+            JAXPUtil.extractNode(topNode, "string[@id='" + hubId + "']");
+        NodeList rndList;
+        try {
+            rndList = JAXPUtil.extractNodeList(hubNode, "exclude");
+        } catch (JAXPUtilException jex) {
+            rndList = null;
+        }
+
+        HashSet<String> excluded = new HashSet<String>();
+        if (rndList != null) {
+            for (int i = 0; i < rndList.getLength(); i++) {
+                final String domId =
+                    ((Element) rndList.item(i)).getAttribute("dom");
+                excluded.add(domId);
+            }
+        }
+
+        for (DeployedDOM dom : deployedDOMs) {
+            final String mbid = dom.getMainboardId();
+            if (excluded.contains(mbid)) {
+                // skip excluded DOMs
+                continue;
+            }
+
+            DOMConfiguration domCfg = new DOMConfiguration();
+            domCfg.setSimNoiseRate(noiseRate);
+            xmlConfig.addDOMConfig(mbid, domCfg);
         }
     }
 

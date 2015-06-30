@@ -3,6 +3,8 @@ package icecube.daq.configuration;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.stringhub.test.MockAppender;
+import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.JAXPUtilException;
 
 import java.io.File;
@@ -22,6 +24,18 @@ public class ConfigDataTest
 
     private static final File CONFIGDIR =
         new File(ConfigDataTest.class.getResource("/config").getPath());
+
+    private static final DOMRegistry domRegistry;
+
+    static {
+        final String path = CONFIGDIR.getPath();
+        try {
+            domRegistry = DOMRegistry.loadRegistry(path);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            throw new Error("Cannot initialize DOM registry from " + path, ex);
+        }
+    };
 
     private static final HashMap<Integer, String[]> HUB_TO_DOMS =
         new HashMap<Integer, String[]>() {{
@@ -80,8 +94,11 @@ public class ConfigDataTest
     {
         final int hubId = 2;
 
+        Collection<DeployedDOM> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+
         ConfigData cfgData =
-            new ConfigData(CONFIGDIR, "sps-IC2-remove-Sauron-V099", hubId);
+            new ConfigData(CONFIGDIR, "sps-IC2-remove-Sauron-V099", hubId,
+                           deployedDOMs);
         checkDOMs(cfgData, hubId, false, 1);
     }
 
@@ -91,8 +108,11 @@ public class ConfigDataTest
     {
         final int hubId = 2;
 
+        Collection<DeployedDOM> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+
         ConfigData cfgData =
-            new ConfigData(CONFIGDIR, "sps-IC2-message-packing-V235", hubId);
+            new ConfigData(CONFIGDIR, "sps-IC2-message-packing-V235", hubId,
+                           deployedDOMs);
         checkDOMs(cfgData, hubId, false, 2);
     }
 
@@ -102,8 +122,11 @@ public class ConfigDataTest
     {
         final int hubId = 2;
 
+        Collection<DeployedDOM> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+
         ConfigData cfgData =
-            new ConfigData(CONFIGDIR, "replay-125659-local", hubId);
+            new ConfigData(CONFIGDIR, "replay-125659-local", hubId,
+                           deployedDOMs);
         // checkDOMs(cfgData, hubId, false, 1); replay doesn't specify any DOMs
     }
 
@@ -113,8 +136,25 @@ public class ConfigDataTest
     {
         final int hubId = 1002;
 
+        Collection<DeployedDOM> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+
         ConfigData cfgData =
-            new ConfigData(CONFIGDIR, "sim2strIT-stdtest-01", hubId);
+            new ConfigData(CONFIGDIR, "sim2strIT-stdtest-01", hubId,
+                           deployedDOMs);
+        checkDOMs(cfgData, hubId, true, 1);
+    }
+
+    @Test
+    public void testRandomConfig()
+        throws DAQCompException, JAXPUtilException
+    {
+        final int hubId = 2;
+
+        Collection<DeployedDOM> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+
+        ConfigData cfgData =
+            new ConfigData(CONFIGDIR, "random-01", hubId,
+                           deployedDOMs);
         checkDOMs(cfgData, hubId, true, 1);
     }
 }

@@ -377,8 +377,8 @@ public class XMLConfig extends DefaultHandler
 		else if (localName.equals("domConfig"))
 		{
 			currentConfig = new DOMConfiguration();
-			String mbid = attributes.getValue("mbid");
-			definedDOMConfigs.put(mbid, currentConfig);
+			final String mbid = attributes.getValue("mbid");
+			addDOMConfig(mbid, currentConfig);
 			internalState = ParserState.DOM_CONFIG;
 		}
 		else if (localName.equals("averagePedestal"))
@@ -419,6 +419,16 @@ public class XMLConfig extends DefaultHandler
 			except.printStackTrace();
 			throw except;
 		}
+	}
+
+	public void addDOMConfig(String mbid, DOMConfiguration domCfg)
+	{
+		if (definedDOMConfigs.containsKey(mbid)) {
+			logger.error("Warning, overwriting DOM " + mbid +
+						 " configuration");
+		}
+
+		definedDOMConfigs.put(mbid, domCfg);
 	}
 
 	public DOMConfiguration getDOMConfig(String mbid)
