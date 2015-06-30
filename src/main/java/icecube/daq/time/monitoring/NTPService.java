@@ -163,7 +163,6 @@ class NTPService
     private class NTPQueryJob implements Runnable
     {
         final String hostname;
-        final InetAddress ntpHost;
         final NTPUDPClient ntpClient;
         final ClockProcessor target;
 
