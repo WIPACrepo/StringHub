@@ -23,6 +23,8 @@ import java.util.concurrent.TimeUnit;
  *
  *    If an execution fails to produce an offset, the alerter is invoked.
  *
+ *    The hostname is resolved for each execution.
+ *
  *    This class uses NTPUDPClient from the apache-commons-net library
  *    to query the server.  An alternative implementation can be substituted
  *    here without affecting the design.
@@ -60,7 +62,7 @@ class NTPService
 
 
     /** running status. */
-    private boolean running = false;
+    private volatile boolean running = false;
 
 
     /**
@@ -92,23 +94,14 @@ class NTPService
             logger.info("Starting NTP Service for [" + ntpHostname + "]");
             if(!running)
             {
-                try
-                {
-                    InetAddress ntpHost = InetAddress.getByName(ntpHostname);
-                    NTPQueryJob job = new NTPQueryJob(ntpHostname, ntpHost,
-                                                      target);
+                NTPQueryJob job = new NTPQueryJob(ntpHostname,
+                        target);
 
-                    executor = Executors.newScheduledThreadPool(1,
-                            new NTPThreadFactory(ntpHostname));
-                    executor.scheduleWithFixedDelay(job,
-                            0, pollingPeriod, TimeUnit.SECONDS);
-                    running = true;
-                }
-                catch (UnknownHostException e)
-                {
-                    throw new Exception("Could not start ntp service from " +
-                            "[" + ntpHostname + "]",e);
-                }
+                executor = Executors.newScheduledThreadPool(1,
+                        new NTPThreadFactory(ntpHostname));
+                executor.scheduleWithFixedDelay(job,
+                        0, pollingPeriod, TimeUnit.SECONDS);
+                running = true;
             }
             else
             {
@@ -174,11 +167,10 @@ class NTPService
         final NTPUDPClient ntpClient;
         final ClockProcessor target;
 
-        private NTPQueryJob(final String hostname, final InetAddress ntpHost,
+        private NTPQueryJob(final String hostname,
                             final ClockProcessor target)
         {
             this.hostname = hostname;
-            this.ntpHost = ntpHost;
             this.target = target;
             this.ntpClient = new NTPUDPClient();
             ntpClient.setDefaultTimeout(5000);
@@ -192,15 +184,26 @@ class NTPService
             // result to the clock processor.
             try
             {
+                InetAddress resolved =
+                        InetAddress.getByName(ntpHostname);
+
                 long before = System.nanoTime();
-                TimeInfo time = ntpClient.getTime(ntpHost);
+                TimeInfo time = ntpClient.getTime(resolved);
                 long after = System.nanoTime();
 
                 processNTPQuery(time, before, after);
 
             }
+            catch (UnknownHostException e)
+            {
+                //alert, but do not fail
+                logger.warn("NTP Lookup Error", e);
+                alerter.alertNTPServer("Could not resolve NTP server"
+                        , ntpHostname);
+            }
             catch (Throwable th)
             {
+                //alert, but do not fail
                 logger.warn("NTP Query Error", th);
                 alerter.alertNTPServer(th.getMessage(), ntpHostname);
             }
