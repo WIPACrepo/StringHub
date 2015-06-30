@@ -1,12 +1,17 @@
 package icecube.daq.time.monitoring;
 
 import org.apache.commons.net.ntp.NTPUDPClient;
+import org.apache.commons.net.ntp.NtpV3Packet;
 import org.apache.commons.net.ntp.TimeInfo;
+import org.apache.commons.net.ntp.TimeStamp;
 import org.apache.log4j.Logger;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -41,9 +46,9 @@ class NTPService
     private final String ntpHostname;
 
     /**
-     * The period to poll the NTP server
+     * The period to poll the NTP server, in seconds.
      */
-    private final int pollingPeriod;
+    private final int pollingPeriodSeconds;
 
     /**
      * The recipient of NTP readings.
@@ -69,15 +74,15 @@ class NTPService
      * Create an NTP service. Must call startup to activate.
      *
      * @param ntpHostname The hostname of the NTP server.
-     * @param pollingPeriod The period to poll the server..
+     * @param pollingPeriodSeconds The period to poll the server, in seconds.
      * @param target NTP samples will be forwarded here.
      * @param alerter Faults requiring an alert are routed here.
      */
-    NTPService(final String ntpHostname, final int pollingPeriod,
+    NTPService(final String ntpHostname, final int pollingPeriodSeconds,
                final ClockProcessor target, final ClockAlerter alerter)
     {
         this.ntpHostname = ntpHostname;
-        this.pollingPeriod = pollingPeriod;
+        this.pollingPeriodSeconds = pollingPeriodSeconds;
         this.target = target;
         this.alerter = alerter;
     }
@@ -100,7 +105,7 @@ class NTPService
                 executor = Executors.newScheduledThreadPool(1,
                         new NTPThreadFactory(ntpHostname));
                 executor.scheduleWithFixedDelay(job,
-                        0, pollingPeriod, TimeUnit.SECONDS);
+                        0, pollingPeriodSeconds, TimeUnit.SECONDS);
                 running = true;
             }
             else
@@ -166,6 +171,7 @@ class NTPService
         final NTPUDPClient ntpClient;
         final ClockProcessor target;
 
+
         private NTPQueryJob(final String hostname,
                             final ClockProcessor target)
         {
@@ -186,11 +192,58 @@ class NTPService
                 InetAddress resolved =
                         InetAddress.getByName(ntpHostname);
 
+
+
                 long before = System.nanoTime();
                 TimeInfo time = ntpClient.getTime(resolved);
                 long after = System.nanoTime();
 
                 processNTPQuery(time, before, after);
+
+                // Note: Shoehorn alert.
+                //
+                // Note: Leap seconds present an issue for recipients
+                //       of NTP measurements. If a leap second is pending,
+                //       attempt to get a fresh reading immediately after
+                //       the leap second is due to occur.
+                int leapIndicator = time.getMessage().getLeapIndicator();
+                if(leapIndicator == NtpV3Packet.LI_LAST_MINUTE_HAS_61_SECONDS ||
+                        leapIndicator == NtpV3Packet.LI_LAST_MINUTE_HAS_61_SECONDS )
+                {
+
+                    long millisToLeap = millisUntilMidnight(time);
+
+                    // this is the last scheduled reading before the leap
+                    // second. Sleep until after the leap second and grab
+                    // a makeup reading
+                    if(millisToLeap < (pollingPeriodSeconds * 1000) )
+                    {
+                        long sleepMillis = millisToLeap + 250;
+                        logger.warn("Leap second pending, sleeping ["
+                                + sleepMillis + " ms] to aquire" +
+                                " a fresh NTP timestamp");
+                        Thread.sleep(sleepMillis);
+
+                        long before2 = System.nanoTime();
+                        TimeInfo time2 = ntpClient.getTime(resolved);
+                        long after2 = System.nanoTime();
+
+                        processNTPQuery(time2, before2, after2);
+
+                        //did we sleep enough?
+                        int leapIndicator2 = time.getMessage().getLeapIndicator();
+                        if(leapIndicator2 == NtpV3Packet.LI_LAST_MINUTE_HAS_61_SECONDS ||
+                                leapIndicator2 == NtpV3Packet.LI_LAST_MINUTE_HAS_61_SECONDS )
+                        {
+                            logger.warn("Leap second still pending, sleep failed.");
+                        }
+                        else
+                        {
+                            logger.warn("Leap second was applied to NTP.");
+                        }
+                    }
+
+                }
 
             }
             catch (UnknownHostException e)
@@ -227,6 +280,8 @@ class NTPService
                                 ntp_time_unix, offset,
                                 afterNano, (afterNano-beforeNano));
                 target.process(reading);
+
+
             }
             else
             {
@@ -241,6 +296,35 @@ class NTPService
 
                 alerter.alertNTPServer("Bad NTP Query", ntpHostname);
             }
+        }
+
+        /**
+         * Calculate the number of milliseconds until midnight of the current
+         * day on the NTP system.
+         *
+         * @param timeInfo A time infor from the ntp server.
+         */
+        private long millisUntilMidnight(TimeInfo timeInfo)
+        {
+            TimeStamp transmitTimeStamp =
+                    timeInfo.getMessage().getTransmitTimeStamp();
+
+            Calendar ntpNow = new GregorianCalendar();
+            ntpNow.setTimeZone(TimeZone.getTimeZone("GMT"));
+            ntpNow.setTime(transmitTimeStamp.getDate());
+
+            Calendar ntpMidnight = new GregorianCalendar();
+            ntpMidnight.setTimeZone(TimeZone.getTimeZone("GMT"));
+            ntpMidnight.setTime(ntpNow.getTime());
+            ntpMidnight.add(Calendar.DATE, 1);
+            ntpMidnight.set(Calendar.HOUR_OF_DAY, 0);
+            ntpMidnight.set(Calendar.MINUTE, 0);
+            ntpMidnight.set(Calendar.SECOND, 0);
+
+            long millisUntilMidnight = ntpMidnight.getTimeInMillis()
+                    - ntpNow.getTimeInMillis();
+
+            return millisUntilMidnight;
         }
 
     }
