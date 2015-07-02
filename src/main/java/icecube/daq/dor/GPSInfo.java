@@ -8,12 +8,13 @@ import java.nio.ByteBuffer;
 import org.apache.log4j.Logger;
 
 public class GPSInfo {
-    private String timestring;
-    private int day, hour, min, sec;
-    private int quality;
-    private long dorclk;
-    private UTC offset;
-    private ByteBuffer record;
+    private final String timestring;
+    private final int day, hour, min, sec;
+    private final int leapSecondAdjustment;
+    private final int quality;
+    private final long dorclk;
+    private final UTC offset;
+    private final ByteBuffer record;
     private static final Logger logger = Logger.getLogger(GPSInfo.class);
 
     public GPSInfo(ByteBuffer buf, Leapseconds leapObj) {
@@ -35,12 +36,22 @@ public class GPSInfo {
 		throw nex;
 	    }
 
+    // Determine if a leap second adjustment needs to be added into
+    // the offset. In years with a leap second, the ICL point-in-time
+    // (tenths of nanos since the start of the year) of a gps timestring
+    // is one second later for all time strings occurring after the leap
+    // second.
 	if (leapObj!=null) {
-	    sec = sec + (int)leapObj.get_leap_offset(day);
+        leapSecondAdjustment = leapObj.get_leap_offset(day);
 	}
+        else
+    {
+        leapSecondAdjustment = 0;
+    }
+
 	quality = buf.get();
 	dorclk  = buf.getLong();
-	offset = new UTC(10000000000L * (60 * (60 * (24 * (day-1) + hour) + min) + sec) - 500 * dorclk);
+	offset = new UTC(10000000000L * (60 * (60 * (24 * (day-1) + hour) + min) + sec + leapSecondAdjustment) - 500 * dorclk);
 	int limit = buf.limit();
 	buf.limit(buf.position());
 	buf.reset();
@@ -50,11 +61,23 @@ public class GPSInfo {
 	buf.limit(limit);
     }
 
+    /**
+     * Usage Note: Day, hour, min and second some directly from the
+     *             master clock. Their value is not modified
+     *             by the leap second adjustments.
+     *
+     *             Notably, you can not use these fields to directly
+     *             calculate an ICL point-in-time. To calculate an ICL
+     *             point in time from (day,hour,min,second) you will
+     *             need to use (day,hour,min,sec,leapSecondAdjustment)
+     *
+     */
     public int getDay() { return day; }
     public int getHour() { return hour; }
     public int getMin() { return min; }
     public int getSecond() { return sec; }
-    
+    public int getLeapSecondAdjustment() { return leapSecondAdjustment; }
+
     public int getQuality() { return quality; }
     
     public UTC getOffset() { return offset; }
