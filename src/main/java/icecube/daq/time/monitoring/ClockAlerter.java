@@ -78,7 +78,7 @@ public class ClockAlerter
 
         if(now > (lastSystemClockOffsetAlertNanos + minimumAlertIntervalNanos))
         {
-            logger.warn(String.format("System clock offset [%f ms] from" +
+            logger.warn(String.format("System Clock offset [%f ms] from" +
                     " reference NTP [%s]", offsetMillis, ntpID));
 
             final String hostname = getHostname();
@@ -87,7 +87,7 @@ public class ClockAlerter
                     String.format("The System Clock is out of agreement with" +
                             " the NTP reference");
             final String emailBody =
-                    String.format("The System clock on [%s] is out of" +
+                    String.format("The System Clock on [%s] is out of" +
                             " agreement with the NTP reference [%s]",
                             hostname, ntpID);
 
@@ -95,7 +95,7 @@ public class ClockAlerter
                     "System Clock is out of agreement with the NTP reference";
 
             final String description =
-                    String.format("The System clock on [%s] is out of" +
+                    String.format("The System Clock on [%s] is out of" +
                             " agreement with the NTP reference [%s]",
                             hostname, ntpID);
 
@@ -104,7 +104,7 @@ public class ClockAlerter
             values.put("offset", offsetMillis);
             values.put("ntp-source", ntpID);
 
-            sendAlert(condition,description, emailSubject, emailBody, values);
+            sendAlert(condition, description, emailSubject, emailBody, values);
 
             lastSystemClockOffsetAlertNanos = now;
         }
