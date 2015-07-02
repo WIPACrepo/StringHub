@@ -88,16 +88,16 @@ public class ClockAlerter
                             " the NTP reference");
             final String emailBody =
                     String.format("The System Clock on [%s] is out of" +
-                            " agreement with the NTP reference [%s]",
-                            hostname, ntpID);
+                            " agreement with the NTP reference [%s] by [%f ms]",
+                            hostname, ntpID, offsetMillis);
 
             final String condition =
                     "System Clock is out of agreement with the NTP reference";
 
             final String description =
                     String.format("The System Clock on [%s] is out of" +
-                            " agreement with the NTP reference [%s]",
-                            hostname, ntpID);
+                            " agreement with the NTP reference [%s] by [%f ms]",
+                            hostname, ntpID, offsetMillis);
 
             HashMap<String, Object> values = new HashMap<String, Object>();
             values.put("system", hostname);
