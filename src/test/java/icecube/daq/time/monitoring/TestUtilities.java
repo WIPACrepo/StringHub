@@ -1,10 +1,12 @@
 package icecube.daq.time.monitoring;
 
 import icecube.daq.dor.GPSInfo;
+import icecube.daq.util.Leapseconds;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
 
@@ -31,6 +33,17 @@ public class TestUtilities
         return millis * 1000000;
     }
 
+    /**
+     * Discovers the current year.
+     * @return The current year.
+     */
+    static int discoverCurrentYear()
+    {
+        TimeZone utc_zone = TimeZone.getTimeZone("GMT");
+        Calendar now = Calendar.getInstance(utc_zone);
+        int year = now.get(Calendar.YEAR);
+        return year;
+    }
 
     /**
      * A point in time of the current year that also provides a coincident
@@ -41,14 +54,24 @@ public class TestUtilities
         final long epochTimeMillis;
         final String GPSString;
 
+        /**
+         * Make a point in time in the current year.
+         */
         PointInTime(int day, int hour, int min, int sec)
         {
+            this(discoverCurrentYear(), day, hour, min, sec);
+        }
 
+        /**
+         * Make a point in time in a specific year.
+         */
+        PointInTime(int year, int day, int hour, int min, int sec)
+        {
             GPSString = fill("000", day) + ":" + fill("00", hour) +
                     ":" + fill("00", min) + ":" + fill("00", sec);
 
             GregorianCalendar now =
-                    new GregorianCalendar(2015, Calendar.JANUARY, 1, 0, 0, 0);
+                    new GregorianCalendar(year, Calendar.JANUARY, 1, 0, 0, 0);
             now.setTimeZone(TimeZone.getTimeZone("GMT"));
             now.set(GregorianCalendar.MONTH, 0);
             now.set(GregorianCalendar.DAY_OF_MONTH, 1);
@@ -116,8 +139,24 @@ public class TestUtilities
                 executionNanos);
     }
 
+    /**
+     * make a gps snapshot without a leap. The monitoring package should
+     * not be affected by the internal leap second handling.
+     */
     static ClockProcessor.GPSSnapshot generateGPSSnapshot(
-            int card, final String GPSString, byte quality, long dorclock )
+            int card, final String GPSString, byte quality, long dorclock)
+    {
+        return generateGPSSnapshot(card, GPSString, quality, dorclock, null);
+    }
+
+    /**
+     * make a gps snapshot with a leapsecond object. The monitoring package
+     * should not be affected by the internal leap second handling, but this
+     * is tested explicitly in some tests.
+     */
+    static ClockProcessor.GPSSnapshot generateGPSSnapshot(
+            int card, final String GPSString, byte quality, long dorclock,
+            Leapseconds leapseconds)
     {
         ByteBuffer buf = ByteBuffer.allocate(22);
         buf.put((byte)0x01);                   // SOH
@@ -127,7 +166,7 @@ public class TestUtilities
         buf.position(buf.position() + 8);
         buf.flip();
 
-        GPSInfo gpsInfo = new GPSInfo(buf, null);
+        GPSInfo gpsInfo = new GPSInfo(buf, leapseconds);
         return new ClockProcessor.GPSSnapshot(gpsInfo, card);
     }
 
@@ -152,8 +191,15 @@ public class TestUtilities
         PointInTime t = new PointInTime(11, 3, 59, 03);
         System.out.println(t.GPSString);
         System.out.println(t.epochTimeMillis);
-
+        System.out.println(new Date(t.epochTimeMillis).toGMTString());
 
         generateGPSSnapshot(1, t.GPSString, (byte)32, 214124);
+
+
+        t = new PointInTime(2009, 11, 3, 59, 03);
+        System.out.println(t.GPSString);
+        System.out.println(t.epochTimeMillis);
+        System.out.println(new Date(t.epochTimeMillis));
+        System.out.println(new Date(t.epochTimeMillis).toGMTString());
     }
 }
