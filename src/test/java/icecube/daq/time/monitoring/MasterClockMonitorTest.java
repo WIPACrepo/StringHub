@@ -1,5 +1,6 @@
 package icecube.daq.time.monitoring;
 
+import icecube.daq.util.Leapseconds;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -230,6 +231,147 @@ public class MasterClockMonitorTest
                 generateGPSSnapshot(card, pit.GPSString, (byte)32, dorBase + millisAsDor(20)));
 
         assertEquals("Wrong Offset", 20, subject.getMasterClockOffsetMillis(), ZERO_DELTA);
+    }
+
+    @Test
+    public void testLeapSecondPeriods()
+    {
+        //
+        // test offset calculations spanning leap seconds.  This brings
+        // the NIST file into the equation
+        //
+        Leapseconds leapseconds = new MyLeapseconds(2012);
+
+        int card = 3;
+        MasterClockMonitor subject = new MasterClockMonitor(card, 2015);
+
+        long nanoBase = 75482349245432L;
+        long dorBase = 7438992002435L;
+
+        subject = new MasterClockMonitor(card, 2012);
+
+        // before the 2012 leap second
+        {
+            PointInTime pit = new PointInTime(2012, 182,3,59,3);
+            subject.process(generateTCALMeasurement(dorBase, nanoBase, card, "31A"));
+            subject.process(generateNTPMeasurement(pit.epochTimeMillis, nanoBase),
+                    generateGPSSnapshot(card, pit.GPSString, (byte)32, dorBase + millisAsDor(543), leapseconds));
+
+            assertEquals("Expected a 543.0 offset", 543, subject.getMasterClockOffsetMillis(), ZERO_DELTA);
+        }
+
+        // after the 2012 leap second
+        {
+            PointInTime pit = new PointInTime(2012, 183,3,59,3);
+            subject.process(generateTCALMeasurement(dorBase, nanoBase, card, "31A"));
+            subject.process(generateNTPMeasurement(pit.epochTimeMillis, nanoBase),
+                    generateGPSSnapshot(card, pit.GPSString, (byte)32, dorBase + millisAsDor(543), leapseconds));
+
+            assertEquals("Expected a 543.0 offset", 543, subject.getMasterClockOffsetMillis(), ZERO_DELTA);
+        }
+
+        // 1 second before the 2012 leap second
+        {
+            PointInTime pit = new PointInTime(2012, 182,23,59,59);
+            subject.process(generateTCALMeasurement(dorBase, nanoBase, card, "31A"));
+            subject.process(generateNTPMeasurement(pit.epochTimeMillis, nanoBase),
+                    generateGPSSnapshot(card, pit.GPSString, (byte)32, dorBase + millisAsDor(543), leapseconds));
+
+            assertEquals("Expected a 543.0 offset", 543, subject.getMasterClockOffsetMillis(), ZERO_DELTA);
+        }
+
+        //  at the 2012 leap second
+        {
+            PointInTime pit = new PointInTime(2012, 182,23,59,60);
+            subject.process(generateTCALMeasurement(dorBase, nanoBase, card, "31A"));
+            subject.process(generateNTPMeasurement(pit.epochTimeMillis, nanoBase),
+                    generateGPSSnapshot(card, pit.GPSString, (byte)32, dorBase + millisAsDor(543), leapseconds));
+
+            assertEquals("Expected a 543.0 offset", 543, subject.getMasterClockOffsetMillis(), ZERO_DELTA);
+        }
+
+        // one second after the 2012 leap second
+        {
+            PointInTime pit = new PointInTime(2012, 183,0,0,0);
+            subject.process(generateTCALMeasurement(dorBase, nanoBase, card, "31A"));
+            subject.process(generateNTPMeasurement(pit.epochTimeMillis, nanoBase),
+                    generateGPSSnapshot(card, pit.GPSString, (byte)32, dorBase + millisAsDor(543), leapseconds));
+
+            assertEquals("Expected a 543.0 offset", 543, subject.getMasterClockOffsetMillis(), ZERO_DELTA);
+        }
+
+    }
+
+    @Test
+    public void testProspectiveLeapSecondPeriods()
+    {
+        //
+        // test times in the current year that are candidates for a leap
+        // second adjustment. ensure that the offset calculation is immune
+        //
+        Leapseconds leapseconds = Leapseconds.getInstance();
+
+        int card = 3;
+        MasterClockMonitor subject = new MasterClockMonitor(card, 2015);
+
+        long nanoBase = 75482349245432L;
+        long dorBase = 7438992002435L;
+
+        subject = new MasterClockMonitor(card);
+
+        // easier to test the last second of every day than to pick
+        // out the end of month days.
+        for(int day=0; day<367; day++)
+        {
+            // 1 second before the 2012 leap second
+            {
+                PointInTime pit = new PointInTime(day,23,59,59);
+                subject.process(generateTCALMeasurement(dorBase, nanoBase, card, "31A"));
+                subject.process(generateNTPMeasurement(pit.epochTimeMillis, nanoBase),
+                        generateGPSSnapshot(card, pit.GPSString, (byte)32, dorBase + millisAsDor(543), leapseconds));
+
+                assertEquals("Expected a 543.0 offset", 543, subject.getMasterClockOffsetMillis(), ZERO_DELTA);
+            }
+
+            //  at leap second
+            {
+                PointInTime pit = new PointInTime(day,23,59,60);
+                subject.process(generateTCALMeasurement(dorBase, nanoBase, card, "31A"));
+                subject.process(generateNTPMeasurement(pit.epochTimeMillis, nanoBase),
+                        generateGPSSnapshot(card, pit.GPSString, (byte)32, dorBase + millisAsDor(543), leapseconds));
+
+                assertEquals("Expected a 543.0 offset", 543, subject.getMasterClockOffsetMillis(), ZERO_DELTA);
+            }
+
+            // one second after the leap second
+            {
+                PointInTime pit = new PointInTime(day,0,0,0);
+                subject.process(generateTCALMeasurement(dorBase, nanoBase, card, "31A"));
+                subject.process(generateNTPMeasurement(pit.epochTimeMillis, nanoBase),
+                        generateGPSSnapshot(card, pit.GPSString, (byte)32, dorBase + millisAsDor(543), leapseconds));
+
+                assertEquals("Expected a 543.0 offset", 543, subject.getMasterClockOffsetMillis(), ZERO_DELTA);
+            }
+        }
+
+
+
+    }
+
+
+
+    /**
+     * Leapseconds wrapper to generate a leapsecond instance
+     * for a targeted year.
+     */
+    private static class MyLeapseconds extends Leapseconds
+    {
+        private static String NIST_FILE =
+            Leapseconds.getConfigDirectory() + "/nist/leapseconds-latest";
+        private MyLeapseconds(final int year) throws IllegalArgumentException
+        {
+            super(NIST_FILE, year);
+        }
     }
 
 
