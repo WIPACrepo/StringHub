@@ -115,10 +115,10 @@ public class ClockMonitorTest
                     (byte)32, dorBase + millisAsDor(offsetMillis)));
         }
 
-        Map<Integer,Double[]> map = subject.getMasterClockCardOffsets();
-        for(Map.Entry<Integer, Double[]> entry : map.entrySet())
+        Map<String, Double[]> map = subject.getMasterClockCardOffsets();
+        for(Map.Entry<String, Double[]> entry : map.entrySet())
         {
-            int card = entry.getKey();
+            int card = Integer.parseInt(entry.getKey());
 
 
             assertEquals("Wrong min offset for card", entry.getValue()[0],
@@ -141,9 +141,9 @@ public class ClockMonitorTest
 
         }
         map = subject.getMasterClockCardOffsets();
-        for(Map.Entry<Integer, Double[]> entry : map.entrySet())
+        for(Map.Entry<String, Double[]> entry : map.entrySet())
         {
-            int card = entry.getKey();
+            int card = Integer.parseInt(entry.getKey());
 
             assertEquals("Wrong min offset for card", entry.getValue()[0],
                     card * -11, ZERO_DELTA);
@@ -165,9 +165,9 @@ public class ClockMonitorTest
 
         }
         map = subject.getMasterClockCardOffsets();
-        for(Map.Entry<Integer, Double[]> entry : map.entrySet())
+        for(Map.Entry<String, Double[]> entry : map.entrySet())
         {
-            int card = entry.getKey();
+            int card = Integer.parseInt(entry.getKey());
 
             assertEquals("Wrong min offset for card", entry.getValue()[0],
                     card * -11, ZERO_DELTA);
@@ -249,12 +249,12 @@ public class ClockMonitorTest
         subject.process(generateTCALMeasurement(dorBase, nanoBase, card, "31A", millisAsNano(MAX_TCAL_DURATION_MILLIS)));
         subject.process(generateGPSSnapshot(card, pit.GPSString,
                 (byte)32, dorBase - millisAsDor(444)));
-        assertEquals("Incorrect offset", -444, subject.getMasterClockCardOffsets().get(card)[2], ZERO_DELTA);
+        assertEquals("Incorrect offset", -444, subject.getMasterClockCardOffsets().get(Integer.toString(card))[2], ZERO_DELTA);
 
         subject.process(generateTCALMeasurement(dorBase+123, nanoBase, card, "31A", millisAsNano(MAX_TCAL_DURATION_MILLIS)+1 ));
         subject.process(generateGPSSnapshot(card, pit.GPSString,
                 (byte) 32, dorBase + millisAsDor(345)));
-        assertEquals("Incorrect offset", 345, subject.getMasterClockCardOffsets().get(card)[2], ZERO_DELTA);
+        assertEquals("Incorrect offset", 345, subject.getMasterClockCardOffsets().get(Integer.toString(card))[2], ZERO_DELTA);
 
     }
 

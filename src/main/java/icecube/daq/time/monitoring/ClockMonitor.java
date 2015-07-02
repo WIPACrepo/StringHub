@@ -159,13 +159,14 @@ class ClockMonitor implements ClockProcessor, ClockMonitorMBean
     }
 
     @Override
-    public Map<Integer, Double[]> getMasterClockCardOffsets()
+    public Map<String, Double[]> getMasterClockCardOffsets()
     {
-        HashMap<Integer, Double[]> map = new HashMap<Integer, Double[]>(8);
+        HashMap<String, Double[]> map = new HashMap<String, Double[]>(8);
         for(Map.Entry<Integer,MinMaxCurrent> entry :
                 perCardMasterClockOffsets.entrySet())
         {
-            map.put(entry.getKey(), entry.getValue().toArray());
+            map.put(Integer.toString(entry.getKey()),
+                    entry.getValue().toArray());
         }
         return map;
     }

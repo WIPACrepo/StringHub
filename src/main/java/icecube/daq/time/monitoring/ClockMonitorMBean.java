@@ -23,7 +23,7 @@ public interface ClockMonitorMBean
      * Master Clock and the NTP clock.
      *
      * @return A Double[] containing the minimum, maximum and current
-     *         MAster Clock offset in milliseconds.
+     *         Master Clock offset in milliseconds.
      */
     public Double[] getMasterClockOffsets();
 
@@ -35,7 +35,7 @@ public interface ClockMonitorMBean
      *         number with entries containing the min, max and current
      *         Master Clock offset for the card.
      */
-    public Map<Integer, Double[]> getMasterClockCardOffsets();
+    public Map<String, Double[]> getMasterClockCardOffsets();
 
     /**
      * Get the number of NTP readings rejected due to filtering.
