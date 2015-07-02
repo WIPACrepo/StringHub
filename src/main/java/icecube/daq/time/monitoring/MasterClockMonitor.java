@@ -65,15 +65,41 @@ class MasterClockMonitor
             Boolean.getBoolean("icecube.daq.time.monitoring.verbose-logging");
 
 
-    MasterClockMonitor(final int card)
+    /**
+     * Discovers the current year.
+     * @return The current year.
+     */
+    static int discoverCurrentYear()
     {
-        this.card = card;
-
-        //NOTE: This bounds the monitor to the current
-        //      year. Acceptable at the inception.
         TimeZone utc_zone = TimeZone.getTimeZone("GMT");
         Calendar now = Calendar.getInstance(utc_zone);
-        this.currentYear = now.get(Calendar.YEAR);
+        int year = now.get(Calendar.YEAR);
+        return year;
+    }
+
+    /**
+     * Production constructor, GPS inputs will be treated as occurring
+     * in the current year.
+     *
+     * @param card The card that the GPS inputs come from.
+     */
+    MasterClockMonitor(final int card)
+    {
+        //NOTE: This bounds the monitor to the current
+        //      year. Acceptable at the inception.
+        this(card, discoverCurrentYear());
+    }
+
+    /**
+     * Supports testing leap second conditions.
+     * @param card The card that the GPS inputs come from.
+     * @param currentYear GPS inputs will be treated as a point in time
+     *                    in this year.
+     */
+    MasterClockMonitor(final int card, int currentYear)
+    {
+        this.card = card;
+        this.currentYear = currentYear;
     }
 
     double getMasterClockOffsetMillis()
