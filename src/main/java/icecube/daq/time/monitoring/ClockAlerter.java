@@ -201,14 +201,16 @@ public class ClockAlerter
 
             final String emailBody =
                     String.format("An error occured while accessing the NTP" +
-                            " server [%s]: [%s]", ntpID, reason);
+                            " server [%s] from [%s]: [%s]", ntpID, hostname,
+                            reason);
 
             final String condition =
                     "Problem acquiring from the NTP source";
 
             final String description =
                     String.format("An error occured while accessing the NTP" +
-                    " server [%s]: [%s]", ntpID, reason);
+                            " server [%s] from [%s]: [%s]", ntpID, hostname,
+                            reason);
 
             HashMap<String, Object> values = new HashMap<String, Object>();
             values.put("system", hostname);
