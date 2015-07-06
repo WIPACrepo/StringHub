@@ -591,7 +591,7 @@ public class ClockMonitorTest
         // Test that master clock offset alerts are raised at thresholds
         //
         int MASTER_CLOCK_THRESHOLD_MILLIS = 100;
-        int MC_SAMPLE_WINDOW = 1;
+        int MC_SAMPLE_WINDOW = 5;
         ClockMonitor subject =
                 new ClockMonitor(clockAlerter, 50, 50,
                         500, MASTER_CLOCK_THRESHOLD_MILLIS, 1, MC_SAMPLE_WINDOW, 1);
@@ -610,8 +610,9 @@ public class ClockMonitorTest
 
         for (int i=0; i<MC_SAMPLE_WINDOW-1; i++)
         {
-            int card = (i%2==0) ? cardA : cardB; //window includes all cards
-            subject.process(generateGPSSnapshot(card, pit.GPSString,
+            subject.process(generateGPSSnapshot(cardA, pit.GPSString,
+                    (byte)32, dorBase - millisAsDor(MASTER_CLOCK_THRESHOLD_MILLIS+1)));
+            subject.process(generateGPSSnapshot(cardB, pit.GPSString,
                     (byte)32, dorBase - millisAsDor(MASTER_CLOCK_THRESHOLD_MILLIS+1)));
         }
         assertEquals("False Alert: ", 0, sleepRead(mockAlerter));
@@ -623,8 +624,6 @@ public class ClockMonitorTest
         subject.process(generateGPSSnapshot(cardB, pit.GPSString,
                 (byte)32, dorBase - millisAsDor(MASTER_CLOCK_THRESHOLD_MILLIS+1)));
         assertEquals("Missing Alert: ", 2, sleepRead(mockAlerter));
-
-
 
 
         subject.process(generateGPSSnapshot(cardA, pit.GPSString,

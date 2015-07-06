@@ -47,8 +47,6 @@ class ClockMonitor implements ClockProcessor, ClockMonitorMBean
     /**
      * over-threshold sample counts
      */
-    private int systemClockOverThresholdCount;
-    private int masterClockOverThresholdCount;
     private int poorQualityCount;
 
     /**
@@ -71,19 +69,19 @@ class ClockMonitor implements ClockProcessor, ClockMonitorMBean
     /**
      * Holds min, max and current offset values for the system clock.
      */
-    private final MinMaxCurrent systemClockOffset;
+    private final Samples systemClockOffset;
 
     /**
      * Holds min, max and current offset values for the master clock offset.
      */
-    private final MinMaxCurrent masterClockOffset;
+    private final Samples masterClockOffset;
 
     /**
      * The min, max and current master clock offsets, per card. Synchronized
      * for shared use with the mbean server.
      */
-    private final Map<Integer, MinMaxCurrent> perCardMasterClockOffsets =
-            Collections.synchronizedMap(new HashMap<Integer, MinMaxCurrent>(8));
+    private final Map<Integer, Samples> perCardMasterClockOffsets =
+            Collections.synchronizedMap(new HashMap<Integer, Samples>(8));
     /**
      * The Master Clock monitors, per card.
      */
@@ -142,8 +140,10 @@ class ClockMonitor implements ClockProcessor, ClockMonitorMBean
         this.masterClockSampleWindow = masterClockSampleWindow;
         this.maxConsecutiveNTPRejects = maxConsecutiveNTPRejects;
 
-        systemClockOffset = new MinMaxCurrent();
-        masterClockOffset = new MinMaxCurrent();
+        systemClockOffset = new Samples(systemClockAlertThresholdMillis,
+                systemClockSampleWindow);
+        masterClockOffset = new Samples(masterClockAlertThresholdMillis,
+                masterClockSampleWindow);
     }
 
     @Override
@@ -162,7 +162,7 @@ class ClockMonitor implements ClockProcessor, ClockMonitorMBean
     public Map<String, Double[]> getMasterClockCardOffsets()
     {
         HashMap<String, Double[]> map = new HashMap<String, Double[]>(8);
-        for(Map.Entry<Integer,MinMaxCurrent> entry :
+        for(Map.Entry<Integer,Samples> entry :
                 perCardMasterClockOffsets.entrySet())
         {
             map.put(Integer.toString(entry.getKey()),
@@ -231,23 +231,13 @@ class ClockMonitor implements ClockProcessor, ClockMonitorMBean
             final MasterClockMonitor monitor = lookupCardMonitor(gpssnap.card);
             double offset = monitor.process(currentNTP, gpssnap);
 
-            // save min/max/current readings
+            // track samples
             masterClockOffset.add(offset);
-            final MinMaxCurrent minMaxCurrent = lookupCardMinMax(gpssnap.card);
-            minMaxCurrent.add(offset);
-
-            // track high/low samples in window
-            if(Math.abs(offset) > masterClockAlertThresholdMillis)
-            {
-                masterClockOverThresholdCount++;
-            }
-            else
-            {
-                masterClockOverThresholdCount = 0;
-            }
+            final Samples minMaxCurrent = lookupCardSamples(gpssnap.card);
+            boolean alert = minMaxCurrent.add(offset);
 
             // raise an offset alert
-            if(masterClockOverThresholdCount >= masterClockSampleWindow)
+            if(alert)
             {
                 issueMasterClockOffsetAlert(offset, currentNTP);
             }
@@ -290,23 +280,11 @@ class ClockMonitor implements ClockProcessor, ClockMonitorMBean
             consecutiveRejectedNTPCount = 0;
         }
 
-        // save
+        // track samples
         currentNTP = ntp;
-        systemClockOffset.add(ntp.local_clock_offset);
+        boolean isAlert = systemClockOffset.add(ntp.local_clock_offset);
 
-
-        // track high samples in window
-        if(Math.abs(ntp.local_clock_offset) > systemClockAlertThresholdMillis)
-        {
-            systemClockOverThresholdCount++;
-        }
-        else
-        {
-            systemClockOverThresholdCount = 0;
-        }
-
-        // raise an alert
-        if(systemClockOverThresholdCount >= systemClockSampleWindow)
+        if(isAlert)
         {
             issueSystemClockOffsetAlert(ntp.local_clock_offset, ntp);
         }
@@ -329,12 +307,13 @@ class ClockMonitor implements ClockProcessor, ClockMonitorMBean
     /**
      * Access card-specific readings, instantiating if necessary.
      */
-    private MinMaxCurrent lookupCardMinMax(final int card)
+    private Samples lookupCardSamples(final int card)
     {
         if(!perCardMasterClockOffsets.containsKey(card))
         {
             perCardMasterClockOffsets.put(card,
-                    new MinMaxCurrent());
+                    new Samples(masterClockAlertThresholdMillis,
+                            masterClockSampleWindow));
         }
 
         return perCardMasterClockOffsets.get(card);
@@ -389,20 +368,58 @@ class ClockMonitor implements ClockProcessor, ClockMonitorMBean
 
 
     /**
-     * Holds a tuple of doubles representing a min, max
-     * and current value.
+     * Holds running statistics on a sequence of samples.
      */
-    private static class MinMaxCurrent
+    private static class Samples
     {
+        /** The limit at which samples are considered over-threshold. */
+        final long thresholdMillis;
+
+        /**
+         * The number of consecutive over-threshold samples required to
+         * enter the alert state.
+         */
+        final long sampleWindow;
+
+        /**
+         * Count of consecutive samples that are over threashold.
+         */
+        int overThresholdCount;
+
+        /** Min, Max and current offsets. */
         double min = Double.POSITIVE_INFINITY;
         double max = Double.NEGATIVE_INFINITY;
         double current;
 
-        void add(final double current)
+
+        private Samples(final long thresholdMillis,
+                        final long sampleWindow)
+        {
+            this.thresholdMillis = thresholdMillis;
+            this.sampleWindow = sampleWindow;
+        }
+
+        /**
+         * add an offset to the sample set.
+         * @param current
+         * @return  True if the sample set is in the alert state.
+         */
+        boolean add(final double current)
         {
             this.current = current;
             min = Math.min(current, min);
             max = Math.max(current, max);
+
+            if(Math.abs(current) > thresholdMillis)
+            {
+                overThresholdCount++;
+            }
+            else
+            {
+                overThresholdCount=0;
+            }
+
+            return overThresholdCount >= sampleWindow;
         }
 
         Double[] toArray()
