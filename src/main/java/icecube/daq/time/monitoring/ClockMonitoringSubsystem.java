@@ -73,7 +73,7 @@ import org.apache.log4j.Logger;
  *       The number of successive over-threshold local clock readings that
  *       must occur to trigger an alert.
  *
- *    icecube.daq.time.monitoring.master-clock-sample-window = [5]
+ *    icecube.daq.time.monitoring.master-clock-sample-window = [16]
  *
  *       The number of successive over-threshold master clock readings that
  *       must occur to trigger an alert.
@@ -165,7 +165,7 @@ public interface ClockMonitoringSubsystem extends ClockProcessor
     public static final int MASTER_CLOCK_SAMPLE_WINDOW =
             Integer.getInteger(
                     "icecube.daq.time.monitoring.master-clock-sample-window",
-                    5);
+                    16);
 
     /** The minimum duration between two successive alerts of the same type. */
     public static final int ALERT_INTERVAL_MINUTES =
