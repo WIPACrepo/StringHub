@@ -124,10 +124,12 @@ public class GPSInfoTest
     @Test
     public void testLeapAdjustments()
     {
-        Leapseconds leapseconds = new MyLeapseconds(2015);
+        final String TEST_NIST_FILE_PATH =
+                getClass().getResource("/config/nist/leapseconds-latest").getPath();
+
+        Leapseconds leapseconds = new MyLeapseconds(TEST_NIST_FILE_PATH, 2015);
 
         long DOR = 32887251245124L;
-//        long DOR = 0L;
 
         long LEAP_TICKS = 10000000000L;
         long ONE_SECOND_DOR_TICKS = 20000000L;
@@ -212,11 +214,10 @@ public class GPSInfoTest
      */
     private static class MyLeapseconds extends Leapseconds
     {
-        private static String NIST_FILE =
-                Leapseconds.getConfigDirectory() + "/nist/leapseconds-latest";
-        private MyLeapseconds(final int year) throws IllegalArgumentException
+        private MyLeapseconds(String nistFilePath, final int year)
+                throws IllegalArgumentException
         {
-            super(NIST_FILE, year);
+            super(nistFilePath, year);
         }
     }
 
