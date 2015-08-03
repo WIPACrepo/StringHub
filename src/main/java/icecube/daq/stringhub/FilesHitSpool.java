@@ -1,7 +1,6 @@
 package icecube.daq.stringhub;
 
 import icecube.daq.bindery.BufferConsumer;
-import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.util.DOMRegistry;
 
 import java.io.BufferedOutputStream;
@@ -30,6 +29,9 @@ import org.apache.log4j.Logger;
  */
 public class FilesHitSpool implements BufferConsumer
 {
+    public static final String PACK_HEADERS_PROPERTY =
+        "icecube.daq.stringhub.hitspool.packHeaders";
+
     private BufferConsumer out;
     private int  maxNumberOfFiles;
     private int  currentFileIndex;
@@ -39,7 +41,7 @@ public class FilesHitSpool implements BufferConsumer
     private long t;
     private long t0;
     private long fileInterval;
-    private DOMRegistry reg;
+    private DOMRegistry registry;
     private boolean packHeaders = false;
     private byte[] iobuf;
     private boolean isHosed = false;
@@ -64,28 +66,25 @@ public class FilesHitSpool implements BufferConsumer
         this.fileInterval       = fileInterval;
         this.hitSpoolDir        = targetDir;
         this.maxNumberOfFiles   = fileCount;
-        this.packHeaders        = Boolean.getBoolean("icecube.daq.stringhub.hitspool.packHeaders");
+        this.packHeaders        = Boolean.getBoolean(PACK_HEADERS_PROPERTY);
 
-        if (packHeaders) {
-            if (configDir != null) {
-                try
-                {
-                    this.reg = DOMRegistry.loadRegistry(configDir);
-                }
-                catch (Exception x)
-                {
-                    this.reg = null;
-                }
+        if (packHeaders && configDir != null) {
+            try {
+                registry = DOMRegistry.loadRegistry(configDir);
+            } catch (Exception x) {
+                registry = null;
             }
         }
 
-        logger.info("DOM registry " + (reg != null? "" : "NOT") + " found; header packing " +
-                    (packHeaders ? "" : "NOT") + " activated.");
+        logger.info("DOM registry " + (registry != null? "" : "NOT") +
+                    " found; header packing " + (packHeaders ? "" : "NOT") +
+                    " activated.");
 
         iobuf = new byte[5000];
     }
 
-    public FilesHitSpool(BufferConsumer out, File configDir, File targetDir, long hitsPerFile)
+    public FilesHitSpool(BufferConsumer out, File configDir, File targetDir,
+                         long hitsPerFile)
     {
         this(out, configDir, targetDir, hitsPerFile, 100);
     }
@@ -99,15 +98,16 @@ public class FilesHitSpool implements BufferConsumer
     {
         int cpos = 0;
         // Here's your chance to compactify the buffer
-        if (reg != null && packHeaders)
-        {
+        if (registry != null && packHeaders) {
             buf.putShort(0, (short)(0xC000 | (buf.getInt(0)-24)));
             long mbid = buf.getLong(8);
-            short chid = reg.getChannelId(mbid);
+            short chid = registry.getChannelId(mbid);
             buf.putShort(2, chid);
             buf.putLong(4, buf.getLong(24));
-            // pack in the version (bytes 34-35) and the PED / ATWD-chargestamp flags (36-37)
-            buf.putShort(12, (short)((buf.getShort(34) & 0xff) | ((buf.getShort(36) & 0xff) << 8)));
+            // pack in the version (bytes 34-35) and
+            // the PED / ATWD-chargestamp flags (36-37)
+            buf.putShort(12, (short)((buf.getShort(34) & 0xff) |
+                                     ((buf.getShort(36) & 0xff) << 8)));
             buf.get(iobuf, 0, 14);
             buf.position(38);
             cpos = 14;
@@ -120,7 +120,11 @@ public class FilesHitSpool implements BufferConsumer
 
     public void consume(ByteBuffer buf) throws IOException
     {
-        if (null != out) out.consume(buf);
+        if (null != out) {
+            // pass buffer to other consumers first
+            out.consume(buf);
+        }
+
         if (isHosed) return;
         if (buf.limit() < 38) {
             if (buf.limit() != 0) {
@@ -133,30 +137,22 @@ public class FilesHitSpool implements BufferConsumer
         // bytes 24 .. 31 hold the 64-bit UTC clock value
         t = buf.getLong(24);
 
-        if (t == Long.MAX_VALUE)
-        {
-            // this is the END-OF-DATA marker - close file and quit
-            // note there could be multiple EODs
-            if (dataOut != null) {
-                dataOut.close();
-                dataOut = null;
-            }
+        if (t == Long.MAX_VALUE) {
+            // this is the END-OF-DATA marker
+            handleEndOfStream();
             return;
         }
 
+        // remember the first time
         if (t0 == 0L) t0 = t;
-        long deltaT = t - t0;
-        int fileNo = ((int) (deltaT / fileInterval)) % maxNumberOfFiles;
 
-        if (fileNo != currentFileIndex)
-        {
+        // find the appropriate file number for this hit time
+        int fileNo = ((int) ((t - t0) / fileInterval)) % maxNumberOfFiles;
+        if (fileNo != currentFileIndex) {
             currentFileIndex = fileNo;
-            try
-            {
+            try {
                 openNewFile();
-            }
-            catch (IOException iox)
-            {
+            } catch (IOException iox) {
                 logger.error("openNewFile threw " + iox.getMessage() +
                              ". HitSpooling will be terminated.");
                 dataOut = null;
@@ -169,12 +165,9 @@ public class FilesHitSpool implements BufferConsumer
         // behavior desired.
         int nw = transform(buf);
 
-        try
-        {
+        try {
             dataOut.write(iobuf, 0, nw);
-        }
-        catch (IOException iox)
-        {
+        } catch (IOException iox) {
             logger.error("hit spool writing failed b/c " + iox.getMessage() +
                          ". Hit spooling will be terminated.");
             dataOut = null;
@@ -188,10 +181,27 @@ public class FilesHitSpool implements BufferConsumer
     public void endOfStream(long mbid)
         throws IOException
     {
-        consume(MultiChannelMergeSort.eos(mbid));
+        if (null != out) out.endOfStream(mbid);
+        handleEndOfStream();
     }
 
-    private synchronized void openNewFile() throws IOException
+    /**
+     * Close output file and quit
+     * NOTE: there could be multiple End-Of-Streams
+     *
+     * @throws IOException if the output stream could not be closed
+     */
+    private void handleEndOfStream()
+        throws IOException
+    {
+        if (dataOut != null) {
+            dataOut.close();
+            dataOut = null;
+        }
+    }
+
+    private synchronized void openNewFile()
+        throws IOException
     {
         String fileName = "HitSpool-" + currentFileIndex + ".dat";
         File newFile = new File(targetDirectory, fileName);
@@ -201,17 +211,18 @@ public class FilesHitSpool implements BufferConsumer
         FileLock lock = ostr.getChannel().lock();
         PrintStream info = new PrintStream(ostr);
 
-        if (dataOut != null) { dataOut.flush(); dataOut.close(); }
-        try
-        {
+        if (dataOut != null) {
+            dataOut.flush();
+            dataOut.close();
+        }
+
+        try {
             info.println(String.format("T0   %20d", t0));
             info.println(String.format("CURT %20d", t));
             info.println(String.format("IVAL %20d", fileInterval));
             info.println(String.format("CURF %4d", currentFileIndex));
             info.println(String.format("MAXF %4d", maxNumberOfFiles));
-        }
-        finally
-        {
+        } finally {
             lock.release();
             info.close();
         }
@@ -244,25 +255,19 @@ public class FilesHitSpool implements BufferConsumer
         }
 
         // Note that renameTo and mkdir return false on failure
-        if (hitSpoolLast.exists()) {
-            if (!hitSpoolLast.renameTo(hitSpoolTemp)) {
-                logger.error("hitSpoolLast renameTo failed");
-            }
+        if (hitSpoolLast.exists() && !hitSpoolLast.renameTo(hitSpoolTemp)) {
+            logger.error("hitSpoolLast renameTo failed");
         }
-        if (hitSpoolCurrent.exists()) {
-            if (!hitSpoolCurrent.renameTo(hitSpoolLast)) {
-                logger.error("hitSpoolCurrent renameTo failed!");
-            }
+        if (hitSpoolCurrent.exists() &&
+            !hitSpoolCurrent.renameTo(hitSpoolLast))
+        {
+            logger.error("hitSpoolCurrent renameTo failed!");
         }
-        if (hitSpoolTemp.exists()) {
-            if(!hitSpoolTemp.renameTo(hitSpoolCurrent)) {
-                logger.debug("hitSpoolTemp renameTo failed!");
-            }
+        if (hitSpoolTemp.exists() && !hitSpoolTemp.renameTo(hitSpoolCurrent)) {
+            logger.debug("hitSpoolTemp renameTo failed!");
         }
-        if (!hitSpoolCurrent.exists()) {
-            if(!hitSpoolCurrent.mkdir()) {
-                logger.error("hitSpoolCurrent mkdir failed!");
-            }
+        if (!hitSpoolCurrent.exists() && !hitSpoolCurrent.mkdir()) {
+            logger.error("hitSpoolCurrent mkdir failed!");
         }
 
         targetDirectory = hitSpoolCurrent;
