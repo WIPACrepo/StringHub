@@ -280,7 +280,7 @@ public class FilesHitSpoolTest
         throws IOException
     {
         CountingConsumer cc = new CountingConsumer();
-        FilesHitSpool hitspool = new FilesHitSpool(cc, null, null);
+        FilesHitSpool hitspool = new FilesHitSpool(cc, null, new File("/tmp"));
 
         ByteBuffer buf = ByteBuffer.allocate(30);
         hitspool.consume(buf);
@@ -304,7 +304,7 @@ public class FilesHitSpoolTest
         throws IOException
     {
         CountingConsumer cc = new CountingConsumer();
-        FilesHitSpool hitspool = new FilesHitSpool(cc, null, null);
+        FilesHitSpool hitspool = new FilesHitSpool(cc, null, new File("/tmp"));
 
         ByteBuffer buf = ByteBuffer.allocate(38);
         buf.limit(0);

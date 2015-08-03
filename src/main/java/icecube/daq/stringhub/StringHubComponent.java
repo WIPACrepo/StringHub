@@ -526,16 +526,19 @@ public class StringHubComponent
 		final boolean usePriority =
 			System.getProperty("usePrioritySort") != null;
 
-		BufferConsumer consumer;
-		if (!cfgData.hitSpooling) {
-			consumer = sender;
-		} else {
-			// send hits to hit spooler which forwards them to the sorter
-			hitSpooler = new FilesHitSpool(sender, configurationPath,
-										   new File(cfgData.hitSpoolDir),
-										   cfgData.hitSpoolIval,
-										   cfgData.hitSpoolNumFiles);
-			consumer = hitSpooler;
+		BufferConsumer consumer = sender;
+		if (cfgData.hitSpooling) {
+			try {
+				// send hits to hit spooler which forwards them to the sorter
+				hitSpooler = new FilesHitSpool(sender, configurationPath,
+											   new File(cfgData.hitSpoolDir),
+											   cfgData.hitSpoolIval,
+											   cfgData.hitSpoolNumFiles);
+				consumer = hitSpooler;
+			} catch (IOException ioe) {
+				logger.error("Cannot create hit spooler", ioe);
+				hitSpooler = null;
+			}
 		}
 
 		// Start the hit merger-sorter
@@ -1030,7 +1033,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15626 2015-06-30 22:11:44Z dglo $";
+		return "$Id: StringHubComponent.java 15652 2015-08-03 18:46:29Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
