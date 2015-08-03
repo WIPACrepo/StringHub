@@ -49,14 +49,50 @@ public class FilesHitSpool implements BufferConsumer
     private static final Logger logger = Logger.getLogger(FilesHitSpool.class);
 
     /**
-     * Constructor with full options.
+     * Minimal constructor.
+     *
+     * @param out BufferConsumer object that will receive forwarded hits.
+     *            Can be null.
+     * @param configDir directory holding configuration files
+     * @param targetDir top-level directory which holds hitspool directories
+     *
+     * @throws IOException if the target directory is null
+     */
+    public FilesHitSpool(BufferConsumer out, File configDir, File targetDir)
+        throws IOException
+    {
+        this(out, configDir, targetDir, 100000L);
+    }
+
+    /**
+     * Slightly less minimal constructor
+     *
+     * @param out BufferConsumer object that will receive forwarded hits.
+     *            Can be null.
+     * @param configDir directory holding configuration files
+     * @param targetDir top-level directory which holds hitspool directories
+     * @param fileInterval number of DAQ ticks of objects in each file
+     *
+     * @throws IOException if the target directory is null
+     */
+    public FilesHitSpool(BufferConsumer out, File configDir, File targetDir,
+                         long fileInterval)
+        throws IOException
+    {
+        this(out, configDir, targetDir, fileInterval, 100);
+    }
+
+    /**
+     * Constructor with all parameters.
+     *
      * @param out BufferConsumer object that will receive forwarded hits.
      *            Can be null.
      * @param configDir directory holding configuration files
      * @param targetDir top-level directory which holds hitspool directories
      * @param fileInterval number of DAQ ticks of objects in each file
      * @param fileCount number of files in the spooling ensemble
-     * @see BufferConsumer
+     *
+     * @throws IOException if the target directory is null
      */
     public FilesHitSpool(BufferConsumer out, File configDir, File targetDir,
                          long fileInterval, int fileCount)
@@ -88,19 +124,6 @@ public class FilesHitSpool implements BufferConsumer
         } else if (!hitSpoolDir.exists()) {
             hitSpoolDir.mkdirs();
         }
-    }
-
-    public FilesHitSpool(BufferConsumer out, File configDir, File targetDir,
-                         long hitsPerFile)
-        throws IOException
-    {
-        this(out, configDir, targetDir, hitsPerFile, 100);
-    }
-
-    public FilesHitSpool(BufferConsumer out, File configDir, File targetDir)
-        throws IOException
-    {
-        this(out, configDir, targetDir, 100000L);
     }
 
     private int transform(ByteBuffer buf)
