@@ -41,9 +41,9 @@ import org.apache.log4j.Logger;
  * There are additional optional configurations for the enabled mode:
  *<pre>
  *
- *    icecube.daq.time.monitoring.ntp-poll-seconds = [300]<dt></dt>
+ *    icecube.daq.time.monitoring.ntp-poll-seconds = [300]
  *
- *       Defines the polling period of NTP server queries.</dt>
+ *       Defines the polling period of NTP server queries.
  *
  *    icecube.daq.time.monitoring.max-tcal-duration-millis = [50]
  *
@@ -408,4 +408,3 @@ public interface ClockMonitoringSubsystem extends ClockProcessor
     }
 
 }
-
