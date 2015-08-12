@@ -11,6 +11,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileLock;
+import java.sql.SQLException;
 
 import org.apache.log4j.Logger;
 
@@ -27,15 +28,21 @@ import org.apache.log4j.Logger;
  * @author kael hanson (khanson@ulb.ac.be)
  *
  */
-public class FilesHitSpool implements BufferConsumer
+public class FilesHitSpool
+    implements BufferConsumer
 {
     public static final String PACK_HEADERS_PROPERTY =
         "icecube.daq.stringhub.hitspool.packHeaders";
 
+    public static final String UNIFIED_CACHE_PROPERTY =
+        "icecube.daq.stringhub.hitspool.unified";
+
+    public static boolean INCLUDE_OLD_METADATA = true;
+
     private BufferConsumer out;
-    private int  maxNumberOfFiles;
-    private int  currentFileIndex;
-    private File hitSpoolDir;
+    private int maxNumberOfFiles;
+    private int currentFileIndex;
+    private File topDir;
     private File targetDirectory;
     private OutputStream dataOut;
     private long t;
@@ -43,8 +50,11 @@ public class FilesHitSpool implements BufferConsumer
     private long fileInterval;
     private DOMRegistry registry;
     private boolean packHeaders;
+    private boolean unifiedCache;
     private byte[] iobuf;
     private boolean isHosed;
+    private OldMetadata oldMetadata;
+    private Metadata metadata;
 
     private static final Logger logger = Logger.getLogger(FilesHitSpool.class);
 
@@ -54,14 +64,14 @@ public class FilesHitSpool implements BufferConsumer
      * @param out BufferConsumer object that will receive forwarded hits.
      *            Can be null.
      * @param configDir directory holding configuration files
-     * @param targetDir top-level directory which holds hitspool directories
+     * @param topDir top-level directory which holds hitspool directories
      *
      * @throws IOException if the target directory is null
      */
-    public FilesHitSpool(BufferConsumer out, File configDir, File targetDir)
+    public FilesHitSpool(BufferConsumer out, File configDir, File topDir)
         throws IOException
     {
-        this(out, configDir, targetDir, 100000L);
+        this(out, configDir, topDir, 100000L);
     }
 
     /**
@@ -70,16 +80,16 @@ public class FilesHitSpool implements BufferConsumer
      * @param out BufferConsumer object that will receive forwarded hits.
      *            Can be null.
      * @param configDir directory holding configuration files
-     * @param targetDir top-level directory which holds hitspool directories
+     * @param topDir top-level directory which holds hitspool directories
      * @param fileInterval number of DAQ ticks of objects in each file
      *
      * @throws IOException if the target directory is null
      */
-    public FilesHitSpool(BufferConsumer out, File configDir, File targetDir,
+    public FilesHitSpool(BufferConsumer out, File configDir, File topDir,
                          long fileInterval)
         throws IOException
     {
-        this(out, configDir, targetDir, fileInterval, 100);
+        this(out, configDir, topDir, fileInterval, 100);
     }
 
     /**
@@ -88,26 +98,30 @@ public class FilesHitSpool implements BufferConsumer
      * @param out BufferConsumer object that will receive forwarded hits.
      *            Can be null.
      * @param configDir directory holding configuration files
-     * @param targetDir top-level directory which holds hitspool directories
+     * @param topDir top-level directory which holds hitspool directories
      * @param fileInterval number of DAQ ticks of objects in each file
-     * @param fileCount number of files in the spooling ensemble
+     * @param maxNumberOfFiles number of files in the spooling ensemble
      *
      * @throws IOException if the target directory is null
      */
-    public FilesHitSpool(BufferConsumer out, File configDir, File targetDir,
-                         long fileInterval, int fileCount)
+    public FilesHitSpool(BufferConsumer out, File configDir, File topDir,
+                         long fileInterval, int maxNumberOfFiles)
         throws IOException
     {
-        this.out          = out;
+        this.out = out;
         this.fileInterval = fileInterval;
-        hitSpoolDir       = targetDir;
-        maxNumberOfFiles  = fileCount;
-        packHeaders       = Boolean.getBoolean(PACK_HEADERS_PROPERTY);
+        this.topDir = topDir;
+        this.maxNumberOfFiles = maxNumberOfFiles;
+
+        packHeaders = Boolean.getBoolean(PACK_HEADERS_PROPERTY);
+        unifiedCache = Boolean.getBoolean(UNIFIED_CACHE_PROPERTY);
 
         if (packHeaders && configDir != null) {
             try {
                 registry = DOMRegistry.loadRegistry(configDir);
             } catch (Exception x) {
+                logger.error("Failed to load registry from " + configDir +
+                             "; headers will not be packed", x);
                 registry = null;
             }
         }
@@ -119,11 +133,10 @@ public class FilesHitSpool implements BufferConsumer
         iobuf = new byte[5000];
 
         // make sure hitspool directory exists
-        if (hitSpoolDir == null) {
-            throw new IOException("Hit spool directory cannot be null");
-        } else if (!hitSpoolDir.exists()) {
-            hitSpoolDir.mkdirs();
+        if (topDir == null) {
+            throw new IOException("Top directory cannot be null");
         }
+        createDirectory(topDir);
     }
 
     private int transform(ByteBuffer buf)
@@ -150,6 +163,22 @@ public class FilesHitSpool implements BufferConsumer
         return br + cpos;
     }
 
+    /**
+     * Close output file and quit
+     * NOTE: there could be multiple End-Of-Streams
+     *
+     * @throws IOException if the output stream could not be closed
+     */
+    private void closeAll()
+        throws IOException
+    {
+        if (dataOut != null) {
+            dataOut.flush();
+            dataOut.close();
+            dataOut = null;
+        }
+    }
+
     public void consume(ByteBuffer buf) throws IOException
     {
         if (null != out) {
@@ -169,23 +198,30 @@ public class FilesHitSpool implements BufferConsumer
         // bytes 24 .. 31 hold the 64-bit UTC clock value
         t = buf.getLong(24);
 
+        // is this the END-OF-DATA marker?
         if (t == Long.MAX_VALUE) {
-            // this is the END-OF-DATA marker
-            handleEndOfStream();
+            closeAll();
             return;
         }
 
         // remember the first time
         if (t0 == 0L) t0 = t;
 
+        // unified cache is not computed relative to run start
+        final int fileNo;
+        if (unifiedCache) {
+            fileNo = (int) ((t / fileInterval) % maxNumberOfFiles);
+        } else {
+            fileNo = (int) (((t - t0) / fileInterval) % maxNumberOfFiles);
+        }
+
         // make sure we write to the appropriate file
-        int fileNo = ((int) ((t - t0) / fileInterval)) % maxNumberOfFiles;
         if (fileNo != currentFileIndex) {
             currentFileIndex = fileNo;
             try {
                 openNewFile();
             } catch (IOException iox) {
-                logger.error("openNewFile threw " + iox.getMessage() +
+                logger.error("openNewFile threw " + iox +
                              ". HitSpooling will be terminated.");
                 dataOut = null;
                 isHosed = true;
@@ -207,6 +243,26 @@ public class FilesHitSpool implements BufferConsumer
         }
     }
 
+    private static void createDirectory(File path)
+        throws IOException
+    {
+        // remove anything which isn't a directory
+        if (path.exists()) {
+            if (!path.isDirectory()) {
+                if (!path.delete()) {
+                    throw new IOException("Could not delete non-directory " +
+                                          path);
+                }
+                logger.error("Deleted non-directory " + path);
+            }
+        }
+
+        // create the directory if needed
+        if (!path.exists() && !path.mkdirs()) {
+            throw new IOException("Cannot create " + path);
+        }
+    }
+
     /**
      * There will be no more data.
      */
@@ -214,22 +270,7 @@ public class FilesHitSpool implements BufferConsumer
         throws IOException
     {
         if (null != out) out.endOfStream(mbid);
-        handleEndOfStream();
-    }
-
-    /**
-     * Close output file and quit
-     * NOTE: there could be multiple End-Of-Streams
-     *
-     * @throws IOException if the output stream could not be closed
-     */
-    private void handleEndOfStream()
-        throws IOException
-    {
-        if (dataOut != null) {
-            dataOut.close();
-            dataOut = null;
-        }
+        closeAll();
     }
 
     /**
@@ -245,29 +286,36 @@ public class FilesHitSpool implements BufferConsumer
             try {
                 dataOut.flush();
                 dataOut.close();
+                dataOut = null;
             } catch (IOException ioe) {
                 logger.error("Failed to close previous hitspool file", ioe);
             }
         }
 
-        // update metadata file
-        File infFile = new File(targetDirectory, "info.txt");
-        FileOutputStream ostr = new FileOutputStream(infFile);
-        FileLock lock = ostr.getChannel().lock();
-        PrintStream info = new PrintStream(ostr);
-        try {
-            info.println(String.format("T0   %20d", t0));
-            info.println(String.format("CURT %20d", t));
-            info.println(String.format("IVAL %20d", fileInterval));
-            info.println(String.format("CURF %4d", currentFileIndex));
-            info.println(String.format("MAXF %4d", maxNumberOfFiles));
-        } finally {
-            lock.release();
-            info.close();
+        // write old hitspool metadata
+        if (INCLUDE_OLD_METADATA) {
+            if (oldMetadata == null) {
+                oldMetadata = new OldMetadata(targetDirectory, fileInterval,
+                                              maxNumberOfFiles, unifiedCache);
+            }
+            oldMetadata.write(t0, t, currentFileIndex);
+        }
+
+        final String fileName = "HitSpool-" + currentFileIndex + ".dat";
+
+        // write new hitspool metadata
+        if (unifiedCache) {
+            try {
+                if (metadata == null) {
+                    metadata = new Metadata(targetDirectory);
+                }
+                metadata.write(fileName, t);
+            } catch (SQLException se) {
+                logger.error("Cannot update metadata", se);
+            }
         }
 
         // open new file
-        final String fileName = "HitSpool-" + currentFileIndex + ".dat";
         File newFile = new File(targetDirectory, fileName);
         dataOut =
             new BufferedOutputStream(new FileOutputStream(newFile), 32768);
@@ -279,14 +327,30 @@ public class FilesHitSpool implements BufferConsumer
     private void reset()
         throws IOException
     {
-        rotateDirectories();
+        if (unifiedCache) {
+            targetDirectory = new File(topDir, "hitspool");
+            try {
+                createDirectory(targetDirectory);
+            } catch (IOException ioe) {
+                logger.error("Cannot create " + targetDirectory, ioe);
+            }
+        } else {
+            rotateDirectories();
+        }
 
-        t0  = 0L;
-        currentFileIndex   = -1;
+        t0 = 0L;
+        currentFileIndex = -1;
+
+        // flush current Metadata
+        if (metadata != null) {
+            metadata.close();
+            metadata = null;
+        }
     }
 
     /**
      * Swap current and last directories.
+     * TODO remove from New_Glarus
      *
      * synchronized to avoid clashes with openNewFile()
      *
@@ -297,7 +361,7 @@ public class FilesHitSpool implements BufferConsumer
     {
         // create and delete a temporary file in the hitspool directory
         File hitSpoolTemp = File.createTempFile("HitSpool", ".tmp",
-                                                hitSpoolDir);
+                                                topDir);
         if (!hitSpoolTemp.delete()) {
             throw new IOException("Could not delete temporary file " +
                                   hitSpoolTemp);
@@ -318,13 +382,13 @@ public class FilesHitSpool implements BufferConsumer
         // Note that renameTo and mkdir return false on failure
 
         // Rename lastRun to temporary directory name
-        File hitSpoolLast = new File(hitSpoolDir, "lastRun");
+        File hitSpoolLast = new File(topDir, "lastRun");
         if (hitSpoolLast.exists() && !hitSpoolLast.renameTo(hitSpoolTemp)) {
             logger.error("hitSpoolLast renameTo failed");
         }
 
         // Rename currentRun to lastRun
-        File hitSpoolCurrent = new File(hitSpoolDir, "currentRun");
+        File hitSpoolCurrent = new File(topDir, "currentRun");
         if (hitSpoolCurrent.exists() &&
             !hitSpoolCurrent.renameTo(hitSpoolLast))
         {
@@ -369,5 +433,53 @@ public class FilesHitSpool implements BufferConsumer
         throws IOException
     {
         reset();
+    }
+}
+
+/**
+ * Old hitspool metadata.
+ *
+ * TODO remove from New_Glarus
+ */
+class OldMetadata
+{
+    private File directory;
+    private long fileInterval;
+    private int maxNumberOfFiles;
+    private boolean unifiedCache;
+
+    OldMetadata(File directory, long fileInterval, int maxNumberOfFiles,
+                boolean unifiedCache)
+    {
+        this.directory = directory;
+        this.fileInterval = fileInterval;
+        this.maxNumberOfFiles = maxNumberOfFiles;
+        this.unifiedCache = unifiedCache;
+    }
+
+    void write(long firstTime, long currentTime, int currentFileIndex)
+        throws IOException
+    {
+        File infFile = new File(directory, "info.txt");
+        FileOutputStream ostr = new FileOutputStream(infFile);
+        FileLock lock = ostr.getChannel().lock();
+        try {
+            PrintStream info = new PrintStream(ostr);
+            try {
+                if (!unifiedCache) {
+                    info.printf("T0   %20d\n", firstTime);
+                }
+                info.printf("CURT %20d\n", currentTime);
+                info.printf("IVAL %20d\n", fileInterval);
+                info.printf("CURF %4d\n", currentFileIndex);
+                info.printf("MAXF %4d\n", maxNumberOfFiles);
+            } finally {
+                info.close();
+            }
+        } finally {
+            if (lock.isValid()) {
+                lock.release();
+            }
+        }
     }
 }
