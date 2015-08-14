@@ -14,6 +14,16 @@ import java.nio.ByteBuffer;
  */
 public interface DataDispatcher
 {
+
+    /**
+     * Supports the capability to defer dispatch, while providing
+     * the caller access to the reconstructed utc time.
+     */
+    interface DispatchCallback
+    {
+        public void wasDispatched(long utc);
+    }
+
     /**
      * Answers if a consumer is present, a potential optimization
      * for processing.
@@ -35,13 +45,25 @@ public interface DataDispatcher
      *
      * @param buf The buffer to dispatch. The timestamp
      *            on input is a dom clock value.
-     * @return The reconstructed UTC timestamp value that was applied.
      *
      * @throws DataProcessorError Error dispatching the buffer.
      */
-    long dispatchBuffer(ByteBuffer buf)
+    void dispatchBuffer(ByteBuffer buf)
             throws DataProcessorError;
 
+    /**
+     * Dispatch the buffer to the consumer, performing UTC timestamp
+     * reconstruction in the process.
+     *
+     * @param buf The buffer to dispatch. The timestamp
+     *            on input is a dom clock value.
+     *            @param callback Onec available, the reconstructed UTC
+     *                            timestamp value that was applied will
+     *                            be presented to the callback.
+     * @throws DataProcessorError Error dispatching the buffer.
+     */
+    void dispatchBuffer(ByteBuffer buf, DispatchCallback callback)
+            throws DataProcessorError;
 
     /**
      * Dispatch a hit event.

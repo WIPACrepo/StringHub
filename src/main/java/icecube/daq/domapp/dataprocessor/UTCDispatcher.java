@@ -75,6 +75,21 @@ public class UTCDispatcher implements DataDispatcher
     /** Count of messages dropped due to ordering violation. */
     private int droppedDataCount = 0;
 
+
+    /**
+     * A no-op callback instance.
+     */
+    private final static DispatchCallback NULL_CALLBACK =
+            new DispatchCallback()
+            {
+                @Override
+                public void wasDispatched(final long utc)
+                {
+                }
+            };
+
+
+
     public UTCDispatcher(final BufferConsumer target,
                          final DataProcessor.StreamType type,
                          final RAPCal rapcal)
@@ -117,23 +132,20 @@ public class UTCDispatcher implements DataDispatcher
         }
     }
 
-
     @Override
-    public long dispatchBuffer(final ByteBuffer buf)
+    public void dispatchBuffer(final ByteBuffer buf)
             throws DataProcessorError
     {
-        return dispatchBuffer(rapcal, buf);
+        dispatchBuffer(buf, NULL_CALLBACK);
     }
 
-
-    // we are passing rapcal as an argument to support unit testing this
-    // class.
-    public long dispatchBuffer(final RAPCal localRapCal,
-                               final ByteBuffer buf)
+    @Override
+    public void dispatchBuffer(final ByteBuffer buf,
+                               final DispatchCallback callback)
             throws DataProcessorError
     {
         long domclk = buf.getLong(24);
-        long utc    = localRapCal.domToUTC(domclk).in_0_1ns();
+        long utc    = rapcal.domToUTC(domclk).in_0_1ns();
 
         if(enforceOrdering(domclk, utc))
         {
@@ -154,9 +166,9 @@ public class UTCDispatcher implements DataDispatcher
             }
         }
 
-        return utc;
-    }
 
+        callback.wasDispatched(utc);
+    }
 
     @Override
     public void dispatchHitBuffer(final int atwdChip, final ByteBuffer hitBuf,
