@@ -5,17 +5,16 @@ import icecube.daq.domapp.dataprocessor.DataDispatcher;
 import icecube.daq.domapp.dataprocessor.DataProcessor;
 import icecube.daq.domapp.dataprocessor.DataProcessorError;
 import icecube.daq.domapp.dataprocessor.DataStats;
+import icecube.daq.domapp.dataprocessor.MockBufferConsumer;
+import icecube.daq.domapp.dataprocessor.MockRapCal;
 import icecube.daq.domapp.dataprocessor.UTCDispatcher;
-import icecube.daq.dor.TimeCalib;
-import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.rapcal.RAPCal;
-import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.stringhub.test.MockAppender;
-import icecube.daq.util.UTC;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -52,10 +51,10 @@ public class DataOrderingTest
     {
     }
 
-    @After
+    @AfterClass
     public void tearDown()
     {
-        //BasicConfigurator.resetConfiguration();
+        BasicConfigurator.resetConfiguration();
     }
 
     @Test
@@ -95,7 +94,7 @@ public class DataOrderingTest
             throws DataProcessorError
     {
         // must support ad hoc consumer methods
-        BufferConsumerMock consumerMock = new BufferConsumerMock();
+        MockBufferConsumer consumerMock = new MockBufferConsumer();
 
         DataDispatcher dispatcher = constructDispatcher(null, consumerMock, "test", 10000, 1000, whichVersion);
 //        DataCollector.UTCMessageStream stream = new DataCollector
@@ -138,8 +137,8 @@ public class DataOrderingTest
     {
         // generate data payloads in time order
         // this is the predominate condition
-        RapCalMock rapcal = new RapCalMock(500);
-      BufferConsumerMock sink = new BufferConsumerMock();
+        MockRapCal rapcal = new MockRapCal(500);
+      MockBufferConsumer sink = new MockBufferConsumer();
 
         DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test", epsilon, 1000, whichVersion);
 //        DataCollector.UTCMessageStream stream = new DataCollector
@@ -184,8 +183,8 @@ public class DataOrderingTest
     }
     public void testRetrogradeWithinEpsilon(int whichVersion) throws DataProcessorError
     {
-        RapCalMock rapcal = new RapCalMock(500);
-        BufferConsumerMock sink = new BufferConsumerMock();
+        MockRapCal rapcal = new MockRapCal(500);
+        MockBufferConsumer sink = new MockBufferConsumer();
 
         DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test", 10000, 1000, whichVersion);
 
@@ -251,8 +250,8 @@ public class DataOrderingTest
     }
     public void testRetrogradeBeyondEpsilon(int whichVersion) throws DataProcessorError
     {
-        RapCalMock rapcal = new RapCalMock(500);
-        BufferConsumerMock sink = new BufferConsumerMock();
+        MockRapCal rapcal = new MockRapCal(500);
+        MockBufferConsumer sink = new MockBufferConsumer();
 
         DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test", 10000, 1000, whichVersion);
 //        DataCollector.UTCMessageStream stream = new DataCollector
@@ -327,8 +326,8 @@ public class DataOrderingTest
     }
     public void testRetrogradeZeroEpsilon(int whichVersion) throws DataProcessorError
     {
-        RapCalMock rapcal = new RapCalMock(500);
-        BufferConsumerMock sink = new BufferConsumerMock();
+        MockRapCal rapcal = new MockRapCal(500);
+        MockBufferConsumer sink = new MockBufferConsumer();
 
         DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test", 0, 1000,  whichVersion);
 //        DataCollector.UTCMessageStream stream = new DataCollector
@@ -412,57 +411,6 @@ public class DataOrderingTest
         return unboxed;
     }
 
-    //simulates a time conversion, exposing
-    // the offset for manipulation
-    public class RapCalMock implements RAPCal
-    {
-
-        public long offset;
-
-        public RapCalMock(final long offset)
-        {
-            this.offset = offset;
-        }
-
-        public UTC domToUTC(final long domclk)
-        {
-            return new UTC(250L * domclk + offset);
-        }
-
-        void setOffset(long offset)
-        {
-            this.offset = offset;
-        }
-        void adjustOffset(long adjustment)
-        {
-            offset+= adjustment;
-        }
-
-        public double clockRatio()
-        {
-            return 0;
-        }
-
-        public double cableLength()
-        {
-            return 0;
-        }
-
-        public boolean laterThan(final long domclk)
-        {
-            return false;
-        }
-
-        public void setMoni(final LiveTCalMoni moni)
-        {
-        }
-
-        public void update(final TimeCalib tcal, final UTC gpsOffset)
-                throws RAPCalException
-        {
-        }
-    }
-
     @Test
     public void testMaxDroppedMessages() throws DataProcessorError
     {
@@ -471,8 +419,8 @@ public class DataOrderingTest
 
         //NOTE:  This behavior is not implemented in the original
         //       implementation.
-        RapCalMock rapcal = new RapCalMock(500);
-        BufferConsumerMock sink = new BufferConsumerMock();
+        MockRapCal rapcal = new MockRapCal(500);
+        MockBufferConsumer sink = new MockBufferConsumer();
 
         DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test",
                 10000, MAX_DROPS, MIGRATED_IMPLEMENTATION);
@@ -551,8 +499,8 @@ public class DataOrderingTest
 
         int MAX_DROPS=Integer.MAX_VALUE;
 
-        RapCalMock rapcal = new RapCalMock(500);
-        BufferConsumerMock sink = new BufferConsumerMock();
+        MockRapCal rapcal = new MockRapCal(500);
+        MockBufferConsumer sink = new MockBufferConsumer();
 
         DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test", 0, MAX_DROPS,  whichVersion);
 
@@ -670,34 +618,6 @@ public class DataOrderingTest
 
     }
 
-    private static class BufferConsumerMock implements BufferConsumer
-    {
-        List<Long> receivedTimes = new ArrayList<Long>(10);
-
-        public void consume(final ByteBuffer buf) throws IOException
-        {
-            receivedTimes.add(buf.getLong(24));
-        }
-
-        public void endOfStream(long mbid)
-        {
-            throw new Error("Only used by PrioritySort");
-        }
-
-        public long[] getReceivedTimes()
-        {
-            return unbox(receivedTimes);
-        }
-
-        public void clear()
-        {
-            receivedTimes.clear();
-        }
-
-
-    }
-
-
     /**
      * factory for creating test instances based on both the original
      * an migrated implementation.
@@ -761,17 +681,23 @@ public class DataOrderingTest
         }
 
         @Override
-        public long dispatchBuffer(final ByteBuffer buf) throws DataProcessorError
+        public void dispatchBuffer(final ByteBuffer buf) throws DataProcessorError
         {
             try
             {
                 original.dispatchBuffer(rapcal, buf);
-                return 0;
             }
             catch (IOException ioe)
             {
                 throw new DataProcessorError(ioe);
             }
+        }
+
+        @Override
+        public void dispatchBuffer(final ByteBuffer buf,
+                                   final DispatchCallback callback) throws DataProcessorError
+        {
+            throw new Error("Not Implemented in Original");
         }
 
         @Override
