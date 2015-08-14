@@ -52,7 +52,7 @@ public class DataOrderingTest
     }
 
     @AfterClass
-    public void tearDown()
+    public static void tearDown()
     {
         BasicConfigurator.resetConfiguration();
     }
