@@ -58,8 +58,6 @@ public class UTCHitDispatcher extends UTCDispatcher
             ByteBuffer buffer = abBuffer.pop();
             if (buffer == null) return;
             final long domclk = buffer.getLong(24);
-            final long utc = super.dispatchBuffer(buffer);
-
 
             //todo, Consider moving HLC/SLC detection to to processor
             //      object and pass argument here. This would
@@ -67,20 +65,32 @@ public class UTCHitDispatcher extends UTCDispatcher
             //
             // Collect HLC / SLC hit statistics ...
             final int formatID = hitBuf.getInt(4);
-            boolean isLCHit = false;
+            final boolean isLCHit;
             switch (formatID)
             {
                 case DataProcessor.MAGIC_COMPRESSED_HIT_FMTID:
                     int flagsLC = (hitBuf.getInt(46) & 0x30000) >> 16;
                     isLCHit = (flagsLC != 0);
-                    // intentional fall-through
+                    break;
                 case DataProcessor.MAGIC_ENGINEERING_HIT_FMTID:
-                    counters.reportHit(isLCHit, domclk, utc);
+                    isLCHit = false;
                     break;
                 default:
                     throw new DataProcessorError("Unrecognized hit format: [" +
                             formatID + "]");
             }
+
+            //NOTE: The sole purpose of the callback is to track the hit
+            //      rate in utc time.  It is implemented as a callback to
+            //      support deferred dispatching.
+            super.dispatchBuffer(buffer, new DispatchCallback()
+            {
+                @Override
+                public void wasDispatched(final long utc)
+                {
+                    counters.reportHit(isLCHit, domclk, utc);
+                }
+            });
 
         }
     }
