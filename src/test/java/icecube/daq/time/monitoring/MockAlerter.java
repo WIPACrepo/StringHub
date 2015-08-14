@@ -12,9 +12,9 @@ import java.util.List;
 public class MockAlerter implements Alerter
 {
     volatile boolean isOpen = true;
-    List<Object> alerts = new ArrayList<Object>(5);
+    public List<Object> alerts = new ArrayList<Object>(5);
 
-    void waitForClose()
+    public void waitForClose()
     {
         int tries = 10;
         while(isOpen && (--tries > 0))
