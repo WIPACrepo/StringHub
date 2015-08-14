@@ -26,6 +26,9 @@ public class DataStats
     private volatile int     numLBMOverflows       = 0;
 
     private volatile int     validRAPCalCount      = 0;
+    private volatile int     errorRAPCalCount      = 0;
+    private volatile double  domFrequencySkew      = 0;
+    private volatile double  cableLength           = 0;
 
     private volatile long    firstHitTime          = -1;
     private volatile long    lastHitTime           = -1;
@@ -54,10 +57,19 @@ public class DataStats
         numLBMOverflows++;
     }
 
-    protected void reportTCAL(long utc)
+    protected void reportTCAL(long utc, double cableLength,
+                              double domFrequencySkew)
     {
         validRAPCalCount++;
         lastTcalUT = utc;
+
+        this.cableLength = cableLength;
+        this.domFrequencySkew = domFrequencySkew;
+    }
+
+    protected void reportTCALError()
+    {
+        errorRAPCalCount++;
     }
 
     protected void reportMoni()
@@ -132,6 +144,21 @@ public class DataStats
     public int getValidRAPCalCount()
     {
         return validRAPCalCount;
+    }
+
+    public int getErrorRAPCalCount()
+    {
+        return errorRAPCalCount;
+    }
+
+    public double getCableLength()
+    {
+        return cableLength;
+    }
+
+    public double getDomFrequencySkew()
+    {
+        return domFrequencySkew;
     }
 
     public long getLastTcalUT()

@@ -39,7 +39,8 @@ class TCalProcessor implements DataProcessor.StreamProcessor
 
     interface ProcessingBehavior
     {
-        long process(final TimeCalib tcal, final GPSInfo gps)
+        void process(final TimeCalib tcal, final GPSInfo gps,
+                     final DataStats counters)
                 throws DataProcessorError;
     }
 
@@ -87,11 +88,9 @@ class TCalProcessor implements DataProcessor.StreamProcessor
         TimeCalib tcal = new TimeCalib(data);
         GPSInfo gps = gpsProvider.getGPSInfo();
 
-        long utc = processingState.process(tcal, gps);
+        processingState.process(tcal, gps, counters);
         dispatchState.dispatch(tcal, gps);
 
-        //report
-        counters.reportTCAL(utc);
     }
 
     @Override
@@ -124,19 +123,34 @@ class TCalProcessor implements DataProcessor.StreamProcessor
     }
 
 
-    private boolean updateRapCal(TimeCalib tcal, GPSInfo gps)
+    private void updateRapCal(TimeCalib tcal, GPSInfo gps,
+                                 DataStats counters)
     {
         try
         {
             rapcal.update(tcal, gps.getOffset());
-            return true;
+
+            final long utc;
+            if(rapcal.isReady())
+            {
+                utc = rapcal.domToUTC(tcal.getDomTx().in_0_1ns() / 250L).in_0_1ns();
+            }
+            else
+            {
+                // Note: Can not utilize rapcal for utc reconstruction yet.
+                utc = -1;
+            }
+            //count valid tcals and update counters.
+            counters.reportTCAL(utc, rapcal.cableLength(), rapcal.epsilon());
         }
         catch (RAPCalException rcex)
         {
             //Note: Rapcal exceptions are logged and suppressed.
             //      to allow for the occasional bad rapcal
             logger.warn("Got RAPCal exception", rcex);
-            return false;
+
+            // count tcal errors
+            counters.reportTCALError();
         }
     }
 
@@ -151,32 +165,21 @@ class TCalProcessor implements DataProcessor.StreamProcessor
     private class PrimordialTCalProcessor implements ProcessingBehavior
     {
 
-        private int numRAPCalUpdates;
-
         @Override
-        public long process(final TimeCalib tcal, final GPSInfo gps)
+        public void process(final TimeCalib tcal, final GPSInfo gps,
+                            final DataStats counters)
                 throws DataProcessorError
         {
             if(gps != null)
             {
-                boolean success = updateRapCal(tcal, gps);
-                if(success)
-                {
-                    numRAPCalUpdates++;
-                }
+                updateRapCal(tcal, gps, counters);
             }
 
             //Switch to normal processing mode once RAPCal has
             // been established.
-            if(numRAPCalUpdates > 1)
+            if(rapcal.isReady())
             {
                 TCalProcessor.this.setProcessingState(ESTABLISHED_PROCESSOR);
-                return rapcal.domToUTC(tcal.getDomTx().in_0_1ns() / 250L).in_0_1ns();
-            }
-            else
-            {
-                // Note: Can not utilize rapcal for utc reconstruction yet.
-                return -1;
             }
         }
 
@@ -189,18 +192,15 @@ class TCalProcessor implements DataProcessor.StreamProcessor
     private class EstablishedCALProcessor implements ProcessingBehavior
     {
 
-
         @Override
-        public long process(final TimeCalib tcal, final GPSInfo gps)
+        public void process(final TimeCalib tcal, final GPSInfo gps,
+                            final DataStats counters)
                 throws DataProcessorError
         {
             if(gps != null)
             {
-                updateRapCal(tcal, gps);
+                updateRapCal(tcal, gps, counters);
             }
-
-            return rapcal.domToUTC(tcal.getDomTx().in_0_1ns() / 250L).in_0_1ns();
-
         }
     }
 
