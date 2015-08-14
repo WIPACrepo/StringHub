@@ -239,8 +239,8 @@ class TimeWriter
 {
     private static File dbPath;
     private static Connection conn;
-    private static HashMap<String, Long> shadowDB =
-        new HashMap<String, Long>();
+    private static HashMap<String, DBTimes> shadowDB =
+        new HashMap<String, DBTimes>();
 
     private long fileInterval;
     private int maxNumberOfFiles;
@@ -262,6 +262,14 @@ class TimeWriter
         this.startTime = startTime;
         this.timeStep = timeStep;
         this.unifiedCache = unifiedCache;
+    }
+
+    private void addTime(int fileNum, long startTime, long fileInterval)
+    {
+        final String name = FilesHitSpool.getFileName(fileNum);
+        final DBTimes times = new DBTimes(startTime, fileInterval);
+
+        shadowDB.put(name, times);
     }
 
     private static ByteBuffer buildHit(ByteBuffer buf, int index, long time)
@@ -314,8 +322,8 @@ class TimeWriter
 
         ArrayList<String> expected = new ArrayList<String>();
         for (int i = 0; i < numToCheck; i++) {
-            int num = (firstNum + i) % maxNumberOfFiles;
-            String name = "HitSpool-" + num + ".dat";
+            final int num = (firstNum + i) % maxNumberOfFiles;
+            final String name = FilesHitSpool.getFileName(num);
             if (!expected.contains(name)) {
                 expected.add(name);
             }
@@ -351,7 +359,28 @@ class TimeWriter
                      0, expected.size());
     }
 
-    private void validateInfoDB(File spoolDir, long startTime, long curTime)
+    /**
+     * Set stop time for final entry
+     *
+     * @param lastTime final run time
+     * @param fileInterval time interval for each file
+     * @param maxNumberOfFiles maximum number of files in hitspool directory
+     */
+    private void setStopTime(long lastTime, long fileInterval,
+                             int maxNumberOfFiles)
+    {
+        final int lastNum = ((int) (lastTime / fileInterval)) %
+            maxNumberOfFiles;
+        final String lastName = FilesHitSpool.getFileName(lastNum);
+        if (!shadowDB.containsKey(lastName)) {
+            fail(String.format("Missing %s entry (last time %d)", lastName,
+                               lastTime));
+        }
+
+        shadowDB.get(lastName).stop = lastTime;
+    }
+
+    private void validateInfoDB(File spoolDir, long startTime, long stopTime)
     {
         File path = new File(spoolDir, "hitspool.db");
         assertTrue("hitspool.db does not exist", path.exists());
@@ -370,37 +399,27 @@ class TimeWriter
 
                 // remember the path to the current DB file
                 dbPath = path;
-
-                // clear out the shadow database
-                shadowDB.clear();
-            }
-
-            int prevNum = Integer.MIN_VALUE;
-            for (long t = startTime; t <= curTime; t += timeStep) {
-                final int num = (int) ((t / fileInterval) % maxNumberOfFiles);
-                if (num != prevNum) {
-                    String name = "HitSpool-" + num + ".dat";
-                    shadowDB.put(name, t);
-                    prevNum = num;
-                }
             }
 
             final String sql =
-                "select filename, timestamp from hitspool" +
-                " order by timestamp";
+                "select filename, start_tick, stop_tick from hitspool" +
+                " order by start_tick";
             Statement stmt = conn.createStatement();
             try {
                 ResultSet rs = stmt.executeQuery(sql);
                 while (rs.next()) {
                     final String filename = rs.getString(1);
-                    final long timestamp = rs.getLong(2);
+                    final long start_tick = rs.getLong(2);
+                    final long stop_tick = rs.getLong(3);
 
                     assertTrue("Unexpected entry for " + filename,
                                shadowDB.containsKey(filename));
 
-                    final long expStamp = shadowDB.get(filename);
-                    assertEquals("Bad timestamp for " + filename,
-                                 expStamp, timestamp);
+                    final DBTimes expTimes = shadowDB.get(filename);
+                    assertEquals("Bad start time for " + filename,
+                                 expTimes.start, start_tick);
+                    assertEquals("Bad stop time for " + filename,
+                                 expTimes.stop, stop_tick);
                 }
             } finally {
                 stmt.close();
@@ -461,6 +480,7 @@ class TimeWriter
         int curFile = Integer.MIN_VALUE;
 
         int index = 0;
+        long lastTime = Long.MAX_VALUE;
         for (long t = startTime; t < endTime; t += timeStep) {
             final int newNum;
             if (unifiedCache) {
@@ -470,14 +490,39 @@ class TimeWriter
                                 maxNumberOfFiles);
             }
 
-            // save time when file number changes
+            // save times when file number changes
             if (newNum != curFile) {
-                curTime = t;
+                if (unifiedCache && lastTime != Long.MAX_VALUE) {
+                    setStopTime(lastTime, fileInterval, maxNumberOfFiles);
+                }
+                addTime(newNum, t, fileInterval);
+
                 curFile = newNum;
+                curTime = t;
                 numFiles++;
             }
+            lastTime = t;
 
             hitspool.consume(buildHit(buf, index++, t));
+        }
+
+        // send end-of-stream marker
+        hitspool.consume(buildHit(buf, index++, Long.MAX_VALUE));
+
+        if (unifiedCache && lastTime != Long.MAX_VALUE) {
+            setStopTime(lastTime, fileInterval, maxNumberOfFiles);
+        }
+    }
+
+    class DBTimes
+    {
+        long start;
+        long stop;
+
+        DBTimes(long start, long interval)
+        {
+            this.start = start;
+            this.stop = start + (interval - 1);
         }
     }
 }
@@ -640,6 +685,7 @@ class Runner
         checkTopDir(previousWriter != null);
 
         totalHits += (int) ((endTime - startTime + timeStep - 1) / timeStep);
+        totalHits += 1; // include STOP msg
         assertEquals("Unexpected number of hits consumed",
                      totalHits, cc.getNumberConsumed());
 

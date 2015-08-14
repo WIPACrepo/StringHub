@@ -55,6 +55,7 @@ public class FilesHitSpool
     private boolean isHosed;
     private OldMetadata oldMetadata;
     private Metadata metadata;
+    private long prevT;
 
     private static final Logger logger = Logger.getLogger(FilesHitSpool.class);
 
@@ -139,30 +140,6 @@ public class FilesHitSpool
         createDirectory(topDir);
     }
 
-    private int transform(ByteBuffer buf)
-    {
-        int cpos = 0;
-        // Here's your chance to compactify the buffer
-        if (registry != null && packHeaders) {
-            buf.putShort(0, (short)(0xC000 | (buf.getInt(0)-24)));
-            long mbid = buf.getLong(8);
-            short chid = registry.getChannelId(mbid);
-            buf.putShort(2, chid);
-            buf.putLong(4, buf.getLong(24));
-            // pack in the version (bytes 34-35) and
-            // the PED / ATWD-chargestamp flags (36-37)
-            buf.putShort(12, (short)((buf.getShort(34) & 0xff) |
-                                     ((buf.getShort(36) & 0xff) << 8)));
-            buf.get(iobuf, 0, 14);
-            buf.position(38);
-            cpos = 14;
-        }
-        int br = buf.remaining();
-        buf.get(iobuf, cpos, br);
-        buf.rewind();
-        return br + cpos;
-    }
-
     /**
      * Close output file and quit
      * NOTE: there could be multiple End-Of-Streams
@@ -176,6 +153,14 @@ public class FilesHitSpool
             dataOut.flush();
             dataOut.close();
             dataOut = null;
+        }
+
+        // flush current Metadata
+        if (metadata != null) {
+            // update final file's stop time
+            metadata.updateStop(getFileName(currentFileIndex), prevT);
+            metadata.close();
+            metadata = null;
         }
     }
 
@@ -216,7 +201,13 @@ public class FilesHitSpool
         }
 
         // make sure we write to the appropriate file
-        if (fileNo != currentFileIndex) {
+        if (fileNo != currentFileIndex || t == Long.MAX_VALUE) {
+            // update previous file's stop time
+            if (metadata != null) {
+                metadata.updateStop(getFileName(currentFileIndex), prevT);
+            }
+
+            // remember current file index
             currentFileIndex = fileNo;
             try {
                 openNewFile();
@@ -241,6 +232,9 @@ public class FilesHitSpool
             dataOut = null;
             isHosed = true;
         }
+
+        // save hit so metadata can record last hit in file
+        prevT = t;
     }
 
     private static void createDirectory(File path)
@@ -269,8 +263,16 @@ public class FilesHitSpool
     public void endOfStream(long mbid)
         throws IOException
     {
-        if (null != out) out.endOfStream(mbid);
+        if (out != null) {
+            out.endOfStream(mbid);
+        }
+
         closeAll();
+    }
+
+    public static final String getFileName(int num)
+    {
+        return String.format("HitSpool-%d.dat", num);
     }
 
     /**
@@ -301,7 +303,7 @@ public class FilesHitSpool
             oldMetadata.write(t0, t, currentFileIndex);
         }
 
-        final String fileName = "HitSpool-" + currentFileIndex + ".dat";
+        final String fileName = getFileName(currentFileIndex);
 
         // write new hitspool metadata
         if (unifiedCache) {
@@ -309,7 +311,7 @@ public class FilesHitSpool
                 if (metadata == null) {
                     metadata = new Metadata(targetDirectory);
                 }
-                metadata.write(fileName, t);
+                metadata.write(fileName, t, fileInterval);
             } catch (SQLException se) {
                 logger.error("Cannot update metadata", se);
             }
@@ -327,6 +329,8 @@ public class FilesHitSpool
     private void reset()
         throws IOException
     {
+        closeAll();
+
         if (unifiedCache) {
             targetDirectory = new File(topDir, "hitspool");
             try {
@@ -340,12 +344,6 @@ public class FilesHitSpool
 
         t0 = 0L;
         currentFileIndex = -1;
-
-        // flush current Metadata
-        if (metadata != null) {
-            metadata.close();
-            metadata = null;
-        }
     }
 
     /**
@@ -433,6 +431,30 @@ public class FilesHitSpool
         throws IOException
     {
         reset();
+    }
+
+    private int transform(ByteBuffer buf)
+    {
+        int cpos = 0;
+        // Here's your chance to compactify the buffer
+        if (registry != null && packHeaders) {
+            buf.putShort(0, (short)(0xC000 | (buf.getInt(0)-24)));
+            long mbid = buf.getLong(8);
+            short chid = registry.getChannelId(mbid);
+            buf.putShort(2, chid);
+            buf.putLong(4, buf.getLong(24));
+            // pack in the version (bytes 34-35) and
+            // the PED / ATWD-chargestamp flags (36-37)
+            buf.putShort(12, (short)((buf.getShort(34) & 0xff) |
+                                     ((buf.getShort(36) & 0xff) << 8)));
+            buf.get(iobuf, 0, 14);
+            buf.position(38);
+            cpos = 14;
+        }
+        int br = buf.remaining();
+        buf.get(iobuf, cpos, br);
+        buf.rewind();
+        return br + cpos;
     }
 }
 
