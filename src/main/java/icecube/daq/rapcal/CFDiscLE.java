@@ -27,7 +27,7 @@ public class CFDiscLE extends AbstractRAPCal
             }
             f0 = f1;
         }
-        throw new RAPCalException(getClass().getName(), w);
+        throw new BadTCalException(getClass().getName(), w);
     }
 
 }
