@@ -69,7 +69,7 @@ public class MockRapCal implements RAPCal
     @Override
     public boolean laterThan(final long domclk)
     {
-        return false;
+        return domclk <= upperBound;
     }
 
     @Override
