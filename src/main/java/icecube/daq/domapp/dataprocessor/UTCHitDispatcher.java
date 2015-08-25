@@ -10,8 +10,8 @@ import java.nio.ByteBuffer;
 import java.util.LinkedList;
 
 /**
- * Extends the UTCDispatcher by implementing the hit-specific dispatching
- * method.
+ * Extends the UTCMonotonicDispatcher by implementing the hit-specific
+ * dispatching method.
  *
  * Adds A/B ordering to stream.
  * Maintains hit rate data counters.
@@ -19,21 +19,10 @@ import java.util.LinkedList;
  * Note:
  * Initial implementation was taken from DataCollector.java revision 15482.
  */
-public class UTCHitDispatcher extends UTCDispatcher
+public class UTCHitDispatcher extends UTCMonotonicDispatcher
 {
+
     private final HitBufferAB abBuffer;
-
-
-    /**
-     * The waitForRAPCal flag if true will force the dispatcher
-     * to only output DOM timestamped objects when a RAPCal before and
-     * a RAPCal after the object time have been registered.  This may
-     * give some improvement to the reconstructed UTC time because
-     * interpolation instead of extrapolation is used.
-     */
-    private final boolean       waitForRAPCal = Boolean.getBoolean(
-            "icecube.daq.domapp.datacollector.waitForRAPCal");
-
 
 
     public UTCHitDispatcher(final BufferConsumer target,
@@ -141,10 +130,8 @@ public class UTCHitDispatcher extends UTCDispatcher
 
         ByteBuffer pop()
         {
-            /*
-             * Handle the special cases where only one ATWD is activated
-             * presumably because of broken hardware.
-             */
+             // Handle the special cases where only one ATWD is activated
+             // presumably because of broken hardware.
             if (atwdChipSelect == AtwdChipSelect.ATWD_A)
             {
                 if (alist.isEmpty()) return null;
@@ -155,34 +142,21 @@ public class UTCHitDispatcher extends UTCDispatcher
                 if (blist.isEmpty()) return null;
                 return popB();
             }
+
+            // Handle the normal case of both ATWD active
             if (alist.isEmpty() || blist.isEmpty()) return null;
             long aclk = alist.getFirst().getLong(24);
             long bclk = blist.getFirst().getLong(24);
             if (aclk < bclk)
             {
-                if (!waitForRAPCal || rapcal.laterThan(aclk))
-                {
-                    return popA();
-                }
-                else
-                {
-                    if (logger.isDebugEnabled())
-                    {
-                        logger.debug("Holding back A hit at " + aclk);
-                    }
-                    return null;
-                }
+                return popA();
             }
-            else if (!waitForRAPCal || rapcal.laterThan(bclk))
+            else
             {
                 return popB();
             }
-            if (logger.isDebugEnabled())
-            {
-                logger.debug("Holding back B hit at " + bclk);
-            }
-            return null;
         }
+
     }
 
 
