@@ -176,6 +176,9 @@ public class LegacyDataCollector
     private static final long INTERVAL_MIN_DOMAPP_TEST_VERSION = 4477;
 
     private int     validRAPCalCount;
+    private int     errorRAPCalCount;
+    private double  cableLength;
+    private double  epsilon;
 
     private int     numHits               = 0;
     private int     numMoni               = 0;
@@ -1457,6 +1460,8 @@ public class LegacyDataCollector
                     tcalReceivedNanos);
 
             validRAPCalCount++;
+            cableLength = rapcal.cableLength();
+            epsilon = rapcal.epsilon();
 
             if (getRunLevel().equals(RunLevel.RUNNING))
             {
@@ -1467,6 +1472,8 @@ public class LegacyDataCollector
         }
         catch (RAPCalException rcex)
         {
+            errorRAPCalCount++;
+
             logger.warn("Got RAPCal exception", rcex);
         }
         catch (IOException iox)
@@ -2155,6 +2162,28 @@ public class LegacyDataCollector
     public long getNumTcal()
     {
         return validRAPCalCount;
+    }
+
+    @Override
+    public long getNumBadTcals()
+    {
+        return errorRAPCalCount;
+    }
+
+    @Override
+    public double getCableLength()
+    {
+        // Note: can not qury rapcal directly since
+        //       this method is called from mbean thread.
+        return cableLength;
+    }
+
+    @Override
+    public double getDOMFrequencySkew()
+    {
+        // Note: can not qury rapcal directly since
+        //       this method is called from mbean thread.
+        return epsilon;
     }
 
     public long getNumSupernova()

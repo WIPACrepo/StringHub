@@ -588,6 +588,24 @@ public class NewDataCollector
         return dataStats.getValidRAPCalCount();
     }
 
+    @Override
+    public long getNumBadTcals()
+    {
+        return dataStats.getErrorRAPCalCount();
+    }
+
+    @Override
+    public double getCableLength()
+    {
+        return dataStats.getCableLength();
+    }
+
+    @Override
+    public double getDOMFrequencySkew()
+    {
+        return dataStats.getDomFrequencySkew();
+    }
+
     public long getNumSupernova()
     {
         return dataStats.getNumSupernova();

@@ -40,6 +40,22 @@ public interface DataCollectorMBean
     long getNumTcal();
 
     /**
+     * Get the number of tcals that where rejected by RAPCal.
+     */
+    long getNumBadTcals();
+
+
+    /**
+     * Get the average cable length estimate from RAPCal.
+     */
+    double getCableLength();
+
+    /**
+     * Get the latest frequency skew estimate from RAPCal.
+     */
+    double getDOMFrequencySkew();
+
+    /**
      * Get the number of supernova packets
      */
     long getNumSupernova();
