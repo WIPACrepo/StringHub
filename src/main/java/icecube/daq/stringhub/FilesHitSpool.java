@@ -488,7 +488,9 @@ class OldMetadata
         try {
             PrintStream info = new PrintStream(ostr);
             try {
-                if (!unifiedCache) {
+                if (unifiedCache) {
+                    info.println("T0   0");
+                } else {
                     info.printf("T0   %20d\n", firstTime);
                 }
                 info.printf("CURT %20d\n", currentTime);
