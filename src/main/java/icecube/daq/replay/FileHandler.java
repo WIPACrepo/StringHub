@@ -12,6 +12,9 @@ import org.apache.log4j.Logger;
 
 public class FileHandler
 {
+    /** Maximum number of huge gaps before the file is closed */
+    public static final int MAX_HUGE_GAPS = 20;
+
     private static final Logger LOG =
         Logger.getLogger(FileHandler.class);
 
@@ -22,6 +25,9 @@ public class FileHandler
 
     /** Offset to apply to every hit time */
     private long timeOffset;
+    /** maximum huge gaps allowed */
+    private int maxHugeGaps = MAX_HUGE_GAPS;
+
     /** Reader thread */
     private InputThread inThread;
     /** Processor thread */
@@ -156,6 +162,21 @@ public class FileHandler
     }
 
     /**
+     * Set maximum number of huge time gaps
+     *
+     * @param num number of huge gaps allowed
+     */
+    public void setMaximumNumberOfHugeTimeGaps(int num)
+    {
+        if (dataThread != null) {
+            LOG.error("Data thread has been started, ignoring gap setting");
+            return;
+        }
+
+        maxHugeGaps = num;
+    }
+
+    /**
      * Set the offset applied to each payload being replayed.
      *
      * @param offset offset to apply to payload times
@@ -171,7 +192,7 @@ public class FileHandler
         outThread.start();
 
         dataThread = new DataThread(hubId, dataType, inThread, timeOffset,
-                                    outThread);
+                                    outThread, maxHugeGaps);
         dataThread.start();
     }
 
@@ -361,6 +382,8 @@ class DataThread
     private long timeOffset;
     /** hit writer thread */
     private OutputThread outThread;
+    /** maximum huge gaps allowed */
+    private int maxHugeGaps;
 
     /** The actual thread object */
     private Thread realThread;
@@ -390,13 +413,14 @@ class DataThread
      * @param outThread thread which writes data to the sender
      */
     DataThread(int hubId, DataStreamType dataType, InputThread inThread,
-               long timeOffset, OutputThread outThread)
+               long timeOffset, OutputThread outThread, int maxHugeGaps)
     {
         this.hubId = hubId;
         this.dataType = dataType;
         this.inThread = inThread;
         this.timeOffset = timeOffset;
         this.outThread = outThread;
+        this.maxHugeGaps = maxHugeGaps;
     }
 
     /**
@@ -558,7 +582,7 @@ class DataThread
                             ((double) timeGap / 10000000000.0);
                         LOG.error(String.format(fmtStr, dblGap, hubId,
                                                 dataType, totPayloads));
-                        if (++gapCount > 20) {
+                        if (++gapCount > maxHugeGaps) {
                             LOG.error("Too many huge gaps for hub#" + hubId +
                                       " " + dataType + " ... aborting");
                             break;

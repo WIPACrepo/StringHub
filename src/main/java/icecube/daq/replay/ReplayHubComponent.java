@@ -104,6 +104,9 @@ public class ReplayHubComponent
 
     private static final String COMPONENT_NAME = "replayHub";
 
+    /** maximum number of huge time gaps allowed before the run is killed */
+    private static final int MAX_GAPS = 20;
+
     /** ID of this replay hub */
     private int hubId;
     /** Cache used to allocate new hit payloads */
@@ -219,7 +222,7 @@ public class ReplayHubComponent
             new SimpleOutputEngine(COMPONENT_NAME, hubId, "snOut");
         addMonitoredEngine(DAQConnector.TYPE_SN_DATA, snOut);
 
-        // initialize FileHandler output processors
+        // initialize output processors
         for (DataStreamType dst : DataStreamType.values()) {
             HandlerOutputProcessor hout;
             switch (dst) {
@@ -410,6 +413,11 @@ public class ReplayHubComponent
             }
 
             handlers[dst.index()] = new FileHandler(hubId, dst, fileReader);
+            if (dst == DataStreamType.HIT &&
+                MAX_GAPS != FileHandler.MAX_HUGE_GAPS)
+            {
+                handlers[dst.index()].setMaximumNumberOfHugeTimeGaps(MAX_GAPS);
+            }
         }
 
         // done configuring
