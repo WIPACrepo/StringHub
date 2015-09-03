@@ -186,8 +186,18 @@ public class GPSInfoTest
         assertEquals("at leap offset", PREDICTED-LEAP_TICKS, gpsInfo.getOffset().in_0_1ns());
         }
 
-
     }
+
+    @Test
+    public void testToString()
+    {
+        GPSInfo subject = new GPSInfo(generateGPSBuffer(SOH,
+                "123:45:54:32", QUALITY_VERY_GOOD, 1234L), null);
+
+        assertEquals("","123:45:54:32 : Quality = 32 DOR clk:" +
+                " 1234 GPS offset: 107060719999383000", subject.toString());
+    }
+
 
     /**
      * generate a buffer containing the input for a GPSInfo instance.
