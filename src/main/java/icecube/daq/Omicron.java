@@ -35,6 +35,9 @@ public class Omicron {
 
 	public static void main(String[] args) throws Exception
 	{
+        // needs to be done soon as possible.
+        setGPSConfiguration();
+
 		int index = 0;
 		float runLength = 30.0f;
 		String pathToProps = ".omicron.properties";
@@ -246,4 +249,23 @@ public class Omicron {
 		fOutTcal.close();
 		fOutScal.close();
 	}
+
+    /**
+     * Replace the default GPS configuration (which requires GPS) with a
+     * more forgiving setting that falls back to a works-all-the-time
+     * configuration, unless the user configured the mode explicitly.
+     *
+     * Note: This needs to be called before the GPSService class
+     *       is instantiated.
+     */
+    private static void setGPSConfiguration()
+    {
+        String userSetting =
+                System.getProperty("icecube.daq.time.gps.gps-mode");
+
+        if(userSetting == null)
+        {
+            System.setProperty("icecube.daq.time.gps.gps-mode", "discover");
+        }
+    }
 }
