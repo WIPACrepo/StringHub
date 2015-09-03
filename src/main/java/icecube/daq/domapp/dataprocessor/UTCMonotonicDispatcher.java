@@ -91,6 +91,8 @@ class UTCMonotonicDispatcher extends UTCDispatcher
             DeferredDataRecord record = deferred.removeFirst();
             super.dispatchBuffer(record.data, record.callback);
         }
+
+        super.eos(eos);
     }
 
 
