@@ -21,7 +21,7 @@ import org.apache.log4j.Logger;
  * Configuration
  * <pre>
  *
- *    icecube.daq.dor.gps-mode = [dsb]
+ *    icecube.daq.time.gps.gps-mode = [dsb]
  *
  *           dsb:      The master clock will be used via DSB card.
  *           no-dsb:   No GPS hardware, time reconstruction assumes zero DOR
@@ -42,7 +42,7 @@ public class GPSService
      * Configures the GPS mode, one of dsb, no-dsb, discover.
      */
     public static final String GPS_MODE =
-            System.getProperty("icecube.daq.dor.gps-mode", "dsb");
+            System.getProperty("icecube.daq.time.gps.gps-mode", "dsb");
 
     /** The singleton, system wide service instance. */
     private static final IGPSService service;
