@@ -165,12 +165,48 @@ public class UTCMonotonicDispatcherTest
                 consumer.getReceivedTimes());
         consumer.clear();
 
-        // eos should dispatch remaining
+        // eos should dispatch remaining, plus EOS
         subject.eos(generateBuffer(Long.MAX_VALUE));
         assertArrayEquals("dispatch expected",
-                toUTC(afterMark_3, GPS_OFFSET),
+                append(toUTC(afterMark_3, GPS_OFFSET), Long.MAX_VALUE),
                 consumer.getReceivedTimes());
 
+    }
+
+    @Test
+    public void testEOS() throws DataProcessorError
+    {
+        //
+        // Test that EOS drains the deferred data and propagates EOS.
+        //
+        MockRapCal rapcal = new MockRapCal(99999);
+        MockBufferConsumer consumer = new MockBufferConsumer();
+        UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
+                DataProcessor.StreamType.HIT,
+                rapcal);
+
+        // set upper bound to cover no times
+        rapcal.setUpperBound(Long.MIN_VALUE);
+
+        subject.dispatchBuffer(generateBuffer(0));
+        subject.dispatchBuffer(generateBuffer(1));
+        subject.dispatchBuffer(generateBuffer(100000000));
+        subject.dispatchBuffer(generateBuffer(444444444));
+        subject.dispatchBuffer(generateBuffer(999999999));
+        subject.dispatchBuffer(generateBuffer(777777777777L));
+        subject.dispatchBuffer(generateBuffer(888888888888L));
+        subject.dispatchBuffer(generateBuffer(MAX_DOM_CLOCK));
+
+        assertEquals("no dispatch expected",
+                0, consumer.getReceivedTimes().length);
+
+        subject.eos(generateBuffer(Long.MAX_VALUE));
+
+        assertEquals("full dispatch expected",
+                9, consumer.getReceivedTimes().length);
+
+        assertEquals("eos marker expected",
+                Long.MAX_VALUE, consumer.getReceivedTimes()[8]);
     }
 
     @Test
@@ -211,7 +247,8 @@ public class UTCMonotonicDispatcherTest
         //should be possible to dispatch remaining
         subject.eos(generateBuffer(Long.MAX_VALUE));
 
-        assertEquals("dispatch expected", max, consumer.receivedTimes.size());
+        // max + 1 becaus EOS marker is delivered also
+        assertEquals("dispatch expected", max+1, consumer.receivedTimes.size());
 
     }
 
@@ -260,6 +297,17 @@ public class UTCMonotonicDispatcherTest
                 toUTC(afterMark, GPS_OFFSET),
                 callback.getReceivedTimes());
 
+    }
+
+    /**
+     * Append a value to the end of an array.
+     */
+    private static long[] append(long[] orig, long value)
+    {
+        long[] ret = new long[orig.length + 1];
+        System.arraycopy(orig, 0, ret, 0, orig.length);
+        ret[orig.length] = value;
+        return ret;
     }
 
     private static long[] toUTC(long[] dom, long GPSOffset)
