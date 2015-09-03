@@ -2,6 +2,8 @@ package icecube.daq.domapp.dataprocessor;
 
 import icecube.daq.dor.GPSInfo;
 import icecube.daq.time.gps.GPSService;
+import icecube.daq.time.gps.GPSServiceError;
+import icecube.daq.time.gps.IGPSService;
 
 
 /**
@@ -10,7 +12,7 @@ import icecube.daq.time.gps.GPSService;
 public class GPSProvider
 {
     private final int card;
-    private final GPSService service;
+    private final IGPSService service;
 
     public GPSProvider(final int card)
     {
@@ -20,15 +22,14 @@ public class GPSProvider
 
     public GPSInfo getGPSInfo() throws DataProcessorError
     {
-        GPSInfo gps = service.getGps(card);
-        if(gps == null)
+        try
         {
-            throw new DataProcessorError("Could not get GPSInfo for card" +
-                    " [" + card + "]");
+            return service.getGps(card);
         }
-        else
+        catch (GPSServiceError gpsError)
         {
-            return gps;
+            throw new DataProcessorError("GPS service failed for card" +
+                    " [" + card + "]", gpsError);
         }
     }
 }

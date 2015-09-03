@@ -16,10 +16,11 @@ import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.ZeroCrossingRAPCal;
 import icecube.daq.time.gps.GPSService;
+import icecube.daq.time.gps.GPSServiceError;
+import icecube.daq.time.gps.IGPSService;
 import icecube.daq.util.RealTimeRateMeter;
 import icecube.daq.util.SimpleMovingAverage;
 import icecube.daq.util.StringHubAlert;
-import icecube.daq.util.UTC;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -1440,11 +1441,11 @@ public class LegacyDataCollector
         return getName();
     }
 
-    private GPSService execRapCal()
+    private IGPSService execRapCal() throws GPSServiceError
     {
         try
         {
-            GPSService gps_serv = GPSService.getInstance();
+            IGPSService gps_serv = GPSService.getInstance();
             GPSInfo gps = gps_serv.getGps(card);
 
             TimeCalib tcal = driver.readTCAL(tcalFile);

@@ -119,7 +119,7 @@ public class Omicron {
 			scalSort.register(chInfo.getMainboardIdAsLong());
 
 			// Associate a GPS service to this card, if not already done
-			GPSService.getInstance().startService(chInfo.card, null);
+			GPSService.getInstance().startService(chInfo.card);
 
 			DataCollector dc =
                     DataCollectorFactory.buildDataCollector(

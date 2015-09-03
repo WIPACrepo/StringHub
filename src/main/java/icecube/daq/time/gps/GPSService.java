@@ -1,203 +1,89 @@
 package icecube.daq.time.gps;
 
-import icecube.daq.dor.Driver;
-import icecube.daq.dor.GPSException;
-import icecube.daq.dor.GPSInfo;
-import icecube.daq.dor.GPSNotReady;
-import icecube.daq.livemoni.LiveTCalMoni;
-
-import java.io.File;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
-import icecube.daq.time.monitoring.ClockProcessor;
 import org.apache.log4j.Logger;
 
 /**
- * This class exists to centralize the GPS information collection
- * and hand it out in a more orderly manner to the clients that
- * need it - mostly a gang of DataCollectors who want the GPS
- * offset information.  The GPS procfile only exists on the card
- * level so there must be a one-to-many handoff of this offset info.
- * @author kael
+ * Factory providing system-wide access to the GPS service.
+ * <p>
+ * The GPS service builds on the DOR GPS snapshot buffer providing:
+ * <ul>
+ *     <li>One-to-many fan out of GPS snapshots from card to channel level</li>
+ *     <li>Enforces stability invariant </li>
+ *     <li>Monitoring, error handling and alerting</li>
+ * </ul>
+ * <p>
+ * In normal deployments, the service will be a backed by a
+ * DSB GPS card. Certain test deployments configured without
+ * GPS hardware may configure this factory to provide a fallback
+ * service. The fallback service does not provide meaningful UTC
+ * time reconstructions.
+ * <p>
+ * Configuration
+ * <pre>
+ *
+ *    icecube.daq.dor.gps-mode = [dsb]
+ *
+ *           dsb:      The master clock will be used via DSB card.
+ *           no-dsb:   No GPS hardware, time reconstruction assumes zero DOR
+ *                     clock offset.
+ *           discover: Will use GPS hardware if available, falling back to
+ *                     the no-dsb mode.
+ *
+ *</pre>
  *
  */
 
 public class GPSService
 {
 
-    private Logger logger = Logger.getLogger(GPSService.class);
-
-    private class GPSCollector extends Thread
-    {
-        private final int card;
-        private Driver driver;
-        //private int card;
-        private int cons_gpsx_count;
-        private GPSInfo gps;
-        private AtomicBoolean running;
-        private File gpsFile;
-
-        /** support clients waiting for an available reading. */
-        private CountDownLatch initializationLatch = new CountDownLatch(1);
-
-        /** monitoring consumer. */
-        private ClockProcessor gpsConsumer =
-                ClockMonitoringSubsystem.Factory.processor();
-
-        GPSCollector(Driver driver, int card)
-        {
-            this.card = card;
-            this.driver = driver;
-            //this.card = card;
-            this.gpsFile = driver.getGPSFile(card);
-            cons_gpsx_count = 0;
-            gps = null;
-            running = new AtomicBoolean(false);
-        }
-
-        void startup()
-        {
-            running.set(true);
-            this.start();
-        }
-
-        void shutdown()
-        {
-            running.set(false);
-        }
-
-        public void run()
-        {
-
-            try
-            {
-                // Eat through the up to 10 buffered GPS snaps in the DOR
-                for (int i = 0; i < 10; i++)
-                    driver.readGPS(gpsFile);
-            }
-            catch (GPSNotReady nr)
-            {
-                // OK
-            }
-            catch (GPSException gpsx)
-            {
-                // Probably not OK
-                gpsx.printStackTrace();
-                logger.warn("Got GPS exception " + gpsx.getMessage());
-            }
-            while (running.get())
-            {
-                try
-                {
-                    Thread.sleep(740L);
-                    GPSInfo newGPS = driver.readGPS(gpsFile);
-
-                    cons_gpsx_count = 0;
-                    if (!(gps == null || newGPS.getOffset().equals(gps.getOffset())))
-                    {
-                        final String errmsg =
-                            "GPS offset mis-alignment detected - old GPS: " +
-                            gps + " new GPS: " + newGPS;
-                        logger.error(errmsg);
-                        if (moni != null) {
-                            moni.send(errmsg, null);
-                        }
-                    }
-                    else
-                    {
-                        synchronized (this)
-                        {
-                            gps = newGPS;
-                            initializationLatch.countDown();
-
-                            gpsConsumer.process(new ClockProcessor.GPSSnapshot(gps, card));
-                        }
-                    }
-                }
-                catch (InterruptedException intx)
-                {
-                    return;
-                }
-                catch (GPSNotReady gps_not_ready)
-                {
-                    if (cons_gpsx_count++ > 10)
-                    {
-                        logger.warn("GPS not ready.");
-                        if (moni != null) {
-                            moni.send("SyncGPS procfile not ready", null);
-                        }
-                    }
-                }
-                catch (GPSException gps_ex)
-                {
-                    gps_ex.printStackTrace();
-                    logger.warn("Got GPS exception - time translation to UTC will be incomplete");
-                    if (moni != null) {
-                        moni.send(gps_ex.getMessage(), null);
-                    }
-                }
-            }
-        }
-
-        synchronized GPSInfo getGps() { return gps; }
-
-        synchronized boolean waitForReady(long waitMillis)
-                throws InterruptedException
-        {
-            return initializationLatch.await(waitMillis, TimeUnit.MILLISECONDS);
-        }
-
-        public boolean isRunning()
-        {
-            return running.get();
-        }
-    }
-
-    private LiveTCalMoni moni;
-    private GPSCollector[] coll;
-    private static final GPSService instance = new GPSService();
-
-    private GPSService()
-    {
-        coll = new GPSCollector[8];
-    }
-
-    public static GPSService getInstance() { return instance; }
-
-    public GPSInfo getGps(int card) { return coll[card].getGps(); }
+    private static final Logger logger = Logger.getLogger(GPSService.class);
 
     /**
-     * Wait for a valid gps info reading ready to be available.
-     *
-     * @param waitMillis Time period to wait.
-     * @return True if a valid gps infor reading is available.
-     * @throws InterruptedException
+     * Configures the GPS mode, one of dsb, no-dsb, discover.
      */
-    public boolean waitForReady(int card, int waitMillis)
-            throws InterruptedException
+    public static final String GPS_MODE =
+            System.getProperty("icecube.daq.dor.gps-mode", "dsb");
+
+    /** The singleton, system wide service instance. */
+    private static final IGPSService service;
+
+    // initialize the service
+    static
     {
-        return coll[card].waitForReady(waitMillis);
+        if(GPS_MODE.equalsIgnoreCase("dsb"))
+        {
+            service = new DSBGPSService();
+        }
+        else if(GPS_MODE.equalsIgnoreCase("no-dsb"))
+        {
+            // This is not an appropriate production mode so log
+            // a warning
+            logger.warn("Running without GPS hardware," +
+                    " UTC reconstruction will be impacted.");
+            service = new NullGPSService();
+        }
+        else if(GPS_MODE.equalsIgnoreCase("discover"))
+        {
+            // This is not an appropriate production mode so log
+            // a warning
+            logger.warn("Running in relaxed GPS hardware mode," +
+                    " UTC reconstruction may be impacted.");
+            service = new FailsafeGPSService( new DSBGPSService(),
+                    new NullGPSService());
+        }
+        else
+        {
+            throw new Error("Unknown GPS mode: [" + GPS_MODE + "]");
+        }
     }
 
-    public void startService(Driver drv, int card, LiveTCalMoni moni)
-    {
-        this.moni = moni;
 
-        if (coll[card] == null) { coll[card] = new GPSCollector(drv, card); }
-        if (!coll[card].isRunning()) coll[card].startup();
-    }
+    /**
+     * Provides access the configured GPS service.
+     *
+     * @return The GPS service.
+     */
+    public static IGPSService getInstance() { return service; }
 
-    public void startService(int card, LiveTCalMoni moni)
-    {
-        startService(Driver.getInstance(), card, moni);
-    }
 
-    public void shutdownAll()
-    {
-        for (int i = 0; i < 8; i++)
-            if (coll[i] != null && coll[i].isRunning()) coll[i].shutdown();
-    }
 }

@@ -39,6 +39,7 @@ import icecube.daq.priority.AdjustmentTask;
 import icecube.daq.priority.SorterException;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
+import icecube.daq.time.gps.IGPSService;
 import icecube.daq.time.gps.GPSService;
 import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
 import icecube.daq.util.DOMRegistry;
@@ -646,8 +647,9 @@ public class StringHubComponent
 
 			// Associate a GPS service to this card, if not already done
 			if (!isSim) {
-				GPSService inst = GPSService.getInstance();
-				inst.startService(chanInfo.card, moni);
+				IGPSService inst = GPSService.getInstance();
+                inst.setMoni(moni);
+                inst.startService(chanInfo.card);
 			}
 
 			AbstractDataCollector dc;
@@ -1033,7 +1035,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15731 2015-09-03 18:48:09Z bendfelt $";
+		return "$Id: StringHubComponent.java 15735 2015-09-03 19:42:29Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
