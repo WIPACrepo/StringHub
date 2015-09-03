@@ -12,9 +12,9 @@ import icecube.daq.domapp.dataprocessor.DataProcessor;
 import icecube.daq.domapp.dataprocessor.DataProcessorError;
 import icecube.daq.domapp.dataprocessor.DataProcessorFactory;
 import icecube.daq.domapp.dataprocessor.GPSProvider;
-import icecube.daq.dor.GPSService;
 import icecube.daq.juggler.alert.Alerter.Priority;
 import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.time.gps.GPSService;
 import icecube.daq.util.StringHubAlert;
 import org.apache.log4j.Logger;
 

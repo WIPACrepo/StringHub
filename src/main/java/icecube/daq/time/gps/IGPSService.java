@@ -1,7 +1,8 @@
-package icecube.daq.dor;
+package icecube.daq.time.gps;
 
 import java.io.IOException;
 
+import icecube.daq.dor.GPSInfo;
 import icecube.daq.juggler.alert.Alerter;
 
 public interface IGPSService

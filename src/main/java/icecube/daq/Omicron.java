@@ -9,7 +9,7 @@ import icecube.daq.domapp.DataCollectorFactory;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
-import icecube.daq.dor.GPSService;
+import icecube.daq.time.gps.GPSService;
 
 import java.io.BufferedOutputStream;
 import java.io.FileInputStream;

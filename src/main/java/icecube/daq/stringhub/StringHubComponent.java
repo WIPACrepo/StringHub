@@ -17,7 +17,6 @@ import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
-import icecube.daq.dor.GPSService;
 import icecube.daq.io.DAQComponentOutputProcess;
 import icecube.daq.io.OutputChannel;
 import icecube.daq.io.PayloadReader;
@@ -40,6 +39,7 @@ import icecube.daq.priority.AdjustmentTask;
 import icecube.daq.priority.SorterException;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
+import icecube.daq.time.gps.GPSService;
 import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
@@ -1033,7 +1033,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15652 2015-08-03 18:46:29Z dglo $";
+		return "$Id: StringHubComponent.java 15731 2015-09-03 18:48:09Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()

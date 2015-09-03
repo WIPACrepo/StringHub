@@ -1,7 +1,7 @@
 package icecube.daq.domapp.dataprocessor;
 
 import icecube.daq.dor.GPSInfo;
-import icecube.daq.dor.GPSService;
+import icecube.daq.time.gps.GPSService;
 
 
 /**

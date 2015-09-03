@@ -1,5 +1,9 @@
-package icecube.daq.dor;
+package icecube.daq.time.gps;
 
+import icecube.daq.dor.Driver;
+import icecube.daq.dor.GPSException;
+import icecube.daq.dor.GPSInfo;
+import icecube.daq.dor.GPSNotReady;
 import icecube.daq.livemoni.LiveTCalMoni;
 
 import java.io.File;
