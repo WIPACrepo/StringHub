@@ -251,8 +251,7 @@ public final class Driver implements IDriver {
         try {
             syncgps = new RandomAccessFile(gpsFile, "r");
         } catch (FileNotFoundException fnfe) {
-            throw new GPSException("Cannot open \"" +
-                                   gpsFile.getAbsolutePath() + "\"", fnfe);
+            throw new GPSException("Cannot open " + quotedPath(gpsFile), fnfe);
         }
 
         FileChannel ch = syncgps.getChannel();
@@ -262,29 +261,41 @@ public final class Driver implements IDriver {
         try {
             nr = ch.read(buf);
         } catch (IOException ioe) {
-            throw new GPSException("Cannot read \"" +
-                                   gpsFile.getAbsolutePath() + "\"", ioe);
+            throw new GPSException("Cannot read " + quotedPath(gpsFile), ioe);
+        } finally {
+            try {
+                syncgps.close();
+            } catch (IOException ioe) {
+                // ignore errors on close
+            }
         }
 
-        try {
-            syncgps.close();
-        } catch (IOException ioe) {
-            // ignore errors on close
+        if (logger.isDebugEnabled()) {
+            logger.debug("Read " + nr + " bytes from " +
+                    gpsFile.getAbsolutePath());
         }
-
-        if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + gpsFile.getAbsolutePath());
-        if (nr != 22)
-        {
-            throw new GPSNotReady(gpsFile.getAbsolutePath(), 0);
+        if (nr != 22) {
+            throw new GPSNotReady("Read from " + quotedPath(gpsFile) +
+                    " returned " + nr + " bytes" );
         }
 
         buf.flip();
-        GPSInfo gpsinfo = new GPSInfo(buf, leapsecondObj);
-        if (logger.isDebugEnabled()) {
-            logger.debug("GPS read on " + gpsFile.getAbsolutePath() + " - " +
-                         gpsinfo);
+
+        try {
+            GPSInfo gpsinfo = new GPSInfo(buf, leapsecondObj);
+            if (logger.isDebugEnabled()) {
+                logger.debug("GPS read on " + gpsFile.getAbsolutePath() +
+                        " - " + gpsinfo);
+            }
+            return gpsinfo;
+        } catch (NumberFormatException nfe) {
+            throw new GPSException("Malformed record from " +
+                    quotedPath(gpsFile), nfe);
+        } catch (IllegalArgumentException iae) {
+            throw new GPSException("Malformed record from " +
+                    quotedPath(gpsFile), iae);
         }
-        return gpsinfo;
+
     }
 
     private String getProcfileText(File file) throws IOException {
@@ -386,4 +397,14 @@ public final class Driver implements IDriver {
 	{
 		return makeProcfile(cwd, null);
 	}
+
+    /**
+     * Format a file as a quoted path for exception messages.
+     * @param file The File to format;
+     * @return The file path as a quoted string.
+     */
+    private static String quotedPath(File file)
+    {
+        return "\"" + file.getAbsolutePath() + "\"";
+    }
 }
