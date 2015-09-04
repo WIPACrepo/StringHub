@@ -288,18 +288,19 @@ class TimeWriter
         return buf;
     }
 
-    void checkSpoolDir(File topDir, String runDir)
+    void checkSpoolDir(File topDir, boolean checkLastRun)
         throws IOException
     {
-        final boolean isLastRun = runDir.equals("lastRun");
-
-        File path;
+        String runDir;
         if (unifiedCache) {
-            path = new File(topDir, "hitspool");
+            runDir = "hitspool";
+        } else if (checkLastRun) {
+            runDir = "lastRun";
         } else {
-            path = new File(topDir, runDir);
+            runDir = "currentRun";
         }
 
+        File path = new File(topDir, runDir);
         if (!path.exists()) {
             fail(runDir + " does not exist");
         }
@@ -332,7 +333,7 @@ class TimeWriter
         // check metadata file
         if (unifiedCache) {
             expected.add("hitspool.db");
-            if (!isLastRun) {
+            if (!checkLastRun) {
                 validateInfoDB(path, startTime, curTime);
             }
         }
@@ -343,9 +344,10 @@ class TimeWriter
             final int lastNum = (firstNum + numFiles - 1) % maxNumberOfFiles;
 
             expected.add("info.txt");
-            if (!unifiedCache || !isLastRun) {
-                validateInfoTxt(path, startTime, curTime, fileInterval,
-                                lastNum, maxNumberOfFiles);
+            if (!unifiedCache || !checkLastRun) {
+                long t0 = (unifiedCache ? 0L : startTime);
+                validateInfoTxt(path, t0, curTime, fileInterval, lastNum,
+                                maxNumberOfFiles);
             }
         }
 
@@ -652,7 +654,7 @@ class Runner
         // save previous run data
         if (currentWriter != null) {
             previousWriter = currentWriter;
-            previousWriter.checkSpoolDir(topDir, "lastRun");
+            previousWriter.checkSpoolDir(topDir, true);
             currentWriter = null;
         }
     }
@@ -669,7 +671,7 @@ class Runner
         // save previous run data
         if (currentWriter != null) {
             previousWriter = currentWriter;
-            previousWriter.checkSpoolDir(topDir, "lastRun");
+            previousWriter.checkSpoolDir(topDir, true);
             currentWriter = null;
         }
     }
@@ -689,9 +691,9 @@ class Runner
         assertEquals("Unexpected number of hits consumed",
                      totalHits, cc.getNumberConsumed());
 
-        currentWriter.checkSpoolDir(topDir, "currentRun");
+        currentWriter.checkSpoolDir(topDir, false);
         if (previousWriter != null) {
-            previousWriter.checkSpoolDir(topDir, "lastRun");
+            previousWriter.checkSpoolDir(topDir, true);
         }
     }
 }
