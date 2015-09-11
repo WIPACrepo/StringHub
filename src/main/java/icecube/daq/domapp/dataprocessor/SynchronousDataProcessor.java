@@ -143,6 +143,12 @@ public class SynchronousDataProcessor implements DataProcessor
     }
 
     @Override
+    public void sync() throws DataProcessorError
+    {
+        // Synchronous processor is inherently synced
+    }
+
+    @Override
     public UTC resolveUTCTime(final long domclock) throws DataProcessorError
     {
         return rapcal.domToUTC(domclock);

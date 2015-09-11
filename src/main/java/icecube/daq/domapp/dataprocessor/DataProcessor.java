@@ -115,6 +115,15 @@ public interface DataProcessor
      */
     void shutdown() throws DataProcessorError;
 
+    /**
+     * Enable a client to synchronize with the data processing queue.
+     *
+     * Caller will block until processing queue is fully serviced.
+     *
+     * @throws DataProcessorError
+     */
+    void sync() throws DataProcessorError;
+
 
     /**
      * Resolve a domclock time to UTC time using the rapcal

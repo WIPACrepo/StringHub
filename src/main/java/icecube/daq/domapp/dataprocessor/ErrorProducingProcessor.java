@@ -129,6 +129,12 @@ public class ErrorProducingProcessor implements DataProcessor
     }
 
     @Override
+    public void sync() throws DataProcessorError
+    {
+        delegate.sync();
+    }
+
+    @Override
     public UTC resolveUTCTime(final long domclock) throws DataProcessorError
     {
         return delegate.resolveUTCTime(domclock);

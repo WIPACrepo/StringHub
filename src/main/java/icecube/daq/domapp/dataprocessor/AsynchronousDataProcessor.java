@@ -71,7 +71,7 @@ public class AsynchronousDataProcessor implements DataProcessor
     private AtomicBoolean inForcedShutdown = new AtomicBoolean(false);
 
     /** Latch to wait a shutdown to complete. */
-    CountDownLatch shutdownLatch = new CountDownLatch(1);
+    private CountDownLatch shutdownLatch = new CountDownLatch(1);
 
     /** Flag to indicate a completed shutdown.*/
     private volatile boolean isShutdown;
@@ -316,6 +316,34 @@ public class AsynchronousDataProcessor implements DataProcessor
     }
 
     @Override
+    public void sync() throws DataProcessorError
+    {
+        // Queue a dummy job and wait for processor to execute
+        Future<Void> sync = enqueWork(new Callable<Void>()
+        {
+            @Override
+            public Void call() throws Exception
+            {
+                return null;
+            }
+        });
+        try
+        {
+            sync.get();
+        }
+        catch (InterruptedException e)
+        {
+            //likely watchdog did not like the wait
+            throw new DataProcessorError("Interrupted while syncing", e);
+        }
+        catch (ExecutionException e)
+        {
+            //inconceivable
+            throw new DataProcessorError("Error while syncing", e);
+        }
+    }
+
+    @Override
     public void setLiveMoni(final LiveTCalMoni moni) throws DataProcessorError
     {
         enqueWork(new Callable<Void>()
@@ -495,11 +523,11 @@ public class AsynchronousDataProcessor implements DataProcessor
 
             try
             {
-                delegate.eos();
+                delegate.shutdown();
             }
             catch(Throwable th)
             {
-                logger.error("Processor unable to issue EOS markers");
+                logger.error("Processor unable to shutdown:", th);
             }
 
             isShutdown = true;
