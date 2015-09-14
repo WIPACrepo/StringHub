@@ -346,6 +346,38 @@ public class StringHubComponent
 		sender.setDOMRegistry(domRegistry);
 	}
 
+    @Override
+    /**
+     * Extends startup to include the clock monitoring
+     */
+    public void start() throws DAQCompException
+    {
+        super.start();
+
+        //start up the clock monitoring subsystem
+        final Object mbean =
+                ClockMonitoringSubsystem.Factory.subsystem().startup(getAlertQueue());
+        if (mbean != null) {
+            addMBean("ClockMonitor", mbean);
+        }
+    }
+
+    /**
+     * Terminate string hub services.
+     *
+     * todo: In the current implementation, StringHub components are not
+     *       terminated gracefully by the controller. Non-Daemon threads
+     *       do not prevent component/jvm shutdown.  If this changes, this
+     *       method should be wired into the shutdown. Until then, this
+     *       method serves as reference code for non-run-related resources
+     *       that should be cleaned up.
+     */
+    private void terminate()
+    {
+        GPSService.getInstance().shutdownAll();
+        ClockMonitoringSubsystem.Factory.subsystem().shutdown();
+    }
+
 	/**
 	 * Close all open files, sockets, etc.
 	 *
@@ -590,13 +622,6 @@ public class StringHubComponent
 			for (PrioritySort ps : prioList) {
 				addMBean(ps.getName(), ps);
 			}
-		}
-
-		//start up the clock monitoring subsystem
-		final Object mbean =
-			ClockMonitoringSubsystem.Factory.subsystem().startup(getAlertQueue());
-		if (mbean != null) {
-			addMBean("ClockMonitor", mbean);
 		}
 	}
 
@@ -995,9 +1020,6 @@ public class StringHubComponent
 			}
 		}
 
-		GPSService.getInstance().shutdownAll();
-        ClockMonitoringSubsystem.Factory.subsystem().shutdown();
-
 		logger.info("Returning from stop.");
 	}
 
@@ -1035,7 +1057,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15735 2015-09-03 19:42:29Z bendfelt $";
+		return "$Id: StringHubComponent.java 15760 2015-09-14 22:06:09Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
