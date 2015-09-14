@@ -279,18 +279,41 @@ public class NewDataCollector
      *
      * Errors encountered on the processing side are propagated.  A processing
      * error is generally fatal to the channel.
-     * */
-    private void execRapCal() throws DataProcessorError
+     *
+     * @exception DataProcessorError An error occurred while passing the
+     *            time calibration to the data processor.  This indicates
+     *            a serious problem.
+     */
+    private void attemptRapCal() throws DataProcessorError
     {
         try
         {
-            dataAcquisition.doTCAL(watchdog);
-            nextTcalRead = System.currentTimeMillis() + tcalReadInterval;
+            execRapCal();
         }
         catch (AcquisitionError acquisitionError)
         {
-            logger.error("Ignoring tcal error ", acquisitionError);
+            logger.error("Ignoring tcal error", acquisitionError);
         }
+    }
+
+    /**
+     * Execute a rapcal and queue the time calibration to the data processor.
+     *
+     * All errors, including potentially transient acquisition errors are
+     * propagated. Most calling methods should be using attemptRapCal()
+     * which silently ignors acquisition errors.
+     *
+     * @exception AcquisitionError An error occurred while acquiring the
+     *            time calibration.  Often this is a transient condition.
+     *
+     * @exception DataProcessorError An error occurred while passing the
+     *            time calibration to the data processor.  This indicates
+     *            a serious problem.
+     */
+    private void execRapCal() throws DataProcessorError, AcquisitionError
+    {
+            dataAcquisition.doTCAL(watchdog);
+            nextTcalRead = System.currentTimeMillis() + tcalReadInterval;
     }
 
     /**
@@ -381,7 +404,7 @@ public class NewDataCollector
              nTry < 10 && dataStats.getValidRAPCalCount() < 2; nTry++)
         {
             watchdog.sleep(100);
-            execRapCal();
+            attemptRapCal();
         }
 
         runcore(!disable_intervals);
@@ -426,6 +449,12 @@ public class NewDataCollector
     /**
      * The core acquisition loop.
      *
+     * NOTE: Generally during transitions, the data processor is not synced
+     *       and the processor thread runs independently. Transitions from
+     *       RUNNING to CONFIGURED require a sync with the processor thread.
+     *       This sync is required to meet the contract that all data has
+     *       been dispatched prior to returning to the configured state.
+     *
      * @throws Exception
      */
     private void runcore(final boolean useIntervals) throws Exception
@@ -447,7 +476,7 @@ public class NewDataCollector
                 {
                     logger.debug("Doing TCAL - runLevel is " + getRunLevel());
                 }
-                execRapCal();
+                attemptRapCal();
             }
 
 			switch (getRunLevel())
@@ -543,6 +572,15 @@ public class NewDataCollector
                     logger.debug("Got PAUSE RUN signal " + canonicalName());
                 }
                 dataAcquisition.doPauseRun();
+
+                //NOTE: Data may be buffered waiting for bounding tcals.
+                //      perform a final tcal to cause the release of this
+                //      data. if this tcal fails, the contract of the
+                //      CONFIGURED state will be violated. A poorly
+                //      timed wild tcal dooms us here.
+                execRapCal();
+
+                dataProcessor.sync();
                 setRunLevelInternal(RunLevel.CONFIGURED);
                 break;
 
@@ -552,6 +590,7 @@ public class NewDataCollector
                 }
                 dataAcquisition.doEndRun();
                 dataProcessor.eos();
+                dataProcessor.sync();
                 setRunLevelInternal(RunLevel.CONFIGURED);
                 break;
             }
