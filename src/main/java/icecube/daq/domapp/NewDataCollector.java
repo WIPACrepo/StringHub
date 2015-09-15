@@ -607,21 +607,25 @@ public class NewDataCollector
     } /* END METHOD */
 
 
+    @Override
     public long getRunStartTime()
     {
         return runStartUT;
     }
 
+    @Override
     public long getNumHits()
     {
         return dataStats.getNumHits();
     }
 
+    @Override
     public long getNumMoni()
     {
         return dataStats.getNumMoni();
     }
 
+    @Override
     public long getNumTcal()
     {
         return dataStats.getValidRAPCalCount();
@@ -645,11 +649,37 @@ public class NewDataCollector
         return dataStats.getDomFrequencySkew();
     }
 
+    @Override
+    public long getFirstDORTime()
+    {
+        return dataStats.getFirstDORTime();
+    }
+
+    @Override
+    public long getLastDORTime()
+    {
+        return dataStats.getLastDORTime();
+    }
+
+    @Override
+    public long getFirstDOMTime()
+    {
+        return dataStats.getFirstDOMTime();
+    }
+
+    @Override
+    public long getLastDOMTime()
+    {
+        return dataStats.getLastDOMTime();
+    }
+
+    @Override
     public long getNumSupernova()
     {
         return dataStats.getNumSupernova();
     }
 
+    @Override
     public long getAcquisitionLoopCount()
     {
         return loopCounter;
@@ -866,26 +896,25 @@ public class NewDataCollector
         return dataStats.getLastTcalUT();
     }
 
+    @Override
     public double getHitRate()
     {
         return dataStats.getHitRate();
     }
 
+    @Override
     public double getHitRateLC()
     {
         return dataStats.getLCHitRate();
     }
 
+    @Override
     public long getLBMOverflowCount()
     {
         return dataStats.getNumLBMOverflows();
     }
 
-    public String getMBID()
-    {
-        return mbid;
-    }
-
+    @Override
     public String getRunState()
     {
         return getRunLevel().toString();
@@ -893,15 +922,17 @@ public class NewDataCollector
 
 
     //todo - replace from processing or remove
+    @Override
     public long getAverageHitAcquisitionLatencyMillis()
     {
         //return (long)cycleMonitor.avgHitAcquisitionLatencyMillis.getAverage();
         return -1;
     }
 
-    //NOTE: This is based on the local system clock.
+    @Override
     public String getAcquisitionStartTime()
     {
+        //NOTE: This is based on the local system clock.
         synchronized (dateFormat)
         {
             return dateFormat.format(new Date(dataAcquisition.getRunStartSystemTime()));

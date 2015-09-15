@@ -56,6 +56,26 @@ public interface DataCollectorMBean
     double getDOMFrequencySkew();
 
     /**
+     * Get the first DOR clock reading.
+     */
+    long getFirstDORTime();
+
+    /**
+     * Get the last DOR clock reading.
+     */
+    long getLastDORTime();
+
+    /**
+     * Get the first DOM clock reading.
+     */
+    long getFirstDOMTime();
+
+    /**
+     * Get the last DOM clock reading.
+     */
+    long getLastDOMTime();
+
+    /**
      * Get the number of supernova packets
      */
     long getNumSupernova();
@@ -82,6 +102,8 @@ public interface DataCollectorMBean
 
     /**
      * Get the timestamp at which data acquisition began.
+     *
+     * NOTE: This is based on the local system clock.
      */
     String getAcquisitionStartTime();
 }

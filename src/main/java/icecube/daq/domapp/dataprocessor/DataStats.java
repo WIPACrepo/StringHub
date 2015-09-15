@@ -1,5 +1,6 @@
 package icecube.daq.domapp.dataprocessor;
 
+import icecube.daq.dor.TimeCalib;
 import icecube.daq.util.RealTimeRateMeter;
 
 import java.nio.ByteBuffer;
@@ -33,6 +34,10 @@ public class DataStats
     private volatile long    firstHitTime          = -1;
     private volatile long    lastHitTime           = -1;
 
+    private volatile long    firstDORTime          = -1;
+    private volatile long    firstDOMTime          = -1;
+    private volatile long    lastDORTime          = -1;
+    private volatile long    lastDOMTime          = -1;
 
     // Calculate 10-sec averages of the hit rate
     private RealTimeRateMeter rtHitRate = new RealTimeRateMeter(100000000000L);
@@ -57,14 +62,22 @@ public class DataStats
         numLBMOverflows++;
     }
 
-    protected void reportTCAL(long utc, double cableLength,
-                              double domFrequencySkew)
+    protected void reportTCAL(final TimeCalib tcal,
+                              final long utc,
+                              final double cableLength,
+                              final double domFrequencySkew)
     {
         validRAPCalCount++;
         lastTcalUT = utc;
 
         this.cableLength = cableLength;
         this.domFrequencySkew = domFrequencySkew;
+
+        if(firstDORTime <0) {firstDORTime = tcal.getDorTxInDorUnits();}
+        if(firstDOMTime <0) {firstDOMTime = tcal.getDomTxInDomUnits();}
+
+        lastDORTime = tcal.getDorTxInDorUnits();
+        lastDOMTime = tcal.getDomTxInDomUnits();
     }
 
     protected void reportTCALError()
@@ -159,6 +172,26 @@ public class DataStats
     public double getDomFrequencySkew()
     {
         return domFrequencySkew;
+    }
+
+    public long getFirstDORTime()
+    {
+        return firstDORTime;
+    }
+
+    public long getFirstDOMTime()
+    {
+        return firstDOMTime;
+    }
+
+    public long getLastDORTime()
+    {
+        return lastDORTime;
+    }
+
+    public long getLastDOMTime()
+    {
+        return lastDOMTime;
     }
 
     public long getLastTcalUT()

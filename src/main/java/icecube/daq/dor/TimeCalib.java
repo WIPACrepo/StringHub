@@ -117,6 +117,24 @@ public class TimeCalib {
     }
 
     /**
+     * Get the DOM TX in DOR clock units.
+     * @return the DOR TX.
+     */
+    public long getDomTxInDomUnits()
+    {
+        return domTx;
+    }
+
+    /**
+     * Get the DOM TX in DOR clock units.
+     * @return the DOR RX.
+     */
+    public long getDomRxInDomUnits()
+    {
+        return domRx;
+    }
+
+    /**
      * Get the monotonic clock point-in-time correlated with the DOR TX time.
      * @return The local monotonic point-in-time of the DOR TX.
      */

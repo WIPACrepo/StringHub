@@ -180,6 +180,10 @@ public class LegacyDataCollector
     private int     errorRAPCalCount;
     private double  cableLength;
     private double  epsilon;
+    private long    firstDORTime          = -1;
+    private long    firstDOMTime          = -1;
+    private long    lastDORTime           = -1;
+    private long    lastDOMTime           = -1;
 
     private int     numHits               = 0;
     private int     numMoni               = 0;
@@ -886,6 +890,7 @@ public class LegacyDataCollector
         start();
     }
 
+    @Override
     public void close()
     {
         if (app != null) app.close();
@@ -1413,11 +1418,13 @@ public class LegacyDataCollector
         }
     }
 
+    @Override
     public void setLiveMoni(LiveTCalMoni moni)
     {
         rapcal.setMoni(moni);
     }
 
+    @Override
     public synchronized void signalShutdown()
     {
         stop_thread = true;
@@ -1436,6 +1443,7 @@ public class LegacyDataCollector
         }
     }
 
+    @Override
     public String toString()
     {
         return getName();
@@ -1449,20 +1457,24 @@ public class LegacyDataCollector
             GPSInfo gps = gps_serv.getGps(card);
 
             TimeCalib tcal = driver.readTCAL(tcalFile);
-            long tcalReceivedNanos = System.nanoTime();
 
             rapcal.update(tcal, gps.getOffset());
 			nextTcalRead = System.currentTimeMillis() + tcalReadInterval;
 
             // Calibrating the local clock offset using these values
             // is the best we can do without relying on local time
-            //  being synchronized.
-            domToSystemTimer.update((tcal.getDomTx().in_0_1ns() / 250),
-                    tcalReceivedNanos);
+            // being synchronized.
+            domToSystemTimer.update(tcal.getDomTxInDomUnits(),
+                    tcal.getDorTXPointInTimeNano());
 
             validRAPCalCount++;
             cableLength = rapcal.cableLength();
             epsilon = rapcal.epsilon();
+            if(firstDORTime <0) {firstDORTime = tcal.getDorTxInDorUnits();}
+            if(firstDOMTime <0) {firstDOMTime = tcal.getDomTxInDomUnits();}
+
+            lastDORTime = tcal.getDorTxInDorUnits();
+            lastDOMTime = tcal.getDomTxInDomUnits();
 
             if (getRunLevel().equals(RunLevel.RUNNING))
             {
@@ -2145,21 +2157,25 @@ public class LegacyDataCollector
         return tired;
     }
 
+    @Override
     public long getRunStartTime()
     {
         return runStartUT;
     }
 
+    @Override
     public long getNumHits()
     {
         return numHits;
     }
 
+    @Override
     public long getNumMoni()
     {
         return numMoni;
     }
 
+    @Override
     public long getNumTcal()
     {
         return validRAPCalCount;
@@ -2182,16 +2198,42 @@ public class LegacyDataCollector
     @Override
     public double getDOMFrequencySkew()
     {
-        // Note: can not qury rapcal directly since
+        // Note: can not query rapcal directly since
         //       this method is called from mbean thread.
         return epsilon;
     }
 
+    @Override
+    public long getFirstDORTime()
+    {
+        return firstDORTime;
+    }
+
+    @Override
+    public long getLastDORTime()
+    {
+        return lastDORTime;
+    }
+
+    @Override
+    public long getFirstDOMTime()
+    {
+        return firstDOMTime;
+    }
+
+    @Override
+    public long getLastDOMTime()
+    {
+        return lastDOMTime;
+    }
+
+    @Override
     public long getNumSupernova()
     {
         return numSupernova;
     }
 
+    @Override
     public long getAcquisitionLoopCount()
     {
         return loopCounter;
@@ -2403,39 +2445,40 @@ public class LegacyDataCollector
         return lastTcalUT;
     }
 
+    @Override
     public double getHitRate()
     {
         return rtHitRate.getRate();
     }
 
+    @Override
     public long getLBMOverflowCount()
     {
         return numLBMOverflows;
     }
 
-    public String getMBID()
-    {
-        return mbid;
-    }
-
+    @Override
     public String getRunState()
     {
         return getRunLevel().toString();
     }
 
+    @Override
     public double getHitRateLC()
     {
         return rtLCRate.getRate();
     }
 
+    @Override
     public long getAverageHitAcquisitionLatencyMillis()
     {
         return (long)cycleMonitor.avgHitAcquisitionLatencyMillis.getAverage();
     }
 
-    //NOTE: This is based on the local system clock.
+    @Override
     public String getAcquisitionStartTime()
     {
+        //NOTE: This is based on the local system clock.
         synchronized (dateFormat)
         {
             return dateFormat.format(new Date(cycleMonitor.runStartTime));

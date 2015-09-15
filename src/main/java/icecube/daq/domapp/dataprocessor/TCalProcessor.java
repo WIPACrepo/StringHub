@@ -141,7 +141,8 @@ class TCalProcessor implements DataProcessor.StreamProcessor
                 utc = -1;
             }
             //count valid tcals and update counters.
-            counters.reportTCAL(utc, rapcal.cableLength(), rapcal.epsilon());
+            counters.reportTCAL(tcal, utc, rapcal.cableLength(),
+                                rapcal.epsilon());
         }
         catch (RAPCalException rcex)
         {
