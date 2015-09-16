@@ -2,7 +2,7 @@ package icecube.daq.time.monitoring;
 
 import icecube.daq.juggler.alert.AlertException;
 import icecube.daq.juggler.alert.AlertQueue;
-import icecube.daq.juggler.alert.Alerter;
+import icecube.daq.stringhub.AlertFactory;
 import org.apache.log4j.Logger;
 
 import java.net.InetAddress;
@@ -35,31 +35,18 @@ public class ClockAlerter
     /** Monotonic timestamp of last NTP server alert. */
     private long lastNTPServerAlertNanos;
 
-    /** Email address that will be sent a copy of the alert. */
-    private final String email;
-
-    /** Indicates if the alert should request a page. */
-    private final boolean requestPage;
-
 
     /**
      * Construct the alerter for the Clock Monitor subsystem.
      *
      * @param alertQueue Target for the alerts.
-     * @param email The email address to receive alerts, use the empty
-     *              string to suppress emails.
-     * @param requestPage If true, alerts will request a page.
      * @param minimumAlertIntervalMinutes During this period, at most one
      *                                    alert of a type will be issued.
      */
     ClockAlerter(final AlertQueue alertQueue,
-                 final String email,
-                 final boolean requestPage,
                  final int minimumAlertIntervalMinutes)
     {
         this.alertQueue = alertQueue;
-        this.email = email;
-        this.requestPage = requestPage;
 
         this.minimumAlertIntervalNanos =
                 minimumAlertIntervalMinutes * 60 * 1000000000L;
@@ -227,36 +214,15 @@ public class ClockAlerter
                            final Map<String, Object> vars)
     {
         // set up the alert structure
-        final Map<String, Object> valueMap = new HashMap<String, Object>();
-        valueMap.put("condition", condition);
-        valueMap.put("desc", description);
-
-        // add email if defined
-        if(email != null && !email.equals(""))
-        {
-            Map<String, String> emailData = new HashMap<String, String>();
-            emailData.put("receiver" , email);
-            emailData.put("subject", emailSubject);
-            emailData.put("body", emailBody);
-            valueMap.put("dbnotify", emailData);
-        }
-
-        // add request page if configured
-        if(requestPage)
-        {
-            valueMap.put("pages", requestPage);
-        }
-
-        // add variables if defined
-        if(vars != null)
-        {
-            valueMap.put("vars", vars);
-        }
+        Map<String, Object> content =
+                AlertFactory.constructEmailAlert(condition, description,
+                                                 emailSubject, emailBody,
+                                                 null, vars);
 
         //  queue for sending
         try
         {
-            alertQueue.push("alert", Alerter.Priority.EMAIL, valueMap);
+            AlertFactory.sendEmailAlert(alertQueue, content);
         }
         catch (AlertException ae)
         {

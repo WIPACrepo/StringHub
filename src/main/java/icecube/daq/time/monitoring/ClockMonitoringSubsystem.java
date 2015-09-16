@@ -27,15 +27,6 @@ import org.apache.log4j.Logger;
  *
  *</pre><p>
  * If monitoring is enabled, clock alert notifications will be issued.
- *<pre>
- *
- *   icecube.daq.time.monitoring.alert-email = "foo@icecube.wisc.edu"
- *
- *       An email addresses that will receive notifications.
- *
- *   icecube.daq.time.monitoring.alert-should-page = false
- *
- *       When true, the alert will also request a page.
  *
  *</pre><p>
  * There are additional optional configurations for the enabled mode:
@@ -47,7 +38,7 @@ import org.apache.log4j.Logger;
  *
  *    icecube.daq.time.monitoring.max-tcal-duration-millis = [50]
  *
- *       Defines na upper bound on the execution time of a tcal, measurements
+ *       Defines an upper bound on the execution time of a tcal, measurements
  *       exceeding this time are considered outliers and dropped.
  *
  *    icecube.daq.time.monitoring.max-ntp-duration-millis = [25]
@@ -173,15 +164,6 @@ public interface ClockMonitoringSubsystem extends ClockProcessor
                     "icecube.daq.time.monitoring.alert-interval-minutes",
                     60);
 
-    /** An email address that will receive alerts. */
-    public static final String ALERT_EMAIL =
-            System.getProperty("icecube.daq.time.monitoring.alert-email", "");
-
-    /** When true, the alerts will request a page. */
-    public static final boolean ALERT_SHOULD_PAGE =
-            Boolean.getBoolean("icecube.daq.time.monitoring.alert-should-page");
-
-
     /**
      * Starts the subsystem. Must be called prior to submitting clock
      * measurements.
@@ -286,7 +268,6 @@ public interface ClockMonitoringSubsystem extends ClockProcessor
                 {
                     // initialize monitor objects
                     ClockAlerter clockAlerter = new ClockAlerter(alerter,
-                            ALERT_EMAIL, ALERT_SHOULD_PAGE,
                             ALERT_INTERVAL_MINUTES);
 
                     ClockMonitor delegate =
