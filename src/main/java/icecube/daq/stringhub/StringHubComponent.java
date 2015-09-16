@@ -29,6 +29,7 @@ import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
+import icecube.daq.livemoni.DOMClockRolloverAlerter;
 import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.payload.IByteBufferCache;
@@ -57,6 +58,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -833,6 +835,40 @@ public class StringHubComponent
 		}
 	}
 
+    /**
+     * Collect DOM clock values and examine for rollover conditions.
+     */
+    private void checkDOMClocks()
+    {
+        Map<DOMChannelInfo, Long> records = new HashMap<DOMChannelInfo, Long>();
+        for (AbstractDataCollector dc : conn.getCollectors())
+        {
+            if(dc instanceof DataCollector)
+            {
+                DataCollector narrow = (DataCollector)dc;
+                DOMChannelInfo details =
+                        new DOMChannelInfo(dc.getMainboardId(),
+                                           dc.getCard(),
+                                           dc.getPair(),
+                                           dc.getDom());
+                narrow.getFirstDOMTime();
+                records.put(details, narrow.getFirstDOMTime());
+            }
+        }
+
+        DOMClockRolloverAlerter checker = new DOMClockRolloverAlerter();
+
+        try
+        {
+            checker.monitorDOMClocks(getAlertQueue(), records);
+        }
+        catch (AlertException e)
+        {
+            logger.error("Unable to check DOM clocks for pending rollover", e);
+        }
+
+    }
+
 	/**
      * Set the run number inside this component.
      *
@@ -900,6 +936,9 @@ public class StringHubComponent
 
 		// resend the list of this hub's DOMs which are in the run config
 		sendConfiguredDOMs(runNumber);
+
+        // check DOM clocks for pending rollovers
+        checkDOMClocks();
 	}
 
 	public long startSubrun(List<FlasherboardConfiguration> flasherConfigs)
@@ -1057,7 +1096,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15760 2015-09-14 22:06:09Z bendfelt $";
+		return "$Id: StringHubComponent.java 15767 2015-09-16 20:43:07Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
