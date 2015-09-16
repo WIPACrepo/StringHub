@@ -58,7 +58,7 @@ public class ClockAlerterTest
     @Test
     public void testAlertsSinglePeriod() throws DataProcessorError
     {
-        ClockAlerter subject = new ClockAlerter(alertQueue, "", false, 1);
+        ClockAlerter subject = new ClockAlerter(alertQueue, 1);
 
         for (int x=0; x<100; x++)
         {
@@ -79,7 +79,7 @@ public class ClockAlerterTest
     @Test
     public void testAlertsMultiplePeriod() throws DataProcessorError
     {
-        ClockAlerter subject = new ClockAlerter(alertQueue, "", false, 1);
+        ClockAlerter subject = new ClockAlerter(alertQueue, 1);
 
         //period 1
         for (int x=0; x<100; x++)

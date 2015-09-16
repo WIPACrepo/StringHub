@@ -50,7 +50,7 @@ public class ClockMonitorTest
         alertQueue = new AlertQueue(mockAlerter);
         alertQueue.start();
 
-        clockAlerter = new ClockAlerter(alertQueue, "", false, 0);
+        clockAlerter = new ClockAlerter(alertQueue, 0);
     }
 
     @After
