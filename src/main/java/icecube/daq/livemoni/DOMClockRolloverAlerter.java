@@ -65,13 +65,13 @@ public class DOMClockRolloverAlerter
     /** Nanoseconds per day. */
     private final static long NANOS_PER_DAY = 24 * 60 * 60 * 1000000000L;
 
-    /** Warning threshold in nanoseconds. */
-    private static final long DOM_UPTIME_WARN_THRESHOLD_NANOS =
-            DOM_UPTIME_WARN_THRESHOLD_DAYS * NANOS_PER_DAY;
+    /** Warning threshold in 0.1 nanosecond units. */
+    private static final long DOM_UPTIME_WARN_THRESHOLD_UTC =
+            DOM_UPTIME_WARN_THRESHOLD_DAYS * NANOS_PER_DAY * 10;
 
-    /** Critical threshold in nanoseconds. */
-    private static final long DOM_UPTIME_CRITICAL_THRESHOLD_NANOS =
-            DOM_UPTIME_CRITICAL_THRESHOLD_DAYS * NANOS_PER_DAY;
+    /** Critical threshold in 0.1  nanosecond units. */
+    private static final long DOM_UPTIME_CRITICAL_THRESHOLD_UTC =
+            DOM_UPTIME_CRITICAL_THRESHOLD_DAYS * NANOS_PER_DAY * 10;
 
 
 
@@ -95,11 +95,11 @@ public class DOMClockRolloverAlerter
         for (Map.Entry<DOMChannelInfo, Long> dom : records.entrySet())
         {
             long clock = dom.getValue();
-            if(TimeUnits.DOM.asUTC(clock) > DOM_UPTIME_WARN_THRESHOLD_NANOS)
+            if(TimeUnits.DOM.asUTC(clock) > DOM_UPTIME_WARN_THRESHOLD_UTC)
             {
                 overThreshold.put(dom.getKey(), clock);
                 if(TimeUnits.DOM.asUTC(clock) >
-                        DOM_UPTIME_CRITICAL_THRESHOLD_NANOS)
+                        DOM_UPTIME_CRITICAL_THRESHOLD_UTC)
                 {
                     isCritical = true;
                 }
