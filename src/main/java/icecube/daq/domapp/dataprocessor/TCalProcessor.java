@@ -6,6 +6,7 @@ import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
+import icecube.daq.rapcal.WildTCalException;
 import org.apache.log4j.Logger;
 
 import java.nio.ByteBuffer;
@@ -143,6 +144,15 @@ class TCalProcessor implements DataProcessor.StreamProcessor
             //count valid tcals and update counters.
             counters.reportTCAL(tcal, utc, rapcal.cableLength(),
                                 rapcal.epsilon());
+        }
+        catch (WildTCalException wte)
+        {
+            //Note: Wild Tcals are common and therefor logged without
+            //      stack trace.
+            logger.warn(wte.getMessage());
+
+            // count tcal errors
+            counters.reportTCALError();
         }
         catch (RAPCalException rcex)
         {
