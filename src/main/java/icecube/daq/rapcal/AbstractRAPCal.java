@@ -390,7 +390,7 @@ public abstract class AbstractRAPCal implements RAPCal
             final String errmsg =
                     "Wild TCAL - cable len: " + isochron.getCableLength() +
                             " avg. cable len: " + clenAverage.getAverage();
-            throw new RAPCalException(errmsg);
+            throw new WildTCalException(errmsg);
         }
 
 
