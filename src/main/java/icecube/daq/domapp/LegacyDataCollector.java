@@ -192,6 +192,8 @@ public class LegacyDataCollector
     private volatile long       lastTcalUT;
     private volatile long       runStartUT = 0L;
     private int     numLBMOverflows       = 0;
+    private volatile int numQueuedHits    = 0;
+    private volatile int maxNumQueuedHits    = 0;
 
     private RealTimeRateMeter   rtHitRate, rtLCRate;
 
@@ -303,6 +305,11 @@ public class LegacyDataCollector
             }
             if (logger.isDebugEnabled()) logger.debug("Holding back B hit at " + bclk);
             return null;
+        }
+
+        private int size()
+        {
+            return alist.size() + blist.size();
         }
     }
 
@@ -1200,7 +1207,13 @@ public class LegacyDataCollector
         while (true)
         {
             ByteBuffer buffer = abBuffer.pop();
-            if (buffer == null) return;
+            if (buffer == null)
+            {
+                // keep track of the number of hits queued for dispatch
+                numQueuedHits = abBuffer.size();
+                maxNumQueuedHits = Math.max(numQueuedHits, maxNumQueuedHits);
+                return;
+            }
             long utc = hitStream.dispatchBuffer(rapcal, buffer);
 
             // Collect HLC / SLC hit statistics ...
@@ -1464,7 +1477,7 @@ public class LegacyDataCollector
             // Calibrating the local clock offset using these values
             // is the best we can do without relying on local time
             // being synchronized.
-            domToSystemTimer.update(tcal.getDomTxInDomUnits(),
+            domToSystemTimer.update(tcal.getDomRxInDomUnits(),
                     tcal.getDorTXPointInTimeNano());
 
             validRAPCalCount++;
@@ -2225,6 +2238,23 @@ public class LegacyDataCollector
     public long getLastDOMTime()
     {
         return lastDOMTime;
+    }
+
+    @Override
+    public int[] getHitProcessorQueueDepth()
+    {
+        // Note: This implementation processes synchronously
+        return new int[]{0,0};
+    }
+
+    @Override
+    public int[] getHitDispatcherQueueDepth()
+    {
+        return new int[]
+                {
+                        numQueuedHits,
+                        maxNumQueuedHits
+                };
     }
 
     @Override
