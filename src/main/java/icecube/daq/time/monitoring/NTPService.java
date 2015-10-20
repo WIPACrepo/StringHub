@@ -3,12 +3,12 @@ package icecube.daq.time.monitoring;
 import org.apache.commons.net.ntp.NTPUDPClient;
 import org.apache.commons.net.ntp.NtpV3Packet;
 import org.apache.commons.net.ntp.TimeInfo;
-import org.apache.commons.net.ntp.TimeStamp;
 import org.apache.log4j.Logger;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.TimeZone;
@@ -204,42 +204,63 @@ class NTPService
                 //
                 // Note: Leap seconds present an issue for recipients
                 //       of NTP measurements. If a leap second is pending,
+                //       and the current day is the last day of the month,
+                //       and we are one polling interval from midnight
                 //       attempt to get a fresh reading immediately after
                 //       the leap second is due to occur.
+                //
+                //       The idea here is that a fresh reading post leap
+                //       second, combined with the hysteresis of the clock
+                //       monitor, should prevent alerts from being issued
+                //       as the various clocks apply the leap second.
                 int leapIndicator = time.getMessage().getLeapIndicator();
+
+
                 if(leapIndicator == NtpV3Packet.LI_LAST_MINUTE_HAS_61_SECONDS ||
-                        leapIndicator == NtpV3Packet.LI_LAST_MINUTE_HAS_61_SECONDS )
+                        leapIndicator == NtpV3Packet.LI_LAST_MINUTE_HAS_59_SECONDS )
                 {
 
-                    long millisToLeap = millisUntilMidnight(time);
+                    Date ntpTimeAsDate =
+                            time.getMessage().getTransmitTimeStamp().getDate();
 
-                    // this is the last scheduled reading before the leap
-                    // second. Sleep until after the leap second and grab
-                    // a makeup reading
-                    if(millisToLeap < (pollingPeriodSeconds * 1000) )
+                    boolean isLastDayOfMonth =
+                            UtilityMethods.isLastDayOfMonth(ntpTimeAsDate);
+
+                    if(isLastDayOfMonth)
                     {
-                        long sleepMillis = millisToLeap + 250;
-                        logger.warn("Leap second pending, sleeping ["
-                                + sleepMillis + " ms] to aquire" +
-                                " a fresh NTP timestamp");
-                        Thread.sleep(sleepMillis);
+                        long millisToLeap =
+                                UtilityMethods.millisUntilMidnight(ntpTimeAsDate);
 
-                        long before2 = System.nanoTime();
-                        TimeInfo time2 = ntpClient.getTime(resolved);
-                        long after2 = System.nanoTime();
-
-                        processNTPQuery(time2, before2, after2);
-
-                        //did we sleep enough?
-                        int leapIndicator2 = time.getMessage().getLeapIndicator();
-                        if(leapIndicator2 == NtpV3Packet.LI_LAST_MINUTE_HAS_61_SECONDS ||
-                                leapIndicator2 == NtpV3Packet.LI_LAST_MINUTE_HAS_61_SECONDS )
+                        // if this is the last scheduled reading before the leap
+                        // second. Sleep until after the leap second and grab
+                        // a makeup reading.
+                        if(millisToLeap < (pollingPeriodSeconds * 1000) )
                         {
-                            logger.warn("Leap second still pending, sleep failed.");
-                        }
-                        else
-                        {
-                            logger.warn("Leap second was applied to NTP.");
+                            long sleepMillis = millisToLeap + 250;
+                            logger.warn("Leap second pending, sleeping ["
+                                    + sleepMillis + " ms] to aquire" +
+                                    " a fresh NTP timestamp");
+                            Thread.sleep(sleepMillis);
+
+                            long before2 = System.nanoTime();
+                            TimeInfo time2 = ntpClient.getTime(resolved);
+                            long after2 = System.nanoTime();
+
+                            processNTPQuery(time2, before2, after2);
+
+                            //did we sleep enough?
+                            int leapIndicator2 =
+                                    time.getMessage().getLeapIndicator();
+                            if(leapIndicator2 == NtpV3Packet.LI_LAST_MINUTE_HAS_61_SECONDS ||
+                                    leapIndicator2 == NtpV3Packet.LI_LAST_MINUTE_HAS_59_SECONDS )
+                            {
+                                logger.warn("Leap second still pending," +
+                                        " sleep failed.");
+                            }
+                            else
+                            {
+                                logger.warn("Leap second was applied to NTP.");
+                            }
                         }
                     }
 
@@ -297,36 +318,6 @@ class NTPService
                 alerter.alertNTPServer("Bad NTP Query", ntpHostname);
             }
         }
-
-        /**
-         * Calculate the number of milliseconds until midnight of the current
-         * day on the NTP system.
-         *
-         * @param timeInfo A time infor from the ntp server.
-         */
-        private long millisUntilMidnight(TimeInfo timeInfo)
-        {
-            TimeStamp transmitTimeStamp =
-                    timeInfo.getMessage().getTransmitTimeStamp();
-
-            Calendar ntpNow = new GregorianCalendar();
-            ntpNow.setTimeZone(TimeZone.getTimeZone("GMT"));
-            ntpNow.setTime(transmitTimeStamp.getDate());
-
-            Calendar ntpMidnight = new GregorianCalendar();
-            ntpMidnight.setTimeZone(TimeZone.getTimeZone("GMT"));
-            ntpMidnight.setTime(ntpNow.getTime());
-            ntpMidnight.add(Calendar.DATE, 1);
-            ntpMidnight.set(Calendar.HOUR_OF_DAY, 0);
-            ntpMidnight.set(Calendar.MINUTE, 0);
-            ntpMidnight.set(Calendar.SECOND, 0);
-
-            long millisUntilMidnight = ntpMidnight.getTimeInMillis()
-                    - ntpNow.getTimeInMillis();
-
-            return millisUntilMidnight;
-        }
-
     }
 
 
@@ -350,6 +341,64 @@ class NTPService
             return thread;
         }
 
+    }
+
+    /**
+     * Holds utility methods.  These methods are enclosed in a
+     * package visible static class to support testing.
+     */
+    static class UtilityMethods
+    {
+
+        /**
+         * Determines if the Date object holds a time that is the
+         * last day of the month.  This is meaningful for anticipating
+         * whan a leap second will be applied.
+         *
+         * @param time A time from the ntp server.
+         * @return True if the time is from the last day of the month.
+         */
+        static boolean isLastDayOfMonth(final Date time)
+        {
+
+            Calendar ntpNow = new GregorianCalendar();
+            ntpNow.setTimeZone(TimeZone.getTimeZone("GMT"));
+            ntpNow.setTime(time);
+
+            final int currentDayOfMonth = ntpNow.get(Calendar.DAY_OF_MONTH);
+
+            final int lastDayOfMonth =
+                    ntpNow.getActualMaximum(Calendar.DAY_OF_MONTH);
+
+            return currentDayOfMonth == lastDayOfMonth;
+        }
+
+
+        /**
+         * Calculate the number of milliseconds fron a specific time until
+         * midnight that day.
+         *
+         * @param time A time info from the ntp server.
+         */
+        static long millisUntilMidnight(final Date time)
+        {
+            Calendar ntpNow = new GregorianCalendar();
+            ntpNow.setTimeZone(TimeZone.getTimeZone("GMT"));
+            ntpNow.setTime(time);
+
+            Calendar ntpMidnight = new GregorianCalendar();
+            ntpMidnight.setTimeZone(TimeZone.getTimeZone("GMT"));
+            ntpMidnight.setTime(ntpNow.getTime());
+            ntpMidnight.add(Calendar.DATE, 1);
+            ntpMidnight.set(Calendar.HOUR_OF_DAY, 0);
+            ntpMidnight.set(Calendar.MINUTE, 0);
+            ntpMidnight.set(Calendar.SECOND, 0);
+
+            long millisUntilMidnight = ntpMidnight.getTimeInMillis()
+                    - ntpNow.getTimeInMillis();
+
+            return millisUntilMidnight;
+        }
     }
 
 
