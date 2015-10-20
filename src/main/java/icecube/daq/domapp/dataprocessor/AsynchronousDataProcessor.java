@@ -6,7 +6,9 @@ import icecube.daq.util.UTC;
 import org.apache.log4j.Logger;
 
 import java.nio.ByteBuffer;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -66,6 +68,12 @@ public class AsynchronousDataProcessor implements DataProcessor
 
     /** The processor thread */
     private final ExecutorService executor;
+
+    /** The executor's work queue, exposed for depth monitoring. */
+    private final Queue<Runnable> workQueue;
+
+    /** Object holding processor counters*/
+    private final DataStats dataStats;
 
     /** Flag to manage races caused by a forced shutdown.*/
     private AtomicBoolean inForcedShutdown = new AtomicBoolean(false);
@@ -154,6 +162,17 @@ public class AsynchronousDataProcessor implements DataProcessor
     {
         this.delegate = delegate;
         this.executor = executor;
+        this.dataStats = delegate.getDataCounters();
+
+        // nuisance hack, to support monitoring
+        if(executor instanceof ThreadPoolExecutor)
+        {
+            this.workQueue = ((ThreadPoolExecutor)executor).getQueue();
+        }
+        else
+        {
+            this.workQueue = new LinkedList<Runnable>();
+        }
     }
 
     @Override
@@ -398,7 +417,13 @@ public class AsynchronousDataProcessor implements DataProcessor
     {
         try
         {
-            return executor.submit(callable);
+            Future<T> future = executor.submit(callable);
+
+            //monitor the queue depth
+            int queuedJobs = workQueue.size();
+            dataStats.reportProcessorQueueDepth(queuedJobs);
+
+            return future;
         }
         catch (RejectedExecutionException ree)
         {
