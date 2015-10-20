@@ -674,6 +674,26 @@ public class NewDataCollector
     }
 
     @Override
+    public int[] getHitProcessorQueueDepth()
+    {
+        return new int[]
+                {
+                        dataStats.getProcessorQueueDepth(),
+                        dataStats.getMaxProcessorQueueDepth()
+                };
+    }
+
+    @Override
+    public int[] getHitDispatcherQueueDepth()
+    {
+        return new int[]
+                {
+                        dataStats.getDispatcherQueueDepth(),
+                        dataStats.getMaxDispatcherQueueDepth()
+                };
+    }
+
+    @Override
     public long getNumSupernova()
     {
         return dataStats.getNumSupernova();
@@ -926,12 +946,10 @@ public class NewDataCollector
     }
 
 
-    //todo - replace from processing or remove
     @Override
     public long getAverageHitAcquisitionLatencyMillis()
     {
-        //return (long)cycleMonitor.avgHitAcquisitionLatencyMillis.getAverage();
-        return -1;
+        return (long)dataStats.getAvgHitAcquisitionLatencyMillis();
     }
 
     @Override
