@@ -94,7 +94,7 @@ public class AsynchronousDataProcessor implements DataProcessor
      * The maximum number of processing jobs that can be queue, corresponds
      * to the number of data messages that that are acquired but unprocessed.
      */
-    public static final int PROCESSING_QUEUE_DEPTH = 1000;
+    public static final int PROCESSING_QUEUE_DEPTH = 5000;
 
 
 
