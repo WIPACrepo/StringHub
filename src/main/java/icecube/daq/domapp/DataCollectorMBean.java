@@ -106,4 +106,16 @@ public interface DataCollectorMBean
      * NOTE: This is based on the local system clock.
      */
     String getAcquisitionStartTime();
+
+    /**
+     * Get the number of hit messages queued for processing, returned
+     * array contains [current, max].
+     */
+    int[] getHitProcessorQueueDepth();
+
+    /**
+     * Get the number of hits queued for dispatching returned
+     * array contains [current, max].
+     */
+    int[] getHitDispatcherQueueDepth();
 }
