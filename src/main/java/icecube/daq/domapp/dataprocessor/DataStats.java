@@ -2,6 +2,7 @@ package icecube.daq.domapp.dataprocessor;
 
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.util.RealTimeRateMeter;
+import icecube.daq.util.SimpleMovingAverage;
 
 import java.nio.ByteBuffer;
 
@@ -36,8 +37,22 @@ public class DataStats
 
     private volatile long    firstDORTime          = -1;
     private volatile long    firstDOMTime          = -1;
-    private volatile long    lastDORTime          = -1;
-    private volatile long    lastDOMTime          = -1;
+    private volatile long    lastDORTime           = -1;
+    private volatile long    lastDOMTime           = -1;
+
+    private volatile int     processorQueueDepth   = 0;
+    private volatile int     maxProcessorQueueDepth   = 0;
+    private volatile int     dispatcherQueueDepth  = 0;
+    private volatile int     maxDispatcherQueueDepth  = 0;
+
+    // average latency measurement samples such that the
+    // reported average has meaning within the 90 second
+    // moni polling period.
+    private SimpleMovingAverage avgHitAcquisitionLatencyMillis =
+            new SimpleMovingAverage(9);
+    private long windowNanos = 10000000000L;
+    private long lastHitLatencySampleNanos;
+
 
     // Calculate 10-sec averages of the hit rate
     private RealTimeRateMeter rtHitRate = new RealTimeRateMeter(100000000000L);
@@ -45,6 +60,33 @@ public class DataStats
 
     //consider eliminating not used
     private long lastTcalUT;
+
+
+    /**
+     * Provides a loosely calibrated mapping from the DOM clock
+     * to the system monotonic clock.
+     *
+     * This mapping is for diagnostic use only as the quality of the
+     * calibration is not guaranteed.
+     *
+     */
+    private class DOMToSystemTimer
+    {
+        private long offsetNanos;
+
+        void update(long domclk, long systemNanos)
+        {
+            offsetNanos = systemNanos - (domclk * 25);
+        }
+
+        long translate(long domclk)
+        {
+            return (domclk*25) + offsetNanos;
+        }
+    }
+    private final DOMToSystemTimer domToSystemTimer = new
+            DOMToSystemTimer();
+
 
     protected  void reportProcessingStart(DataProcessor.StreamType streamType,
                                           ByteBuffer data)
@@ -78,6 +120,10 @@ public class DataStats
 
         lastDORTime = tcal.getDorTxInDorUnits();
         lastDOMTime = tcal.getDomTxInDomUnits();
+
+        // an approximate way to associate a DOM time to a system time
+        domToSystemTimer.update(tcal.getDomRxInDomUnits(),
+                tcal.getDorTXPointInTimeNano());
     }
 
     protected void reportTCALError()
@@ -112,6 +158,32 @@ public class DataStats
         lastHitTime = Math.max(lastHitTime, utc);
         if (firstHitTime < 0L) {firstHitTime = utc;}
 
+        // track the latency of the hit from DOM to here, sampling
+        // once per 10 seconds
+        long now = now();
+        if( (numHits==1) || (now - lastHitLatencySampleNanos > windowNanos) )
+        {
+            long latency = now - domToSystemTimer.translate(domclk);
+            avgHitAcquisitionLatencyMillis.add(latency/1000000);
+            lastHitLatencySampleNanos = now;
+        }
+    }
+
+    protected void reportProcessorQueueDepth(final int depth)
+    {
+        this.processorQueueDepth = depth;
+        maxProcessorQueueDepth = Math.max(maxProcessorQueueDepth, depth);
+    }
+
+    protected void reportDispatcherQueueDepth(final int depth)
+    {
+        this.dispatcherQueueDepth = depth;
+        maxDispatcherQueueDepth = Math.max(maxDispatcherQueueDepth, depth);
+    }
+
+    private long now()
+    {
+        return System.nanoTime();
     }
 
     public int getNumHits()
@@ -197,6 +269,31 @@ public class DataStats
     public long getLastTcalUT()
     {
         return lastTcalUT;
+    }
+
+    public int getProcessorQueueDepth()
+    {
+        return processorQueueDepth;
+    }
+
+    public int getMaxProcessorQueueDepth()
+    {
+        return maxProcessorQueueDepth;
+    }
+
+    public int getDispatcherQueueDepth()
+    {
+        return dispatcherQueueDepth;
+    }
+
+    public int getMaxDispatcherQueueDepth()
+    {
+        return maxDispatcherQueueDepth;
+    }
+
+    public double getAvgHitAcquisitionLatencyMillis()
+    {
+        return avgHitAcquisitionLatencyMillis.getAverage();
     }
 
 
