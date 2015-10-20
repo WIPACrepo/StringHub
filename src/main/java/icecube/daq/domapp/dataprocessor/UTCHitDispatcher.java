@@ -81,6 +81,10 @@ public class UTCHitDispatcher extends UTCMonotonicDispatcher
                 }
             });
 
+            // nuisance hack, peer into the monotonic dispatch queue to
+            // monitor the depth
+            counters.reportDispatcherQueueDepth(super.getDeferredRecordCount());
+
         }
     }
 

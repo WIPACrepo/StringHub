@@ -70,6 +70,9 @@ public class UTCMonotonicDispatcherTest
 
         assertEquals("dispatch expected",
                 8, consumer.getReceivedTimes().length);
+
+        assertEquals("no deferred records expected",
+                0, subject.getDeferredRecordCount());
     }
 
     @Test
@@ -133,6 +136,8 @@ public class UTCMonotonicDispatcherTest
         }
         assertEquals("no dispatch expected",
                 0, consumer.getReceivedTimes().length);
+        assertEquals("deferred records expected",
+                2, subject.getDeferredRecordCount());
         consumer.clear();
 
         rapcal.setUpperBound(MARK_1);
@@ -143,6 +148,8 @@ public class UTCMonotonicDispatcherTest
         assertArrayEquals("dispatch expected",
                 toUTC(beforeMark_1, GPS_OFFSET),
                 consumer.getReceivedTimes());
+        assertEquals("deferred records expected",
+                6, subject.getDeferredRecordCount());
         consumer.clear();
 
         rapcal.setUpperBound(MARK_2);
@@ -153,6 +160,8 @@ public class UTCMonotonicDispatcherTest
         assertArrayEquals("dispatch expected",
                 toUTC(beforeMark_2, GPS_OFFSET),
                 consumer.getReceivedTimes());
+        assertEquals("deferred records expected",
+                6, subject.getDeferredRecordCount());
         consumer.clear();
 
         rapcal.setUpperBound(MARK_3);
@@ -163,6 +172,8 @@ public class UTCMonotonicDispatcherTest
         assertArrayEquals("dispatch expected",
                 toUTC(beforeMark_3, GPS_OFFSET),
                 consumer.getReceivedTimes());
+        assertEquals("deferred records expected",
+                4, subject.getDeferredRecordCount());
         consumer.clear();
 
         // eos should dispatch remaining, plus EOS
@@ -170,6 +181,8 @@ public class UTCMonotonicDispatcherTest
         assertArrayEquals("dispatch expected",
                 append(toUTC(afterMark_3, GPS_OFFSET), Long.MAX_VALUE),
                 consumer.getReceivedTimes());
+        assertEquals("no deferred records expected",
+                0, subject.getDeferredRecordCount());
 
     }
 
@@ -200,10 +213,16 @@ public class UTCMonotonicDispatcherTest
         assertEquals("no dispatch expected",
                 0, consumer.getReceivedTimes().length);
 
+        assertEquals("deferred records expected",
+                8, subject.getDeferredRecordCount());
+
         subject.eos(generateBuffer(Long.MAX_VALUE));
 
         assertEquals("full dispatch expected",
                 9, consumer.getReceivedTimes().length);
+
+        assertEquals("no deferred records expected",
+                0, subject.getDeferredRecordCount());
 
         assertEquals("eos marker expected",
                 Long.MAX_VALUE, consumer.getReceivedTimes()[8]);

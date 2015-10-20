@@ -141,4 +141,13 @@ class UTCMonotonicDispatcher extends UTCDispatcher
         }
     }
 
+    /**
+     * Accessor for the depth of the deferred record count;
+     * @return The number of deferred records.
+     */
+    int getDeferredRecordCount()
+    {
+        return deferred.size();
+    }
+
 }
