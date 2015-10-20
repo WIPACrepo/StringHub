@@ -703,6 +703,11 @@ public class NewDataCollector
 
         private final Timer watcher;
 
+        private long DELAY =
+                Integer.getInteger("icecube.daq.domapp.datacollector.watchdog-delay-millis", 30000);
+        private long PERIOD =
+                Integer.getInteger("icecube.daq.domapp.datacollector.watchdog-period-millis", 10000);
+
         InterruptorTask()
         {
             watcher = new Timer(NewDataCollector.this.getName() + "-timer");
@@ -710,7 +715,7 @@ public class NewDataCollector
 
         public void enable()
         {
-            watcher.schedule(this, 30000L, 5000L);
+            watcher.schedule(this, DELAY, PERIOD);
         }
 
         public void run()
