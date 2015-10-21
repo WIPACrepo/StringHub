@@ -11,8 +11,11 @@ import java.nio.ByteBuffer;
  *
  * This class was implemented to be modified by the processor thread
  * and read by the acquisition thread. It is not explicitly synchronized.
+ * An exception is the reportClockRelationship() method which is called from
+ * acquisition because it is the only object with knowledge of the
+ * point-in-time of dom clock acquisition.
  *
- * Note that the values derived from processed data. Acquired data
+ * Note that the values are derived from processed data. Acquired data
  * that is queued in the processor is not represented.
  */
 public class DataStats
@@ -72,7 +75,7 @@ public class DataStats
      */
     private class DOMToSystemTimer
     {
-        private long offsetNanos;
+        private volatile long offsetNanos;
 
         void update(long domclk, long systemNanos)
         {
@@ -104,6 +107,17 @@ public class DataStats
         numLBMOverflows++;
     }
 
+    /**
+     * Report the relationship between the DOM clock and the system monotonic
+     * clock.
+     *
+     * Note: This is called from the acquisition thread.
+     */
+    public void reportClockRelationship(final long domClock, final long systemNanos)
+    {
+        domToSystemTimer.update(domClock, systemNanos);
+    }
+
     protected void reportTCAL(final TimeCalib tcal,
                               final long utc,
                               final double cableLength,
@@ -120,10 +134,6 @@ public class DataStats
 
         lastDORTime = tcal.getDorTxInDorUnits();
         lastDOMTime = tcal.getDomTxInDomUnits();
-
-        // an approximate way to associate a DOM time to a system time
-        domToSystemTimer.update(tcal.getDomRxInDomUnits(),
-                tcal.getDorTXPointInTimeNano());
     }
 
     protected void reportTCALError()

@@ -9,6 +9,7 @@ import icecube.daq.domapp.PulserMode;
 import icecube.daq.domapp.TriggerMode;
 import icecube.daq.domapp.dataprocessor.DataProcessor;
 import icecube.daq.domapp.dataprocessor.DataProcessorError;
+import icecube.daq.domapp.dataprocessor.DataStats;
 import icecube.daq.dor.Driver;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
@@ -71,6 +72,8 @@ public class DataAcquisition
     /** Target of acquired data. */
     private final DataProcessor dataProcessor;
 
+    /** Counters maintained by processor, not threadsafe, use sparingly. */
+    private final DataStats dataStats;
 
     /** Monitoring consumer of tcals. */
     private ClockProcessor tcalConsumer =
@@ -83,6 +86,7 @@ public class DataAcquisition
         this.pair = pair;
         this.dom = dom;
         this.dataProcessor = dataProcessor;
+        this.dataStats = dataProcessor.getDataCounters();
 
         this.id = card + "" + pair + "" + dom;
         this.driver = Driver.getInstance();
@@ -724,6 +728,11 @@ public class DataAcquisition
             tcalConsumer.process(new ClockProcessor.TCALMeasurement(dortxDor,
                     dortxNano, (after - before), card, id));
 
+            // Note: nuisance hack, dom/system times must be tracked from
+            //       acquisition thread because the nano point-in-time field
+            //       is not propagated to the processor.
+            dataStats.reportClockRelationship(tcal.getDomRxInDomUnits(),
+                    dortxNano);
         }
         catch (InterruptedException e)
         {
