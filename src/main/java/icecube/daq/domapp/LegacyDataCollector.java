@@ -2262,8 +2262,8 @@ public class LegacyDataCollector
     {
         return new long[]
                 {
-                        (long) watchdog.averagePause.getAverage(),
-                        watchdog.maxPause
+                        (long) (watchdog.averagePause.getAverage()/1000000),
+                        watchdog.maxPause/1000000
                 };
     }
 
