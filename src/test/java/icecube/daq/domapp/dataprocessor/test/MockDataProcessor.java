@@ -26,6 +26,8 @@ public class MockDataProcessor implements DataProcessor
 
     public RunLevel runLevel;
 
+    final DataStats stats = new DataStats();
+
     public enum Mode
     {
         NORMAL,
@@ -58,7 +60,7 @@ public class MockDataProcessor implements DataProcessor
     @Override
     public DataStats getDataCounters()
     {
-        return null;
+        return stats;
     }
 
     @Override
