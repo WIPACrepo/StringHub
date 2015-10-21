@@ -114,8 +114,14 @@ public interface DataCollectorMBean
     int[] getHitProcessorQueueDepth();
 
     /**
-     * Get the number of hits queued for dispatching returned
+     * Get the number of hits queued for dispatching, returned
      * array contains [current, max].
      */
     int[] getHitDispatcherQueueDepth();
+
+    /**
+     * Get the acquisition pause time, returned
+     * array contains [current average, max] in milliseconds.
+     */
+    long[] getAcquisitionPauseTimeMillis();
 }

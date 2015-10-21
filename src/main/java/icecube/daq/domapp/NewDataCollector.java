@@ -15,6 +15,7 @@ import icecube.daq.domapp.dataprocessor.GPSProvider;
 import icecube.daq.juggler.alert.Alerter.Priority;
 import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.time.gps.GPSService;
+import icecube.daq.util.SimpleMovingAverage;
 import icecube.daq.util.StringHubAlert;
 import org.apache.log4j.Logger;
 
@@ -694,6 +695,16 @@ public class NewDataCollector
     }
 
     @Override
+    public long[] getAcquisitionPauseTimeMillis()
+    {
+        return new long[]
+                {
+                        (long) watchdog.averagePause.getAverage(),
+                        watchdog.maxPause
+                };
+    }
+
+    @Override
     public long getNumSupernova()
     {
         return dataStats.getNumSupernova();
@@ -728,6 +739,16 @@ public class NewDataCollector
         private long PERIOD =
                 Integer.getInteger("icecube.daq.domapp.datacollector.watchdog-period-millis", 10000);
 
+        /** The longest observed pause. */
+        private long maxPause = -1;
+
+        /**
+         * The average pause, with window selection matching the monitor
+         * polling period.
+         */
+        final SimpleMovingAverage averagePause =
+                new SimpleMovingAverage((int)Math.min(90000/PERIOD, 100));
+
         InterruptorTask()
         {
             watcher = new Timer(NewDataCollector.this.getName() + "-timer");
@@ -742,10 +763,11 @@ public class NewDataCollector
         {
             synchronized (this)
             {
+                long silentPeriodNano = System.nanoTime() - lastPingNano;
+                maxPause = Math.max(maxPause, silentPeriodNano);
+                averagePause.add(silentPeriodNano);
                 if (!pinged)
                 {
-                    long silentPeriodNano = System.nanoTime() - lastPingNano;
-
                     aborting = true;
                     stop_thread = true;
 

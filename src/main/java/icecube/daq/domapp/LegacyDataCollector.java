@@ -2258,6 +2258,16 @@ public class LegacyDataCollector
     }
 
     @Override
+    public long[] getAcquisitionPauseTimeMillis()
+    {
+        return new long[]
+                {
+                        (long) watchdog.averagePause.getAverage(),
+                        watchdog.maxPause
+                };
+    }
+
+    @Override
     public long getNumSupernova()
     {
         return numSupernova;
@@ -2292,6 +2302,16 @@ public class LegacyDataCollector
         private long PERIOD =
                 Integer.getInteger("icecube.daq.domapp.datacollector.watchdog-period-millis", 10000);
 
+        /** The longest observed pause. */
+        private long maxPause = -1;
+
+        /**
+         * The average pause, with window selection matching the monitor
+         * polling period.
+         */
+        final SimpleMovingAverage averagePause =
+                new SimpleMovingAverage((int)Math.min(90000/PERIOD, 100));
+
         InterruptorTask()
         {
             watcher = new Timer(LegacyDataCollector.this.getName() + "-timer");
@@ -2306,10 +2326,11 @@ public class LegacyDataCollector
         {
             synchronized (this)
             {
+                long silentPeriodNano = System.nanoTime() - lastPingNano;
+                maxPause = Math.max(maxPause, silentPeriodNano);
+                averagePause.add(silentPeriodNano);
                 if (!pinged)
                 {
-                    long silentPeriodNano = System.nanoTime() - lastPingNano;
-
                     aborting = true;
                     stop_thread = true;
 
