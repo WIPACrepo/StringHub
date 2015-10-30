@@ -39,25 +39,13 @@ public class FilesHitSpool
 
     public static boolean INCLUDE_OLD_METADATA = true;
 
-    private BufferConsumer out;
-    private int maxNumberOfFiles;
-    private int currentFileIndex;
-    private File topDir;
-    private File targetDirectory;
-    private OutputStream dataOut;
-    private long t;
-    private long t0;
-    private long fileInterval;
-    private DOMRegistry registry;
-    private boolean packHeaders;
-    private boolean unifiedCache;
-    private byte[] iobuf;
-    private boolean isHosed;
-    private OldMetadata oldMetadata;
-    private Metadata metadata;
-    private long prevT;
-
     private static final Logger logger = Logger.getLogger(FilesHitSpool.class);
+
+    private BufferConsumer out;
+    private File topDir;
+
+    private FileBundle files;
+    private File targetDirectory;
 
     /**
      * Minimal constructor.
@@ -110,68 +98,32 @@ public class FilesHitSpool
         throws IOException
     {
         this.out = out;
-        this.fileInterval = fileInterval;
         this.topDir = topDir;
-        this.maxNumberOfFiles = maxNumberOfFiles;
 
-        packHeaders = Boolean.getBoolean(PACK_HEADERS_PROPERTY);
-        unifiedCache = Boolean.getBoolean(UNIFIED_CACHE_PROPERTY);
-
-        if (packHeaders && configDir != null) {
-            try {
-                registry = DOMRegistry.loadRegistry(configDir);
-            } catch (Exception x) {
-                logger.error("Failed to load registry from " + configDir +
-                             "; headers will not be packed", x);
-                registry = null;
-            }
-        }
-
-        logger.info("DOM registry " + (registry != null? "" : "NOT") +
-                    " found; header packing " + (packHeaders ? "" : "NOT") +
-                    " activated.");
-
-        iobuf = new byte[5000];
+        boolean packHeaders = Boolean.getBoolean(PACK_HEADERS_PROPERTY);
+        boolean unifiedCache = Boolean.getBoolean(UNIFIED_CACHE_PROPERTY);
 
         // make sure hitspool directory exists
         if (topDir == null) {
             throw new IOException("Top directory cannot be null");
         }
         createDirectory(topDir);
-    }
 
-    /**
-     * Close output file and quit
-     * NOTE: there could be multiple End-Of-Streams
-     *
-     * @throws IOException if the output stream could not be closed
-     */
-    private void closeAll()
-        throws IOException
-    {
-        if (dataOut != null) {
-            dataOut.flush();
-            dataOut.close();
-            dataOut = null;
-        }
-
-        // flush current Metadata
-        if (metadata != null) {
-            // update final file's stop time
-            metadata.updateStop(getFileName(currentFileIndex), prevT);
-            metadata.close();
-            metadata = null;
-        }
+        files = new FileBundle(configDir, fileInterval, maxNumberOfFiles,
+                               unifiedCache, packHeaders);
     }
 
     public void consume(ByteBuffer buf) throws IOException
     {
-        if (null != out) {
+        if (out != null) {
             // pass buffer to other consumers first
             out.consume(buf);
         }
 
-        if (isHosed) return;
+        if (files.isHosed()) {
+            return;
+        }
+
         if (buf.limit() < 38) {
             if (buf.limit() != 0) {
                 logger.error("Skipping short buffer (" + buf.limit() +
@@ -181,60 +133,14 @@ public class FilesHitSpool
         }
 
         // bytes 24 .. 31 hold the 64-bit UTC clock value
-        t = buf.getLong(24);
+        final long t = buf.getLong(24);
 
         // is this the END-OF-DATA marker?
         if (t == Long.MAX_VALUE) {
-            closeAll();
-            return;
-        }
-
-        // remember the first time
-        if (t0 == 0L) t0 = t;
-
-        // unified cache is not computed relative to run start
-        final int fileNo;
-        if (unifiedCache) {
-            fileNo = (int) ((t / fileInterval) % maxNumberOfFiles);
+            files.close();
         } else {
-            fileNo = (int) (((t - t0) / fileInterval) % maxNumberOfFiles);
+            files.write(targetDirectory, buf, t);
         }
-
-        // make sure we write to the appropriate file
-        if (fileNo != currentFileIndex || t == Long.MAX_VALUE) {
-            // update previous file's stop time
-            if (metadata != null) {
-                metadata.updateStop(getFileName(currentFileIndex), prevT);
-            }
-
-            // remember current file index
-            currentFileIndex = fileNo;
-            try {
-                openNewFile();
-            } catch (IOException iox) {
-                logger.error("openNewFile threw " + iox +
-                             ". HitSpooling will be terminated.");
-                dataOut = null;
-                isHosed = true;
-                return;
-            }
-        }
-
-        // now I should be free to pack the buffer, if that is the
-        // behavior desired.
-        int nw = transform(buf);
-
-        try {
-            dataOut.write(iobuf, 0, nw);
-        } catch (IOException iox) {
-            logger.error("hit spool writing failed b/c " + iox.getMessage() +
-                         ". Hit spooling will be terminated.");
-            dataOut = null;
-            isHosed = true;
-        }
-
-        // save hit so metadata can record last hit in file
-        prevT = t;
     }
 
     private static void createDirectory(File path)
@@ -267,60 +173,16 @@ public class FilesHitSpool
             out.endOfStream(mbid);
         }
 
-        closeAll();
+        files.close();
     }
 
     public static final String getFileName(int num)
     {
+        if (num < 0) {
+            throw new Error("File number cannot be less than zero");
+        }
+
         return String.format("HitSpool-%d.dat", num);
-    }
-
-    /**
-     * Create a new hitspool data file and update the associated metadata file
-     *
-     * @throws IOException if there is a problem
-     */
-    private synchronized void openNewFile()
-        throws IOException
-    {
-        // close current file
-        if (dataOut != null) {
-            try {
-                dataOut.flush();
-                dataOut.close();
-                dataOut = null;
-            } catch (IOException ioe) {
-                logger.error("Failed to close previous hitspool file", ioe);
-            }
-        }
-
-        // write old hitspool metadata
-        if (INCLUDE_OLD_METADATA) {
-            if (oldMetadata == null) {
-                oldMetadata = new OldMetadata(targetDirectory, fileInterval,
-                                              maxNumberOfFiles, unifiedCache);
-            }
-            oldMetadata.write(t0, t, currentFileIndex);
-        }
-
-        final String fileName = getFileName(currentFileIndex);
-
-        // write new hitspool metadata
-        if (unifiedCache) {
-            try {
-                if (metadata == null) {
-                    metadata = new Metadata(targetDirectory);
-                }
-                metadata.write(fileName, t, fileInterval);
-            } catch (SQLException se) {
-                logger.error("Cannot update metadata", se);
-            }
-        }
-
-        // open new file
-        File newFile = new File(targetDirectory, fileName);
-        dataOut =
-            new BufferedOutputStream(new FileOutputStream(newFile), 32768);
     }
 
     /**
@@ -329,32 +191,28 @@ public class FilesHitSpool
     private void reset()
         throws IOException
     {
-        closeAll();
-
-        if (unifiedCache) {
-            targetDirectory = new File(topDir, "hitspool");
+        if (files.isUnified()) {
+            File newDir = new File(topDir, "hitspool");
             try {
-                createDirectory(targetDirectory);
+                createDirectory(newDir);
+                targetDirectory = newDir;
             } catch (IOException ioe) {
-                logger.error("Cannot create " + targetDirectory, ioe);
+                logger.error("Cannot create " + newDir, ioe);
             }
         } else {
-            rotateDirectories();
+            synchronized (files) {
+                rotateDirectories();
+            }
         }
-
-        t0 = 0L;
-        currentFileIndex = -1;
     }
 
     /**
      * Swap current and last directories.
      * TODO remove from New_Glarus
      *
-     * synchronized to avoid clashes with openNewFile()
-     *
      * @throws IOException if a file/directory cannot be created
      */
-    private synchronized void rotateDirectories()
+    private void rotateDirectories()
         throws IOException
     {
         // create and delete a temporary file in the hitspool directory
@@ -417,6 +275,8 @@ public class FilesHitSpool
     public void startRun(int runNumber)
         throws IOException
     {
+        files.close();
+
         reset();
     }
 
@@ -432,8 +292,173 @@ public class FilesHitSpool
     {
         reset();
     }
+}
 
-    private int transform(ByteBuffer buf)
+/**
+ * Hitspool and metadata files
+ */
+class FileBundle
+{
+    private static final Logger logger =
+        Logger.getLogger(FileBundle.class);
+
+    private DOMRegistry registry;
+
+    private long fileInterval;
+    private int maxNumberOfFiles;
+    private boolean unifiedCache;
+    private boolean packHeaders;
+
+    private OutputStream dataOut;
+    private OldMetadata oldMetadata;
+    private Metadata metadata;
+
+    private int currentFileIndex;
+    private long t0;
+
+    private long prevT;
+    private boolean isHosed;
+
+    // scratch buffer used to transform input hit
+    private byte[] iobuf = new byte[5000];
+
+    FileBundle(File configDir, long fileInterval, int maxNumberOfFiles,
+               boolean unifiedCache, boolean packHeaders)
+    {
+        this.fileInterval = fileInterval;
+        this.maxNumberOfFiles = maxNumberOfFiles;
+        this.unifiedCache = unifiedCache;
+        this.packHeaders = packHeaders;
+
+        loadRegistry(configDir);
+    }
+
+    /**
+     * Close output file and quit
+     * NOTE: there could be multiple End-Of-Streams
+     *
+     * @throws IOException if the output stream could not be closed
+     */
+    synchronized void close()
+        throws IOException
+    {
+        IOException savedEx = null;
+
+        final int prevIndex = currentFileIndex;
+
+        if (dataOut != null) {
+            try {
+                dataOut.flush();
+            } catch (IOException ioe) {
+                if (savedEx == null) {
+                    savedEx = ioe;
+                }
+            }
+
+            try {
+                dataOut.close();
+            } catch (IOException ioe) {
+                if (savedEx == null) {
+                    savedEx = ioe;
+                }
+            }
+
+            dataOut = null;
+
+            t0 = 0L;
+            currentFileIndex = -1;
+        }
+
+        // flush current Metadata
+        if (metadata != null) {
+            // update final file's stop time
+            metadata.updateStop(FilesHitSpool.getFileName(prevIndex), prevT);
+            metadata.close();
+            metadata = null;
+        }
+
+        if (savedEx != null) {
+            throw savedEx;
+        }
+    }
+
+    boolean isHosed()
+    {
+        return isHosed;
+    }
+
+    boolean isUnified()
+    {
+        return unifiedCache;
+    }
+
+    private void loadRegistry(File configDir)
+    {
+        if (packHeaders && configDir != null) {
+            try {
+                registry = DOMRegistry.loadRegistry(configDir);
+            } catch (Exception x) {
+                logger.error("Failed to load registry from " + configDir +
+                             "; headers will not be packed", x);
+                registry = null;
+            }
+        }
+
+        logger.info("DOM registry " + (registry != null ? "" : "NOT") +
+                    " found; header packing " + (packHeaders ? "" : "NOT") +
+                    " activated.");
+    }
+
+    /**
+     * Create a new hitspool data file and update the associated metadata file
+     *
+     * @throws IOException if there is a problem
+     */
+    private void openNewFile(File targetDirectory, long t, int fileNo)
+        throws IOException
+    {
+        // close current file
+        if (dataOut != null) {
+            try {
+                dataOut.flush();
+                dataOut.close();
+                dataOut = null;
+            } catch (IOException ioe) {
+                logger.error("Failed to close previous hitspool file", ioe);
+            }
+        }
+
+        final String fileName = FilesHitSpool.getFileName(fileNo);
+
+        // write old hitspool metadata
+        if (!unifiedCache || FilesHitSpool.INCLUDE_OLD_METADATA) {
+            if (oldMetadata == null) {
+                oldMetadata = new OldMetadata(targetDirectory, fileInterval,
+                                              maxNumberOfFiles, unifiedCache);
+            }
+            oldMetadata.write(t0, t, fileNo);
+        }
+
+        // write new hitspool metadata
+        if (unifiedCache) {
+            try {
+                if (metadata == null) {
+                    metadata = new Metadata(targetDirectory);
+                }
+                metadata.write(fileName, t, fileInterval);
+            } catch (SQLException se) {
+                logger.error("Cannot update metadata", se);
+            }
+        }
+
+        // open new file
+        File newFile = new File(targetDirectory, fileName);
+        dataOut =
+            new BufferedOutputStream(new FileOutputStream(newFile), 32768);
+        isHosed = false;
+    }
+
+    private int transform(ByteBuffer buf, byte[] iobuf)
     {
         int cpos = 0;
         // Here's your chance to compactify the buffer
@@ -455,6 +480,69 @@ public class FilesHitSpool
         buf.get(iobuf, cpos, br);
         buf.rewind();
         return br + cpos;
+    }
+
+    /**
+     * Write the buffer to the proper hitspool file
+     *
+     * @param buf hit data
+     * @param t hit time
+     */
+    synchronized void write(File targetDirectory, ByteBuffer buf, long t)
+    {
+        // get the current file number for this hit
+        final int fileNo;
+        if (unifiedCache) {
+            fileNo = (int) ((t / fileInterval) % maxNumberOfFiles);
+        } else {
+            // set the base time
+            if (t0 == 0L) {
+                t0 = t;
+            }
+
+            fileNo = (int) (((t - t0) / fileInterval) % maxNumberOfFiles);
+        }
+
+        // if metadata needs to be updated...
+        if (fileNo != currentFileIndex || t == Long.MAX_VALUE ||
+            dataOut == null)
+        {
+            // ...update previous file's stop time
+            if (metadata != null) {
+                metadata.updateStop(FilesHitSpool.getFileName(currentFileIndex),
+                                    prevT);
+            }
+
+            try {
+                openNewFile(targetDirectory, t, fileNo);
+            } catch (IOException iox) {
+                logger.error("Failed to open hitspool file." +
+                             " HitSpooling will be terminated.", iox);
+                dataOut = null;
+                isHosed = true;
+                return;
+            }
+
+            // remember current file index
+            currentFileIndex = fileNo;
+        }
+
+        // now I should be free to pack the buffer, if that is the
+        // behavior desired.
+        final int nw = transform(buf, iobuf);
+
+        // finally ready to write the hit data to the hitspool file
+        try {
+            dataOut.write(iobuf, 0, nw);
+        } catch (IOException iox) {
+            logger.error("Write failed.  Hit spooling will be terminated.",
+                         iox);
+            dataOut = null;
+            isHosed = true;
+        }
+
+        // save hit time so metadata can record last hit in file
+        prevT = t;
     }
 }
 
