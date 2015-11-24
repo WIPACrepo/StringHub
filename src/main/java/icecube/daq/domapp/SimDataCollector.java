@@ -68,7 +68,6 @@ public class SimDataCollector extends AbstractDataCollector
 
     private Thread thread;
 	private double[] avgSnSignal;
-	private double[] effVolumeScaling;
 
     private boolean isAmanda;
     private long lbmOverflowCount=0L;
@@ -76,14 +75,7 @@ public class SimDataCollector extends AbstractDataCollector
 
     private static final Logger logger = Logger.getLogger(SimDataCollector.class);
 
-    public SimDataCollector(int card, int pair, char dom, double[] avgSnSignal,
-			double[] effVolumeScaling) {
-		super(card, pair, dom);
-		this.avgSnSignal = avgSnSignal;
-		this.effVolumeScaling = effVolumeScaling;
-	}
-
-	public SimDataCollector(DOMChannelInfo chanInfo, BufferConsumer hitsConsumer)
+    public SimDataCollector(DOMChannelInfo chanInfo, BufferConsumer hitsConsumer)
     {
         this(chanInfo, null, hitsConsumer, null, null, null, false);
     }
@@ -550,10 +542,15 @@ public class SimDataCollector extends AbstractDataCollector
     /**
      * Contains effective volume scaling factor per DOM for single photon detection
      * at 60 DOM locations starting at +500m going down by 17m, down to -503m.
-	 * @param domZNum (0 to 59)
-     * @return effective volume scaling factor for each DOM depth
+	 * @param domZNum DOM position - 1 (0-65)
+     * @return effective volume scaling factor for each in-ice DOM depth,
+     *         non-in-ice DOM positions return 0.0
      */
     public double effVolumeScaling(int domZNum) {
+        if (domZNum < 0 || domZNum > 59) {
+            return 0.0;
+        }
+
 	final double[] effVolumeScale = {
 	    0.861, 0.901, 0.952, 0.988, 0.973, 0.918, 0.851, 0.802,
 	    0.825, 0.867, 0.903, 0.950, 0.992, 1.018, 1.005, 0.953,
@@ -562,7 +559,7 @@ public class SimDataCollector extends AbstractDataCollector
 	    0.791, 0.679, 0.588, 0.544, 0.617, 0.831, 0.970, 1.054,
 	    1.077, 1.088, 1.083, 1.094, 1.123, 1.166, 1.206, 1.232,
 	    1.238, 1.225, 1.202, 1.188, 1.197, 1.241, 1.279, 1.302,
-	    1.304, 1.294, 1.274, 1.250, 0.000, 0.000, 0.000, 0.000
+	    1.304, 1.294, 1.274, 1.250,
 	};
 	return effVolumeScale[domZNum-1];
     }
@@ -727,15 +724,6 @@ public class SimDataCollector extends AbstractDataCollector
 //	if (logger.isDebugEnabled()) logger.debug("SN signal[" + nsnSigBin + "]: " + s);
 	return s;
     }
-
-	public double[] getEffVolumeScaling() {
-		return effVolumeScaling;
-	}
-
-	public void setEffVolumeScaling(double[] effVolumeScaling) {
-		this.effVolumeScaling = effVolumeScaling;
-
-	}
 
 	public double[] getAvgSnSignal() {
 		return avgSnSignal;

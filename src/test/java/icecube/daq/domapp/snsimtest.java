@@ -41,7 +41,6 @@ public class snsimtest implements BufferConsumer {
 	ArrayList<Long> previousUtc = new ArrayList<Long>();
 	ArrayList<Short> previousRecl = new ArrayList<Short>();
 
-	double[] effVolumeScaling = new double[60];
 	double[] avgSnSignal = new double[916];
 
 	int runLength = 900; // in seconds
