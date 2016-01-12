@@ -136,7 +136,7 @@ public abstract class AbstractRAPCal implements RAPCal
     public AbstractRAPCal()
     {
         this(Double.parseDouble(System.getProperty(PROP_EXP_WEIGHT, "0.1")),
-                Integer.getInteger(PROP_HISTORY, 10));
+                Integer.getInteger(PROP_HISTORY, 20));
     }
 
     /**
