@@ -1,6 +1,7 @@
 /* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
 package icecube.daq.stringhub;
 
+import icecube.daq.bindery.BufferConsumerAsync;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.PrioritySort;
 import icecube.daq.bindery.SecondaryStreamConsumer;
@@ -569,7 +570,11 @@ public class StringHubComponent
 											   new File(cfgData.hitSpoolDir),
 											   cfgData.hitSpoolIval,
 											   cfgData.hitSpoolNumFiles);
-				consumer = hitSpooler;
+
+                // use a dedicated thread for consumption from the sorter
+                // to separate the hitspool IO load from sorting load.
+                consumer = new BufferConsumerAsync(hitSpooler, 500000,
+                        "hit-consumer");
 			} catch (IOException ioe) {
 				logger.error("Cannot create hit spooler", ioe);
 				hitSpooler = null;
@@ -1096,7 +1101,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15767 2015-09-16 20:43:07Z bendfelt $";
+		return "$Id: StringHubComponent.java 15973 2016-01-28 21:52:56Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
