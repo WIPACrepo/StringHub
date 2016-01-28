@@ -50,8 +50,7 @@ import org.apache.log4j.Logger;
  *
  */
 public class MultiChannelMergeSort
-    extends Thread
-    implements BufferConsumer, ChannelSorter
+    implements BufferConsumer, ChannelSorter, Runnable
 {
     private LinkedBlockingQueue<ByteBuffer> q;
     private BufferConsumer out;
@@ -66,6 +65,8 @@ public class MultiChannelMergeSort
     private int inputCounter;
     private int outputCounter;
 
+    private Thread thread;
+
     public MultiChannelMergeSort(int nch, BufferConsumer out)
     {
         this(nch, out, "g");
@@ -74,7 +75,6 @@ public class MultiChannelMergeSort
     public MultiChannelMergeSort(int nch, BufferConsumer out,
                                  String channelType, int maxQueue)
     {
-        super("MultiChannelMergeSort-" + channelType);
         this.out = out;
         terminalNode = null;
         running = false;
@@ -83,12 +83,26 @@ public class MultiChannelMergeSort
         q = new LinkedBlockingQueue<ByteBuffer>(maxQueue);
         inputCounter = 0;
         outputCounter = 0;
+
+        this.thread = new Thread(this, "MultiChannelMergeSort-" + channelType);
     }
 
     public MultiChannelMergeSort(int nch, BufferConsumer out,
                                  String channelType)
     {
         this(nch, out, channelType, 100000);
+    }
+
+    @Override
+    public void join() throws InterruptedException
+    {
+        thread.join();
+    }
+
+    @Override
+    public void start()
+    {
+        thread.start();
     }
 
     /**
@@ -104,9 +118,9 @@ public class MultiChannelMergeSort
         {
             q.put(buf);
         }
-        catch (Exception ex)
+        catch (Throwable th)
         {
-            logger.error("Skipped buffer", ex);
+           throw new IOException("Error queueing buffer", th);
         }
     }
 
@@ -166,7 +180,6 @@ public class MultiChannelMergeSort
                     inputMap.get(daqBuffer.mbid).push(daqBuffer);
                     while (!terminalNode.isEmpty())
                     {
-                        outputCounter++;
                         DAQBuffer sorted = terminalNode.pop();
                         if (lastUT > sorted.timestamp) {
                             final String errmsg =
@@ -181,14 +194,19 @@ public class MultiChannelMergeSort
                         {
                             running = false;
                             logger.info("Found STOP symbol in stream - shutting down.");
+                            out.endOfStream(sorted.mbid);
                         }
-                        out.consume(sorted.buf);
+                        else
+                        {
+                            out.consume(sorted.buf);
+                            outputCounter++;
+                        }
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Throwable th)
             {
-                logger.error("Aborting sort thread", ex);
+                logger.error("Aborting sort thread", th);
                 running = false;
             }
         }
