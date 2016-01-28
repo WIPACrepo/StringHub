@@ -1,17 +1,11 @@
 package icecube.daq.bindery;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Random;
 
-import org.apache.log4j.BasicConfigurator;
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
 
 /**
  * Generates a sequence of ordered byte buffers
@@ -72,15 +66,7 @@ class BufferGenerator extends Thread
                 Collections.sort(times);
                 for (int loop = 0; loop < ngen; loop++)
                 {
-                    ByteBuffer buf = ByteBuffer.allocate(40);
-                    buf.putInt(40);
-                    buf.putInt(0x1734);
-                    buf.putLong(mbid);
-                    buf.putLong(0L);
-                    buf.putLong(times.get(loop));
-                    buf.putInt(1);
-                    buf.putInt(2);
-                    consumer.consume((ByteBuffer) buf.flip());
+                    consumer.consume(generateBuffer(mbid, times.get(loop)));
                 }
                 Thread.sleep(50);
             }
@@ -105,5 +91,19 @@ class BufferGenerator extends Thread
         buf.putLong(0L);
         buf.putLong(Long.MAX_VALUE);
         return (ByteBuffer) buf.flip();
+    }
+
+    public static ByteBuffer generateBuffer(long mbid, long time)
+    {
+        ByteBuffer buf = ByteBuffer.allocate(40);
+        buf.putInt(40);
+        buf.putInt(0x1734);
+        buf.putLong(mbid);
+        buf.putLong(0L);
+        buf.putLong(time);
+        buf.putInt(1);
+        buf.putInt(2);
+        buf.flip();
+        return buf;
     }
 }
