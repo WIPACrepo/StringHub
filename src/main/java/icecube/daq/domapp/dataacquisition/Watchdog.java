@@ -13,10 +13,24 @@ package icecube.daq.domapp.dataacquisition;
 public interface Watchdog
 {
 
+    enum Mode
+    {
+        INTERRUPT_ONLY,
+        ABORT
+    }
+
     /**
      * Notify watchdog of liveliness.
      */
     public void ping();
+
+    /**
+     * Set the action mode of the watchdog.
+     * @param mode The mode of action to take when the watchdog trips.
+     * @return The previous mode.
+     */
+     public Mode setTimeoutAction(Mode mode);
+
 
     /**
      * Sleep under watchdog knowledge.

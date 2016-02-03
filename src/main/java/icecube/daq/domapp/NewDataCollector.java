@@ -721,21 +721,38 @@ public class NewDataCollector
      *
      * The Data Collector thread enables the watchdog at activation and
      * notifies at exit.  In addition, methods running on the collector
-     * thread which are interruptable route InterruptedException handling
+     * thread which are interruptible route InterruptedException handling
      * here.
+     *
+     * The watchdog supports two modes that define the action taken when
+     * the data collector thread breaches the activity threshold..
+     *
+     * INTERRUPT_ONLY: The DOM driver file will be closed and the collector
+     *                 thread will be interrupted.
+     *
+     * ABORT: The DOM driver file will be closed, the collector thread
+     *        will be interrupted and the data collection thread will be
+     *        aborted. The result is a dropped DOM.
+     *
+     * The INTERRUPT_ONLY mode is utilized at startup to work through a
+     * non-responsive DOMAPP instance. Once initialized, the consequence of
+     * a poorly performing collector is to drop the DOM.
      */
     class InterruptorTask extends TimerTask implements Watchdog
     {
-        private volatile boolean pinged = false;
+        private volatile boolean interrupting = false;
         private volatile boolean aborting = false;
         private volatile boolean abnormalExit = false;
 
         private volatile long lastPingNano = System.nanoTime();
+        private volatile long abortThreshholdNanos;
+
+        private volatile Mode mode = Mode.ABORT;
 
         private final Timer watcher;
 
         private long DELAY =
-                Integer.getInteger("icecube.daq.domapp.datacollector.watchdog-delay-millis", 30000);
+                Integer.getInteger("icecube.daq.domapp.datacollector.watchdog-delay-millis", 0);
         private long PERIOD =
                 Integer.getInteger("icecube.daq.domapp.datacollector.watchdog-period-millis", 10000);
 
@@ -756,7 +773,31 @@ public class NewDataCollector
 
         public void enable()
         {
+            this.setTimeoutThreshold(PERIOD);
             watcher.schedule(this, DELAY, PERIOD);
+        }
+
+        public void setTimeoutThreshold(long millis)
+        {
+            if(millis > PERIOD)
+            {
+                throw new Error("Watchdog with period " + PERIOD +
+                        " does not support threshold " + millis);
+            }
+            synchronized (this)
+            {
+                this.abortThreshholdNanos = millis * 1000000;
+            }
+        }
+
+        public Mode setTimeoutAction(Mode mode)
+        {
+            synchronized (this)
+            {
+                Mode previous = this.mode;
+                this.mode = mode;
+                return previous;
+            }
         }
 
         public void run()
@@ -766,18 +807,32 @@ public class NewDataCollector
                 long silentPeriodNano = System.nanoTime() - lastPingNano;
                 maxPause = Math.max(maxPause, silentPeriodNano);
                 averagePause.add(silentPeriodNano);
-                if (!pinged)
+                if (silentPeriodNano > abortThreshholdNanos)
                 {
-                    aborting = true;
-                    stop_thread = true;
+                    switch (mode)
+                    {
+                        case INTERRUPT_ONLY:
+                            interrupting = true;
+                            logger.error("data collection thread has become " +
+                                    "non-responsive for ["+(silentPeriodNano/1000000)+" " +
+                                    "ms] - interrupting.");
+                            dataAcquisition.doClose();
+                            NewDataCollector.this.interrupt();
+                            break;
+                        case ABORT:
+                            aborting = true;
+                            stop_thread = true;
 
-                    logger.error("data collection thread has become " +
-                            "non-responsive for ["+(silentPeriodNano/1000000)+" " +
-                            "ms] - aborting.");
-                    dataAcquisition.doClose();
-                    NewDataCollector.this.interrupt();
+                            logger.error("data collection thread has become " +
+                                    "non-responsive for ["+(silentPeriodNano/1000000)+" " +
+                                    "ms] - aborting.");
+                            dataAcquisition.doClose();
+                            NewDataCollector.this.interrupt();
+                            break;
+                        default:
+                            logger.error("Unknown mode " + mode);
+                    }
                 }
-                pinged = false;
             }
         }
 
@@ -791,8 +846,8 @@ public class NewDataCollector
                     long silentPeriodNano = now - lastPingNano;
                     logger.debug("pinged at " + fmt.format(silentPeriodNano * 1.0E-09));
                 }
-                pinged = true;
                 lastPingNano = now;
+                interrupting = false;
             }
         }
 
@@ -807,19 +862,21 @@ public class NewDataCollector
          */
         public void sleep(final long millis)
         {
+            long start = System.nanoTime();
             try
             {
                 Thread.sleep(millis);
             }
             catch (InterruptedException ie)
             {
-                if(aborting)
+                if(interrupting || aborting)
                 {
                     // expected
                 }
                 else
                 {
-                    logger.error("Unexpected Interrupt", ie);
+                    long slept = (System.nanoTime() - start) / 1000000;
+                    logger.error("Unexpected Interrupt: slept " + slept, ie);
                 }
             }
         }
@@ -830,7 +887,7 @@ public class NewDataCollector
          */
         public void handleInterrupted(final InterruptedException ie)
         {
-            if(aborting)
+            if(interrupting || aborting)
             {
                 //expected
             }

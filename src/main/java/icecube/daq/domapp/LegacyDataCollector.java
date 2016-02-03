@@ -5,6 +5,7 @@ package icecube.daq.domapp;
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.domapp.LocalCoincidenceConfiguration.RxMode;
+import icecube.daq.domapp.dataacquisition.Watchdog;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
 import icecube.daq.dor.GPSInfo;
@@ -1652,6 +1653,8 @@ public class LegacyDataCollector
 	private void launch_runcore() throws Exception
 	{
 
+        watchdog.setTimeoutAction(Watchdog.Mode.INTERRUPT_ONLY);
+
         driver.resetComstat(card, pair, dom);
 
         /*
@@ -1721,6 +1724,7 @@ public class LegacyDataCollector
         }
         setMainboardID(reportedMbid);
 
+        watchdog.setTimeoutAction(Watchdog.Mode.ABORT);
         setRunLevel(RunLevel.IDLE);
 
         watchdog.ping();
@@ -2289,16 +2293,20 @@ public class LegacyDataCollector
      */
     class InterruptorTask extends TimerTask
     {
-        private volatile boolean pinged = false;
+
+        private volatile boolean interrupting = false;
         private volatile boolean aborting = false;
         private volatile boolean abnormalExit = false;
 
         private volatile long lastPingNano = System.nanoTime();
+        private volatile long abortThreshholdNanos;
+
+        private volatile Watchdog.Mode mode = Watchdog.Mode.ABORT;
 
         private final Timer watcher;
 
         private long DELAY =
-                Integer.getInteger("icecube.daq.domapp.datacollector.watchdog-delay-millis", 30000);
+                Integer.getInteger("icecube.daq.domapp.datacollector.watchdog-delay-millis", 0);
         private long PERIOD =
                 Integer.getInteger("icecube.daq.domapp.datacollector.watchdog-period-millis", 10000);
 
@@ -2319,7 +2327,31 @@ public class LegacyDataCollector
 
         public void enable()
         {
+            this.setTimeoutThreshold(PERIOD);
             watcher.schedule(this, DELAY, PERIOD);
+        }
+
+        public void setTimeoutThreshold(long millis)
+        {
+            if(millis > PERIOD)
+            {
+                throw new Error("Watchdog with period " + PERIOD +
+                        " does not support threshold " + millis);
+            }
+            synchronized (this)
+            {
+                this.abortThreshholdNanos = millis * 1000000;
+            }
+        }
+
+        public Watchdog.Mode setTimeoutAction(Watchdog.Mode mode)
+        {
+            synchronized (this)
+            {
+                Watchdog.Mode previous = this.mode;
+                this.mode = mode;
+                return previous;
+            }
         }
 
         public void run()
@@ -2329,18 +2361,32 @@ public class LegacyDataCollector
                 long silentPeriodNano = System.nanoTime() - lastPingNano;
                 maxPause = Math.max(maxPause, silentPeriodNano);
                 averagePause.add(silentPeriodNano);
-                if (!pinged)
+                if (silentPeriodNano > abortThreshholdNanos)
                 {
-                    aborting = true;
-                    stop_thread = true;
+                    switch (mode)
+                    {
+                        case INTERRUPT_ONLY:
+                            interrupting = true;
+                            logger.error("data collection thread has become " +
+                                    "non-responsive for ["+(silentPeriodNano/1000000)+" " +
+                                    "ms] - interrupting.");
+                            if (app != null) app.close();
+                            LegacyDataCollector.this.interrupt();
+                            break;
+                        case ABORT:
+                            aborting = true;
+                            stop_thread = true;
 
-                    logger.error("data collection thread has become " +
-                            "non-responsive for ["+(silentPeriodNano/1000000)+" " +
-                            "ms] - aborting.");
-                    if (app != null) app.close();
-                    LegacyDataCollector.this.interrupt();
+                            logger.error("data collection thread has become " +
+                                    "non-responsive for ["+(silentPeriodNano/1000000)+" " +
+                                    "ms] - aborting.");
+                            if (app != null) app.close();
+                            LegacyDataCollector.this.interrupt();
+                            break;
+                        default:
+                            logger.error("Unknown mode " + mode);
+                    }
                 }
-                pinged = false;
             }
         }
 
@@ -2354,8 +2400,8 @@ public class LegacyDataCollector
                     long silentPeriodNano = now - lastPingNano;
                     logger.debug("pinged at " + fmt.format(silentPeriodNano * 1.0E-09));
                 }
-                pinged = true;
                 lastPingNano = now;
+                interrupting = false;
             }
         }
 
@@ -2370,19 +2416,21 @@ public class LegacyDataCollector
          */
         public void sleep(final long millis)
         {
+            long start = System.nanoTime();
             try
             {
                 Thread.sleep(millis);
             }
             catch (InterruptedException ie)
             {
-                if(aborting)
+                if(interrupting || aborting)
                 {
                     // expected
                 }
                 else
                 {
-                    logger.error("Unexpected Interrupt", ie);
+                    long slept = (System.nanoTime() - start) / 1000000;
+                    logger.error("Unexpected Interrupt: slept " + slept, ie);
                 }
             }
         }
@@ -2393,7 +2441,7 @@ public class LegacyDataCollector
          */
         public void handleInterrupted(final InterruptedException ie)
         {
-            if(aborting)
+            if(interrupting || aborting)
             {
                 //expected
             }
