@@ -612,6 +612,10 @@ public class DataAcquisition
                                    final boolean alwaysSoftboot)
             throws AcquisitionError
     {
+        // Configure the watchdog to interrupt
+        Watchdog.Mode mode =
+                watchdog.setTimeoutAction(Watchdog.Mode.INTERRUPT_ONLY);
+
         try
         {
             String reportedMBID = null;
@@ -620,6 +624,8 @@ public class DataAcquisition
 
             boolean needSoftboot = true;
 
+            // Test the condition the DOM. if it is running DOMApp,
+            // enforce a new run
             if (!alwaysSoftboot)
             {
                 logger.debug("Autodetecting DOMApp");
@@ -646,18 +652,20 @@ public class DataAcquisition
                         app = null;
                     }
                 }
-                catch (IOException iox)
+                catch (Exception ex)
                 {
+                    // The watchdog may have fired, or domapp may have responded
+                    // inconsistently such as when the previous run exited
+                    // mid-interval
+                    //
                     logger.warn("DOM is not responding to DOMApp query -" +
-                            " will attempt to softboot");
+                            " will attempt to softboot", ex);
 
-                }
-                catch(InterruptedException iex)
-                {
-                    //the watchdog likely fired
-                    logger.warn("DOM is not responding to DOMApp query" +
-                            " - will attempt to softboot");
-                    watchdog.handleInterrupted(iex);
+                    app.close();
+                    app = null;
+
+                    // The watchdog may have fired, reset the interrupt.
+                    Thread.currentThread().interrupted();
                     watchdog.ping();
                 }
 
@@ -676,10 +684,10 @@ public class DataAcquisition
                     catch (Exception ex2)
                     {
                         if (iTry == 1) throw ex2;
-                        logger.error("Failure to softboot to DOMApp - will retry one time.");
+                        logger.error("Failure to softboot to DOMApp - will retry one time.", ex2);
 
-                        //todo: Consider handling interrupt exception through the
-                        //      watchdog for graceful abort during softboot.
+                        // The watchdog may have fired, reset the interrupt.
+                        Thread.currentThread().interrupted();
                     }
                 }
             }
@@ -690,6 +698,11 @@ public class DataAcquisition
         {
             throw new AcquisitionError("Error while initializing [" +
                     id + "]", e);
+        }
+        finally
+        {
+            //restore the watchdog mode
+            watchdog.setTimeoutAction(mode);
         }
 
     }
