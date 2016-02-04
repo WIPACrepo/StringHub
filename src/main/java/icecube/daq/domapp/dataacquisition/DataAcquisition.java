@@ -661,8 +661,11 @@ public class DataAcquisition
                     logger.warn("DOM is not responding to DOMApp query -" +
                             " will attempt to softboot", ex);
 
-                    app.close();
-                    app = null;
+                    if(app != null)
+                    {
+                        app.close();
+                        app = null;
+                    }
 
                     // The watchdog may have fired, reset the interrupt.
                     Thread.currentThread().interrupted();
@@ -688,6 +691,11 @@ public class DataAcquisition
 
                         // The watchdog may have fired, reset the interrupt.
                         Thread.currentThread().interrupted();
+
+                        if(app != null)
+                        {
+                            app.close();
+                        }
                     }
                 }
             }
