@@ -137,6 +137,12 @@ public class SynchronousDataProcessor implements DataProcessor
     }
 
     @Override
+    public void shutdown(final long waitMillis) throws DataProcessorError
+    {
+        shutdown();
+    }
+
+    @Override
     public void shutdown() throws DataProcessorError
     {
         eos();

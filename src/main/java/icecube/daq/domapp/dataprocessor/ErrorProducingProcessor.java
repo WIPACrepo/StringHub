@@ -3,6 +3,7 @@ package icecube.daq.domapp.dataprocessor;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.livemoni.LiveTCalMoni;
 import icecube.daq.util.UTC;
+import org.apache.log4j.Logger;
 
 import java.nio.ByteBuffer;
 
@@ -12,6 +13,8 @@ import java.nio.ByteBuffer;
  */
 public class ErrorProducingProcessor implements DataProcessor
 {
+    Logger logger = Logger.getLogger(ErrorProducingProcessor.class);
+
     private final DataProcessor delegate;
 
     int hitMessagelCount;
@@ -32,20 +35,42 @@ public class ErrorProducingProcessor implements DataProcessor
     private static final int INJECT_TCAL_ERROR_ON_MESSAGE =
             Integer.getInteger("icecube.daq.domapp.dataprocessor.inject-tcal-error-on-message", -1);
 
+    private static final boolean INJECT_ERROR_ON_EOS =
+            Boolean.getBoolean("icecube.daq.domapp.dataprocessor.inject-error-on-eos");
+
+    private static final boolean INJECT_ERROR_ON_SYNC =
+            Boolean.getBoolean("icecube.daq.domapp.dataprocessor.inject-error-on-sync");
+
+    private static final boolean INJECT_ERROR_ON_SHUTDOWN =
+            Boolean.getBoolean("icecube.daq.domapp.dataprocessor.inject-error-on-shutdown");
+
+    /** Causes injected exception to be an unchecked exception. */
+    private static final boolean INJECT_UNCHECKED =
+            Boolean.getBoolean("icecube.daq.domapp.dataprocessor.inject-unchecked");
+
+
 
     /** drop rap cal processing, as if GPS or tcal was broken. */
     private static final boolean SIMULATE_BROKEN_RAPCAL =
             Boolean.getBoolean("icecube.daq.domapp.dataprocessor.no-rapcal");
 
 
-    /** Injects an unchecked exception */
-    private static final boolean INJECT_UNCHECKED =
-            Boolean.getBoolean("icecube.daq.domapp.dataprocessor.inject-unchecked");
 
-
-    /** Inject a processing delay into each message */
+    /** Inject a processing delay into each message. */
     private static final int DELAY_HIT_PROCESSING_MILLIS =
             Integer.getInteger("icecube.daq.domapp.dataprocessor.hit-processing-delay", 0);
+
+    /** Inject a delay into eos. */
+    private static final int DELAY_EOS_MILLIS =
+            Integer.getInteger("icecube.daq.domapp.dataprocessor.eos-delay", 0);
+
+    /** Inject a delay into sync. */
+    private static final int DELAY_SYNC_MILLIS =
+            Integer.getInteger("icecube.daq.domapp.dataprocessor.sync-delay", 0);
+
+    /** Inject a delay into shutdown. */
+    private static final int DELAY_SHUTDOWN_MILLIS =
+            Integer.getInteger("icecube.daq.domapp.dataprocessor.shutdown-delay", 0);
 
 
     public ErrorProducingProcessor(final DataProcessor delegate)
@@ -105,7 +130,6 @@ public class ErrorProducingProcessor implements DataProcessor
                 //let the production implementation handle
         }
 
-
         delegate.process(stream, data);
     }
 
@@ -119,18 +143,60 @@ public class ErrorProducingProcessor implements DataProcessor
     @Override
     public void eos() throws DataProcessorError
     {
+        if(INJECT_ERROR_ON_EOS)
+        {
+            generateException();
+        }
+        if(DELAY_EOS_MILLIS > 0)
+        {
+            logger.warn("Delaying eos() " + DELAY_EOS_MILLIS + " ms");
+            sleep(DELAY_EOS_MILLIS);
+        }
         delegate.eos();
+    }
+
+    @Override
+    public void shutdown(final long waitMillis) throws DataProcessorError
+    {
+        if(INJECT_ERROR_ON_SHUTDOWN)
+        {
+            generateException();
+        }
+        if(DELAY_SHUTDOWN_MILLIS > 0)
+        {
+            logger.warn("Delaying shutdown() " + DELAY_SHUTDOWN_MILLIS + " ms");
+            sleep(DELAY_SHUTDOWN_MILLIS);
+        }
+        delegate.shutdown(waitMillis);
     }
 
     @Override
     public void shutdown() throws DataProcessorError
     {
+        if(INJECT_ERROR_ON_SHUTDOWN)
+        {
+            generateException();
+        }
+        if(DELAY_SHUTDOWN_MILLIS > 0)
+        {
+            logger.warn("Delaying shutdown() " + DELAY_SHUTDOWN_MILLIS + " ms");
+            sleep(DELAY_SHUTDOWN_MILLIS);
+        }
         delegate.shutdown();
     }
 
     @Override
     public void sync() throws DataProcessorError
     {
+        if(INJECT_ERROR_ON_SYNC)
+        {
+            generateException();
+        }
+        if(DELAY_SYNC_MILLIS > 0)
+        {
+            logger.warn("Delaying sync() " + DELAY_SYNC_MILLIS + " ms");
+            sleep(DELAY_SYNC_MILLIS);
+        }
         delegate.sync();
     }
 
@@ -159,16 +225,30 @@ public class ErrorProducingProcessor implements DataProcessor
         }
     }
 
+    private void generateException() throws DataProcessorError
+    {
+        if(INJECT_UNCHECKED)
+        {
+            throw new Error("Injected Error");
+        }
+        else
+        {
+            throw new DataProcessorError("Injected Error");
+        }
+    }
+
     private void sleep(long millis) throws DataProcessorError
     {
+        long before = System.nanoTime();
         try
         {
             Thread.sleep(millis);
         }
         catch(InterruptedException ie)
         {
-            throw new DataProcessorError(ie);
-
+            long after = System.nanoTime()+1;
+            throw new DataProcessorError("Interupted after sleeping" +
+                    (after-before)/1000000 + " ms", ie);
         }
     }
 }

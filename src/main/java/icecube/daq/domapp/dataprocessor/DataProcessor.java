@@ -105,6 +105,20 @@ public interface DataProcessor
      */
     void eos() throws DataProcessorError;
 
+
+    /**
+     * Shutdown the processor.
+     *
+     * Queued processing will be completed.
+     * EOS makers will be send on all open channels.
+     *
+     * @param waitMillis    Guidance on wait times for asynchronous
+     *                      implementations.
+     * @throws DataProcessorError
+     */
+    void shutdown(long waitMillis) throws DataProcessorError;
+
+
     /**
      * Shutdown the processor.
      *

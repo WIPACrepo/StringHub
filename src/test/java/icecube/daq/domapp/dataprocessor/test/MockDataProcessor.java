@@ -124,6 +124,12 @@ public class MockDataProcessor implements DataProcessor
     }
 
     @Override
+    public void shutdown(final long waitMillis) throws DataProcessorError
+    {
+        shutdown();
+    }
+
+    @Override
     public void shutdown() throws DataProcessorError
     {
         lock.lock();

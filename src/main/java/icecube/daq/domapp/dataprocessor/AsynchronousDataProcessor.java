@@ -48,8 +48,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * Since we are operating asynchronously, it is possible for the DataCollector
  * to initiate shutdown prior to observing an error condition in the processing
- * thread. This race is resolved in forceShutdown() method. The reason it is
- * resolved here (and not in shutdown) is to let a processing exception
+ * thread. This race is resolved in the forceShutdown() method. The reason it
+ * is resolved there (and not in shutdown) is to let a processing exception
  * preempt a graceful shutdown.
  *
  * Although we use a single threaded "ThreadPool" executor, it should be
@@ -61,7 +61,7 @@ public class AsynchronousDataProcessor implements DataProcessor
 {
 
 
-    Logger logger = Logger.getLogger(AsynchronousDataProcessor.class);
+    private static Logger logger = Logger.getLogger(AsynchronousDataProcessor.class);
 
     /** The root processor */
     private  final DataProcessor delegate;
@@ -85,17 +85,38 @@ public class AsynchronousDataProcessor implements DataProcessor
     private volatile boolean isShutdown;
 
 
+    /** Identifiers for the thread contexts */
+    enum Participant
+    {
+        AcquisitionThread,
+        ProcessingThread
+    }
+
     /**
-     * Number of seconds to allow for queued tasks to complete
-     * during shutdown.
+     * Policies which define the behavior when the job queue is full
      */
-    public static final int GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS = 10;
+    public static enum QueueFullPolicy
+    {
+        Reject,           // Reject job submission on queue full
+        Block,            // block submitter on queue full
+        BlockShutdownOnly // block shutdown job submission, reject others on
+                          // queue full
+    }
+
+    /**
+     * Configurable default policy
+     */
+    private static final QueueFullPolicy defaultPolicy =
+            QueueFullPolicy.valueOf(System.getProperty(
+                    "icecube.daq.domapp.dataprocessor.async-queue-full-policy",
+            QueueFullPolicy.Block.name()));
 
     /**
      * Number of seconds to allow for shutdown to complete
      * during a forced shutdown.
      */
-    public static final int FORCED_SHUTDOWN_TIMEOUT_SECONDS = 10;
+    public static final int FORCED_SHUTDOWN_TIMEOUT_SECONDS =
+            Integer.MAX_VALUE;
 
 
     /**
@@ -119,11 +140,45 @@ public class AsynchronousDataProcessor implements DataProcessor
     singleThreadedExecutor(final String channelID,
                            final DataProcessor delegate)
     {
+        return singleThreadedExecutor(channelID,
+                delegate,
+                defaultPolicy);
+    }
+
+    /**
+     * Factory method for a processor that runs in a single, independent thread.
+     *
+     * @param channelID Identified the channel.
+     * @param delegate The root processor implementation.
+     * @param policy Defines the behavior of calls when the job queue is
+     *               full.
+     * @return A single threaded, asynchronous processor.
+     */
+    public static AsynchronousDataProcessor
+    singleThreadedExecutor(final String channelID,
+                           final DataProcessor delegate,
+                           final QueueFullPolicy policy)
+    {
+        final RejectedExecutionHandler rejectionHandler;
+        switch (policy)
+        {
+            case Reject:
+                rejectionHandler = new SingleThreadedRejectionHandler();
+                break;
+            case Block:
+                rejectionHandler = new BlockingExecutorRejectionHandler();
+                break;
+            case BlockShutdownOnly:
+                throw new Error("Not Implemented.");
+            default:
+                throw new Error("Unknown policy " + policy);
+
+        }
         ExecutorService executor =
                 new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
                         new LinkedBlockingQueue<Runnable>(PROCESSING_QUEUE_DEPTH),
                         new SingleThreadFactory(channelID),
-                        new SingleThreadedRejectionHandler());
+                        rejectionHandler);
 
         return new AsynchronousDataProcessor(channelID, executor, delegate);
     }
@@ -337,12 +392,13 @@ public class AsynchronousDataProcessor implements DataProcessor
     @Override
     public void sync() throws DataProcessorError
     {
-        // Queue a dummy job and wait for processor to execute
+        // Queue the sync job and wait for processor to execute
         Future<Void> sync = enqueWork(new Callable<Void>()
         {
             @Override
             public Void call() throws Exception
             {
+                delegate.sync();
                 return null;
             }
         });
@@ -376,6 +432,12 @@ public class AsynchronousDataProcessor implements DataProcessor
         });
     }
 
+    @Override
+    public void shutdown() throws DataProcessorError
+    {
+        shutdown(Long.MAX_VALUE);
+    }
+
     /**
      * Shutdown the processor thread.
      *
@@ -387,7 +449,7 @@ public class AsynchronousDataProcessor implements DataProcessor
      *
      */
     @Override
-    public void shutdown() throws DataProcessorError
+    public void shutdown(final long waitMillis) throws DataProcessorError
     {
 
         // DataCollector always calls shutdown, in the case of processing
@@ -397,12 +459,12 @@ public class AsynchronousDataProcessor implements DataProcessor
             return;
         }
 
-        boolean graceful = gracefulShutdown();
+        boolean graceful = gracefulShutdown(waitMillis);
 
         if(!graceful)
         {
             logger.warn("Graceful shutdown failed, forcing shutdown.");
-            forceShutdown();
+            forceShutdown(Participant.AcquisitionThread);
         }
     }
 
@@ -444,7 +506,7 @@ public class AsynchronousDataProcessor implements DataProcessor
      *
      * @return true if the shutdown was graceful
      */
-    private boolean gracefulShutdown()
+    private boolean gracefulShutdown(long timeoutMillis)
     {
         Future<Boolean> eosFuture;
         try
@@ -463,7 +525,6 @@ public class AsynchronousDataProcessor implements DataProcessor
                     catch (Throwable th)
                     {
                         handleException(th);
-                        logger.error("Error shutting down data processor", th);
                         return false;
                     }
                 }
@@ -488,11 +549,11 @@ public class AsynchronousDataProcessor implements DataProcessor
         executor.shutdown();
 
 
-        // wait for shutdown job to complete.
+        // wait for shutdown job to complete. Errors are suppressed, caller
+        // will proceed to a forced shutdown.
         try
         {
-            return eosFuture.get(GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS,
-                    TimeUnit.SECONDS);
+            return eosFuture.get(timeoutMillis, TimeUnit.MILLISECONDS);
         }
         catch (InterruptedException ie)
         {
@@ -526,20 +587,93 @@ public class AsynchronousDataProcessor implements DataProcessor
      * Note that a forced shutdown on the processor thread preempts a
      * graceful shutdown.  This is why the shutdown race is resolve here.
      *
+     * @throws DataProcessorError Indicates a failure to shutdown.
      */
-    private void forceShutdown()
+    private void forceShutdown(Participant thread) throws DataProcessorError
+    {
+        switch (thread)
+        {
+            case AcquisitionThread:
+                forceShutdownFromAcquisitionThread();
+                break;
+            case ProcessingThread:
+                forceShutdownFromProcessingThread();
+                break;
+            default:
+                throw new Error("Unknown participant: " + thread);
+        }
+
+        // Design Details:
+        //
+        // To avoid a race condition, the acquisition thread can not call into
+        // the delegate while the processor thread is alive. Normally, shutdown
+        // can execute on the processor thread after it is interrupted by the
+        // forced shutdown.  There are some edge cases when the processing
+        // thread exits cleanly without shutdown.
+        //
+        // I. If called by Acquisition thread first:
+        //
+        //   The Acquisition Thread:
+        //
+        //   Discard queued Executor jobs.
+        //   Wait for executor to complete last job.
+        //
+        //      Check if processor thread completed the shutdown.
+        //
+        //         Yes: Nothing to do
+        //         No:  Complete shutdown of the delegate
+        //
+        //
+        //   The Processor Thread:
+        //
+        //      If current job interrupted:
+        //            will end up in forcedShutdown as second caller and
+        //            complete the shutdown.
+        //
+        //      If  current job completed:
+        //            If Processing job: Will exit, no shutdown.
+        //            If Shutdown job:   Will exit, shutdown already complete
+        //                               gracefully.
+        //
+        //      If Blocked:
+        //            Untennable. Acquisition thread will wait until
+        //                        external interruption and then throw
+        //                        an exception.
+        //
+        //
+        //
+        // II. If called by Processor thread first:
+        //
+        //   The Processor thread:
+        //
+        //      Discard queued Executor jobs.
+        //      Complete the shutdown.
+        //
+        //
+        //   The Acquisition Thread:
+        //
+        //      Wait for processor thread to complete.
+        //
+
+    }
+
+    /**
+     * The Processing thread side of a forced shutdown.
+     *
+     * @throws DataProcessorError Shutdown did not happen.
+     */
+    private void forceShutdownFromProcessingThread() throws DataProcessorError
     {
         // resolve the race between processor and acquisition thread.
         boolean first = inForcedShutdown.compareAndSet(false, true);
 
         if(first)
         {
+            // This is the shutdown path for errors encountered during
+            // processing.
 
-            // if we are on the processor thread, this will interrupt ourselves.
-            // if we are on the acquisition thread, this will interrupt the
-            // processor.
-            //
-            // we must clear our interrupt.
+            // Since we are on the processor thread, this will interrupt
+            // ourselves. The interrupt status must be cleared
             List<Runnable> discardedWork = executor.shutdownNow();
             Thread.interrupted();
 
@@ -552,16 +686,133 @@ public class AsynchronousDataProcessor implements DataProcessor
             }
             catch(Throwable th)
             {
-                logger.error("Processor unable to shutdown:", th);
+                throw new DataProcessorError("Processor unable to" +
+                        " shutdown delegate", th);
+            }
+            finally
+            {
+                isShutdown = true;
+                shutdownLatch.countDown();
             }
 
-            isShutdown = true;
-            shutdownLatch.countDown();
         }
         else
         {
-            // let the other thread shut us down, but log the race and
-            // wait.
+            // When processing is lagging, this is the typical shutdown path
+            // arrived at.
+            //
+            // The mechanism occurs when the acquisition thread fires a
+            // shutdown and the processor has a large buffered load, or a
+            // blocked job. After waiting for a graceful shutdown, the
+            // acquisition thread escalates to a forced shutdown which drives
+            // an interrupt into the processor thread and it ends up
+            // here as the second participant of the forced shutdown.
+            //
+            // In order to preserve the threading model, the processor thread
+            // should shut down the delegate and exit.
+            //
+            try
+            {
+                delegate.shutdown();
+            }
+            catch(Throwable th)
+            {
+                throw new DataProcessorError("Processor unable to" +
+                        " shutdown delegate", th);
+            }
+            finally
+            {
+                isShutdown = true;
+                shutdownLatch.countDown();
+            }
+        }
+    }
+
+    /**
+     * The Acquisition side of a forced shutdown.
+     *
+     * @throws DataProcessorError Shutdown did not happen.
+     */
+    private void forceShutdownFromAcquisitionThread() throws DataProcessorError
+    {
+        // resolve the race between processor and acquisition thread.
+        boolean first = inForcedShutdown.compareAndSet(false, true);
+
+        if(first)
+        {
+
+            // Should interrupt the processor thread.
+            List<Runnable> discardedWork = executor.shutdownNow();
+
+            logger.error("Processing shutting down with [" +
+                    discardedWork.size() + "] processing jobs pending.");
+
+
+            // We have no idea where or if the processor quit. We have to
+            // account for:
+            //
+            // The interrupt generated an exception of the current job.
+            // The current job completed normally and the executor exited.
+            //    The current job was a processing job
+            //    The current job was the shutdown job
+            //
+            // The executor shutdown between jobs and exited.
+            //
+            // The current job is blocked uninterruptibly.
+            //
+            //
+            // Wait for the processing thread exit. If it exited without
+            // shutting down, then and only then can we issue the delegate
+            // shutdown on the acquisition thread. Otherwise, any interaction
+            // with the delegate on this thread is a race condition against
+            // the processor.
+            try
+            {
+                boolean processorDone =
+                        executor.awaitTermination(FORCED_SHUTDOWN_TIMEOUT_SECONDS,
+                        TimeUnit.SECONDS);
+
+                if(processorDone)
+                {
+                    // did the processor shut down, or exit without
+                    // shutdown.
+                    if(isShutdown)
+                    {
+                        //nothing to do
+                    }
+                    else
+                    {
+                        try
+                        {
+                            delegate.shutdown();
+                        }
+                        catch (Throwable th)
+                        {
+                            throw new DataProcessorError("Processor unable to" +
+                                    " shutdown delegate", th);
+                        }
+                        finally
+                        {
+                            isShutdown = true;
+                            shutdownLatch.countDown();
+                        }
+                    }
+                }
+                else
+                {
+                    // unforgivable, the processor thread  will be running
+                    // uncontrolled. Hence the massive timeout.
+                    throw new DataProcessorError("Timed out waiting for shutdown");
+                }
+            }
+            catch (InterruptedException e)
+            {
+                throw new DataProcessorError("Interrupted waiting for shutdown");
+            }
+        }
+        else
+        {
+            // Unusual case. Wait for the processor thread to complete shutdown.
             logger.warn("Simultaneous shutdown.");
             try
             {
@@ -570,12 +821,12 @@ public class AsynchronousDataProcessor implements DataProcessor
                         TimeUnit.SECONDS);
                 if(!clean)
                 {
-                    logger.warn("Timed out waiting for shutdown");
+                    throw new DataProcessorError("Timed out waiting for shutdown");
                 }
             }
             catch (InterruptedException e)
             {
-                logger.warn("Interrupted waiting for shutdown");
+                throw new DataProcessorError("Interrupted waiting for shutdown");
             }
         }
     }
@@ -586,19 +837,26 @@ public class AsynchronousDataProcessor implements DataProcessor
     private void handleException(Throwable error)
     {
 
-        // A forced shutdown from the acquisition almost always
+        // A forced shutdown from the acquisition thread almost always
         // leads to an interrupted exception on the processor thread
-        // suppress logging by looking st the shutdown flag
+        // suppress logging by looking at the shutdown flag
         if(!inForcedShutdown.get())
         {
          logger.error("Processing encountered an error, will force" +
                 " a shutdown.", error );
         }
 
-        // Even if we are already shutting down, allow forceShutdown
-        // to handle the wait
-        forceShutdown();
-
+        // Even if we know are already shutting down on the acquisition
+        // thread, call into the forceShutdown method for clarity
+        try
+        {
+            forceShutdown(Participant.ProcessingThread);
+        }
+        catch (DataProcessorError dpe)
+        {
+            //now much can be done at this point
+            logger.error("Error shuting down processor thread", dpe);
+        }
     }
 
     /**
@@ -685,5 +943,52 @@ public class AsynchronousDataProcessor implements DataProcessor
         }
     }
 
+
+    /**
+     * Realizes a bounded executor that blocks on job submission when the
+     * job queue is full.
+     *
+     * Note: Surprised to find this policy absent in the JDK.
+     *
+     *
+     * The assumption is that jobs are only rejected for two reasons.
+     *
+     *    The work queue is full.
+     *    The executor is shutdown.
+     *
+     * We can't realistically use the queue size as an indicator as we are
+     * not synchronous with the consumer.
+     *
+     */
+    private static class BlockingExecutorRejectionHandler
+            implements RejectedExecutionHandler
+    {
+        @Override
+        public void rejectedExecution(final Runnable r,
+                                      final ThreadPoolExecutor executor)
+        {
+            if(executor.isShutdown())
+            {
+                throw new RejectedExecutionException("Executor is shutdown");
+            }
+            else
+            {
+                // Assume that the queue was full, and move to a blocking
+                // job insert.
+                //
+                // This is a huge assumption, but it is all that the jdk
+                // has offered.
+                try
+                {
+                    executor.getQueue().put(r);
+                }
+                catch (InterruptedException e)
+                {
+                    throw new RejectedExecutionException(e);
+                }
+
+            }
+        }
+    }
 
 }
