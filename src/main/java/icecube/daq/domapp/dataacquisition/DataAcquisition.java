@@ -66,6 +66,11 @@ public class DataAcquisition
     /** Wait time used when spinning on data reads. */
     private final static long SPIN_WAIT_SLEEP_MILLIS = 50;
 
+    /** Timeout used while softbooting. */
+    public final static long SOFTBOOT_TIMEOUT_MILLIS = Integer.getInteger(
+            "icecube.daq.domapp.dataacquisition.softboot-timeout-millis",
+            15000);
+
     /** Performance tracker. */
     private final AcquisitionMonitor monitor;
 
@@ -817,8 +822,11 @@ public class DataAcquisition
         // retries here
         for (int iBootTry = 0; iBootTry < 2; iBootTry++)
         {
+            long currentTimeout = -1;
             try
             {
+                currentTimeout =
+                        watchdog.setTimeoutThreshold(SOFTBOOT_TIMEOUT_MILLIS);
                 driver.commReset(card, pair, dom);
                 watchdog.ping();
                 driver.softboot (card, pair, dom);
@@ -828,6 +836,13 @@ public class DataAcquisition
             {
                 logger.warn("Softboot attempt failed - retrying after 5 sec");
                 watchdog.sleep(5000L);
+            }
+            finally
+            {
+                if(currentTimeout > 0)
+                {
+                    watchdog.setTimeoutThreshold(currentTimeout);
+                }
             }
         }
 
