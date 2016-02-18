@@ -113,10 +113,9 @@ public class AsynchronousDataProcessor implements DataProcessor
 
     /**
      * Number of seconds to allow for shutdown to complete
-     * during a forced shutdown.
+     * during a forced shutdown. Exposed for testing.
      */
-    public static final int FORCED_SHUTDOWN_TIMEOUT_SECONDS =
-            Integer.MAX_VALUE;
+    public int FORCED_SHUTDOWN_TIMEOUT_SECONDS = Integer.MAX_VALUE;
 
 
     /**
@@ -398,8 +397,18 @@ public class AsynchronousDataProcessor implements DataProcessor
             @Override
             public Void call() throws Exception
             {
-                delegate.sync();
-                return null;
+                try
+                {
+                    delegate.sync();
+                    return null;
+                }
+                catch (Throwable th)
+                {
+                    //unusual formulation ... because the caller is blocking
+                    // on this method and should see the error.
+                    handleException(th);
+                    throw new DataProcessorError("Error while syncing",th);
+                }
             }
         });
         try
