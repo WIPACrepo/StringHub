@@ -112,10 +112,6 @@ public class NewDataCollector
     private final DataStats dataStats;
 
 
-    /** watchdog */
-    private final InterruptorTask watchdog = new InterruptorTask();
-
-
     private long    threadSleepInterval   = 50;
 
     private long nextTcalRead = 0;
@@ -141,6 +137,22 @@ public class NewDataCollector
 
     private final SimpleDateFormat dateFormat =
             new SimpleDateFormat ("yyyy-MM-dd HH:mm:ss.SSS");
+
+
+    /** Time allowed between watchdog pings during data taking */
+    private final int WATCHDOG_TIMEOUT_MILLIS  = Integer.getInteger(
+            "icecube.daq.domapp.datacollector.runloop-liveliness-millis",10000);
+
+    /** Time allowed at end of run or pause to sync with processing. */
+    private final int PROCESSOR_SYNC_TIMEOUT_MILLIS = Integer.getInteger(
+            "icecube.daq.domapp.datacollector.sync-millis", 30000);
+
+    /** Time allowed at shutdown to complete processing gracefully. */
+    private final int PROCESSOR_GRACEFUL_SHUTDOWN_MILLIS = Integer.getInteger(
+            "icecube.daq.domapp.datacollector.graceful-shutdown-millis", 60000);
+
+    /** watchdog */
+    private final InterruptorTask watchdog = new InterruptorTask();
 
 
     // Log acquisition diagnostics when acquisition is aborted by the watchdog
@@ -460,6 +472,9 @@ public class NewDataCollector
      */
     private void runcore(final boolean useIntervals) throws Exception
     {
+        watchdog.setTimeoutAction(Watchdog.Mode.ABORT);
+        watchdog.setTimeoutThreshold(WATCHDOG_TIMEOUT_MILLIS);
+
         while (!stop_thread)
         {
             long t = System.currentTimeMillis();
@@ -581,7 +596,7 @@ public class NewDataCollector
                 //      timed wild tcal dooms us here.
                 execRapCal();
 
-                dataProcessor.sync();
+                callProcessorSync(PROCESSOR_SYNC_TIMEOUT_MILLIS);
                 setRunLevelInternal(RunLevel.CONFIGURED);
                 break;
 
@@ -591,7 +606,7 @@ public class NewDataCollector
                 }
                 dataAcquisition.doEndRun();
                 dataProcessor.eos();
-                dataProcessor.sync();
+                callProcessorSync(PROCESSOR_SYNC_TIMEOUT_MILLIS);
                 setRunLevelInternal(RunLevel.CONFIGURED);
                 break;
             }
@@ -607,6 +622,32 @@ public class NewDataCollector
         } /* END RUN LOOP */
     } /* END METHOD */
 
+
+    /**
+     * Calls processor sync() under an adjusted watchdog timeout.
+     *
+     * @param timeoutMillis The time to allow to sync with processing.
+     * @throws DataProcessorError
+     */
+    private void callProcessorSync(final long timeoutMillis)
+            throws DataProcessorError
+    {
+
+        long currentTimeout = -1;
+        try
+        {
+            currentTimeout =
+                    watchdog.setTimeoutThreshold(timeoutMillis);
+            dataProcessor.sync();
+        }
+        finally
+        {
+            if(currentTimeout>0)
+            {
+                watchdog.setTimeoutThreshold(currentTimeout);
+            }
+        }
+    }
 
     @Override
     public long getRunStartTime()
@@ -733,10 +774,18 @@ public class NewDataCollector
      * ABORT: The DOM driver file will be closed, the collector thread
      *        will be interrupted and the data collection thread will be
      *        aborted. The result is a dropped DOM.
+     *        
+     * MONITOR: The Watchdog will log the stall.
      *
      * The INTERRUPT_ONLY mode is utilized at startup to work through a
-     * non-responsive DOMAPP instance. Once initialized, the consequence of
-     * a poorly performing collector is to drop the DOM.
+     * non-responsive DOMAPP instance.
+     * 
+     * The ABORT mode is utilized during data taking where the consequence
+     * of a poorly performing collector is to drop the DOM.
+     * 
+     * The MONITOR mode is used at shutdown to indicate a stuck processor. We
+     * cannot exit while the processor is still running, but we can log our
+     * dissatisfaction with the delay.
      */
     class InterruptorTask extends TimerTask implements Watchdog
     {
@@ -751,10 +800,13 @@ public class NewDataCollector
 
         private final Timer watcher;
 
-        private long DELAY =
-                Integer.getInteger("icecube.daq.domapp.datacollector.watchdog-delay-millis", 0);
-        private long PERIOD =
-                Integer.getInteger("icecube.daq.domapp.datacollector.watchdog-period-millis", 10000);
+        private int DELAY = Integer.getInteger(
+                "icecube.daq.domapp.datacollector.watchdog-delay-millis", 0);
+
+        // Note: should be at least as small as the shortest timeout.
+        private int PERIOD = Integer.getInteger(
+                "icecube.daq.domapp.datacollector.watchdog-period-millis",
+                WATCHDOG_TIMEOUT_MILLIS);
 
         /** The longest observed pause. */
         private long maxPause = -1;
@@ -777,16 +829,18 @@ public class NewDataCollector
             watcher.schedule(this, DELAY, PERIOD);
         }
 
-        public void setTimeoutThreshold(long millis)
+        public long setTimeoutThreshold(long millis)
         {
-            if(millis > PERIOD)
+            if(millis < PERIOD)
             {
                 throw new Error("Watchdog with period " + PERIOD +
                         " does not support threshold " + millis);
             }
             synchronized (this)
             {
+                long oldValue = this.abortThreshholdNanos;
                 this.abortThreshholdNanos = millis * 1000000;
+                return oldValue;
             }
         }
 
@@ -828,6 +882,11 @@ public class NewDataCollector
                                     "ms] - aborting.");
                             dataAcquisition.doClose();
                             NewDataCollector.this.interrupt();
+                            break;
+                        case MONITOR:
+                            logger.error("data collection thread has become " +
+                                    "non-responsive for ["+(silentPeriodNano/1000000)+" " +
+                                    "ms] - monitoring.");
                             break;
                         default:
                             logger.error("Unknown mode " + mode);
@@ -967,13 +1026,19 @@ public class NewDataCollector
                 // shut down the processor
                 try
                 {
+                    // with acquisition complete, we don't require a watchdog
+                    // to initiate a DOM drop, but we do want to be able to
+                    // detect a stuck processor.
+                    watchdog.setTimeoutAction(Mode.MONITOR);
+                    watchdog.setTimeoutThreshold(PROCESSOR_GRACEFUL_SHUTDOWN_MILLIS);
                     ping();
-                    dataProcessor.shutdown();
+                    dataProcessor.shutdown(PROCESSOR_GRACEFUL_SHUTDOWN_MILLIS);
                     logger.info("Data Processor shutdown for "
                             + canonicalName());
                 }
                 catch (DataProcessorError dpe)
                 {
+                    // unforgivable ... the processor could still be running.
                     logger.error("Error while shutting down data processor for "
                             + canonicalName(), dpe);
                 }

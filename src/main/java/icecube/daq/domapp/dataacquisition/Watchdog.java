@@ -16,13 +16,25 @@ public interface Watchdog
     enum Mode
     {
         INTERRUPT_ONLY,
-        ABORT
+        ABORT,
+        MONITOR
     }
 
     /**
      * Notify watchdog of liveliness.
      */
     public void ping();
+
+
+    /**
+     * Change the timeout.
+     *
+     * @param millis the amount of time between pings that will cause
+     *               the watchdog to fire.
+     * @return The previous setting.
+     */
+    public long setTimeoutThreshold(long millis);
+
 
     /**
      * Set the action mode of the watchdog.
