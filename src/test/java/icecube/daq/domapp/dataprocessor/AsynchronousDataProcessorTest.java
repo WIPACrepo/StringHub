@@ -2,6 +2,7 @@ package icecube.daq.domapp.dataprocessor;
 
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.dataprocessor.test.MockDataProcessor;
+import icecube.daq.stringhub.test.MockAppender;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -28,11 +29,7 @@ public class AsynchronousDataProcessorTest
     @BeforeClass
     public static void setupLogging()
     {
-        BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.INFO);
-
-        Logger.getRootLogger().warn("XXXX Following test cases will log" +
-                " ERRORS and stack traces.");
+        BasicConfigurator.configure(new MockAppender(Level.DEBUG));
     }
 
     @Before
@@ -117,15 +114,15 @@ public class AsynchronousDataProcessorTest
     }
 
     @Test
-    public void testFull() throws DataProcessorError, InterruptedException
+    public void testFullRejectPolicy() throws DataProcessorError, InterruptedException
     {
         //
-        // tests limit on processing queue
+        // tests limit on processing queue when in "Reject" policy
         //
         final MockDataProcessor mock = new MockDataProcessor();
         final AsynchronousDataProcessor subject =
                 AsynchronousDataProcessor.singleThreadedExecutor("test",
-                        mock);
+                        mock, AsynchronousDataProcessor.QueueFullPolicy.Reject);
 
         mock.lock();
 
@@ -160,7 +157,72 @@ public class AsynchronousDataProcessorTest
 
         subject.shutdown();
 
+    }
 
+    @Test
+    public void testFullBlockingPolicy() throws DataProcessorError, InterruptedException
+    {
+        //
+        // tests limit on processing queue when in "Block" policy
+        //
+        final MockDataProcessor mock = new MockDataProcessor();
+        final AsynchronousDataProcessor subject =
+                AsynchronousDataProcessor.singleThreadedExecutor("test",
+                        mock, AsynchronousDataProcessor.QueueFullPolicy.Block);
+
+        mock.lock();
+
+
+        // this one will be out for processing
+        subject.process(DataProcessor.StreamType.HIT, DUMMY);
+
+        // these will be QUEUED
+        for(int i=0; i<AsynchronousDataProcessor.PROCESSING_QUEUE_DEPTH; i++)
+        {
+            subject.process(DataProcessor.StreamType.HIT, DUMMY);
+        }
+
+        // this one will be block until the timer unlocks
+        // the mock target
+        new Thread(){
+            @Override
+            public void run()
+            {
+                try
+                {
+                    subject.process(DataProcessor.StreamType.HIT, DUMMY);
+                    subject.process(DataProcessor.StreamType.HIT, DUMMY);
+                    subject.process(DataProcessor.StreamType.HIT, DUMMY);
+                    subject.process(DataProcessor.StreamType.HIT, DUMMY);
+                    subject.process(DataProcessor.StreamType.HIT, DUMMY);
+                    subject.process(DataProcessor.StreamType.HIT, DUMMY);
+                    subject.process(DataProcessor.StreamType.HIT, DUMMY);
+                    subject.process(DataProcessor.StreamType.HIT, DUMMY);
+                    subject.process(DataProcessor.StreamType.HIT, DUMMY);
+                    subject.process(DataProcessor.StreamType.HIT, DUMMY);
+                }
+                catch (DataProcessorError dataProcessorError)
+                {
+                    // this should fail the test but we can't fail from
+                    // a worker thread. test relies on the count of delivered
+                    // buffers at the end
+                    dataProcessorError.printStackTrace(System.out);
+                }
+            }
+        }.start();
+
+        // ugly timing dependence  ... should be OK
+        try{ Thread.sleep(1000);} catch (InterruptedException e){}
+
+        mock.unlock();
+        try{ Thread.sleep(1000);} catch (InterruptedException e){}
+
+        subject.sync();
+        assertEquals("All should be processed",
+                AsynchronousDataProcessor.PROCESSING_QUEUE_DEPTH + 11,
+                mock.processCount);
+
+        subject.shutdown();
     }
 
     @Test
@@ -272,10 +334,46 @@ public class AsynchronousDataProcessorTest
     }
 
     @Test
-    public void testForcedShutdown() throws DataProcessorError
+    public void testForcedShutdownTimeout() throws DataProcessorError
     {
         //
-        // Test a shutdown with blocked jobs
+        // Test a shutdown with interruptibly blocked jobs
+        //
+        MockDataProcessor mock = new MockDataProcessor();
+        AsynchronousDataProcessor subject =
+                AsynchronousDataProcessor.singleThreadedExecutor("test",
+                        mock);
+
+        subject.process(DataProcessor.StreamType.MONI, DUMMY);
+        subject.process(DataProcessor.StreamType.MONI, DUMMY);
+        subject.process(DataProcessor.StreamType.MONI, DUMMY);
+        try{ Thread.sleep(200);} catch (InterruptedException e){}
+
+        mock.setMode(MockDataProcessor.Mode.BLOCK_ONCE_INTERRUPTABLY);
+        assertEquals("", 3, mock.processCount);
+
+        subject.process(DataProcessor.StreamType.MONI, DUMMY);
+        subject.process(DataProcessor.StreamType.MONI, DUMMY);
+        subject.process(DataProcessor.StreamType.MONI, DUMMY);
+        subject.process(DataProcessor.StreamType.MONI, DUMMY);
+        subject.process(DataProcessor.StreamType.MONI, DUMMY);
+        subject.process(DataProcessor.StreamType.MONI, DUMMY);
+        subject.process(DataProcessor.StreamType.MONI, DUMMY);
+
+        //NOTE: mock is locked, seven jobs will be discarded
+        System.out.println("Testing forcedShutdown, may take 10 seconds...");
+        subject.shutdown(10 * 1000);
+
+        assertEquals("expected process count", 3, mock.processCount);
+        assertTrue("shutdown not propagated", mock.sawShutdown);
+
+    }
+
+    @Test
+    public void testForcedShutdownBlocked() throws DataProcessorError
+    {
+        //
+        // Test a shutdown with an un-interruptible blocked job
         //
         MockDataProcessor mock = new MockDataProcessor();
         AsynchronousDataProcessor subject =
@@ -298,15 +396,35 @@ public class AsynchronousDataProcessorTest
         subject.process(DataProcessor.StreamType.MONI, DUMMY);
         subject.process(DataProcessor.StreamType.MONI, DUMMY);
 
-        //NOTE: mock is locked, seven jobs will be discarded
-        System.out.println("Testing forcedShutdown, may take " +
-                AsynchronousDataProcessor.GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS +
-                " seconds... ");
-        subject.shutdown();
+        //NOTE: mock is locked uninterruptibly, shutdown will
+        // block, then fail
+        System.out.println("Testing forcedShutdown, may take 10 seconds... ");
+
+        try
+        {
+            subject.shutdown(10 * 1000);
+            fail("Shutdown should not return without processor thread" +
+                    " exiting normally");
+        }
+        catch (DataProcessorError dataProcessorError)
+        {
+            //desired
+            assertEquals("", "Timed out waiting for shutdown",
+                    dataProcessorError.getMessage());
+        }
 
         assertEquals("expected process count", 3, mock.processCount);
-        assertTrue("shutdown not propagated", mock.sawShutdown);
+        assertFalse("shutdown propagated", mock.sawShutdown);
 
+        // Processor is in a pathological state, the following is
+        // not an advertised contract of the interface, but it is
+        // the behavior at the time of writing.
+        mock.unlock();
+
+        try{ Thread.sleep(200);} catch (InterruptedException e){}
+
+        assertEquals("expected process count", 4, mock.processCount);
+        assertFalse("shutdown not propagated", mock.sawShutdown);
     }
 
     @Test
@@ -483,7 +601,7 @@ public class AsynchronousDataProcessorTest
     public void testMultipleErrors() throws DataProcessorError
     {
         //
-        // Permenently break downstream processor, processor
+        // Permanently break downstream processor, processor
         // will have to work around this and force shutdown
         //
 
@@ -555,7 +673,8 @@ public class AsynchronousDataProcessorTest
         subject.process(DataProcessor.StreamType.MONI, DUMMY);
         subject.process(DataProcessor.StreamType.MONI, DUMMY);
 
-        subject.shutdown();
+        System.out.println("Blocking for 10 seconds");
+        subject.shutdown(10 * 1000);
 
         assertEquals("", 0, mock.processCount);
 
