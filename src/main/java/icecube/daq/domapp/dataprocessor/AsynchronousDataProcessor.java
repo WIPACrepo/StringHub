@@ -10,6 +10,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -22,6 +23,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Wraps a data processor with a configurable threading model.
@@ -83,6 +85,10 @@ public class AsynchronousDataProcessor implements DataProcessor
 
     /** Flag to indicate a completed shutdown.*/
     private volatile boolean isShutdown;
+
+    /** Holds a future associated with a pending synchronous call. */
+    private AtomicReference<Future> pendingSynchronousCall
+            = new AtomicReference<Future>();
 
 
     /** Identifiers for the thread contexts */
@@ -385,6 +391,12 @@ public class AsynchronousDataProcessor implements DataProcessor
             //rapcal threw an exception
             throw new DataProcessorError("Error while resolving UTC time", e);
         }
+        catch (CancellationException ce)
+        {
+            // processor forced shutdown before executing job
+            throw new DataProcessorError("Cancelled while resolving" +
+                    " UTC time", ce);
+        }
 
     }
 
@@ -424,6 +436,10 @@ public class AsynchronousDataProcessor implements DataProcessor
         {
             //inconceivable
             throw new DataProcessorError("Error while syncing", e);
+        }
+        catch (CancellationException ce)
+        {
+            throw new DataProcessorError("Cancelled while syncing", ce);
         }
     }
 
@@ -481,7 +497,8 @@ public class AsynchronousDataProcessor implements DataProcessor
      * Submit work to the processor with knowledge of the shutdown race
      * hazards.
      *
-     * @param callable the work to submit
+     * @param callable the work to submit.
+     * @return A shutdown-aware future.
      */
     private <T> Future<T> enqueWork(Callable<T> callable)
             throws DataProcessorError
@@ -494,7 +511,9 @@ public class AsynchronousDataProcessor implements DataProcessor
             int queuedJobs = workQueue.size();
             dataStats.reportProcessorQueueDepth(queuedJobs);
 
-            return future;
+            //NOTE: The raw future is not safe to wait on due to
+            //      shutdown hazards
+            return new ShutdownSafeFuture<T>(future);
         }
         catch (RejectedExecutionException ree)
         {
@@ -528,7 +547,7 @@ public class AsynchronousDataProcessor implements DataProcessor
                     try
                     {
                         delegate.shutdown();
-                        isShutdown = true;
+                        completeShutdown();
                         return true;
                     }
                     catch (Throwable th)
@@ -577,6 +596,11 @@ public class AsynchronousDataProcessor implements DataProcessor
         {
             logger.warn("Timed out while waiting for data processor" +
                     " to complete.");
+        }
+        catch (CancellationException ce)
+        {
+            logger.warn("Processor forced shut down" +
+                    " during graceful shutdown.", ce);
         }
 
         return false;
@@ -700,8 +724,7 @@ public class AsynchronousDataProcessor implements DataProcessor
             }
             finally
             {
-                isShutdown = true;
-                shutdownLatch.countDown();
+                completeShutdown();
             }
 
         }
@@ -731,10 +754,10 @@ public class AsynchronousDataProcessor implements DataProcessor
             }
             finally
             {
-                isShutdown = true;
-                shutdownLatch.countDown();
+                completeShutdown();
             }
         }
+
     }
 
     /**
@@ -802,8 +825,7 @@ public class AsynchronousDataProcessor implements DataProcessor
                         }
                         finally
                         {
-                            isShutdown = true;
-                            shutdownLatch.countDown();
+                            completeShutdown();
                         }
                     }
                 }
@@ -838,6 +860,24 @@ public class AsynchronousDataProcessor implements DataProcessor
                 throw new DataProcessorError("Interrupted waiting for shutdown");
             }
         }
+    }
+
+    /**
+     * Complete shutdown.
+     *
+     * This should be the final code executed at shutdown.
+     */
+    private void completeShutdown()
+    {
+        // cancel any futures with active waiter
+        Future future = pendingSynchronousCall.get();
+        if(future != null)
+        {
+            future.cancel(false);
+        }
+
+        isShutdown=true;
+        shutdownLatch.countDown();
     }
 
     /**
@@ -878,6 +918,225 @@ public class AsynchronousDataProcessor implements DataProcessor
         copy.put(data);
         copy.flip();
         return copy;
+    }
+
+
+    /**
+     * Wraps futures generated by the executor with shutdown-aware
+     * get() methods.
+     *
+     * @param <T>
+     */
+    private class ShutdownSafeFuture<T> implements Future<T>
+    {
+        private final Future<T> delegate;
+
+        private ShutdownSafeFuture(final Future<T> delegate)
+        {
+            this.delegate = delegate;
+        }
+
+
+        @Override
+        public boolean cancel(final boolean mayInterruptIfRunning)
+        {
+            return delegate.cancel(mayInterruptIfRunning);
+        }
+
+        @Override
+        public boolean isCancelled()
+        {
+            return delegate.isCancelled();
+        }
+
+        @Override
+        public boolean isDone()
+        {
+            return delegate.isDone();
+        }
+
+        @Override
+        public T get() throws InterruptedException, ExecutionException
+        {
+            return safelyWaitForFuture(delegate);
+        }
+
+        @Override
+        public T get(final long timeout, final TimeUnit unit)
+                throws InterruptedException, ExecutionException,
+                TimeoutException
+        {
+            return safelyWaitForFuture(delegate, timeout, unit);
+        }
+
+        /**
+         * Wait on a future with the added twist of guaranteeing that it will
+         * be canceled on a forced shutdown.
+         *
+         * This method is necessitated by the fact that the processor may cause
+         * a forced shutdown at any time.  If the acquisition thread waits on a
+         * future without knowledge of the processor thread, it may deadlock.
+         *
+         * Note: This method throws unchecked exceptions, callers should handle
+         * them non the less..
+         *
+         * @param future The future to wait on.
+         * @param timeout Amount of time to wait.
+         * @param unit Time unit for wait.
+         * @return The result of the future.
+         * @throws ExecutionException An error occurred during execution of
+         *                            the future.
+         * @throws InterruptedException Interrupted.
+         * @throws CancellationException The processor shutdown prior to executing
+         *                               the future.
+         * @throws TimeoutException Timed Out waiting for the future.
+         */
+        private <T> T safelyWaitForFuture(Future<T> future, long timeout,
+                                          TimeUnit unit)
+                throws ExecutionException, InterruptedException,
+                CancellationException, TimeoutException
+        {
+            // Do not commit to waiting for a future unless we know that
+            // 1. The processor is running and the future is registered to be
+            //    canceled on forced shutdown
+            // or
+            // 2. We explicitly cancel the future
+            boolean registered =
+                    pendingSynchronousCall.compareAndSet(null, this);
+
+            if(!registered)
+            {
+                //coding or threading error
+                throw new Error("Could not register future with shutdown.");
+            }
+            else
+            {
+
+                try
+                {
+                    if(!inForcedShutdown.get())
+                    {
+                        // The future will be either
+                        // 1. completed
+                        // or
+                        // 2. canceled as part of a forced shutdown.
+                        return future.get(timeout, unit);
+                    }
+                    else
+                    {
+                        // The future could be
+                        // 1. completed
+                        // 2.canceled
+                        // or
+                        // 3. abandoned by the processor
+                        // We won't know until shutdown is completed.
+                        shutdownLatch.await();
+
+                        if(!future.isDone())
+                        {
+                            future.cancel(false);
+                        }
+
+                        return future.get(timeout, unit);
+                    }
+                }
+                finally
+                {
+                    boolean unregistered =
+                            pendingSynchronousCall.compareAndSet(this, null);
+                    if(!unregistered)
+                    {
+                        throw new Error("Could not unregister future" +
+                                " with shutdown.");
+                    }
+                }
+            }
+
+        }
+
+        /**
+         * Wait on a future with the added twist of guaranteeing that it will
+         * be canceled on a forced shutdown.
+         *
+         * This method is necessitated by the fact that the processor may cause
+         * a forced shutdown at any time.  If the acquisition thread waits on a
+         * future without knowledge of the processor thread, it may deadlock.
+         *
+         * Note: This method throws unchecked exceptions, callers should handle
+         * them non the less..
+         *
+         * @param future The future to wait on.
+         * @return The result of the future.
+         * @throws ExecutionException An error occurred during execution of
+         *                            the future.
+         * @throws InterruptedException Interrupted.
+         * @throws CancellationException The processor shutdown prior to executing
+         *                               the future.
+         */
+        private <T> T safelyWaitForFuture(Future<T> future)
+                throws ExecutionException, InterruptedException,
+                CancellationException
+        {
+            // Do not commit to waiting for a future unless we know that
+            // 1. The processor is running and the future is registered to be
+            //    canceled on forced shutdown
+            // or
+            // 2. We explicitly cancel the future
+            boolean registered =
+                    pendingSynchronousCall.compareAndSet(null, this);
+
+            if(!registered)
+            {
+                //coding or threading error
+                throw new Error("Could not register future with shutdown.");
+            }
+            else
+            {
+
+
+                try
+                {
+                    if(!inForcedShutdown.get())
+                    {
+                        // The future will be either
+                        // 1. completed
+                        // or
+                        // 2. canceled as part of a forced shutdown.
+                        return future.get();
+                    }
+                    else
+                    {
+                        // The future could be
+                        // 1. completed
+                        // 2.canceled
+                        // or
+                        // 3. abandoned by the processor
+                        // We won't know until shutdown is completed.
+                        shutdownLatch.await();
+
+                        if(!future.isDone())
+                        {
+                            future.cancel(false);
+                        }
+
+                        return future.get();
+                    }
+                }
+                finally
+                {
+                    boolean unregistered =
+                            pendingSynchronousCall.compareAndSet(this, null);
+                    if(!unregistered)
+                    {
+                        throw new Error("Could not unregister future" +
+                                " with shutdown.");
+                    }
+                }
+
+            }
+        }
+
+
     }
 
 
