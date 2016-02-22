@@ -37,6 +37,8 @@ public class MockDataProcessor implements DataProcessor
     }
     Mode mode = Mode.NORMAL;
 
+    public int delayMillis;
+
     public MockDataProcessor()
     {
         lock = new ReentrantLock();
@@ -85,6 +87,7 @@ public class MockDataProcessor implements DataProcessor
         lock.lock();
         try
         {
+            try{ Thread.sleep(delayMillis);} catch (InterruptedException e){}
             checkMode();
             processCount++;
         }

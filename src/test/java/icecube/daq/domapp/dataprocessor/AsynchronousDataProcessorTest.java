@@ -145,6 +145,8 @@ public class AsynchronousDataProcessorTest
         catch (DataProcessorError dataProcessorError)
         {
             //desired
+            assertEquals("","Error submitting work to the processor",
+                    dataProcessorError.getMessage());
         }
 
         mock.unlock();
@@ -294,6 +296,8 @@ public class AsynchronousDataProcessorTest
         catch (DataProcessorError dataProcessorError)
         {
             //desired
+            assertEquals("","Error submitting work to the processor",
+                    dataProcessorError.getMessage());
         }
 
         try
@@ -304,6 +308,8 @@ public class AsynchronousDataProcessorTest
         catch (DataProcessorError dataProcessorError)
         {
             //desired
+            assertEquals("","Error submitting work to the processor",
+                    dataProcessorError.getMessage());
         }
 
 
@@ -316,6 +322,8 @@ public class AsynchronousDataProcessorTest
         catch (DataProcessorError dataProcessorError)
         {
             //desired
+            assertEquals("","Error submitting work to the processor",
+                    dataProcessorError.getMessage());
         }
 
         try
@@ -326,6 +334,8 @@ public class AsynchronousDataProcessorTest
         catch (DataProcessorError dataProcessorError)
         {
             //desired
+            assertEquals("","Error submitting work to the processor",
+                    dataProcessorError.getMessage());
         }
 
         // allow duplicate shutdown
@@ -549,6 +559,7 @@ public class AsynchronousDataProcessorTest
                             mock);
 
             mock.lock();
+            mock.delayMillis = 200;
 
             subject.process(DataProcessor.StreamType.MONI, DUMMY);
             subject.process(DataProcessor.StreamType.MONI, DUMMY);
@@ -566,6 +577,107 @@ public class AsynchronousDataProcessorTest
 
 
     }
+
+    @Test
+    public void testProcessingErrorsDurningSynchronousCalls() throws Exception
+    {
+        /// Test that a forced shutdown while a pending
+        /// synchronous call does not deadlock the caller
+
+        //CASE I: forced shutdown with pending graceful shutdown
+        {
+            MockDataProcessor mock = new MockDataProcessor();
+            AsynchronousDataProcessor subject =
+                    AsynchronousDataProcessor.singleThreadedExecutor("test",
+                            mock);
+
+            mock.lock();
+            mock.delayMillis = 200;
+
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+
+            mock.setMode(MockDataProcessor.Mode.ONE_ERROR);
+
+            mock.unlock();
+            subject.shutdown();
+            assertEquals("", 0, mock.processCount);
+        }
+
+        //CASE II: forced shutdown with pending sync() call
+        {
+            MockDataProcessor mock = new MockDataProcessor();
+            AsynchronousDataProcessor subject =
+                    AsynchronousDataProcessor.singleThreadedExecutor("test",
+                            mock);
+
+            mock.lock();
+            mock.delayMillis = 200;
+
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+
+            mock.setMode(MockDataProcessor.Mode.ONE_ERROR);
+
+            mock.unlock();
+            try
+            {
+                subject.sync();
+                fail("Sync suceeded despite shutdown");
+            }
+            catch (DataProcessorError dataProcessorError)
+            {
+               //desired
+                assertEquals("","Cancelled while syncing", dataProcessorError.getMessage());
+            }
+            assertEquals("", 0, mock.processCount);
+        }
+
+        //CASE III: forced shutdown with pending resolveUTCTime() call
+        {
+            MockDataProcessor mock = new MockDataProcessor();
+            AsynchronousDataProcessor subject =
+                    AsynchronousDataProcessor.singleThreadedExecutor("test",
+                            mock);
+
+            mock.lock();
+            mock.delayMillis = 200;
+
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+            subject.process(DataProcessor.StreamType.MONI, DUMMY);
+
+            mock.setMode(MockDataProcessor.Mode.ONE_ERROR);
+
+            mock.unlock();
+            try
+            {
+                subject.resolveUTCTime(1234);
+                fail("resolveUTCTime suceeded despite shutdown");
+            }
+            catch (DataProcessorError dataProcessorError)
+            {
+                //desired
+                assertEquals("","Cancelled while resolving UTC time", dataProcessorError.getMessage());
+            }
+            assertEquals("", 0, mock.processCount);
+        }
+
+    }
+
+
+
 
     @Test
     public void testOtherErrors() throws DataProcessorError
@@ -619,6 +731,8 @@ public class AsynchronousDataProcessorTest
             catch (DataProcessorError dataProcessorError)
             {
                // desired
+                assertEquals("","Cancelled while syncing",
+                        dataProcessorError.getMessage());
             }
 
             try
@@ -629,6 +743,8 @@ public class AsynchronousDataProcessorTest
             catch (DataProcessorError dataProcessorError)
             {
                 // desired
+                assertEquals("","Error submitting work to the processor",
+                        dataProcessorError.getMessage());
             }
 
             try{ Thread.sleep(200);} catch (InterruptedException e){}
@@ -680,6 +796,8 @@ public class AsynchronousDataProcessorTest
             catch (DataProcessorError dataProcessorError)
             {
                 //expected
+                assertEquals("","Error while resolving UTC time",
+                        dataProcessorError.getMessage());
             }
         }
 
