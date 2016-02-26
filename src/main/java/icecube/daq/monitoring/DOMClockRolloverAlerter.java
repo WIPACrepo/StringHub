@@ -1,4 +1,4 @@
-package icecube.daq.livemoni;
+package icecube.daq.monitoring;
 
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.juggler.alert.AlertException;

@@ -6,7 +6,7 @@ import icecube.daq.dor.IDriver;
 import icecube.daq.time.gps.test.MockGPSDriver;
 import icecube.daq.juggler.alert.AlertQueue;
 import icecube.daq.juggler.alert.Alerter;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 import icecube.daq.time.monitoring.MockAlerter;
 import icecube.daq.util.DeployedDOM;
 import org.apache.log4j.BasicConfigurator;
@@ -213,10 +213,10 @@ public class DSBGPSServiceTest
         MockAlerter alerter = new MockAlerter();
         AlertQueue alertQueue = constructAlertQueue(alerter);
         alertQueue.start();
-        LiveTCalMoni moni = new LiveTCalMoni(alertQueue,
+        TCalExceptionAlerter tcalAlerter = new TCalExceptionAlerter(alertQueue,
                 new DeployedDOM(-1L,-1, -1));
 
-        subject.setMoni(moni);
+        subject.setMoni(tcalAlerter);
         //<
 
 

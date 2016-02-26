@@ -13,7 +13,7 @@ import icecube.daq.domapp.dataprocessor.DataProcessorError;
 import icecube.daq.domapp.dataprocessor.DataProcessorFactory;
 import icecube.daq.domapp.dataprocessor.GPSProvider;
 import icecube.daq.juggler.alert.Alerter.Priority;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 import icecube.daq.time.gps.GPSService;
 import icecube.daq.util.SimpleMovingAverage;
 import icecube.daq.util.StringHubAlert;
@@ -261,11 +261,11 @@ public class NewDataCollector
        dataAcquisition.doConfigure(config);
     }
 
-    public void setLiveMoni(LiveTCalMoni moni)
+    public void setTCalExceptionAlerter(TCalExceptionAlerter alerter)
     {
         try
         {
-            dataProcessor.setLiveMoni(moni);
+            dataProcessor.setTCalExceptionAlerter(alerter);
         }
         catch (DataProcessorError dataProcessorError)
         {

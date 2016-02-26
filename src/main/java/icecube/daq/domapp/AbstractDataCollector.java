@@ -3,7 +3,7 @@
 package icecube.daq.domapp;
 
 import icecube.daq.juggler.alert.AlertQueue;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
 
@@ -276,7 +276,7 @@ public abstract class AbstractDataCollector extends Thread
         this.alertQueue = alertQueue;
     }
 
-    public abstract void setLiveMoni(LiveTCalMoni moni);
+    public abstract void setTCalExceptionAlerter(TCalExceptionAlerter alerter);
 
     public void setDomInfo(DeployedDOM domInfo)
     {

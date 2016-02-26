@@ -12,7 +12,7 @@ import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.juggler.alert.Alerter.Priority;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.ZeroCrossingRAPCal;
@@ -1433,9 +1433,9 @@ public class LegacyDataCollector
     }
 
     @Override
-    public void setLiveMoni(LiveTCalMoni moni)
+    public void setTCalExceptionAlerter(TCalExceptionAlerter alerter)
     {
-        rapcal.setMoni(moni);
+        rapcal.setMoni(alerter);
     }
 
     @Override

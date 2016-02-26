@@ -1,7 +1,7 @@
 package icecube.daq.time.gps;
 
 import icecube.daq.dor.GPSInfo;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 import org.apache.log4j.Logger;
 
 /**
@@ -109,13 +109,13 @@ public class FailsafeGPSService implements IGPSService
     }
 
     @Override
-    public void setMoni(final LiveTCalMoni moni)
+    public void setMoni(final TCalExceptionAlerter alerter)
     {
         synchronized(this)
         {
             if(delegate != null)
             {
-                delegate.setMoni(moni);
+                delegate.setMoni(alerter);
             }
         }
     }

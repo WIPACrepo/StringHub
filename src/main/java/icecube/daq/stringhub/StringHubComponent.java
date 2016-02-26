@@ -30,9 +30,9 @@ import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
-import icecube.daq.livemoni.DOMClockRolloverAlerter;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.DOMClockRolloverAlerter;
 import icecube.daq.monitoring.MonitoringData;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.impl.ReadoutRequestFactory;
@@ -675,12 +675,12 @@ public class StringHubComponent
 
 			DeployedDOM domInfo = domRegistry.getDom(chanInfo.mbid_numerique);
 
-			LiveTCalMoni moni = new LiveTCalMoni(getAlertQueue(), domInfo);
+			TCalExceptionAlerter alerter = new TCalExceptionAlerter(getAlertQueue(), domInfo);
 
 			// Associate a GPS service to this card, if not already done
 			if (!isSim) {
 				IGPSService inst = GPSService.getInstance();
-                inst.setMoni(moni);
+                inst.setMoni(alerter);
                 inst.startService(chanInfo.card);
 			}
 
@@ -703,7 +703,7 @@ public class StringHubComponent
 			scalSort.register(chanInfo.mbid_numerique);
 			tcalSort.register(chanInfo.mbid_numerique);
 			dc.setAlertQueue(getAlertQueue());
-			dc.setLiveMoni(moni);
+			dc.setTCalExceptionAlerter(alerter);
 			conn.add(dc);
 			if (logger.isDebugEnabled()) {
 				logger.debug("Starting new DataCollector thread on (" + cwd +
@@ -1101,7 +1101,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15973 2016-01-28 21:52:56Z bendfelt $";
+		return "$Id: StringHubComponent.java 16020 2016-02-26 20:17:18Z dglo $";
 	}
 
 	public IByteBufferCache getCache()

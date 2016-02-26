@@ -2,7 +2,7 @@ package icecube.daq.rapcal;
 
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.juggler.alert.AlertQueue;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 import icecube.daq.time.monitoring.MockAlerter;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.TimeUnits;
@@ -866,10 +866,11 @@ public class AbstractRAPCalTest
             MockAlerter alerter = new MockAlerter();
             AlertQueue alertQueue = new AlertQueue(alerter);
             alertQueue.start();
-            LiveTCalMoni moni = new LiveTCalMoni(alertQueue,
-                    new DeployedDOM(-1L,-1, -1));
+            TCalExceptionAlerter tcalAlerter =
+                    new TCalExceptionAlerter(alertQueue,
+                            new DeployedDOM(-1L,-1, -1));
 
-            subject.setMoni(moni);
+            subject.setMoni(tcalAlerter);
 
             try
             {
@@ -897,10 +898,11 @@ public class AbstractRAPCalTest
             MockAlerter alerter = new MockAlerter();
             AlertQueue alertQueue = new AlertQueue(alerter);
             alertQueue.start();
-            LiveTCalMoni moni = new LiveTCalMoni(alertQueue,
-                    new DeployedDOM(-1L,-1, -1));
+            TCalExceptionAlerter tcalAlerter =
+                    new TCalExceptionAlerter(alertQueue,
+                        new DeployedDOM(-1L,-1, -1));
 
-            subject.setMoni(moni);
+            subject.setMoni(tcalAlerter);
 
             long[] ok = { 140284688764968L, 140284688765936L, 19488689372039L, 19488689372651L };
             long[] ok2 = { 140285324954832L, 140285324955800L, 19489961750703L, 19489961751315L };

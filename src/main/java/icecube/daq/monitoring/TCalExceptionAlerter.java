@@ -1,4 +1,4 @@
-package icecube.daq.livemoni;
+package icecube.daq.monitoring;
 
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.juggler.alert.AlertException;
@@ -10,24 +10,23 @@ import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
-public class LiveTCalMoni
+public class TCalExceptionAlerter
 {
-    // these values are duplicated in icecube.daq.secBuilder.TCalAnalysis
     public static final String TCAL_EXCEPTION_NAME = "dom_tcalException";
     public static final int TCAL_EXCEPTION_VERSION = 0;
 
-    private static final Logger LOG = Logger.getLogger(LiveTCalMoni.class);
+    private static final Logger LOG =
+        Logger.getLogger(TCalExceptionAlerter.class);
 
     private AlertQueue alertQueue;
     private DeployedDOM domInfo;
 
-    public LiveTCalMoni(AlertQueue alertQueue, DeployedDOM domInfo)
+    public TCalExceptionAlerter(AlertQueue alertQueue, DeployedDOM domInfo)
     {
         this.alertQueue = alertQueue;
         this.domInfo = domInfo;
     }
 
-    // this method is a near-copy of icecube.daq.secBuiler.TCalAnalysis.send()
     public void send(String errmsg, TimeCalib tcal)
     {
         HashMap valueMap = new HashMap();

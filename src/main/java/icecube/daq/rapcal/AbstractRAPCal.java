@@ -1,7 +1,7 @@
 package icecube.daq.rapcal;
 
 import icecube.daq.dor.TimeCalib;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 import icecube.daq.util.TimeUnits;
 import icecube.daq.util.UTC;
 
@@ -109,12 +109,12 @@ public abstract class AbstractRAPCal implements RAPCal
      */
     private static class MoniGuard
     {
-        LiveTCalMoni moni;
+        TCalExceptionAlerter alerter;
         void send(final String message, final TimeCalib tcal)
         {
-            if(moni != null)
+            if(alerter != null)
             {
-                moni.send(message, tcal);
+                alerter.send(message, tcal);
             }
         }
     }
@@ -462,13 +462,13 @@ public abstract class AbstractRAPCal implements RAPCal
     }
 
     /**
-     * Sets the monitor object to use.
+     * Sets the exception alerter object to use.
      *
-     * @param moni The monitor to register.
+     * @param alerter The alerter to register.
      */
-    public void setMoni(LiveTCalMoni moni)
+    public void setMoni(TCalExceptionAlerter alerter)
     {
-        this.moniGuard.moni = moni;
+        this.moniGuard.alerter = alerter;
     }
 
 }

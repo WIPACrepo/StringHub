@@ -1,7 +1,7 @@
 package icecube.daq.rapcal;
 
 import icecube.daq.dor.TimeCalib;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 import icecube.daq.util.UTC;
 
 public interface RAPCal
@@ -70,7 +70,7 @@ public interface RAPCal
      *
      * @param moni The monitor to register.
      */
-    void setMoni(LiveTCalMoni moni);
+    void setMoni(TCalExceptionAlerter moni);
 
 
 }

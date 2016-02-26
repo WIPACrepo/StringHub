@@ -1,7 +1,7 @@
 package icecube.daq.stringhub;
 
 import icecube.daq.domapp.AbstractDataCollector;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 
 import java.util.Random;
 
@@ -71,7 +71,7 @@ class MockDataCollector
         return false;
     }
 
-    public void setLiveMoni(LiveTCalMoni x0)
+    public void setTCalExceptionAlerter(TCalExceptionAlerter x0)
     {
         throw new Error("Unimplemented");
     }

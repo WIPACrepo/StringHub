@@ -1,7 +1,7 @@
 package icecube.daq.domapp.dataprocessor;
 
 import icecube.daq.dor.TimeCalib;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.util.UTC;
@@ -73,7 +73,7 @@ public class MockRapCal implements RAPCal
     }
 
     @Override
-    public void setMoni(final LiveTCalMoni moni)
+    public void setMoni(final TCalExceptionAlerter alerter)
     {
     }
 

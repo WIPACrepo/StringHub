@@ -6,7 +6,7 @@ import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.GPSNotReady;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
 import icecube.daq.time.monitoring.ClockProcessor;
 import org.apache.log4j.Logger;
@@ -48,12 +48,12 @@ public class DSBGPSService implements IGPSService
      */
     private static class MoniGuard
     {
-        private LiveTCalMoni moni;
+        private TCalExceptionAlerter alerter;
         void send(final String message, final TimeCalib tcal)
         {
-            if(moni != null)
+            if(alerter != null)
             {
-                moni.send(message, tcal);
+                alerter.send(message, tcal);
             }
         }
     }
@@ -120,9 +120,9 @@ public class DSBGPSService implements IGPSService
     }
 
     @Override
-    public void setMoni(final LiveTCalMoni moni)
+    public void setMoni(final TCalExceptionAlerter alerter)
     {
-        moniGuard.moni = moni;
+        moniGuard.alerter = alerter;
     }
 
 

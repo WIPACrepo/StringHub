@@ -1,7 +1,7 @@
 package icecube.daq.domapp.dataprocessor;
 
 import icecube.daq.domapp.RunLevel;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.util.UTC;
 
@@ -161,8 +161,8 @@ public class SynchronousDataProcessor implements DataProcessor
     }
 
     @Override
-    public void setLiveMoni(final LiveTCalMoni moni)
+    public void setTCalExceptionAlerter(final TCalExceptionAlerter alerter)
     {
-        rapcal.setMoni(moni);
+        rapcal.setMoni(alerter);
     }
 }

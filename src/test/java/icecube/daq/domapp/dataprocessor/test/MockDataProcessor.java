@@ -4,7 +4,7 @@ import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.dataprocessor.DataProcessor;
 import icecube.daq.domapp.dataprocessor.DataProcessorError;
 import icecube.daq.domapp.dataprocessor.DataStats;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 import icecube.daq.util.UTC;
 
 import java.nio.ByteBuffer;
@@ -177,7 +177,7 @@ public class MockDataProcessor implements DataProcessor
     }
 
     @Override
-    public void setLiveMoni(final LiveTCalMoni moni) throws DataProcessorError
+    public void setTCalExceptionAlerter(final TCalExceptionAlerter alerter) throws DataProcessorError
     {
         lock.lock();
         try

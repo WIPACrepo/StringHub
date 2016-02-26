@@ -1,7 +1,7 @@
 package icecube.daq.time.gps;
 
 import icecube.daq.dor.GPSInfo;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 
 /**
  * Defines the interface provided by the GPS service.
@@ -47,8 +47,8 @@ public interface IGPSService
     /**
      * Sets the monitor object to be used for alert conditions.
      *
-     * @param moni The monitor to use for alerts.
+     * @param alerter The monitor to use for alerts.
      */
-    public void setMoni(LiveTCalMoni moni);
+    public void setMoni(TCalExceptionAlerter alerter);
 
 }

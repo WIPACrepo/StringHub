@@ -1,7 +1,7 @@
 package icecube.daq.domapp.dataprocessor;
 
 import icecube.daq.domapp.RunLevel;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 import icecube.daq.util.UTC;
 import org.apache.log4j.Logger;
 
@@ -207,9 +207,9 @@ public class ErrorProducingProcessor implements DataProcessor
     }
 
     @Override
-    public void setLiveMoni(final LiveTCalMoni moni) throws DataProcessorError
+    public void setTCalExceptionAlerter(final TCalExceptionAlerter alerter) throws DataProcessorError
     {
-        delegate.setLiveMoni(moni);
+        delegate.setTCalExceptionAlerter(alerter);
     }
 
     private void generateException(int messageCount) throws DataProcessorError

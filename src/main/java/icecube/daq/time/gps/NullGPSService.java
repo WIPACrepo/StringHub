@@ -1,7 +1,7 @@
 package icecube.daq.time.gps;
 
 import icecube.daq.dor.GPSInfo;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -48,7 +48,7 @@ class NullGPSService implements IGPSService
     }
 
     @Override
-    public void setMoni(final LiveTCalMoni moni)
+    public void setMoni(final TCalExceptionAlerter alerter)
     {
         //nop
     }

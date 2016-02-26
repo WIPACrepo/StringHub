@@ -1,7 +1,7 @@
 package icecube.daq.domapp.dataprocessor;
 
 import icecube.daq.domapp.RunLevel;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.TCalExceptionAlerter;
 import icecube.daq.util.UTC;
 
 import java.nio.ByteBuffer;
@@ -160,7 +160,7 @@ public interface DataProcessor
      * Provide the live alert service to the rapcal instance
      */
 
-    public void setLiveMoni(LiveTCalMoni moni) throws DataProcessorError;
+    public void setTCalExceptionAlerter(TCalExceptionAlerter alerter) throws DataProcessorError;
 
 
 }
