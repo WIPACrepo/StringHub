@@ -10,6 +10,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -38,29 +40,66 @@ public class BufferConsumerAsync implements BufferConsumer
 
     private static Logger logger = Logger.getLogger(BufferConsumerAsync.class);
 
+    /**
+     * Policies which define the behavior when the buffer queue is full
+     */
+    public static enum QueueFullPolicy
+    {
+        Reject,           // Reject buffer submission on queue full
+        Block,            // block submitter on queue full
+    }
 
     public BufferConsumerAsync(final BufferConsumer delegate)
     {
-       this(delegate, MAX_QUEUED_BUFFERS);
+       this(delegate, MAX_QUEUED_BUFFERS, QueueFullPolicy.Block);
     }
 
     public BufferConsumerAsync(final BufferConsumer delegate,
-                               final int capacity)
+                               final int capacity,
+                               QueueFullPolicy policy)
     {
-        this(delegate, capacity, "AsyncConsumer");
+        this(delegate, capacity, policy, "AsyncConsumer");
     }
 
     public BufferConsumerAsync(final BufferConsumer delegate,
                                final int capacity,
                                final String threadName)
     {
-        this.delegate = delegate;
-        this.executor =
-                new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
-                        new LinkedBlockingQueue<Runnable>(capacity),
-                        new SingleThreadFactory(threadName));
+         this(delegate, capacity, QueueFullPolicy.Block, threadName);
     }
 
+    public BufferConsumerAsync(final BufferConsumer delegate,
+                               final int capacity,
+                               final QueueFullPolicy policy,
+                               final String threadName)
+    {
+        this.delegate = delegate;
+
+        switch (policy)
+        {
+            case Block:
+                this.executor =
+                        new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+                                new LinkedBlockingQueue<Runnable>(capacity),
+                                new SingleThreadFactory(threadName),
+                                new BlockingExecutorRejectionHandler());
+                break;
+            case Reject:
+                this.executor =
+                        new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+                                new LinkedBlockingQueue<Runnable>(capacity),
+                                new SingleThreadFactory(threadName));
+                break;
+            default:
+                throw new Error("Unknown policy: " + policy);
+        }
+
+    }
+
+    public int getQueueSize()
+    {
+        return ((ThreadPoolExecutor)executor).getQueue().size();
+    }
 
     /**
      * Wait for consumption thread to complete. Generally
@@ -152,8 +191,8 @@ public class BufferConsumerAsync implements BufferConsumer
                         Thread.interrupted();
 
                         logger.error("Async consumer encountered an error," +
-                                " abandoning  " + abandonedWork.size()
-                                + " buffers " , th);
+                                " abandoning " + abandonedWork.size()
+                                + " buffers" , th);
                     }
                     return null;
                 }
@@ -189,8 +228,8 @@ public class BufferConsumerAsync implements BufferConsumer
                         Thread.interrupted();
 
                         logger.error("Async consumer encountered an error," +
-                                " abandoning  " + abandonedWork.size() +
-                                " buffers " , th);
+                                " abandoning " + abandonedWork.size() +
+                                " buffers" , th);
                     }
                     return null;
                 }
@@ -242,6 +281,53 @@ public class BufferConsumerAsync implements BufferConsumer
             }
         }
 
+    }
+
+    /**
+     * Realizes a bounded executor that blocks on job submission when the
+     * job queue is full.
+     *
+     * Note: Surprised to find this policy absent in the JDK.
+     *
+     *
+     * The assumption is that jobs are only rejected for two reasons.
+     *
+     *    The work queue is full.
+     *    The executor is shutdown.
+     *
+     * We can't realistically use the queue size as an indicator as we are
+     * not synchronous with the consumer.
+     *
+     */
+    private static class BlockingExecutorRejectionHandler
+            implements RejectedExecutionHandler
+    {
+        @Override
+        public void rejectedExecution(final Runnable r,
+                                      final ThreadPoolExecutor executor)
+        {
+            if(executor.isShutdown())
+            {
+                throw new RejectedExecutionException("Executor is shutdown");
+            }
+            else
+            {
+                // Assume that the queue was full, and move to a blocking
+                // job insert.
+                //
+                // This is a huge assumption, but it is all that the jdk
+                // has offered.
+                try
+                {
+                    executor.getQueue().put(r);
+                }
+                catch (InterruptedException e)
+                {
+                    throw new RejectedExecutionException(e);
+                }
+
+            }
+        }
     }
 
 

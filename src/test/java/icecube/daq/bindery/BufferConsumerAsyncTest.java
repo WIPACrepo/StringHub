@@ -1,5 +1,6 @@
 package icecube.daq.bindery;
 
+import icecube.daq.stringhub.test.MockAppender;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -10,6 +11,8 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -22,6 +25,7 @@ import static org.junit.Assert.*;
 public class BufferConsumerAsyncTest
 {
 
+    private static MockAppender appender;
     MockConsumer mockConsumer;
     BufferConsumerAsync subject;
     private final int NUM_TEST_BUFFERS = 500000;
@@ -37,9 +41,12 @@ public class BufferConsumerAsyncTest
     @Before
     public void setUp()
     {
+        appender = new MockAppender(Level.INFO);
+        BasicConfigurator.configure(appender);
+
        mockConsumer = new MockConsumer();
        subject = new BufferConsumerAsync(mockConsumer, MAX_BUFFERS,
-               "test-channel");
+               BufferConsumerAsync.QueueFullPolicy.Block, "test-channel");
     }
 
     @After
@@ -124,9 +131,19 @@ public class BufferConsumerAsyncTest
 
 
     @Test
-    public void testLimit() throws Exception
+    public void testLimitRejectPolicy() throws Exception
     {
-        /// Test the queue limits
+        /// Test the queue limits under the rejection policy.
+
+        // do away with the preloaded subject
+        subject.endOfStream(-1);
+        subject.join();
+
+        mockConsumer = new MockConsumer();
+        subject = new BufferConsumerAsync(mockConsumer, MAX_BUFFERS,
+                BufferConsumerAsync.QueueFullPolicy.Reject,
+                "test-channel");
+        //
 
         mockConsumer.consumptionLock.lock();
 
@@ -167,6 +184,77 @@ public class BufferConsumerAsyncTest
     }
 
     @Test
+    public void testLimitBlockingPolicy() throws Exception
+    {
+        /// Test the queue limits under the blcocking policy
+
+        mockConsumer.consumptionLock.lock();
+
+
+        // sorta racey ... assuming the first buffer
+        // makes it to the consumption lock
+        subject.consume(ByteBuffer.allocate(128));
+        try{ Thread.sleep(10);} catch (InterruptedException e){}
+        for(int i=0; i< MAX_BUFFERS; i++)
+        {
+            subject.consume(ByteBuffer.allocate(128));
+        }
+
+        final ByteBuffer marker = ByteBuffer.allocateDirect(128);
+
+        // under the blocking policy, the next consume()
+        // call will block until the mock is unlocked
+        final CountDownLatch startLatch = new CountDownLatch(1);
+        final AtomicLong blockDelay = new AtomicLong(0);
+        Thread submitThread = new Thread()
+        {
+            @Override
+            public void run()
+            {
+                try
+                {
+                    startLatch.countDown();
+                    long start = System.nanoTime();
+                    subject.consume(marker);
+                    long stop = System.nanoTime();
+                    blockDelay.set(stop-start);
+                }
+                catch (IOException e)
+                {
+                    // should fail test, but can't fail off
+                    // main thread, detect by detecting the
+                    // marker later
+                    e.printStackTrace(System.out);
+                }
+            }
+        };
+        submitThread.start();
+
+        // ensure submitter is good and blocked
+        startLatch.await();
+        try{ Thread.sleep(1000);} catch (InterruptedException e){}
+
+        mockConsumer.consumptionLock.unlock();
+
+        submitThread.join();
+        assertTrue("Should have blocked a second instead of " +
+                blockDelay.get(), blockDelay.get() > 1000000000);
+
+        subject.sync(1000);
+
+        assertTrue("Marker should have been delivered",
+                mockConsumer.lastBuffer == marker);
+
+        assertEquals("", MAX_BUFFERS+2, mockConsumer.numBuffersDelivered);
+
+        subject.endOfStream(0);
+
+        subject.join();
+
+    }
+
+
+    @Test
     public void testEndOfStream() throws Exception
     {
         /// Test end of stream
@@ -198,6 +286,10 @@ public class BufferConsumerAsyncTest
         assertTrue("Error did not cause shutdown", subject.join(1000));
         assertTrue("Mock should have marker",
                 mockConsumer.lastBuffer == marker);
+
+        assertEquals("Did not Log error",
+                "Async consumer encountered an error, abandoning 0 buffers",
+                appender.getMessage(appender.getNumberOfMessages()-1));
 
         try
         {
@@ -231,6 +323,10 @@ public class BufferConsumerAsyncTest
 
         assertFalse("Mock did not generate error",
                 mockConsumer.endOfStreamCalled);
+
+        assertEquals("Did not Log error",
+                "Async consumer encountered an error, abandoning 0 buffers",
+                appender.getMessage(appender.getNumberOfMessages()-1));
 
         try
         {
