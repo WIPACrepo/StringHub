@@ -573,7 +573,8 @@ public class StringHubComponent
 
                 // use a dedicated thread for consumption from the sorter
                 // to separate the hitspool IO load from sorting load.
-                consumer = new BufferConsumerAsync(hitSpooler, 500000,
+                consumer = new BufferConsumerAsync(hitSpooler, 20000000,
+                        BufferConsumerAsync.QueueFullPolicy.Block,
                         "hit-consumer");
 			} catch (IOException ioe) {
 				logger.error("Cannot create hit spooler", ioe);
@@ -1101,7 +1102,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16020 2016-02-26 20:17:18Z dglo $";
+		return "$Id: StringHubComponent.java 16031 2016-03-07 20:04:01Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
