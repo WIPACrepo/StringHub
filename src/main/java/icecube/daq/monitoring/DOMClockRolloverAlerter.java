@@ -20,7 +20,7 @@ import java.util.Map;
  * <p>
  * Alerts are issued at two thresholds:
  * <p>
- * When the second threshold is reached, a general warning is issued.
+ * When the first threshold is reached, a general warning is issued.
  * This alert utilizes the throttling mechanism of i3live with a throttling
  * token composed of the month and year. This limits the number DOM clock
  * warning emails to one per month.
@@ -51,15 +51,15 @@ public class DOMClockRolloverAlerter
 
     /** The DOM clock value that triggers a first alert. */
     public static final int DOM_UPTIME_WARN_THRESHOLD_DAYS =
-            Integer.getInteger("icecube.daq.livemoni.dom-clock-warning-alert-days", 65);
+            Integer.getInteger("icecube.daq.monitoring.dom-clock-warning-alert-days", 65);
 
     /** The DOM clock value that triggers a second alert. */
     public static final int DOM_UPTIME_CRITICAL_THRESHOLD_DAYS =
-            Integer.getInteger("icecube.daq.livemoni.dom-clock-critical-alert-days", 78);
+            Integer.getInteger("icecube.daq.monitoring.dom-clock-critical-alert-days", 78);
 
     /** Defines the throttling domain. */
     public static final String THROTTLE_TOKEN_PREFIX =
-            System.getProperty("icecube.daq.livemoni.dom-clock-throttle-token",
+            System.getProperty("icecube.daq.monitoring.dom-clock-throttle-token",
                     "dom-clock-alert");
 
     /** Nanoseconds per day. */
