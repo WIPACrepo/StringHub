@@ -491,6 +491,10 @@ public class AsynchronousDataProcessor implements DataProcessor
             logger.warn("Graceful shutdown failed, forcing shutdown.");
             forceShutdown(Participant.AcquisitionThread);
         }
+        else
+        {
+           completeShutdown();
+        }
     }
 
     /**
@@ -547,7 +551,6 @@ public class AsynchronousDataProcessor implements DataProcessor
                     try
                     {
                         delegate.shutdown();
-                        completeShutdown();
                         return true;
                     }
                     catch (Throwable th)
