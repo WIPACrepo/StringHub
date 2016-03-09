@@ -9,6 +9,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Manages Clock alerts.
@@ -46,10 +47,28 @@ public class ClockAlerter
     ClockAlerter(final AlertQueue alertQueue,
                  final int minimumAlertIntervalMinutes)
     {
+        this(alertQueue, minimumAlertIntervalMinutes, TimeUnit.MINUTES);
+    }
+
+    /**
+     * Construct the alerter for the Clock Monitor subsystem.
+     *
+     * Note: This constructor supports testing by allowing small alert
+     *       intervals.
+     *
+     * @param alertQueue Target for the alerts.
+     * @param minimumAlertInterval During this period, at most one
+     *                                    alert of a type will be issued.
+     * @param intervalUnit The time unit of the interval argument.
+     */
+    ClockAlerter(final AlertQueue alertQueue,
+                 final int minimumAlertInterval,
+                 final  TimeUnit intervalUnit)
+    {
         this.alertQueue = alertQueue;
 
         this.minimumAlertIntervalNanos =
-                minimumAlertIntervalMinutes * 60 * 1000000000L;
+                intervalUnit.toNanos(minimumAlertInterval);
 
         // set the last alerts to a value over an interval in the past
         long base = now() - minimumAlertIntervalNanos - 1;
