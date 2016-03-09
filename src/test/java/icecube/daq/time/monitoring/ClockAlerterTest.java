@@ -5,14 +5,14 @@ import icecube.daq.juggler.alert.AlertQueue;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.log4j.varia.NullAppender;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -30,12 +30,14 @@ public class ClockAlerterTest
     @BeforeClass
     public static void setupLogging()
     {
-        BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.INFO);
+        // exercise logging calls, but output to nowhere
+        BasicConfigurator.resetConfiguration();
+        BasicConfigurator.configure(new NullAppender());
+        Logger.getRootLogger().setLevel(Level.ALL);
     }
 
     @AfterClass
-    public static void tearDownClass()
+    public static void tearDownLogging()
     {
         BasicConfigurator.resetConfiguration();
     }
@@ -79,7 +81,11 @@ public class ClockAlerterTest
     @Test
     public void testAlertsMultiplePeriod() throws DataProcessorError
     {
-        ClockAlerter subject = new ClockAlerter(alertQueue, 1);
+        final int interval = 5;
+        final TimeUnit intervalUnit = TimeUnit.SECONDS;
+
+        ClockAlerter subject = new ClockAlerter(alertQueue, interval,
+                intervalUnit);
 
         //period 1
         for (int x=0; x<100; x++)
@@ -93,8 +99,9 @@ public class ClockAlerterTest
         //sleep a period
         try
         {
-            System.out.println("Test sleeping for 60 seconds...");
-            Thread.sleep(60000);
+            System.out.println("Test sleeping for " +
+                    intervalUnit.toSeconds(interval) +" seconds...");
+            Thread.sleep(intervalUnit.toMillis(interval));
         }
         catch (InterruptedException e)
         {
@@ -117,10 +124,10 @@ public class ClockAlerterTest
         int numDelivered = mockAlerter.alerts.size();
         assertEquals("Alert throttling failed", 8, numDelivered);
 
-        for(Object obj : mockAlerter.alerts)
-        {
-            System.out.println(obj);
-        }
+//        for(Object obj : mockAlerter.alerts)
+//        {
+//            System.out.println(obj);
+//        }
     }
 
 
