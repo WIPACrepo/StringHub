@@ -6,6 +6,7 @@ import icecube.daq.time.gps.test.MockGPSDriver;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.log4j.varia.NullAppender;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -25,13 +26,14 @@ public class FailsafeGPSServiceTest
     @BeforeClass
     public static void setupLogging()
     {
-        BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.INFO);
+        // exercise logging calls, but output to nowhere
+        BasicConfigurator.resetConfiguration();
+        BasicConfigurator.configure(new NullAppender());
+        Logger.getRootLogger().setLevel(Level.ALL);
     }
 
-
     @AfterClass
-    public static void tearDown()
+    public static void tearDownLogging()
     {
         BasicConfigurator.resetConfiguration();
     }

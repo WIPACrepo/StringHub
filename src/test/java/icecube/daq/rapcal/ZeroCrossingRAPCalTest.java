@@ -4,8 +4,8 @@ import icecube.daq.util.UTC;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.log4j.varia.NullAppender;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -22,17 +22,14 @@ public class ZeroCrossingRAPCalTest
     @BeforeClass
     public static void setupLogging()
     {
-        BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.INFO);
-    }
-
-    @Before
-    public void setUp() throws Exception
-    {
+        // exercise logging calls, but output to nowhere
+        BasicConfigurator.resetConfiguration();
+        BasicConfigurator.configure(new NullAppender());
+        Logger.getRootLogger().setLevel(Level.ALL);
     }
 
     @AfterClass
-    public static void tearDown()
+    public static void tearDownLogging()
     {
         BasicConfigurator.resetConfiguration();
     }

@@ -4,7 +4,9 @@ import icecube.daq.stringhub.test.MockAppender;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.log4j.varia.NullAppender;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -32,15 +34,24 @@ public class BufferConsumerAsyncTest
     private final int MAX_BUFFERS = NUM_TEST_BUFFERS+1;
 
     @BeforeClass
-    public static void loggingSetUp()
+    public static void setupLogging()
     {
-        BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.INFO);
+        // exercise logging calls, but output to nowhere
+        BasicConfigurator.resetConfiguration();
+        BasicConfigurator.configure(new NullAppender());
+        Logger.getRootLogger().setLevel(Level.ALL);
+    }
+
+    @AfterClass
+    public static void tearDownLogging()
+    {
+        BasicConfigurator.resetConfiguration();
     }
 
     @Before
     public void setUp()
     {
+        BasicConfigurator.resetConfiguration();
         appender = new MockAppender(Level.INFO);
         BasicConfigurator.configure(appender);
 
@@ -55,10 +66,11 @@ public class BufferConsumerAsyncTest
         if(!subject.join(100))
         {
             subject.endOfStream(0L);
-         //   subject.join(Long.MAX_VALUE);
+            subject.join(Long.MAX_VALUE);
         }
-    }
 
+        BasicConfigurator.resetConfiguration();
+    }
 
     @Test
     public void testStartStop()

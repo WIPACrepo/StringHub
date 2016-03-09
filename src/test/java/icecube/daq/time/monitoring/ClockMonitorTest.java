@@ -4,6 +4,7 @@ import icecube.daq.juggler.alert.AlertQueue;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.log4j.varia.NullAppender;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -33,12 +34,14 @@ public class ClockMonitorTest
     @BeforeClass
     public static void setupLogging()
     {
-        BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.INFO);
+        // exercise logging calls, but output to nowhere
+        BasicConfigurator.resetConfiguration();
+        BasicConfigurator.configure(new NullAppender());
+        Logger.getRootLogger().setLevel(Level.ALL);
     }
 
     @AfterClass
-    public static void tearDownClass()
+    public static void tearDownLogging()
     {
         BasicConfigurator.resetConfiguration();
     }
@@ -60,7 +63,6 @@ public class ClockMonitorTest
         alertQueue.stop();
         mockAlerter.waitForClose();
     }
-
 
     //NOTE: Time dependency, alerts travel through a threaded queue
     int sleepRead(MockAlerter source)

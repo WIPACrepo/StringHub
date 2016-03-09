@@ -13,9 +13,8 @@ import icecube.daq.stringhub.test.MockAppender;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.junit.After;
+import org.apache.log4j.varia.NullAppender;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -42,17 +41,14 @@ public class DataOrderingTest
     @BeforeClass
     public static void setupLogging()
     {
-        BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.INFO);
-    }
-
-    @Before
-    public void setUp() throws Exception
-    {
+        // exercise logging calls, but output to nowhere
+        BasicConfigurator.resetConfiguration();
+        BasicConfigurator.configure(new NullAppender());
+        Logger.getRootLogger().setLevel(Level.ALL);
     }
 
     @AfterClass
-    public static void tearDown()
+    public static void tearDownLogging()
     {
         BasicConfigurator.resetConfiguration();
     }
@@ -535,7 +531,7 @@ public class DataOrderingTest
         BasicConfigurator.configure(mockLogger);
 
         //should only log MAX_LOGGING+1 in a row
-        mockLogger.setVerbose(true);
+        mockLogger.setVerbose(false);
         for (int i=1; i<10000; i++)
         {
             dispatcher.dispatchBuffer(generateBuffer(BACKWARDS_TIME));

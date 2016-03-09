@@ -6,7 +6,6 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -69,14 +68,6 @@ public abstract class AbstractChannelSorterTest
     }
     public abstract UnknownMBIDPolicy getUnknownMBIDPolicy();
 
-
-    @BeforeClass
-    public static void loggingSetUp()
-    {
-        BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.INFO);
-    }
-
     @Before
     public void setUp() throws Exception
     {
@@ -100,9 +91,6 @@ public abstract class AbstractChannelSorterTest
     @After
     public void tearDown() throws Exception
     {
-        BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.INFO);
-
         // ensure end of stream regardless of test exit point
         for (int ch = 0; ch < nch; ch++)
         {
@@ -118,6 +106,8 @@ public abstract class AbstractChannelSorterTest
         }
 
         mms.join();
+
+        BasicConfigurator.resetConfiguration();
     }
 
     @Test
@@ -415,7 +405,6 @@ public abstract class AbstractChannelSorterTest
         {
             if(throwErrorOnConsume)
             {
-                new Throwable().printStackTrace(System.out);
                 throw new Error("Testing Error");
             }
 

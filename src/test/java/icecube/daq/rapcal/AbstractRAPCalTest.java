@@ -8,17 +8,14 @@ import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.TimeUnits;
 import icecube.daq.util.UTC;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.Arrays;
-import java.util.Map;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
+import org.apache.log4j.varia.NullAppender;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -68,20 +65,18 @@ public class AbstractRAPCalTest
     @BeforeClass
     public static void setupLogging()
     {
-        BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.INFO);
-    }
-
-    @Before
-    public void setUp() throws Exception
-    {
+        // exercise logging calls, but output to nowhere
+        BasicConfigurator.resetConfiguration();
+        BasicConfigurator.configure(new NullAppender());
+        Logger.getRootLogger().setLevel(Level.ALL);
     }
 
     @AfterClass
-    public static void tearDown()
+    public static void tearDownLogging()
     {
         BasicConfigurator.resetConfiguration();
     }
+
     @Test
     public void testDefault()
     {
@@ -842,6 +837,7 @@ public class AbstractRAPCalTest
         //
         // Test the debug logging
         //
+        Level original = Logger.getRootLogger().getLevel();
         Logger.getRootLogger().setLevel(Level.DEBUG);
         MyRAPCal rapCal = new MyRAPCal();
         rapCal.update(buildTimeCalib(new long[]{1,2,3,4}),new UTC(0));
@@ -849,7 +845,8 @@ public class AbstractRAPCalTest
         rapCal.update(buildTimeCalib(new long[]{5,6,7,8}),new UTC(0));
         rapCal.update(buildTimeCalib(new long[]{7,8,9,10}),new UTC(0));
         rapCal.update(buildTimeCalib(new long[]{9,10,11,12}),new UTC(0));
-        Logger.getRootLogger().setLevel(Level.INFO);
+
+        Logger.getRootLogger().setLevel(original);
     }
 
     @Test

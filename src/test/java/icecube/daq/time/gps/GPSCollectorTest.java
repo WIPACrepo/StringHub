@@ -7,6 +7,7 @@ import icecube.daq.time.gps.test.MockGPSDriver;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.log4j.varia.NullAppender;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -27,17 +28,17 @@ public class GPSCollectorTest
     @BeforeClass
     public static void setupLogging()
     {
-        BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.INFO);
+        // exercise logging calls, but output to nowhere
+        BasicConfigurator.resetConfiguration();
+        BasicConfigurator.configure(new NullAppender());
+        Logger.getRootLogger().setLevel(Level.ALL);
     }
 
-
     @AfterClass
-    public static void tearDown()
+    public static void tearDownLogging()
     {
         BasicConfigurator.resetConfiguration();
     }
-
 
     @Test
     public void testInstantiation()
@@ -437,6 +438,8 @@ public class GPSCollectorTest
         // simulate hijacking of gpssync file
         driver.setException(new GPSNotReady("test"));
         driver.setMode(MockGPSDriver.Mode.Exception);
+        System.out.println("Sleeping 10 seconds to allow for" +
+                " GPS Error to develop ...");
         try{ Thread.sleep(10000);} catch (InterruptedException e){}
         try
         {
@@ -480,6 +483,8 @@ public class GPSCollectorTest
         // simulate driver failure
         driver.setException(new GPSException("test-xyzzy"));
         driver.setMode(MockGPSDriver.Mode.Exception);
+        System.out.println("Sleeping 10 seconds to allow for" +
+                " GPS Error to develop ...");
         try{ Thread.sleep(10000);} catch (InterruptedException e){}
         try
         {

@@ -2,12 +2,11 @@ package icecube.daq.domapp.dataprocessor;
 
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.dataprocessor.test.MockDataProcessor;
-import icecube.daq.stringhub.test.MockAppender;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.log4j.varia.NullAppender;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -29,20 +28,17 @@ public class AsynchronousDataProcessorTest
     @BeforeClass
     public static void setupLogging()
     {
-        BasicConfigurator.configure(new MockAppender(Level.DEBUG));
-    }
-
-    @Before
-    public void setUp() throws Exception
-    {
+        // exercise logging calls, but output to nowhere
+        BasicConfigurator.resetConfiguration();
+        BasicConfigurator.configure(new NullAppender());
+        Logger.getRootLogger().setLevel(Level.ALL);
     }
 
     @AfterClass
-    public static void tearDown()
+    public static void tearDownLogging()
     {
         BasicConfigurator.resetConfiguration();
     }
-
 
     @Test
     public void testRunLevel() throws DataProcessorError
