@@ -78,6 +78,11 @@ public class StringHubComponent
 	private static final String COMPONENT_NAME =
 		DAQCmdInterface.DAQ_STRING_HUB;
 
+	/** Default interval for each hitspool file (in seconds) */
+	private static final double DEFAULT_HITSPOOL_INTERVAL = 15.0;
+	/** Maximum number of hitspool files */
+	private static final int DEFAULT_HITSPOOL_MAXFILES = 18000;
+
 	private int hubId;
 	private Driver driver = Driver.getInstance();
 	private IByteBufferCache cache;
@@ -559,28 +564,18 @@ public class StringHubComponent
 											cfgData.tcalPrescale);
 		}
 
+		// the hit buffer consumer is either the sender or a hitspool
+		// object which passes all hits onto the sender
+		BufferConsumer consumer;
+		try {
+			consumer = createHitspooler(sender);
+		} catch (IOException ioe) {
+			logger.error("Cannot create hitspooler", ioe);
+			consumer = sender;
+		}
+
 		final boolean usePriority =
 			System.getProperty("usePrioritySort") != null;
-
-		BufferConsumer consumer = sender;
-		if (cfgData.hitSpooling) {
-			try {
-				// send hits to hit spooler which forwards them to the sorter
-				hitSpooler = new FilesHitSpool(sender, configurationPath,
-											   new File(cfgData.hitSpoolDir),
-											   cfgData.hitSpoolIval,
-											   cfgData.hitSpoolNumFiles);
-
-                // use a dedicated thread for consumption from the sorter
-                // to separate the hitspool IO load from sorting load.
-                consumer = new BufferConsumerAsync(hitSpooler, 20000000,
-                        BufferConsumerAsync.QueueFullPolicy.Block,
-                        "hit-consumer");
-			} catch (IOException ioe) {
-				logger.error("Cannot create hit spooler", ioe);
-				hitSpooler = null;
-			}
-		}
 
 		// Start the hit merger-sorter
 		if (!usePriority) {
@@ -711,6 +706,51 @@ public class StringHubComponent
 							 ").");
 			}
 		}
+	}
+
+	private BufferConsumer createHitspooler(BufferConsumer consumer)
+		throws IOException
+	{
+		final String directory = System.getProperty("hitspool.directory");
+		if (directory == null) {
+			return consumer;
+		}
+
+		double interval = DEFAULT_HITSPOOL_INTERVAL;
+
+		final String ivalStr = System.getProperty("hitspool.interval");
+		if (ivalStr != null) {
+			try {
+				double tmpIval = Double.parseDouble(ivalStr);
+				interval = tmpIval;
+			} catch (NumberFormatException nfe) {
+				logger.error("Bad hitspool interval \"" + ivalStr +
+							 "\"; falling back to default " + interval);
+			}
+		}
+
+		int numFiles = DEFAULT_HITSPOOL_MAXFILES;
+
+		final String numStr = System.getProperty("hitspool.maxfiles");
+		if (numStr != null) {
+			try {
+				int tmpVal = Integer.parseInt(numStr);
+				numFiles = tmpVal;
+			} catch (NumberFormatException nfe) {
+				logger.error("Bad number of hitspool files \"" + numStr +
+							 "\"; falling back to default " + numFiles);
+			}
+		}
+
+		// send hits to hit spooler which forwards them to the sorter
+		hitSpooler = new FilesHitSpool(consumer, configurationPath,
+									   new File(directory),
+									   (long) (interval * 1E10), numFiles);
+
+		// use a dedicated thread for consumption from the sorter
+		// to separate the hitspool IO load from sorting load.
+		return new BufferConsumerAsync(hitSpooler, 20000000,
+			BufferConsumerAsync.QueueFullPolicy.Block, "hit-consumer");
 	}
 
 	/**
@@ -1102,7 +1142,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16031 2016-03-07 20:04:01Z bendfelt $";
+		return "$Id: StringHubComponent.java 16057 2016-03-22 22:40:36Z dglo $";
 	}
 
 	public IByteBufferCache getCache()

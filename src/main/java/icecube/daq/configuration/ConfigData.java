@@ -37,12 +37,6 @@ public class ConfigData
     public double snDistance = Double.NaN;
     public boolean forwardIsolatedHits;
 
-    // hit spool configuration
-    public boolean hitSpooling;
-    public String hitSpoolDir;
-    public long hitSpoolIval = 100000000000L; // Default 10s hit spool interval
-    public int hitSpoolNumFiles = 100;
-
     // random hit configuration
     public boolean isRandom;
 
@@ -126,14 +120,6 @@ public class ConfigData
                 }
 
                 parseDOMHubConfig(hubNode);
-
-                Node hsNode = JAXPUtil.extractNode(hubNode, "hitspool");
-                if (hsNode == null) {
-                    // if there is no hitspool child of the stringHub tag
-                    // look for a default node
-                    hsNode = JAXPUtil.extractNode(doc, "runConfig/hitspool");
-                }
-                parseHitSpool(hsNode);
             }
         }
     }
@@ -233,37 +219,6 @@ public class ConfigData
             DOMConfiguration domCfg = new DOMConfiguration();
             domCfg.setSimNoiseRate(noiseRate);
             xmlConfig.addDOMConfig(mbid, domCfg);
-        }
-    }
-
-    private void parseHitSpool(Node hsNode)
-        throws JAXPUtilException
-    {
-        hitSpooling=false;
-        if (hsNode != null) {
-            final String enabled =
-                JAXPUtil.extractText(hsNode, "enabled");
-            if (enabled.equalsIgnoreCase("true")) {
-                hitSpooling = true;
-            }
-
-            hitSpoolDir = JAXPUtil.extractText(hsNode, "directory");
-            if (hitSpoolDir.length() == 0) {
-                hitSpoolDir = "/mnt/data/pdaqlocal";
-            }
-
-            final String hsIvalText =
-                JAXPUtil.extractText(hsNode, "interval");
-            if (hsIvalText.length() > 0) {
-                final double interval = Double.parseDouble(hsIvalText);
-                hitSpoolIval = (long) (1E10 * interval);
-            }
-
-            final String hsNFText =
-                JAXPUtil.extractText(hsNode, "numFiles");
-            if (hsNFText.length() > 0) {
-                hitSpoolNumFiles  = Integer.parseInt(hsNFText);
-            }
         }
     }
 
