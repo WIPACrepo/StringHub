@@ -1,7 +1,7 @@
 package icecube.daq.time.gps;
 
 import icecube.daq.dor.GPSInfo;
-import icecube.daq.monitoring.TCalExceptionAlerter;
+import icecube.daq.monitoring.IRunMonitor;
 
 /**
  * Defines the interface provided by the GPS service.
@@ -47,8 +47,14 @@ public interface IGPSService
     /**
      * Sets the monitor object to be used for alert conditions.
      *
-     * @param alerter The monitor to use for alerts.
+     * @param runMonitor The monitor to use for alerts.
      */
-    public void setMoni(TCalExceptionAlerter alerter);
+    public void setRunMonitor(IRunMonitor runMonitor);
 
+    /**
+     * Sets the string number to be used in monitoring/alert messages.
+     *
+     * @param string string number (values are 0-86 and 201-211)
+     */
+    public void setStringNumber(int string);
 }

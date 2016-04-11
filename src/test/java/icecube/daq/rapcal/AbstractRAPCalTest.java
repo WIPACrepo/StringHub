@@ -1,14 +1,15 @@
 package icecube.daq.rapcal;
 
+import icecube.daq.dor.GPSException;
+import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.TimeCalib;
-import icecube.daq.juggler.alert.AlertQueue;
-import icecube.daq.monitoring.TCalExceptionAlerter;
-import icecube.daq.time.monitoring.MockAlerter;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.TimeUnits;
 import icecube.daq.util.UTC;
 
 import java.util.Arrays;
+import java.util.Collection;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
@@ -30,6 +31,8 @@ class MyRAPCal
     MyRAPCal()
     {
         super();
+        // default monitor will complain if it receives anything
+        setRunMonitor(new MyMonitor());
     }
 
     public MyRAPCal(final double w, final int maxHistory)
@@ -37,7 +40,7 @@ class MyRAPCal
         super(w, maxHistory);
     }
 
-    public  double getFineTimeCorrection(short[] w)
+    public double getFineTimeCorrection(short[] w)
         throws RAPCalException
     {
         if(triggerException)
@@ -48,6 +51,133 @@ class MyRAPCal
         {
             return 0.0;
         }
+    }
+}
+
+class MyMonitor
+    implements IRunMonitor
+{
+    private String exceptionString;
+    private boolean receivedException;
+    private boolean expectWildTCal;
+    private int wildCount;
+
+    public void expectExceptionString(String excStr)
+    {
+        exceptionString = excStr;
+    }
+
+    public void expectWildTCal()
+    {
+        expectWildTCal = true;
+    }
+
+    public int getWildCount()
+    {
+        return wildCount;
+    }
+
+    @Override
+    public void join()
+        throws InterruptedException
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public void push(long mbid, Isochron isochron)
+    {
+        // ignore isochrons
+    }
+
+    @Override
+    public void push(String domTriplet, TimeCalib tcal)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public void pushException(int string, int card, GPSException exception)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public void pushException(long mbid, RAPCalException exception,
+                              TimeCalib tcal)
+    {
+        if (exceptionString == null)
+        {
+            fail("Unexpected exception \"" + exceptionString + "\" for tcal " +
+                 tcal);
+        }
+        else if (exception == null || exception.getMessage() == null ||
+                 !exception.getMessage().startsWith(exceptionString))
+        {
+            fail("Exception \"" + exception + "\" for tcal " + tcal +
+                 " should start with \"" + exceptionString + "\"");
+        }
+
+        receivedException = true;
+    }
+
+    @Override
+    public void pushGPSMisalignment(int string, int card, GPSInfo oldGPS,
+                                    GPSInfo newGPS)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public void pushGPSProcfileNotReady(int string, int card)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public void pushWildTCal(long mbid, double cableLength, double averageLen)
+    {
+        if (!expectWildTCal)
+        {
+            fail("Unexpected wild TCal");
+        }
+
+        wildCount++;
+    }
+
+    public boolean receivedException()
+    {
+        return receivedException;
+    }
+
+    public void reset()
+    {
+        receivedException = false;
+        wildCount = 0;
+    }
+
+    @Override
+    public void setConfiguredDOMs(Collection<DeployedDOM> configuredDOMs)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public void setRunNumber(int runNum)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public void start()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public void stop()
+    {
+        throw new Error("Unimplemented");
     }
 }
 
@@ -453,6 +583,10 @@ public class AbstractRAPCalTest
         MyRAPCal subject = new MyRAPCal();
         subject.triggerException = true;
 
+        MyMonitor runMonitor = new MyMonitor();
+        runMonitor.expectExceptionString("test");
+        subject.setRunMonitor(runMonitor);
+
         try
         {
             subject.update(buildTimeCalib(tcal_1, wf, wf), new UTC(0));
@@ -468,6 +602,7 @@ public class AbstractRAPCalTest
             assertArrayEquals("", wf, ((BadTCalException)e).getWaveform());
         }
 
+        assertTrue("RunMonitor did not receive exception", runMonitor.receivedException());
     }
 
     @Test
@@ -500,7 +635,12 @@ public class AbstractRAPCalTest
                 };
         final UTC GPS = new UTC(0);
 
-        RAPCal rapcal = new MyRAPCal();
+        MyRAPCal rapcal = new MyRAPCal();
+
+        MyMonitor runMonitor = new MyMonitor();
+        runMonitor.expectExceptionString("Non-monotonic timestamps: ");
+        rapcal.setRunMonitor(runMonitor);
+
         try
         {
             rapcal.update(buildTimeCalib(before_rollover_1), GPS);
@@ -508,8 +648,10 @@ public class AbstractRAPCalTest
         }
         catch (RAPCalException e)
         {
-            fail("unxecpected rapcal failure: " + e.getMessage());
+            fail("unexpected rapcal failure: " + e.getMessage());
         }
+
+        assertFalse("RunMonitor received exception", runMonitor.receivedException());
 
         try
         {
@@ -520,11 +662,14 @@ public class AbstractRAPCalTest
         {
             // expected
         }
+
+        assertTrue("RunMonitor did not receive exception", runMonitor.receivedException());
     }
 
 
     @Test
     public void testWildTCAL()
+        throws RAPCalException
     {
         //
         // Test that Wild Tcal data is rejected
@@ -553,18 +698,15 @@ public class AbstractRAPCalTest
         }
         catch (RAPCalException e)
         {
-            fail("unxecpected rapcal failure");
+            fail("unexpected rapcal failure");
         }
 
-        try
-        {
-            rapcal.update(buildTimeCalib(wild), GPS);
-            fail("Expected Wild Tcal exception");
-        }
-        catch (RAPCalException e)
-        {
-           //desired
-        }
+        MyMonitor runMonitor = new MyMonitor();
+        rapcal.setRunMonitor(runMonitor);
+        runMonitor.expectWildTCal();
+
+        assertFalse("Expected Wild Tcal exception",
+                    rapcal.update(buildTimeCalib(wild), GPS));
     }
 
     @Test
@@ -666,20 +808,34 @@ public class AbstractRAPCalTest
     }
 
     private static void assertUpdate(String messagePrefix, long[] tcal,
-                                     UTC gpsOffset, RAPCal rapCal,
-                                     boolean exceptionExpected)
+                                     UTC gpsOffset, MyRAPCal rapCal,
+                                     boolean wildTCalExpected)
     {
+        MyMonitor runMonitor = new MyMonitor();
+        rapCal.setRunMonitor(runMonitor);
+        if (wildTCalExpected)
+        {
+            runMonitor.expectWildTCal();
+        }
+
         try
         {
-            rapCal.update(buildTimeCalib(tcal), gpsOffset);
-            assertFalse(messagePrefix + " update should have excepted",
-                    exceptionExpected);
+            assertEquals("Bad update", !wildTCalExpected,
+                         rapCal.update(buildTimeCalib(tcal), gpsOffset));
+            if (!wildTCalExpected)
+            {
+                assertEquals(messagePrefix + " update should NOT have wild tcal (count=" + runMonitor.getWildCount() + ")", 0, runMonitor.getWildCount());
+            }
+            else
+            {
+                assertTrue(messagePrefix + " update should have wild tcal",
+                        runMonitor.getWildCount() > 0);
+            }
 
         }
         catch (RAPCalException e)
         {
-            assertTrue(messagePrefix + " update should have succeded",
-                    exceptionExpected);
+            fail(messagePrefix + " update should have succeded");
         }
     }
 
@@ -716,8 +872,12 @@ public class AbstractRAPCalTest
                             7000500
                     };
 
-            RAPCal subject = new MyRAPCal();
+            MyRAPCal subject = new MyRAPCal();
             subject.update(buildTimeCalib(degenerate), new UTC(0));
+
+            MyMonitor runMonitor = new MyMonitor();
+            runMonitor.expectExceptionString("Non-monotonic timestamps: ");
+            subject.setRunMonitor(runMonitor);
 
             try
             {
@@ -729,6 +889,9 @@ public class AbstractRAPCalTest
                 //desired
             }
 
+            assertTrue("RunMonitor did not receive exception", runMonitor.receivedException());
+            runMonitor.reset();
+
             try
             {
                 subject.update(buildTimeCalib(ok_2), new UTC(0));
@@ -738,6 +901,8 @@ public class AbstractRAPCalTest
                 fail("Initialization did not recover from bad tcal:" +
                         e.getMessage());
             }
+
+            assertFalse("RunMonitor received exception", runMonitor.receivedException());
         }
 
         // convoluted case of multiple degenerate tcals
@@ -789,6 +954,10 @@ public class AbstractRAPCalTest
             RAPCal subject = new MyRAPCal();
             subject.update(buildTimeCalib(degenerate), new UTC(0));
 
+            MyMonitor runMonitor = new MyMonitor();
+            runMonitor.expectExceptionString("Non-monotonic timestamps: ");
+            subject.setRunMonitor(runMonitor);
+
             try
             {
                 subject.update(buildTimeCalib(degenerate_2), new UTC(0));
@@ -798,6 +967,8 @@ public class AbstractRAPCalTest
             {
                 //desired
             }
+            assertTrue("RunMonitor did not receive exception", runMonitor.receivedException());
+            runMonitor.reset();
             try
             {
                 subject.update(buildTimeCalib(ok), new UTC(0));
@@ -807,6 +978,8 @@ public class AbstractRAPCalTest
             {
                 //desired
             }
+            assertTrue("RunMonitor did not receive exception", runMonitor.receivedException());
+            runMonitor.reset();
             try
             {
                 subject.update(buildTimeCalib(degenerate_3), new UTC(0));
@@ -817,6 +990,8 @@ public class AbstractRAPCalTest
                 //desired
             }
 
+            assertTrue("RunMonitor did not receive exception", runMonitor.receivedException());
+            runMonitor.reset();
             try
             {
                 subject.update(buildTimeCalib(ok_2), new UTC(0));
@@ -827,6 +1002,8 @@ public class AbstractRAPCalTest
                 fail("Initialization did not recover from bad tcal:" +
                         e.getMessage());
             }
+
+            assertFalse("RunMonitor received exception", runMonitor.receivedException());
         }
 
     }
@@ -860,14 +1037,10 @@ public class AbstractRAPCalTest
 
         // CASE I: BadTCalException, i.e. degenerate waveform
         {
-            MockAlerter alerter = new MockAlerter();
-            AlertQueue alertQueue = new AlertQueue(alerter);
-            alertQueue.start();
-            TCalExceptionAlerter tcalAlerter =
-                    new TCalExceptionAlerter(alertQueue,
-                            new DeployedDOM(-1L,-1, -1));
+            MyMonitor runMonitor = new MyMonitor();
+            runMonitor.expectExceptionString("test");
 
-            subject.setMoni(tcalAlerter);
+            subject.setRunMonitor(runMonitor);
 
             try
             {
@@ -878,12 +1051,7 @@ public class AbstractRAPCalTest
             }
             catch (RAPCalException e)
             {
-                // exception details should be delivered to moni
-                // as an alert object
-                alertQueue.stop();
-                alerter.waitForClose();
-
-                assertEquals("Expect 1 alert", 1, alerter.alerts.size());
+                assertTrue("RunMonitor did not receive exception", runMonitor.receivedException());
             }
         }
 
@@ -892,14 +1060,10 @@ public class AbstractRAPCalTest
         {
             subject.triggerException = false;
 
-            MockAlerter alerter = new MockAlerter();
-            AlertQueue alertQueue = new AlertQueue(alerter);
-            alertQueue.start();
-            TCalExceptionAlerter tcalAlerter =
-                    new TCalExceptionAlerter(alertQueue,
-                        new DeployedDOM(-1L,-1, -1));
+            MyMonitor runMonitor = new MyMonitor();
+            runMonitor.expectExceptionString("Non-monotonic timestamps: ");
 
-            subject.setMoni(tcalAlerter);
+            subject.setRunMonitor(runMonitor);
 
             long[] ok = { 140284688764968L, 140284688765936L, 19488689372039L, 19488689372651L };
             long[] ok2 = { 140285324954832L, 140285324955800L, 19489961750703L, 19489961751315L };
@@ -914,12 +1078,7 @@ public class AbstractRAPCalTest
             }
             catch (RAPCalException e)
             {
-                // exception details should be delivered to moni
-                // as an alert object
-                alertQueue.stop();
-                alerter.waitForClose();
-
-                assertEquals("Expect 1 alert", 1, alerter.alerts.size());
+                assertTrue("RunMonitor did not receive exception", runMonitor.receivedException());
             }
         }
 

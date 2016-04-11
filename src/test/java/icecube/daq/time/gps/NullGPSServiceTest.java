@@ -49,7 +49,7 @@ public class NullGPSServiceTest
         assertEquals("", 0, gps.getDorclk());
         assertEquals("", 0, gps.getOffset().in_0_1ns());
 
-        subject.setMoni(null);
+        subject.setRunMonitor(null);
         subject.shutdownAll();
 
     }

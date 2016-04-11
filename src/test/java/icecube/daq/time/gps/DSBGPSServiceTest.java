@@ -1,13 +1,16 @@
 package icecube.daq.time.gps;
 
+import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.GPSNotReady;
 import icecube.daq.dor.IDriver;
-import icecube.daq.time.gps.test.MockGPSDriver;
+import icecube.daq.dor.TimeCalib;
 import icecube.daq.juggler.alert.AlertQueue;
 import icecube.daq.juggler.alert.Alerter;
-import icecube.daq.monitoring.TCalExceptionAlerter;
-import icecube.daq.time.monitoring.MockAlerter;
+import icecube.daq.monitoring.IRunMonitor;
+import icecube.daq.rapcal.Isochron;
+import icecube.daq.rapcal.RAPCalException;
+import icecube.daq.time.gps.test.MockGPSDriver;
 import icecube.daq.util.DeployedDOM;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
@@ -19,12 +22,112 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import static icecube.daq.time.gps.test.BuilderMethods.*;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 
+
+class MyMonitor
+    implements IRunMonitor
+{
+    private boolean expectNotReady;
+
+    void expectNotReady()
+    {
+        expectNotReady = true;
+    }
+
+    @Override
+    public void join()
+        throws InterruptedException
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public void push(long mbid, Isochron isochron)
+    {
+        // ignore isochrons
+    }
+
+    @Override
+    public void push(String domTriplet, TimeCalib tcal)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public void pushException(int string, int card, GPSException exception)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public void pushException(long mbid, RAPCalException exception,
+                              TimeCalib tcal)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public void pushGPSMisalignment(int string, int card, GPSInfo oldGPS,
+                                    GPSInfo newGPS)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public void pushGPSProcfileNotReady(int string, int card)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public void pushWildTCal(long mbid, double cableLength, double averageLen)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public void reset()
+    {
+        expectNotReady = false;
+    }
+
+    @Override
+    public void setConfiguredDOMs(Collection<DeployedDOM> configuredDOMs)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    public void setGPSProcfileNotReady()
+    {
+        if (!expectNotReady)
+        {
+            throw new Error("Unexpected GPS procfile error");
+        }
+    }
+
+    @Override
+    public void setRunNumber(int i0)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public void start()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public void stop()
+    {
+        throw new Error("Unimplemented");
+    }
+}
 
 /**
  * Tests DSBGPSService.java
@@ -122,7 +225,7 @@ public class DSBGPSServiceTest
             //desired
         }
 
-        subject.setMoni(null);
+        subject.setRunMonitor(null);
 
         // shutdown without starting
         subject.shutdownAll();
@@ -212,13 +315,10 @@ public class DSBGPSServiceTest
         DSBGPSService subject = constructSubject(driver);
 
         //> set moni
-        MockAlerter alerter = new MockAlerter();
-        AlertQueue alertQueue = constructAlertQueue(alerter);
-        alertQueue.start();
-        TCalExceptionAlerter tcalAlerter = new TCalExceptionAlerter(alertQueue,
-                new DeployedDOM(-1L,-1, -1));
+        MyMonitor runMonitor = new MyMonitor();
+        runMonitor.expectNotReady();
 
-        subject.setMoni(tcalAlerter);
+        subject.setRunMonitor(runMonitor);
         //<
 
 
@@ -227,7 +327,6 @@ public class DSBGPSServiceTest
         driver.setException(new GPSNotReady("test"));
         subject.startService(0);
         subject.waitForReady(0, 10000);
-        assertTrue(alerter.alerts.size() > 1);
 
     }
 

@@ -1,7 +1,7 @@
 package icecube.daq.domapp.dataprocessor;
 
 import icecube.daq.domapp.RunLevel;
-import icecube.daq.monitoring.TCalExceptionAlerter;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.util.UTC;
 
@@ -161,8 +161,8 @@ public class SynchronousDataProcessor implements DataProcessor
     }
 
     @Override
-    public void setTCalExceptionAlerter(final TCalExceptionAlerter alerter)
+    public void setRunMonitor(final IRunMonitor runMonitor)
     {
-        rapcal.setMoni(alerter);
+        rapcal.setRunMonitor(runMonitor);
     }
 }

@@ -190,4 +190,10 @@ public class TimeCalib {
 		return buf.position() - pos;
 	}
 
+    public String toString()
+    {
+        return String.format("TimeCalib[dor %d(tx %d -> rx %d)" +
+                             " dom %d(rx %d -> tx %d)", dorRx - dorTx, dorTx,
+                             dorRx, domTx - domRx, domRx, domTx);
+    }
 }

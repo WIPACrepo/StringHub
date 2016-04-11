@@ -1,6 +1,7 @@
 package icecube.daq.domapp.dataprocessor;
 
 import icecube.daq.bindery.BufferConsumer;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.rapcal.RAPCal;
 import org.apache.log4j.Logger;
 
@@ -268,5 +269,9 @@ public class UTCDispatcher implements DataDispatcher
 
     }
 
+    public void setRunMonitor(IRunMonitor runMonitor)
+    {
+        rapcal.setRunMonitor(runMonitor);
+    }
 
 }

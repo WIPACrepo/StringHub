@@ -4,9 +4,9 @@ import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.TimeCalib;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
-import icecube.daq.rapcal.WildTCalException;
 import org.apache.log4j.Logger;
 
 import java.nio.ByteBuffer;
@@ -123,36 +123,38 @@ class TCalProcessor implements DataProcessor.StreamProcessor
 
     }
 
+    public void setRunMonitor(IRunMonitor runMonitor)
+    {
+        throw new Error("Dave didn't think this was needed!");
+        //dispatcher.setRunMonitor(runMonitor);
+    }
 
     private void updateRapCal(TimeCalib tcal, GPSInfo gps,
                                  DataStats counters)
     {
         try
         {
-            rapcal.update(tcal, gps.getOffset());
-
-            final long utc;
-            if(rapcal.isReady())
-            {
-                utc = rapcal.domToUTC(tcal.getDomTx().in_0_1ns() / 250L).in_0_1ns();
+            if (rapcal.update(tcal, gps.getOffset())) {
+                final long utc;
+                if(rapcal.isReady())
+                {
+                    final long domTicks = tcal.getDomTx().in_0_1ns() / 250L;
+                    utc = rapcal.domToUTC(domTicks).in_0_1ns();
+                }
+                else
+                {
+                    // Note: Can not utilize rapcal for utc reconstruction yet.
+                    utc = -1;
+                }
+                //count valid tcals and update counters.
+                counters.reportTCAL(tcal, utc, rapcal.cableLength(),
+                                    rapcal.epsilon());
             }
             else
             {
-                // Note: Can not utilize rapcal for utc reconstruction yet.
-                utc = -1;
+                // count tcal errors
+                counters.reportTCALError();
             }
-            //count valid tcals and update counters.
-            counters.reportTCAL(tcal, utc, rapcal.cableLength(),
-                                rapcal.epsilon());
-        }
-        catch (WildTCalException wte)
-        {
-            //Note: Wild Tcals are common and therefor logged without
-            //      stack trace.
-            logger.warn(wte.getMessage());
-
-            // count tcal errors
-            counters.reportTCALError();
         }
         catch (RAPCalException rcex)
         {

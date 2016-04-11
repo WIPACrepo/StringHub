@@ -31,8 +31,9 @@ import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
 import icecube.daq.monitoring.DOMClockRolloverAlerter;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.monitoring.MonitoringData;
-import icecube.daq.monitoring.TCalExceptionAlerter;
+import icecube.daq.monitoring.RunMonitor;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.impl.ReadoutRequestFactory;
@@ -103,12 +104,12 @@ public class StringHubComponent
 	private ChannelSorter scalSort;
 	private File configurationPath;
 	private int numConfigured;
+	private IRunMonitor runMonitor;
 
 	private FilesHitSpool hitSpooler;
 
 	/** list of configured DOMs filled during configuring() */
-	private ArrayList<DeployedDOM> configuredDOMs =
-		new ArrayList<DeployedDOM>();
+	private List<DeployedDOM> configuredDOMs;
 
 	private ArrayList<PrioritySort> prioList = new ArrayList<PrioritySort>();
 
@@ -264,11 +265,14 @@ public class StringHubComponent
 												  "supernovaOut");
 			addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaOut);
 		}
+
+		runMonitor = new RunMonitor(hubId % 1000, getAlertQueue());
+		runMonitor.start();
 	}
 
-	void applyConfigToDOMs(ConfigData cfgData,
-						   Collection<DeployedDOM> deployedDOMs,
-						   List<DOMChannelInfo> activeDOMs)
+	List<DeployedDOM> applyConfigToDOMs(ConfigData cfgData,
+										Collection<DeployedDOM> deployedDOMs,
+										List<DOMChannelInfo> activeDOMs)
 		throws DAQCompException
 	{
 		// Dropped DOM detection logic - WARN if channel on string AND in
@@ -291,6 +295,7 @@ public class StringHubComponent
 		}
 
 		// check all the DOMs which are known to be on this hub
+		ArrayList<DeployedDOM> doms = new ArrayList<DeployedDOM>();
 		for (DeployedDOM deployedDOM : deployedDOMs) {
 			String mbid = deployedDOM.getMainboardId();
 
@@ -320,11 +325,13 @@ public class StringHubComponent
 				}
 
 				// add to the list of configured DOMs
-				configuredDOMs.add(deployedDOM);
+				doms.add(deployedDOM);
 			}
 		}
 
-		new DOMSorter().sort(configuredDOMs);
+		new DOMSorter().sort(doms);
+
+		return doms;
 	}
 
 	@Override
@@ -489,6 +496,10 @@ public class StringHubComponent
 			activeDOMs = discoverSimDOMs(deployedDOMs);
 		} else {
 			activeDOMs = discoverRealDOMs();
+
+			// GPS service needs string number for monitoring messages
+			IGPSService inst = GPSService.getInstance();
+			inst.setStringNumber(hubId % 1000);
 		}
 
 		if (activeDOMs.size() == 0) {
@@ -499,7 +510,8 @@ public class StringHubComponent
 			sender.forwardIsolatedHitsToTrigger();
 		}
 
-		applyConfigToDOMs(cfgData, deployedDOMs, activeDOMs);
+		configuredDOMs = applyConfigToDOMs(cfgData, deployedDOMs, activeDOMs);
+		runMonitor.setConfiguredDOMs(configuredDOMs);
 
 		logger.debug("Configuration successfully loaded -" +
 					 " Intersection(DISC, CONFIG).size() = " + numConfigured);
@@ -642,8 +654,9 @@ public class StringHubComponent
             DataCollector dc =
                     DataCollectorFactory.buildDataCollector(chanInfo.card, chanInfo.pair, chanInfo.dom,
 								  chanInfo.mbid, config, hitsSort, moniSort,
-                                  scalSort, tcalSort, enable_intervals);
+								  scalSort, tcalSort, enable_intervals);
 			addMBean("DataCollectorMonitor-" + chanInfo, dc);
+			dc.setRunMonitor(runMonitor);
 			return dc;
 		}
 
@@ -671,13 +684,11 @@ public class StringHubComponent
 
 			DeployedDOM domInfo = domRegistry.getDom(chanInfo.mbid_numerique);
 
-			TCalExceptionAlerter alerter = new TCalExceptionAlerter(getAlertQueue(), domInfo);
-
 			// Associate a GPS service to this card, if not already done
 			if (!isSim) {
 				IGPSService inst = GPSService.getInstance();
-                inst.setMoni(alerter);
-                inst.startService(chanInfo.card);
+				inst.setRunMonitor(runMonitor);
+				inst.startService(chanInfo.card);
 			}
 
 			AbstractDataCollector dc;
@@ -699,7 +710,7 @@ public class StringHubComponent
 			scalSort.register(chanInfo.mbid_numerique);
 			tcalSort.register(chanInfo.mbid_numerique);
 			dc.setAlertQueue(getAlertQueue());
-			dc.setTCalExceptionAlerter(alerter);
+			dc.setRunMonitor(runMonitor);
 			conn.add(dc);
 			if (logger.isDebugEnabled()) {
 				logger.debug("Starting new DataCollector thread on (" + cwd +
@@ -775,6 +786,10 @@ public class StringHubComponent
 		if (alertQueue.isStopped()) {
 			throw new DAQCompException("AlertQueue " + alertQueue +
 									   " is stopped");
+		}
+
+		if (configuredDOMs == null || configuredDOMs.size() == 0) {
+			throw new DAQCompException("No DOMs have been configured");
 		}
 
 		if (getNumber() % 1000 < SourceIdRegistry.ICETOP_ID_OFFSET) {
@@ -1142,7 +1157,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16057 2016-03-22 22:40:36Z dglo $";
+		return "$Id: StringHubComponent.java 16095 2016-04-11 21:09:04Z dglo $";
 	}
 
 	public IByteBufferCache getCache()

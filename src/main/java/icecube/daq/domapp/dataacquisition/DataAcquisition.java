@@ -13,6 +13,7 @@ import icecube.daq.domapp.dataprocessor.DataStats;
 import icecube.daq.dor.Driver;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
 import icecube.daq.time.monitoring.ClockProcessor;
 import icecube.daq.util.FlasherboardConfiguration;
@@ -83,6 +84,8 @@ public class DataAcquisition
     /** Monitoring consumer of tcals. */
     private ClockProcessor tcalConsumer =
             ClockMonitoringSubsystem.Factory.processor();
+
+    private IRunMonitor runMonitor;
 
     public DataAcquisition(final int card, final int pair, final char dom,
                            final DataProcessor dataProcessor)
@@ -754,6 +757,8 @@ public class DataAcquisition
             tcalConsumer.process(new ClockProcessor.TCALMeasurement(dortxDor,
                     dortxNano, (after - before), card, id));
 
+            runMonitor.push(id, tcal);
+
             // Note: nuisance hack, dom/system times must be tracked from
             //       acquisition thread because the nano point-in-time field
             //       is not propagated to the processor.
@@ -809,6 +814,12 @@ public class DataAcquisition
     public long getRunStartSystemTime()
     {
         return monitor.runStartTime;
+    }
+
+
+    public void setRunMonitor(IRunMonitor runMoni)
+    {
+        runMonitor = runMoni;
     }
 
 

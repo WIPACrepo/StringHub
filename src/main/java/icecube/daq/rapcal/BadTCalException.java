@@ -14,6 +14,7 @@ public class BadTCalException extends RAPCalException
     private final short[] waveform;
 
     public BadTCalException(String source, short[] waveform) {
+        super(source);
         this.source = source;
         this.waveform = waveform;
     }

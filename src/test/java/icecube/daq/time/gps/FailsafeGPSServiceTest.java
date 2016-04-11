@@ -60,7 +60,7 @@ public class FailsafeGPSServiceTest
         assertFalse("should not be ready", subject.waitForReady(0, 1000));
 
 
-        subject.setMoni(null);
+        subject.setRunMonitor(null);
 
         // shutdown without starting
         subject.shutdownAll();

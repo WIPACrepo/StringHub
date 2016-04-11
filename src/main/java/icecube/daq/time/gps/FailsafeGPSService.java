@@ -1,7 +1,7 @@
 package icecube.daq.time.gps;
 
 import icecube.daq.dor.GPSInfo;
-import icecube.daq.monitoring.TCalExceptionAlerter;
+import icecube.daq.monitoring.IRunMonitor;
 import org.apache.log4j.Logger;
 
 /**
@@ -109,13 +109,25 @@ public class FailsafeGPSService implements IGPSService
     }
 
     @Override
-    public void setMoni(final TCalExceptionAlerter alerter)
+    public void setRunMonitor(final IRunMonitor runMonitor)
     {
         synchronized(this)
         {
             if(delegate != null)
             {
-                delegate.setMoni(alerter);
+                delegate.setRunMonitor(runMonitor);
+            }
+        }
+    }
+
+    @Override
+    public void setStringNumber(final int string)
+    {
+        synchronized(this)
+        {
+            if(delegate != null)
+            {
+                delegate.setStringNumber(string);
             }
         }
     }

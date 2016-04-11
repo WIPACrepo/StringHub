@@ -6,7 +6,7 @@ import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.GPSNotReady;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
-import icecube.daq.monitoring.TCalExceptionAlerter;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
 import icecube.daq.time.monitoring.ClockProcessor;
 import org.apache.log4j.Logger;
@@ -43,17 +43,36 @@ public class DSBGPSService implements IGPSService
     /** Per-card collector thread. */
     private GPSCollector[] coll;
 
+    /** String number of this hub. */
+    private int string;
+
     /**
      * Null-proof notifier.
      */
     private static class MoniGuard
     {
-        private TCalExceptionAlerter alerter;
-        void send(final String message, final TimeCalib tcal)
+        private IRunMonitor runMonitor;
+        void push(final int string, final int card,
+                  final GPSException exception)
         {
-            if(alerter != null)
+            if(runMonitor != null)
             {
-                alerter.send(message, tcal);
+                runMonitor.pushException(string, card, exception);
+            }
+        }
+        void push(final int string, final int card, final GPSInfo oldGPS,
+                  final GPSInfo newGPS)
+        {
+            if(runMonitor != null)
+            {
+                runMonitor.pushGPSMisalignment(string, card, oldGPS, newGPS);
+            }
+        }
+        void push(final int string, final int card)
+        {
+            if(runMonitor != null)
+            {
+                runMonitor.pushGPSProcfileNotReady(string, card);
             }
         }
     }
@@ -120,11 +139,16 @@ public class DSBGPSService implements IGPSService
     }
 
     @Override
-    public void setMoni(final TCalExceptionAlerter alerter)
+    public void setRunMonitor(final IRunMonitor runMonitor)
     {
-        moniGuard.alerter = alerter;
+        moniGuard.runMonitor = runMonitor;
     }
 
+    @Override
+    public void setStringNumber(final int string)
+    {
+        this.string = string;
+    }
 
     /**
      * The per-card thread that continuously polls the
@@ -307,7 +331,7 @@ public class DSBGPSService implements IGPSService
                                     "GPS offset mis-alignment detected - old GPS: " +
                                             gps + " new GPS: " + newGPS;
                             logger.error(errmsg);
-                            moniGuard.send(errmsg, null);
+                            moniGuard.push(string, card, gps, newGPS);
 
                             setFailed(errmsg);
                         }
@@ -336,7 +360,7 @@ public class DSBGPSService implements IGPSService
                     if (missedReadCount++ > EXPECTED_CONSEC_READ_MISSES)
                     {
                         logger.warn("GPS not ready.");
-                        moniGuard.send("SyncGPS procfile not ready", null);
+                        moniGuard.push(string, card);
                     }
 
                     // After a certain period, fail the service. Most likely
@@ -355,7 +379,7 @@ public class DSBGPSService implements IGPSService
                     // but give it a few chances to correct itself
                     logger.warn("Got GPS exception - time translation" +
                             " to UTC will be incomplete", gps_ex);
-                    moniGuard.send(gps_ex.getMessage(), null);
+                    moniGuard.push(string, card, gps_ex);
 
                     if (errorCount++ > MAX_CONSEC_READ_ERRORS)
                     {

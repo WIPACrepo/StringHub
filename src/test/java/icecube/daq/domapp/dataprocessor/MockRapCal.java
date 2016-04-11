@@ -1,7 +1,7 @@
 package icecube.daq.domapp.dataprocessor;
 
 import icecube.daq.dor.TimeCalib;
-import icecube.daq.monitoring.TCalExceptionAlerter;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.util.UTC;
@@ -73,14 +73,20 @@ public class MockRapCal implements RAPCal
     }
 
     @Override
-    public void setMoni(final TCalExceptionAlerter alerter)
+    public void setMainboardID(long mbid)
     {
     }
 
     @Override
-    public void update(final TimeCalib tcal, final UTC gpsOffset)
+    public void setRunMonitor(final IRunMonitor runMonitor)
+    {
+    }
+
+    @Override
+    public boolean update(final TimeCalib tcal, final UTC gpsOffset)
             throws RAPCalException
     {
+        return true;
     }
 
 

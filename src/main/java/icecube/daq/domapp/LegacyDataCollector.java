@@ -12,7 +12,7 @@ import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.juggler.alert.Alerter.Priority;
-import icecube.daq.monitoring.TCalExceptionAlerter;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.ZeroCrossingRAPCal;
@@ -1433,9 +1433,9 @@ public class LegacyDataCollector
     }
 
     @Override
-    public void setTCalExceptionAlerter(TCalExceptionAlerter alerter)
+    public void setRunMonitor(IRunMonitor runMonitor)
     {
-        rapcal.setMoni(alerter);
+        rapcal.setRunMonitor(runMonitor);
     }
 
     @Override

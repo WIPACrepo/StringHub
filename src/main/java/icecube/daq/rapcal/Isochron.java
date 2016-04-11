@@ -20,7 +20,7 @@ import icecube.daq.util.TimeUnits;
  *   Units.DOM causes scaling of raw dom clock values by 250.
  *
  */
-class Isochron
+public class Isochron
 {
 
 
@@ -71,7 +71,7 @@ class Isochron
      * @param gpsOffset The offset between the DOR clock and UTC time.
      * @throws RAPCalException A degenerate condition.
      */
-    Isochron(final Isochron prev, final long[] next, final long gpsOffset)
+    public Isochron(final Isochron prev, final long[] next, final long gpsOffset)
             throws RAPCalException
     {
         this(prev.t1, next, gpsOffset);
@@ -86,7 +86,7 @@ class Isochron
      * @param gpsOffset  The offset between the DOR clock and UTC time.
      * @throws RAPCalException A degenerate condition was detected in the data.
      */
-    Isochron(final long[] t0, final long[] t1, final long gpsOffset)
+    public Isochron(final long[] t0, final long[] t1, final long gpsOffset)
             throws RAPCalException
     {
         // enforce monotonic time progression invariant
@@ -117,7 +117,7 @@ class Isochron
      * Cable Length
      * @return The cable length, in 0.1 nanosecond units
      */
-    double getCableLength()
+    public double getCableLength()
     {
         return clen;
     }

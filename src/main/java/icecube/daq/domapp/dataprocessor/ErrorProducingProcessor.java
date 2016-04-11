@@ -1,7 +1,7 @@
 package icecube.daq.domapp.dataprocessor;
 
 import icecube.daq.domapp.RunLevel;
-import icecube.daq.monitoring.TCalExceptionAlerter;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.util.UTC;
 import org.apache.log4j.Logger;
 
@@ -207,9 +207,9 @@ public class ErrorProducingProcessor implements DataProcessor
     }
 
     @Override
-    public void setTCalExceptionAlerter(final TCalExceptionAlerter alerter) throws DataProcessorError
+    public void setRunMonitor(final IRunMonitor runMonitor) throws DataProcessorError
     {
-        delegate.setTCalExceptionAlerter(alerter);
+        delegate.setRunMonitor(runMonitor);
     }
 
     private void generateException(int messageCount) throws DataProcessorError

@@ -1,7 +1,7 @@
 package icecube.daq.time.gps;
 
 import icecube.daq.dor.GPSInfo;
-import icecube.daq.monitoring.TCalExceptionAlerter;
+import icecube.daq.monitoring.IRunMonitor;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -48,7 +48,13 @@ class NullGPSService implements IGPSService
     }
 
     @Override
-    public void setMoni(final TCalExceptionAlerter alerter)
+    public void setRunMonitor(final IRunMonitor runMonitor)
+    {
+        //nop
+    }
+
+    @Override
+    public void setStringNumber(final int string)
     {
         //nop
     }

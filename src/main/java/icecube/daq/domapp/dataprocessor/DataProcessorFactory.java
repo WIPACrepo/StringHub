@@ -96,8 +96,8 @@ public class DataProcessorFactory
     {
         DataStats dataStats = buildDataStats();
 
-
         final RAPCal rapcal = instantiateRAPCal();
+        rapcal.setMainboardID(mbid);
 
         //build the dispatchers
         UTCHitDispatcher hitDispatch =
@@ -178,7 +178,7 @@ public class DataProcessorFactory
         {
             logger.warn("Unable to load / instantiate RAPCal class " +
                     rapcalClass + ".  Loading ZeroCrossingRAPCal instead.");
-            return  new ZeroCrossingRAPCal();
+            return new ZeroCrossingRAPCal();
         }
     }
 

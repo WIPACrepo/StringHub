@@ -3,7 +3,7 @@
 package icecube.daq.domapp;
 
 import icecube.daq.juggler.alert.AlertQueue;
-import icecube.daq.monitoring.TCalExceptionAlerter;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
 
@@ -276,7 +276,7 @@ public abstract class AbstractDataCollector extends Thread
         this.alertQueue = alertQueue;
     }
 
-    public abstract void setTCalExceptionAlerter(TCalExceptionAlerter alerter);
+    public abstract void setRunMonitor(IRunMonitor runMonitor);
 
     public void setDomInfo(DeployedDOM domInfo)
     {

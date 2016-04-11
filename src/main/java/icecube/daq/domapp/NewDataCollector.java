@@ -13,7 +13,7 @@ import icecube.daq.domapp.dataprocessor.DataProcessorError;
 import icecube.daq.domapp.dataprocessor.DataProcessorFactory;
 import icecube.daq.domapp.dataprocessor.GPSProvider;
 import icecube.daq.juggler.alert.Alerter.Priority;
-import icecube.daq.monitoring.TCalExceptionAlerter;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.time.gps.GPSService;
 import icecube.daq.util.SimpleMovingAverage;
 import icecube.daq.util.StringHubAlert;
@@ -261,18 +261,17 @@ public class NewDataCollector
        dataAcquisition.doConfigure(config);
     }
 
-    public void setTCalExceptionAlerter(TCalExceptionAlerter alerter)
+    public void setRunMonitor(IRunMonitor runMonitor)
     {
         try
         {
-            dataProcessor.setTCalExceptionAlerter(alerter);
+            dataProcessor.setRunMonitor(runMonitor);
         }
         catch (DataProcessorError dataProcessorError)
         {
-            logger.error("Unable to set TCAL monitor", dataProcessorError);
+            logger.error("Unable to set run monitor", dataProcessorError);
         }
     }
-
     public synchronized void signalShutdown()
     {
         stop_thread = true;

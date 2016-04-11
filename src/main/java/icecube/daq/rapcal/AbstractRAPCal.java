@@ -1,7 +1,7 @@
 package icecube.daq.rapcal;
 
 import icecube.daq.dor.TimeCalib;
-import icecube.daq.monitoring.TCalExceptionAlerter;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.util.TimeUnits;
 import icecube.daq.util.UTC;
 
@@ -87,6 +87,9 @@ public abstract class AbstractRAPCal implements RAPCal
             Double.parseDouble(System.getProperty(PROP_WILD_TCAL_THRESH, "10")
             );
 
+    /** ID of RAPCAL source */
+    private long mbid;
+
     /** List of Isochrons, ordered sequentially. */
     private final LinkedList<Isochron> hist;
 
@@ -109,12 +112,34 @@ public abstract class AbstractRAPCal implements RAPCal
      */
     private static class MoniGuard
     {
-        TCalExceptionAlerter alerter;
-        void send(final String message, final TimeCalib tcal)
+        IRunMonitor runMonitor;
+        void push(long mbid, Isochron isochron)
         {
-            if(alerter != null)
+            if(runMonitor != null)
             {
-                alerter.send(message, tcal);
+                runMonitor.push(mbid, isochron);
+            }
+        }
+        void push(long mbid, double cableLength, double averageLen)
+        {
+            if(runMonitor != null)
+            {
+                runMonitor.pushWildTCal(mbid, cableLength, averageLen);
+            }
+        }
+        void push(long mbid, final BadTCalException exception,
+                  final TimeCalib tcal)
+        {
+            if(runMonitor != null)
+            {
+                runMonitor.pushException(mbid, exception, tcal);
+            }
+        }
+        void push(long mbid, final RAPCalException exception)
+        {
+            if(runMonitor != null)
+            {
+                runMonitor.pushException(mbid, exception, null);
             }
         }
     }
@@ -310,10 +335,11 @@ public abstract class AbstractRAPCal implements RAPCal
      * @param tcal The time calibration measurement.
      * @param gpsOffset The offset of the DOR clock with respect to UTC
      *                  time.
+     * @return <tt>false</tt> if the update failed
      * @throws RAPCalException A degenerate condition exist in the time
      *                         calibration data.
      */
-    public void update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException
+    public boolean update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException
     {
         if (logger.isDebugEnabled())
         {
@@ -322,41 +348,36 @@ public abstract class AbstractRAPCal implements RAPCal
 
         try {
 
+            boolean rtnval;
             switch (state)
             {
                 case NoTCAL:
                     state = State.OneTCAL;
+                    rtnval = true;
                     break;
                 case OneTCAL:
-                    addIsochron(new Isochron(setupVierling(lastTcal),
-                            setupVierling(tcal), gpsOffset.in_0_1ns()));
+                    rtnval = addIsochron(new Isochron(setupVierling(lastTcal),
+                                     setupVierling(tcal), gpsOffset.in_0_1ns()));
                     state = State.Initialized;
                     break;
                 case Initialized:
-                    addIsochron(new Isochron(hist.getLast(),
-                            setupVierling(tcal), gpsOffset.in_0_1ns()));
+                    rtnval = addIsochron(new Isochron(hist.getLast(),
+                                     setupVierling(tcal), gpsOffset.in_0_1ns()));
                     break;
                 default:
                     throw new Error("Unknown state");
             }
 
-        } catch (BadTCalException bte) {
-            StringBuilder msgbuf = new StringBuilder(bte.getSource());
-            msgbuf.append(':');
-            short[] waveform = bte.getWaveform();
-            for (final short w : waveform)
-            {
-                msgbuf.append(" ").append(w);
-            }
-
-            moniGuard.send(msgbuf.toString(), tcal);
-
-            // rethrow the exception so callers can do something with it
+            return rtnval;
+        }
+        catch(BadTCalException bte)
+        {
+            moniGuard.push(mbid, bte, tcal);
             throw bte;
         }
         catch(RAPCalException re)
         {
-            moniGuard.send(re.getMessage(), tcal);
+            moniGuard.push(mbid, re);
             throw re;
         }
         finally
@@ -375,22 +396,22 @@ public abstract class AbstractRAPCal implements RAPCal
      * Isochron history must be contiguous and free from gaps.
      *
      * @param isochron The Isochron to add.
-     * @throws RAPCalException If the isochron is rejected as unstable.
+     * @return <tt>false</tt> if the isochron was not added
      */
-    private void addIsochron(final Isochron isochron)
-            throws RAPCalException
+    private boolean addIsochron(final Isochron isochron)
     {
+        // if we're monitoring a run, send every isochron to the monitor
+        moniGuard.push(mbid, isochron);
+
         boolean withinThreshold = clenAverage.add(isochron.getCableLength());
 
         // An Isochron that varies from the average is rejected as
         // a "Wild TCAL"
         if(!withinThreshold)
         {
-            // wild TCAL!
-            final String errmsg =
-                    "Wild TCAL - cable len: " + isochron.getCableLength() +
-                            " avg. cable len: " + clenAverage.getAverage();
-            throw new WildTCalException(errmsg);
+            moniGuard.push(mbid, isochron.getCableLength(),
+                           clenAverage.getAverage());
+            return false;
         }
 
 
@@ -414,6 +435,7 @@ public abstract class AbstractRAPCal implements RAPCal
         lowerBound=hist.getLast().getLowerBound();
         upperBound=hist.getLast().getUpperBound();
 
+        return true;
     }
 
     /**
@@ -462,13 +484,22 @@ public abstract class AbstractRAPCal implements RAPCal
     }
 
     /**
-     * Sets the exception alerter object to use.
+     * Set this DOM's mainboard ID
      *
-     * @param alerter The alerter to register.
+     * @param mainboard ID
      */
-    public void setMoni(TCalExceptionAlerter alerter)
+    public void setMainboardID(long mbid)
     {
-        this.moniGuard.alerter = alerter;
+        this.mbid = mbid;
     }
 
+    /**
+     * Set the run monitoring object.
+     *
+     * @param runMonitor The run monitoring object
+     */
+    public void setRunMonitor(IRunMonitor runMonitor)
+    {
+        moniGuard.runMonitor = runMonitor;
+    }
 }
