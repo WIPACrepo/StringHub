@@ -757,7 +757,9 @@ public class DataAcquisition
             tcalConsumer.process(new ClockProcessor.TCALMeasurement(dortxDor,
                     dortxNano, (after - before), card, id));
 
-            runMonitor.push(id, tcal);
+            if (runMonitor != null) {
+                runMonitor.push(id, tcal);
+            }
 
             // Note: nuisance hack, dom/system times must be tracked from
             //       acquisition thread because the nano point-in-time field
