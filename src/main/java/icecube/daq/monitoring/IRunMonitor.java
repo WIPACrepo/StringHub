@@ -14,6 +14,13 @@ import java.util.Collection;
 public interface IRunMonitor
 {
     /**
+     * Is the thread running?
+     *
+     * @return <tt>true</tt> if the thread is running
+     */
+    boolean isRunning();
+
+    /**
      * If the thread is running, wait for it to die.
      *
      * @throws InterruptedException if the join was interrupted

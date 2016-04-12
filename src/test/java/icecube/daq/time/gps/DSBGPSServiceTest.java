@@ -41,6 +41,12 @@ class MyMonitor
     }
 
     @Override
+    public boolean isRunning()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
     public void join()
         throws InterruptedException
     {

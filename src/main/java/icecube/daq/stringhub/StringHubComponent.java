@@ -266,6 +266,17 @@ public class StringHubComponent
 			addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaOut);
 		}
 
+		if (runMonitor != null) {
+			if (runMonitor.isRunning()) {
+				logger.error("Previous RunMonitor is still running!");
+				runMonitor.stop();
+			}
+			try {
+				runMonitor.join();
+			} catch (InterruptedException ie) {
+				logger.error("While joining with RunMonitor thread", ie);
+			}
+		}
 		runMonitor = new RunMonitor(hubId % 1000, getAlertQueue());
 		runMonitor.start();
 	}
@@ -945,6 +956,11 @@ public class StringHubComponent
 				adc.setRunNumber(runNumber);
 			}
 		}
+		if (runMonitor == null) {
+			logger.error("RunMonitor has not been initialized!");
+		} else {
+			runMonitor.setRunNumber(runNumber);
+		}
 	}
 
 	/**
@@ -1120,6 +1136,9 @@ public class StringHubComponent
 			}
 		}
 
+		if (runMonitor != null) {
+			runMonitor.stop();
+		}
 		logger.info("Returning from stop.");
 	}
 
@@ -1157,7 +1176,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16095 2016-04-11 21:09:04Z dglo $";
+		return "$Id: StringHubComponent.java 16098 2016-04-12 16:06:49Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
