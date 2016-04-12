@@ -3,11 +3,9 @@ package icecube.daq.monitoring;
 import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.TimeCalib;
-import icecube.daq.rapcal.BadTCalException;
 import icecube.daq.rapcal.Isochron;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.util.DeployedDOM;
-import icecube.daq.util.IDOMRegistry;
 
 import java.util.Collection;
 
@@ -29,8 +27,6 @@ public interface IRunMonitor
         throws InterruptedException;
 
     void push(long mbid, Isochron isochron);
-
-    void push(String domTriplet, TimeCalib tcal);
 
     void pushException(int string, int card, GPSException exception);
 

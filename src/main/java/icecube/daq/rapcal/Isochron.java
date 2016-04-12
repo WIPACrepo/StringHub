@@ -132,6 +132,16 @@ public class Isochron
     }
 
     /**
+     * The time the second tcal was received by the DOR card.
+     * @return The DOR RX time of the second tcal that defines this
+     *         isochron, in 0.1 nanosecond units.
+     */
+    public long getDORReceiveTime()
+    {
+        return t1[DOR_RX];
+    }
+
+    /**
      * The (inclusive) upper-bound of the dom clock interval.
      * @return The DOM TX time of the second tcal that defines this
      *         isochron, in 0.1 nanosecond units.

@@ -9,6 +9,7 @@ import icecube.daq.juggler.alert.IAlertQueue;
 import icecube.daq.payload.IUTCTime;
 import icecube.daq.rapcal.BadTCalException;
 import icecube.daq.rapcal.RAPCalException;
+import icecube.daq.rapcal.Isochron;
 import icecube.daq.stringhub.test.MockAppender;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.IDOMRegistry;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 
 import org.apache.log4j.BasicConfigurator;
@@ -55,7 +57,6 @@ class MockAlertQueue
                      Map<String, Object> values)
         throws AlertException
     {
-System.err.println("Var " + varname + " :: " + values);
         numPushed++;
     }
 
@@ -162,6 +163,8 @@ public class RunMonitorTest
     private static final MockAppender appender = new MockAppender();
     private static final Charset US_ASCII = Charset.forName("US-ASCII");
 
+    private static Random random = new Random(12345678L);
+
     @BeforeClass
     public static void setupClass()
     {
@@ -246,6 +249,38 @@ public class RunMonitorTest
         return new GPSInfo(buf, null);
     }
 
+    private static final Isochron createIsochron(Isochron prev, long gpsOffset)
+    {
+        final long[] t0;
+        if (prev == null) {
+            t0 = fillTimeArray(0);
+        } else {
+            t0 = null;
+        }
+
+        final long[] t1;
+        if (prev == null) {
+            t1 = fillTimeArray(t0[t0.length - 1]);
+        } else {
+            t1 = fillTimeArray(prev.getDORReceiveTime());
+        }
+
+        Isochron iso;
+        try {
+            if (prev == null) {
+                iso = new Isochron(t0, t1, gpsOffset);
+            } else {
+                iso = new Isochron(prev, t1, gpsOffset);
+            }
+        } catch (RAPCalException rex) {
+            rex.printStackTrace();
+            fail("Cannot build Isochron from " + t0 + " and " + t1);
+            iso = null;
+        }
+
+        return iso;
+    }
+
     private TimeCalib createTCal(short flags, long dorTx, long dorRx,
                                   short[] dorWaveform, long domRx, long domTx,
                                   short[] domWaveform)
@@ -276,6 +311,23 @@ public class RunMonitorTest
         buf.flip();
 
         return new TimeCalib(buf);
+    }
+
+    private static long[] fillTimeArray(long base)
+    {
+        final int timestep = 10000;
+
+        long val = base + random.nextInt(timestep);
+
+        long[] array = new long[4];
+        for (int i = 0; i < array.length; i++) {
+            if (i > 0) {
+                val += random.nextInt(timestep);
+            }
+            array[i] = val;
+        }
+
+        return array;
     }
 
     private void waitForRunSwitch(RunMonitor runMon, int runNum,
@@ -535,52 +587,6 @@ public class RunMonitorTest
     }
 
     @Test
-    public void testDOMTCal()
-        throws InterruptedException
-    {
-        final int string = 6;
-
-        MockAlertQueue aq = new MockAlertQueue();
-        RunMonitor runMon = new RunMonitor(string, aq);
-        runMon.start();
-
-        final String triplet0 = "abc";
-        final String triplet1 = "def";
-
-        waitForThreadStart(runMon);
-
-        final int runNum = 123456;
-        runMon.setRunNumber(runNum);
-        waitForRunSwitch(runMon, runNum, 100);
-
-        final short flags = (short) 0;
-        final short[] fakeWave = new short[64];
-        final TimeCalib fakeTCal = createTCal(flags, 1L, 2L, fakeWave, 3L, 4L,
-                                              fakeWave);
-
-        runMon.push(triplet0, fakeTCal);
-        runMon.push(triplet0, fakeTCal);
-        runMon.push(triplet1, fakeTCal);
-
-        runMon.stop();
-        runMon.join();
-
-        assertEquals("Received unexpected monitoring data", 0,
-                     aq.getNumPushed());
-
-        try {
-            assertEquals("Bad number of log messages",
-                         1, appender.getNumberOfMessages());
-            if (!appender.getMessage(0).equals("Not consuming DOM TCals")) {
-                fail("Unexpected log message \"" + appender.getMessage(0) +
-                     "\"");
-            }
-        } finally {
-            appender.clear();
-        }
-    }
-
-    @Test
     public void testGPSProblem()
         throws InterruptedException
     {
@@ -770,8 +776,57 @@ public class RunMonitorTest
         waitForRunSwitch(runMon, runNum, 100);
 
         // push some data for the run
-        runMon.pushGPSProcfileNotReady(string, 3);
-        runMon.pushGPSProcfileNotReady(string, 4);
+        runMon.pushGPSMisalignment(string, 3, fakeInfo, fakeInfo);
+        runMon.pushGPSMisalignment(string, 4, fakeInfo, fakeInfo);
+
+        // stop the run
+        runMon.stop();
+        runMon.join();
+
+        // check alert counts for the run
+        assertEquals("Did not receive monitoring data", 1, aq.getNumPushed());
+    }
+
+    @Test
+    public void testIsochron()
+        throws InterruptedException
+    {
+        final int string = 10;
+
+        MockAlertQueue aq = new MockAlertQueue();
+        RunMonitor runMon = new RunMonitor(string, aq);
+        runMon.start();
+
+        final long DOM0 = 111111111L;
+        final long DOM1 = 123456789L;
+
+        List<DeployedDOM> cfgDOMList = new ArrayList<DeployedDOM>();
+        cfgDOMList.add(new DeployedDOM(DOM0, string, 7));
+        cfgDOMList.add(new DeployedDOM(DOM1, string, 80));
+
+        runMon.setConfiguredDOMs(cfgDOMList);
+
+        waitForThreadStart(runMon);
+
+        final long gpsOffset = 0L;
+
+        // push some data before the run
+        runMon.push(DOM0, createIsochron(null, gpsOffset));
+
+        int runNum;
+
+        // start the run
+        runNum = 123456;
+        runMon.setRunNumber(runNum);
+        waitForRunSwitch(runMon, runNum, 100);
+
+        // push some data for the run
+        Isochron prev0 = createIsochron(null, gpsOffset);
+        Isochron prev1 = createIsochron(null, gpsOffset);
+        for (int i = 0; i < 10; i++) {
+            runMon.push(DOM0, createIsochron(prev0, gpsOffset));
+            runMon.push(DOM1, createIsochron(prev1, gpsOffset));
+        }
 
         // stop the run
         runMon.stop();

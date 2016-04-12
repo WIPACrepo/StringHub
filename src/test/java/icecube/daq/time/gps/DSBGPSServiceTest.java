@@ -60,12 +60,6 @@ class MyMonitor
     }
 
     @Override
-    public void push(String domTriplet, TimeCalib tcal)
-    {
-        throw new Error("Unimplemented");
-    }
-
-    @Override
     public void pushException(int string, int card, GPSException exception)
     {
         throw new Error("Unimplemented");
@@ -88,7 +82,10 @@ class MyMonitor
     @Override
     public void pushGPSProcfileNotReady(int string, int card)
     {
-        throw new Error("Unimplemented");
+        if (!expectNotReady) {
+            throw new Error(String.format("String %d card %d not ready",
+                                          string, card));
+        }
     }
 
     @Override

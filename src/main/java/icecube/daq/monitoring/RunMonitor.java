@@ -9,7 +9,6 @@ import icecube.daq.juggler.alert.IAlertQueue;
 import icecube.daq.rapcal.BadTCalException;
 import icecube.daq.rapcal.Isochron;
 import icecube.daq.rapcal.RAPCalException;
-import icecube.daq.util.IDOMRegistry;
 import icecube.daq.util.DeployedDOM;
 
 import java.text.SimpleDateFormat;
@@ -18,7 +17,6 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
@@ -185,95 +183,6 @@ class Counter
 }
 
 /**
- * Hash key for a string/card value pair.
- */
-class StringCardKey
-{
-    /** String number (1-86,201-211) */
-    int string;
-    /** Card number (0-7) */
-    int card;
-
-    /**
-     * Create a string/card key
-     *
-     * @param string string number
-     * @param card card number
-     */
-    StringCardKey(int string, int card)
-    {
-        if (string < 1 || string > 999) {
-            throw new Error("String number " + string +
-                            " is not between 0 and 1000 (exclusive)");
-        } else if (card < 0 || card > 32) {
-            throw new Error("Card number " + card +
-                            " is not between 0 and 31 (inclusive)");
-        }
-
-        this.string = string;
-        this.card = card;
-    }
-
-    /**
-     * Compare this record against another object
-     *
-     * @param obj object
-     *
-     * @return the usual values
-     */
-    public int compareTo(Object obj)
-    {
-        if (obj == null) {
-            return 1;
-        } else if (!(obj instanceof StringCardKey)) {
-            return getClass().getName().compareTo(obj.getClass().getName());
-        }
-
-        return compareTo((StringCardKey) obj);
-    }
-
-    /**
-     * Compare this record against another StringCardKey
-     *
-     * @param key string/card key
-     *
-     * @return the usual values
-     */
-    public int compareTo(StringCardKey key)
-    {
-        if (key == null) {
-            return 1;
-        }
-
-        int val = string - key.string;
-        if (val == 0) {
-            val = card - key.card;
-        }
-
-        return val;
-    }
-
-    /**
-     * Is the specified object equal to this object?
-     * @param obj object being compared
-     * @return <tt>true</tt> if the objects are equal
-     */
-    public boolean equals(Object obj)
-    {
-        return compareTo(obj) == 0;
-    }
-
-    /**
-     * Return this object's hash code
-     * @return hash code
-     */
-    public int hashCode()
-    {
-        return (string << 8) + card;
-    }
-}
-
-/**
  * Consumer which counts the number of occurences of the key and sends
  * totals at the end of the run
  */
@@ -293,6 +202,11 @@ abstract class CountingConsumer<K, T>
         super(parent);
     }
 
+    /**
+     *  Map keys to final counter values
+     *
+     * @return map of strings to counts
+     */
     Map<String, Integer> getCountMap()
     {
         HashMap<String, Integer> counts = new HashMap<String, Integer>();
@@ -361,6 +275,12 @@ abstract class DOMCountingConsumer<T>
         super(parent);
     }
 
+    /**
+     * Build a hashmap of DOM "string-position" to associated counts (or zero
+     * if a DOM has no counts)
+     *
+     * @return map of all configured DOMs to associated counts
+     */
     Map<String, Integer> getCountMap()
     {
         HashMap<DeployedDOM, Integer> domMap =
@@ -385,95 +305,14 @@ abstract class DOMCountingConsumer<T>
 }
 
 /**
- * Consume per-DOM time calibration data
- */
-class DOMTCalConsumer
-    extends QueueConsumer<DOMTCalConsumer.Data>
-{
-    class Data
-    {
-        /** DOM triplet */
-        String domTriplet;
-        /** time calibration data */
-        TimeCalib tcal;
-
-        /**
-         * Create DOMTCal data
-         *
-         * @param domTriplet dom identification triplet
-         * @param tcal time calibration data
-         */
-        Data(String domTriplet, TimeCalib tcal)
-        {
-            this.domTriplet = domTriplet;
-            this.tcal = tcal;
-        }
-    }
-
-    /** Have we logged a whiny message yet? */
-    private boolean whined;
-
-    /**
-     * Create a TCal consumer
-     *
-     * @param parent main monitoring object
-     */
-    DOMTCalConsumer(RunMonitor parent)
-    {
-        super(parent);
-    }
-
-    /**
-     * Process a single piece of data
-     *
-     * @param data data being processed
-     */
-    @Override
-    void process(Data data)
-    {
-        if (!whined) {
-            LOG.error("Not consuming DOM TCals");
-            whined = true;
-        }
-    }
-
-    /**
-     * Send per-run quantities.
-     */
-    @Override
-    void sendRunData()
-    {
-        // throw new Error("Unimplemented");
-    }
-
-    /**
-     * Push the data onto this consumer's queue
-     *
-     * @param domTriplet string which identifies a DOM
-     * @param tcal a single time calibration point
-     */
-    void pushData(String domTriplet, TimeCalib tcal)
-    {
-        push(new Data(domTriplet, tcal));
-    }
-
-    /**
-     * Reset everything back to initial conditions for the next run
-     */
-    @Override
-    void reset()
-    {
-        whined = false;
-    }
-}
-
-/**
  * Consume misaligned GPS data
  */
 class GPSMisalignmentConsumer
     extends CountingConsumer<Integer, GPSMisalignmentConsumer.Data>
 {
-    // GPS offset mis-alignment (Dec: 0, Jan: 825, Feb: 0)
+    /**
+     * GPS misalignment data
+     */
     class Data
     {
         /** card number */
@@ -629,6 +468,9 @@ class GPSProblemConsumer
 class IsoConsumer
     extends QueueConsumer<IsoConsumer.Data>
 {
+    /**
+     * Isochron data
+     */
     class Data
     {
         /** DOM mainboard ID */
@@ -680,11 +522,21 @@ class IsoConsumer
         /** Histogrammed values */
         private int[] histogram = new int[BINS];
 
+        /**
+         * Create a cable length histogram
+         *
+         * @param dom DOM being tracked
+         */
         CableHisto(DeployedDOM dom)
         {
             this.dom = dom;
         }
 
+        /**
+         * Add a value to the histogram
+         *
+         * @param value value being added
+         */
         private void addValue(double value)
         {
             int index = (int) (value - minValue);
@@ -697,36 +549,70 @@ class IsoConsumer
             }
         }
 
+        /**
+         * Get the minimum bin value
+         *
+         * @return minimum value
+         */
         double getMinValue()
         {
             return minValue / MULTIPLIER;
         }
 
+        /**
+         * Get the maximum bin value
+         *
+         * @return maximum value
+         */
         double getMaxValue()
         {
             return (minValue + BINS) / MULTIPLIER;
         }
 
+        /**
+         * Get the `string-position` string
+         *
+         * @return OM string
+         */
         String getOMString()
         {
             return dom.getDeploymentLocation();
         }
 
+        /**
+         * Get the list of histogram bins
+         *
+         * @return list of histogram bin counts
+         */
         int[] getHistogram()
         {
             return histogram;
         }
 
+        /**
+         * Get the count of entries too large for the histogram
+         *
+         * @param count of extra-large entries
+         */
         int getOverflow()
         {
             return overflow;
         }
 
+        /**
+         * Get the count of entries too small for the histogram
+         *
+         * @param count of extra-small entries
+         */
         int getUnderflow()
         {
             return underflow;
         }
 
+        /**
+         * Use accumulated data to establish histogram bounds and start filling
+         * histogram bins from initial data.
+         */
         private void initialize()
         {
             // get the mean of the cached values
@@ -748,11 +634,21 @@ class IsoConsumer
             cache = null;
         }
 
+        /**
+         * Have we accumulated enough data to start filling bins?
+         *
+         * @return <tt>true</tt> if we're taking data
+         */
         boolean isInitialized()
         {
             return initialized;
         }
 
+        /**
+         * Process the latest Isochron
+         *
+         * @param iso isochron
+         */
         void process(Isochron iso)
         {
             final double cableLength = iso.getCableLength() * MULTIPLIER;
@@ -788,6 +684,7 @@ class IsoConsumer
     /** Live message priority */
     private static final Alerter.Priority PRIORITY = Alerter.Priority.EMAIL;
 
+    /** Map mainboard IDs to histogram generators */
     private HashMap<Long, CableHisto> histograms =
         new HashMap<Long, CableHisto>();
 
@@ -891,7 +788,6 @@ class IsoConsumer
 class ProcfileConsumer
     extends CountingConsumer<Integer, Integer>
 {
-    // SyncGPS procfile not responding (Dec: 0, Jan: 6010, Feb: 97)
     /** Live quantity name */
     public static final String NAME = "card_procfile_not_ready";
     /** Live quantity version */
@@ -971,6 +867,12 @@ class RAPCalProblemConsumer
         super(parent);
     }
 
+    /**
+     * Log details of this exception
+     *
+     * @param mbid mainboard ID
+     * @param exception exception to log
+     */
     private void logException(long mbid, RAPCalException exception)
     {
         DeployedDOM dom = parent.getDom(mbid);
@@ -1051,7 +953,7 @@ class RAPCalProblemConsumer
 class WildTCalConsumer
     extends DOMCountingConsumer<WildTCalConsumer.Data>
 {
-    // Wild TCAL (Dec: 87506,  Jan: 142231, Feb: 127348 }
+    /** Wild time calibration data */
     class Data
     {
         /** DOM mainboard ID */
@@ -1062,7 +964,7 @@ class WildTCalConsumer
         double averageLen;
 
         /**
-         * Create wil time calibration data
+         * Create wild time calibration data
          *
          * @param mbid DOM mainboard ID
          * @param cableLength bad cable length
@@ -1152,7 +1054,7 @@ abstract class ThreadDaemon
      *
      * @param name thread name
      */
-    public ThreadDaemon(String name)
+    ThreadDaemon(String name)
     {
         threadName = name;
     }
@@ -1276,6 +1178,9 @@ abstract class ThreadDaemon
     }
 }
 
+/**
+ * Monitor run-related quantities
+ */
 public class RunMonitor
     extends ThreadDaemon
     implements IRunMonitor
@@ -1308,8 +1213,6 @@ public class RunMonitor
     private final SimpleDateFormat dateFormat;
 
     // This is ugly but I can't think of a better way to do it!
-    /** DOM TCal consumer */
-    private DOMTCalConsumer tcalConsumer;
     /** GPS misalignment consumer */
     private GPSMisalignmentConsumer alignConsumer;
     /** GPS exception consumer */
@@ -1550,27 +1453,6 @@ public class RunMonitor
                     consumers.add(isoConsumer);
                 }
                 isoConsumer.pushData(mbid, isochron);
-                queueLock.notify();
-            }
-        }
-    }
-
-    /**
-     * Push time calibration data onto the consumer's queue
-     *
-     * @param domTriplet dom identification triplet
-     * @param tcal time calibration data
-     */
-    @Override
-    public void push(String domTriplet, TimeCalib tcal)
-    {
-        synchronized (queueLock) {
-            if (hasRunNumber()) {
-                if (tcalConsumer == null) {
-                    tcalConsumer = new DOMTCalConsumer(this);
-                    consumers.add(tcalConsumer);
-                }
-                tcalConsumer.pushData(domTriplet, tcal);
                 queueLock.notify();
             }
         }
