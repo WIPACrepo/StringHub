@@ -19,6 +19,7 @@ import java.util.Map;
  *   icecube.daq.stringhub.alert-email = "foo@example.com"
  *
  *       The email addresses that will receive string hub email alerts.
+ * </pre>
  */
 public class AlertFactory
 {

@@ -486,7 +486,7 @@ public abstract class AbstractRAPCal implements RAPCal
     /**
      * Set this DOM's mainboard ID
      *
-     * @param mainboard ID
+     * @param mbid mainboard ID
      */
     public void setMainboardID(long mbid)
     {

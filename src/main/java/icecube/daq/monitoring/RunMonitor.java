@@ -1267,9 +1267,9 @@ public class RunMonitor
     }
 
     /**
-     * Set the list of DOMs configured for this string
+     * Return the list of DOMs configured for this string
      *
-     * @param configuredDOMs map of mainboard ID -> deployed DOM data
+     * @return map of mainboard ID -&gt; deployed DOM data
      */
     public Iterable<DeployedDOM> getConfiguredDOMs()
     {
@@ -1281,7 +1281,7 @@ public class RunMonitor
      *
      * @param mbid DOM mainboard ID
      *
-     * @returns dom information
+     * @return dom information
      */
     DeployedDOM getDom(long mbid)
     {

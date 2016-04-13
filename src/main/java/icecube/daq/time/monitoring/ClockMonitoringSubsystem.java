@@ -28,7 +28,7 @@ import org.apache.log4j.Logger;
  *</pre><p>
  * If monitoring is enabled, clock alert notifications will be issued.
  *
- *</pre><p>
+ *<p>
  * There are additional optional configurations for the enabled mode:
  *<pre>
  *
