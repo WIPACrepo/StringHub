@@ -774,7 +774,7 @@ class IsoConsumer
         map.put("xlabel", "cable length");
         map.put("ylabel", "nentries");
         map.put("nentries", CableHisto.BINS);
-        map.put("runNumber", parent.getRunNumber());
+
         map.put("recordingStartTime", parent.getStartTimeString());
         map.put("recordingStopTime", parent.getStopTimeString());
 
@@ -1251,6 +1251,11 @@ public class RunMonitor
      */
     private void finishRun()
     {
+        if (stopTime != null) {
+            LOG.warn("RunMonitor#" + string + " has already stopped");
+            return;
+        }
+
         // record the end time for this run
         stopTime = new Date();
 
@@ -1375,16 +1380,23 @@ public class RunMonitor
     {
         ArrayList<QueueConsumer> stashed = new ArrayList<QueueConsumer>();
 
+        stopTime = null;
         while (true) {
             synchronized (queueLock) {
                 boolean empty = isEmpty();
 
                 // if all queues are empty and there's a new run number...
                 if (empty && runNumber != nextNumber) {
-                    finishRun();
+                    if (hasRunNumber()) {
+                        finishRun();
+                    }
 
                     // ...switch to the new number
                     runNumber = nextNumber;
+
+                    // record the starting time for this run
+                    startTime = new Date();
+                    stopTime = null;
                 }
 
                 if (empty && !isStopping()) {
@@ -1423,7 +1435,11 @@ public class RunMonitor
             }
         }
 
-        finishRun();
+        if (hasRunNumber()) {
+            finishRun();
+            runNumber = NO_ACTIVE_RUN;
+            stopTime = null;
+        }
     }
 
     /**
@@ -1579,6 +1595,7 @@ public class RunMonitor
     void sendMoni(String varname, Alerter.Priority priority,
                   Map<String, Object> map)
     {
+        // fill in standard values
         map.put("runNumber", runNumber);
         if (!map.containsKey("string")) {
             map.put("string", string);
@@ -1616,10 +1633,6 @@ public class RunMonitor
     {
         synchronized (queueLock) {
             nextNumber = runNumber;
-
-            // record the starting time for this run
-            startTime = new Date();
-            stopTime = null;
             queueLock.notify();
         }
     }

@@ -537,7 +537,7 @@ public class RunMonitorTest
         waitForRunSwitch(runMon, runNum, 100);
 
         // check alert counts from the second run
-        assertEquals("Did not receive monitoring data", 3, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 2, aq.getNumPushed());
 
         // push data for the third run
         runMon.pushGPSProcfileNotReady(string, 7);
@@ -548,7 +548,7 @@ public class RunMonitorTest
         runMon.join();
 
         // check alert counts from the third run
-        assertEquals("Did not receive monitoring data", 4, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 3, aq.getNumPushed());
     }
 
     @Test
