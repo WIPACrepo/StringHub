@@ -800,7 +800,6 @@ class IsoConsumer
 
             map.put("recordingStartTime", parent.getStartTimeString());
             map.put("recordingStopTime", parent.getStopTimeString());
-LOG.error("RunData: " + map);
 
             parent.sendMoni(NAME, PRIORITY, map);
         }
