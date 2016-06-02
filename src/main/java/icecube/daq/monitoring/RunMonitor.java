@@ -550,6 +550,16 @@ class IsoConsumer
         }
 
         /**
+         * Get the list of histogram bins
+         *
+         * @return list of histogram bin counts
+         */
+        int[] getHistogram()
+        {
+            return histogram;
+        }
+
+        /**
          * Get the minimum bin value
          *
          * @return minimum value
@@ -580,16 +590,6 @@ class IsoConsumer
         }
 
         /**
-         * Get the list of histogram bins
-         *
-         * @return list of histogram bin counts
-         */
-        int[] getHistogram()
-        {
-            return histogram;
-        }
-
-        /**
          * Get the count of entries too large for the histogram
          *
          * @param count of extra-large entries
@@ -597,6 +597,16 @@ class IsoConsumer
         int getOverflow()
         {
             return overflow;
+        }
+
+        /**
+         * Get the `string-position` string
+         *
+         * @return OM string
+         */
+        int getString()
+        {
+            return dom.getStringMajor();
         }
 
         /**
@@ -738,6 +748,7 @@ class IsoConsumer
     @Override
     void reset()
     {
+        histograms.clear();
     }
 
     /**
@@ -746,10 +757,8 @@ class IsoConsumer
     @Override
     void sendRunData()
     {
-        HashMap<String, Object> map = new HashMap<String, Object>();
-        map.put("version", VERSION);
-
-        HashMap<String, Object> data = new HashMap<String, Object>();
+        HashMap<Integer, Map<String, Object>> strings =
+            new HashMap<Integer, Map<String, Object>>();
         for (CableHisto h : histograms.values()) {
             if (!h.isInitialized()) {
                 continue;
@@ -767,18 +776,34 @@ class IsoConsumer
             histo.put("underflow", h.getUnderflow());
             histo.put("overflow", h.getOverflow());
 
+            Map<String, Object> data;
+            if (strings.containsKey(h.getString())) {
+                data = strings.get(h.getString());
+            } else {
+                data = new HashMap<String, Object>();
+                strings.put(h.getString(), data);
+            }
             data.put(h.getOMString(), histo);
         }
 
-        map.put("histograms", data);
-        map.put("xlabel", "cable length");
-        map.put("ylabel", "nentries");
-        map.put("nentries", CableHisto.BINS);
+        for (Map.Entry<Integer, Map<String, Object>> entry :
+                 strings.entrySet())
+        {
+            Map<String, Object> map = new HashMap<String, Object>();
+            map.put("version", VERSION);
+            map.put("string", entry.getKey());
 
-        map.put("recordingStartTime", parent.getStartTimeString());
-        map.put("recordingStopTime", parent.getStopTimeString());
+            map.put("histograms", entry.getValue());
+            map.put("xlabel", "cable length");
+            map.put("ylabel", "nentries");
+            map.put("nentries", CableHisto.BINS);
 
-        parent.sendMoni(NAME, PRIORITY, map);
+            map.put("recordingStartTime", parent.getStartTimeString());
+            map.put("recordingStopTime", parent.getStopTimeString());
+LOG.error("RunData: " + map);
+
+            parent.sendMoni(NAME, PRIORITY, map);
+        }
     }
 }
 
