@@ -791,14 +791,12 @@ public class ReplayHubComponent
  * Decorator which adds peek method to HitSpoolReader
  */
 class CachingPayloadReader
-    implements Iterator<ByteBuffer>, Iterable<ByteBuffer>
+    extends HitSpoolReader
 {
     /** error logger */
     private static final Logger LOG =
         Logger.getLogger(CachingPayloadReader.class);
 
-    /** actual reader */
-    private HitSpoolReader rdr;
     /** buffer cache */
     private ByteBuffer cachedBuf;
 
@@ -813,38 +811,7 @@ class CachingPayloadReader
     CachingPayloadReader(File payFile, int hubId)
         throws IOException
     {
-        rdr = new HitSpoolReader(payFile, hubId);
-    }
-
-    /**
-     * Close the file
-     *
-     * @throws IOException if there is an error
-     */
-    void close()
-        throws IOException
-    {
-        rdr.close();
-    }
-
-    /**
-     * Return the file being read
-     *
-     * @return current file
-     */
-    File getFile()
-    {
-        return rdr.getFile();
-    }
-
-    /**
-     * Get the number of files opened for reading.
-     *
-     * @return number of files opened for reading.
-     */
-    public int getNumberOfFiles()
-    {
-        return rdr.getNumberOfFiles();
+        super(payFile, hubId);
     }
 
     /**
@@ -852,15 +819,16 @@ class CachingPayloadReader
      *
      * @return number of hits
      */
-    int getNumberOfPayloads()
+    @Override
+    public int getNumberOfPayloads()
     {
-        if (cachedBuf == null) {
-            // if there's no cached hit, we've read all the hits
-            return rdr.getNumberOfPayloads();
+        final int num = super.getNumberOfPayloads();
+        if (cachedBuf != null) {
+            // don't count the cached hit
+            return num - 1;
         }
 
-        // don't count the cached hit
-        return rdr.getNumberOfPayloads() - 1;
+        return num;
     }
 
     /**
@@ -868,23 +836,14 @@ class CachingPayloadReader
      *
      * @return <tt>true</tt> if there's another hit
      */
+    @Override
     public boolean hasNext()
     {
         if (cachedBuf != null) {
             return true;
         }
 
-        return rdr.hasNext();
-    }
-
-    /**
-     * This object is an iterator for itself.
-     *
-     * @return this object
-     */
-    public Iterator iterator()
-    {
-        return this;
+        return super.hasNext();
     }
 
     /**
@@ -892,6 +851,7 @@ class CachingPayloadReader
      *
      * @return next hit
      */
+    @Override
     public ByteBuffer next()
     {
         if (cachedBuf != null) {
@@ -900,7 +860,7 @@ class CachingPayloadReader
             return tmp;
         }
 
-        return rdr.next();
+        return super.next();
     }
 
     /**
@@ -911,18 +871,10 @@ class CachingPayloadReader
     long peekTime()
     {
         if (cachedBuf == null) {
-            cachedBuf = rdr.next();
+            cachedBuf = super.next();
         }
 
         return BBUTC.get(cachedBuf);
-    }
-
-    /**
-     * Unimplemented.
-     */
-    public void remove()
-    {
-        throw new Error("Unimplemented");
     }
 }
 
