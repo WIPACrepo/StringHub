@@ -286,36 +286,6 @@ class MockHitChannel
     }
 }
 
-class MockTrackEngineChannel
-    extends MockOutputChannel
-{
-    MockTrackEngineChannel()
-    {
-        super("trackEngine");
-    }
-
-    void addExpectedTEHit(DOMRegistry registry, long domId, long utcTime,
-                          int trigMode)
-    {
-        // find the registry entry for this DOM
-        DeployedDOM dom = registry.getDom(domId);
-        if (dom == null) {
-            throw new Error("Cannot find registry entry for DOM " +
-                            String.format("%012x", domId));
-        }
-
-        addExpectedData(new ExpectedTEHit(dom.getStringMajor(),
-                                          dom.getStringMinor(),
-                                          utcTime,
-                                          trigMode));
-    }
-
-    ExpectedData getBufferData(ByteBuffer buf)
-    {
-        return new ExpectedTEHit(buf);
-    }
-}
-
 class ExpectedOldDeltaHit
     extends ExpectedData
 {
@@ -1928,87 +1898,6 @@ public class SenderTest
         assertEquals("Did not send stop",
                      1L, sender.getTotalStopsSent());
 
-        assertEquals("Not all expected hits were received",
-                     0, hitChan.getNumExpected());
-        assertEquals("Not all expected readouts were received",
-                     0, rdoutChan.getNumExpected());
-    }
-
-    @Test
-    public void testConsumeEngHitWithTE()
-        throws IOException
-    {
-        MockBufferCache cache = new MockBufferCache("foo");
-        Sender sender = new Sender(HUB_SRCID % 1000, cache);
-        sender.setDOMRegistry(domRegistry);
-
-        MockBufferCache teCache = new MockBufferCache("foo");
-        sender.setTrackEngineCache(teCache);
-
-        MockHitChannel hitChan = new MockHitChannel();
-        sender.setHitOutput(new MockOutputChannelManager(hitChan));
-
-        MockTrackEngineChannel teChan = new MockTrackEngineChannel();
-        sender.setTrackEngineOutput(new MockOutputChannelManager(teChan));
-
-        MockReadoutChannel rdoutChan = new MockReadoutChannel();
-        sender.setDataOutput(new MockOutputChannelManager(rdoutChan));
-
-        sender.startThread();
-
-        long domId = 0xfedcba987654L;
-        long utcTime = 123456789L;
-        int atwdChip = 1;
-        short trigMode = 4;
-        long domClock = utcTime / 234L;
-        short[] fadcSamples = new short[] { 1, 2, 3 };
-        Object atwd0Data = new short[32];
-        Object atwd1Data = null;
-        Object atwd2Data = new byte[128];
-        Object atwd3Data = new byte[16];
-
-        ByteBuffer buf = createEngHit(domId, utcTime, atwdChip, trigMode,
-                                      domClock, fadcSamples, atwd0Data,
-                                      atwd1Data, atwd2Data, atwd3Data);
-
-        hitChan.addExpectedHit(domId, utcTime, trigMode, 0, HUB_SRCID,
-                               trigMode);
-
-        teChan.addExpectedTEHit(domRegistry, domId, utcTime, -1);
-
-        sender.consume(buf);
-
-        for (int i = 0; i < 100; i++) {
-            if (sender.getNumTEHitsSent() == 0) {
-                try {
-                    Thread.sleep(1);
-                } catch (Exception ex) {
-                    // ignore interrupts
-                }
-            }
-        }
-
-        sender.stopThread();
-
-        waitForSenderStop(sender);
-
-        assertEquals("Did not receive hit",
-                     1L, sender.getNumHitsReceived());
-        assertEquals("Bad hit time",
-                     utcTime, sender.getLatestHitTime());
-
-        assertEquals("Did not send TE hit",
-                     1L, sender.getNumTEHitsSent());
-
-        assertEquals("Did not receive data stop",
-                     1L, sender.getTotalDataStopsReceived());
-        assertEquals("Did not receive request stop",
-                     1L, sender.getTotalRequestStopsReceived());
-        assertEquals("Did not send stop",
-                     1L, sender.getTotalStopsSent());
-
-        assertEquals("Not all expected TE hits were received",
-                     0, teChan.getNumExpected());
         assertEquals("Not all expected hits were received",
                      0, hitChan.getNumExpected());
         assertEquals("Not all expected readouts were received",

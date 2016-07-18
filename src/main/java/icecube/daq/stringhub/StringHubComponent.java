@@ -95,7 +95,6 @@ public class StringHubComponent
 	private SimpleOutputEngine tcalOut;
 	private SimpleOutputEngine supernovaOut;
 	private SimpleOutputEngine hitOut;
-	private SimpleOutputEngine teOut;
 	private SimpleOutputEngine dataOut;
 	private DOMConnector conn;
 	private ChannelSorter hitsSort;
@@ -117,13 +116,13 @@ public class StringHubComponent
 
 	public StringHubComponent(int hubId)
 	{
-		this(hubId, true, true, true, true, true, true, true);
+		this(hubId, true, true, true, true, true, true);
 	}
 
 	public StringHubComponent(int hubId, boolean includeHitOut,
-							  boolean includeTEOut, boolean includeReqIn,
-							  boolean includeDataOut, boolean includeMoniOut,
-							  boolean includeTCalOut, boolean includeSNOut)
+							  boolean includeReqIn, boolean includeDataOut,
+							  boolean includeMoniOut, boolean includeTCalOut,
+							  boolean includeSNOut)
 	{
 		super(COMPONENT_NAME, hubId);
 
@@ -185,17 +184,12 @@ public class StringHubComponent
 		}
 
 		hitOut = null;
-		teOut = null;
 
 		if (minorHubId > 0) {
 			// all non-AMANDA hubs send hits to a trigger
 			if (includeHitOut) {
 				hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId,
 												"hitOut");
-			}
-			if (includeTEOut) {
-				teOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "teOut",
-											   true);
 			}
 			if (SourceIdRegistry.isIcetopHubSourceID(fullId)) {
 				if (hitOut != null) {
@@ -205,17 +199,10 @@ public class StringHubComponent
 				if (hitOut != null) {
 					addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
 				}
-				if (teOut != null) {
-					addOptionalEngine(DAQConnector.TYPE_TRACKENG_HIT, teOut);
-				}
 			}
 			if (hitOut != null) {
 				sender.setHitOutput(hitOut);
 				sender.setHitCache(cache);
-			}
-			if (teOut != null) {
-				sender.setTrackEngineOutput(teOut);
-				sender.setTrackEngineCache(cache);
 			}
 		}
 
@@ -416,7 +403,6 @@ public class StringHubComponent
 		tcalOut.destroyProcessor();
 		supernovaOut.destroyProcessor();
 		hitOut.destroyProcessor();
-		teOut.destroyProcessor();
 		reqIn.destroyProcessor();
 		dataOut.destroyProcessor();
 
@@ -1176,7 +1162,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16098 2016-04-12 16:06:49Z dglo $";
+		return "$Id: StringHubComponent.java 16180 2016-07-18 21:15:20Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1276,11 +1262,6 @@ public class StringHubComponent
 	{
 		if (hitsSort == null) return 0L;
 		return hitsSort.getLastOutputTime();
-	}
-
-	public DAQComponentOutputProcess getTrackEngineWriter()
-	{
-		return teOut;
 	}
 
 	public int getNumberOfNonZombies()
