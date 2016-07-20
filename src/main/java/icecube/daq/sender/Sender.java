@@ -23,7 +23,7 @@ import icecube.daq.payload.impl.DOMHitReadoutData;
 import icecube.daq.payload.impl.DOMID;
 import icecube.daq.payload.impl.HitRecordList;
 import icecube.daq.reqFiller.RequestFiller;
-import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.IDOMRegistry;
 import icecube.daq.util.DeployedDOM;
 
 import java.io.IOException;
@@ -180,7 +180,7 @@ public class Sender
     private boolean forwardLC0Hits;
 
     /** DOM information from default-dom-geometry.xml */
-    private DOMRegistry domRegistry;
+    private IDOMRegistry domRegistry;
 
     // per-run monitoring counter
     private long numTEHits;
@@ -972,7 +972,7 @@ public class Sender
      *
      * @param reg DOM registry
      */
-    public void setDOMRegistry(DOMRegistry reg)
+    public void setDOMRegistry(IDOMRegistry reg)
     {
         domRegistry = reg;
     }

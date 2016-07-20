@@ -16,6 +16,7 @@ import icecube.daq.payload.impl.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
 import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.IDOMRegistry;
 import icecube.daq.util.FlasherboardConfiguration;
 import icecube.daq.util.JAXPUtil;
 import icecube.daq.util.JAXPUtilException;
@@ -683,7 +684,7 @@ public class ReplayHubComponent
         }
 
         // load DOM registry and pass it to the sender
-        DOMRegistry domRegistry;
+        IDOMRegistry domRegistry;
         try {
             domRegistry = DOMRegistry.loadRegistry(configurationPath);
             sender.setDOMRegistry(domRegistry);

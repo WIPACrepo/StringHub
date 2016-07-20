@@ -113,6 +113,18 @@ class MockDOMRegistry
     }
 
     @Override
+    public String getName(long mbid)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
+    public String getProductionId(long mbid)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
     public int getStringMajor(long mbid)
     {
         throw new Error("Unimplemented");

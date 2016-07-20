@@ -18,6 +18,7 @@ import icecube.daq.stringhub.test.MockReadoutRequest;
 import icecube.daq.stringhub.test.MockUTCTime;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
+import icecube.daq.util.IDOMRegistry;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
@@ -1472,7 +1473,7 @@ public class SenderTest
         //new MockAppender(org.apache.log4j.Level.ALL).setVerbose(true);
         new MockAppender();
 
-    private static DOMRegistry domRegistry;
+    private static IDOMRegistry domRegistry;
 
     public SenderTest()
     {

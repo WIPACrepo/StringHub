@@ -4,6 +4,7 @@ import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.stringhub.test.MockAppender;
 import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.IDOMRegistry;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.JAXPUtilException;
 
@@ -25,7 +26,7 @@ public class ConfigDataTest
     private static final File CONFIGDIR =
         new File(ConfigDataTest.class.getResource("/config").getPath());
 
-    private static final DOMRegistry domRegistry;
+    private static final IDOMRegistry domRegistry;
 
     static {
         final String path = CONFIGDIR.getPath();

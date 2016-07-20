@@ -2,6 +2,7 @@ package icecube.daq.stringhub;
 
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.IDOMRegistry;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -302,7 +303,7 @@ class FileBundle
     private static final Logger logger =
         Logger.getLogger(FileBundle.class);
 
-    private DOMRegistry registry;
+    private IDOMRegistry registry;
 
     private long fileInterval;
     private int maxNumberOfFiles;

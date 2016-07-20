@@ -46,6 +46,7 @@ import icecube.daq.time.gps.IGPSService;
 import icecube.daq.time.gps.GPSService;
 import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
 import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.IDOMRegistry;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
 import icecube.daq.util.JAXPUtilException;
@@ -88,7 +89,7 @@ public class StringHubComponent
 	private Driver driver = Driver.getInstance();
 	private IByteBufferCache cache;
 	private Sender sender;
-	private DOMRegistry domRegistry;
+	private IDOMRegistry domRegistry;
 	private IByteBufferCache moniBufMgr, tcalBufMgr, snBufMgr;
 	private PayloadReader reqIn;
 	private SimpleOutputEngine moniOut;
@@ -1162,7 +1163,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16180 2016-07-18 21:15:20Z dglo $";
+		return "$Id: StringHubComponent.java 16182 2016-07-20 19:48:53Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
