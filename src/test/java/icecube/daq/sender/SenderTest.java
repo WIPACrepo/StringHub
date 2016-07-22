@@ -10,6 +10,7 @@ import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.PayloadRegistry;
 import icecube.daq.payload.SourceIdRegistry;
+import icecube.daq.payload.impl.DOMHit;
 import icecube.daq.payload.impl.DeltaHitRecord;
 import icecube.daq.payload.impl.EngineeringHitRecord;
 import icecube.daq.stringhub.test.MockAppender;
@@ -45,6 +46,17 @@ abstract class ExpectedData
         if (lval < 0L) {
             return -1;
         } else if (lval > 0L) {
+            return 1;
+        }
+
+        return 0;
+    }
+    int compareShort(short s0, short s1)
+    {
+        int val = s0 - s1;
+        if (val < 0) {
+            return -1;
+        } else if (val > 0) {
             return 1;
         }
 
@@ -109,7 +121,7 @@ abstract class MockOutputChannel
     }
 }
 
-class ExpectedHit
+class ExpectedOldHit
     extends ExpectedData
 {
     private long domId;
@@ -119,8 +131,8 @@ class ExpectedHit
     private int srcId;
     private short trigMode;
 
-    ExpectedHit(long domId, long utcTime, int trigType, int cfgId, int srcId,
-                short trigMode)
+    ExpectedOldHit(long domId, long utcTime, int trigType, int cfgId,
+                   int srcId, short trigMode)
     {
         this.domId = domId;
         this.utcTime = utcTime;
@@ -130,7 +142,7 @@ class ExpectedHit
         this.trigMode = trigMode;
     }
 
-    ExpectedHit(ByteBuffer buf)
+    ExpectedOldHit(ByteBuffer buf)
     {
         if (buf.getInt(0) != 38) {
             throw new Error("Expected hit payload length of 38, not " +
@@ -150,14 +162,14 @@ class ExpectedHit
 
     public int compareTo(Object obj)
     {
-        if (!(obj instanceof ExpectedHit)) {
+        if (!(obj instanceof ExpectedOldHit)) {
             return getClass().getName().compareTo(obj.getClass().getName());
         }
 
-        return compareTo((ExpectedHit) obj);
+        return compareTo((ExpectedOldHit) obj);
     }
 
-    public int compareTo(ExpectedHit hit)
+    public int compareTo(ExpectedOldHit hit)
     {
         int val = compareLong(domId, hit.domId);
         if (val == 0) {
@@ -181,6 +193,74 @@ class ExpectedHit
 
     public boolean equals(Object obj)
     {
+        if (!(obj instanceof ExpectedOldHit)) {
+            return getClass().getName().equals(obj.getClass().getName());
+        }
+
+        return compareTo((ExpectedOldHit) obj) == 0;
+    }
+
+    public String toString()
+    {
+        return "ExpOldHit@" + String.format("%012x", domId) +
+            "[time " + utcTime + " type " + trigType + " cfg " + cfgId +
+            " src " + srcId + " mode " + trigMode + "]";
+    }
+}
+
+class ExpectedHit
+    extends ExpectedData
+{
+    private long utcTime;
+    private short chanId;
+    private short trigMode;
+
+    ExpectedHit(long utcTime, short chanId, short trigMode)
+    {
+        this.utcTime = utcTime;
+        this.chanId = chanId;
+        this.trigMode = trigMode;
+    }
+
+    ExpectedHit(ByteBuffer buf)
+    {
+        if (buf.getInt(0) != 20) {
+            throw new Error("Expected hit payload length of 20, not " +
+                            buf.getInt(0));
+        }
+        if (buf.getInt(4) != PayloadRegistry.PAYLOAD_ID_SIMPLER_HIT) {
+            throw new Error("Bad hit payload type " + buf.getInt(4));
+        }
+
+        utcTime = buf.getLong(8);
+        chanId = buf.getShort(16);
+        trigMode = buf.getShort(18);
+    }
+
+    public int compareTo(Object obj)
+    {
+        if (!(obj instanceof ExpectedHit)) {
+            return getClass().getName().compareTo(obj.getClass().getName());
+        }
+
+        return compareTo((ExpectedHit) obj);
+    }
+
+    public int compareTo(ExpectedHit hit)
+    {
+        int val = compareShort(chanId, hit.chanId);
+        if (val == 0) {
+            val = compareLong(utcTime, hit.utcTime);
+            if (val == 0) {
+                val = trigMode - hit.trigMode;
+            }
+        }
+
+        return val;
+    }
+
+    public boolean equals(Object obj)
+    {
         if (!(obj instanceof ExpectedHit)) {
             return getClass().getName().equals(obj.getClass().getName());
         }
@@ -190,8 +270,7 @@ class ExpectedHit
 
     public String toString()
     {
-        return "ExpHit@" + String.format("%012x", domId) + "[time " + utcTime +
-            " type " + trigType + " cfg " + cfgId + " src " + srcId +
+        return "ExpHit@" + utcTime + "[chan " + chanId +
             " mode " + trigMode + "]";
     }
 }
@@ -204,16 +283,29 @@ class MockHitChannel
         super("hit");
     }
 
+    void addExpectedHit(long utcTime, short chanId, short trigMode)
+    {
+        addExpectedData(new ExpectedHit(utcTime, chanId, trigMode));
+    }
+
     void addExpectedHit(long domId, long utcTime, int trigType, int cfgId,
                         int srcId, short trigMode)
     {
-        addExpectedData(new ExpectedHit(domId, utcTime, trigType, cfgId, srcId,
-                                        trigMode));
+        addExpectedData(new ExpectedOldHit(domId, utcTime, trigType, cfgId,
+                                           srcId, trigMode));
     }
 
     ExpectedData getBufferData(ByteBuffer buf)
     {
-        return new ExpectedHit(buf);
+        if (buf.limit() < 4) {
+            throw new Error("Buffer is too short (limit=" + buf.limit());
+        }
+
+        if (buf.getInt(0) == 20) {
+            return new ExpectedHit(buf);
+        }
+
+        return new ExpectedOldHit(buf);
     }
 }
 
@@ -1470,7 +1562,7 @@ public class SenderTest
     private static final int TYPE_DELTA_HIT = 17;
 
     private static final MockAppender appender =
-        //new MockAppender(org.apache.log4j.Level.ALL).setVerbose(true);
+        //new MockAppender(Level.ALL).setVerbose(true);
         new MockAppender();
 
     private static IDOMRegistry domRegistry;
@@ -1732,7 +1824,13 @@ public class SenderTest
                 !msg.startsWith("Found Stop data in ") &&
                 !msg.startsWith("Adding data stop while thread "))
             {
-                fail("Bad log message#" + i + ": " + appender.getMessage(i));
+                if (appender.getLevel().isGreaterOrEqual(Level.DEBUG) &&
+                    !msg.startsWith("Filling readout#") &&
+                    !msg.startsWith("Closing hit record list "))
+                {
+                    fail("Bad log message#" + i + ": " +
+                         appender.getMessage(i));
+                }
             }
         }
     }
@@ -1783,7 +1881,7 @@ public class SenderTest
     {
         MockBufferCache cache = new MockBufferCache("foo");
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
-        //sender.setDOMRegistry(domRegistry);
+        sender.setDOMRegistry(domRegistry);
 
         MockHitChannel hitChan = new MockHitChannel();
         sender.setHitOutput(new MockOutputChannelManager(hitChan));
@@ -1808,8 +1906,13 @@ public class SenderTest
                                       domClock, fadcSamples, atwd0Data,
                                       atwd1Data, atwd2Data, atwd3Data);
 
-        hitChan.addExpectedHit(domId, utcTime, trigMode, 0, HUB_SRCID,
-                               trigMode);
+        if (DOMHit.USE_SIMPLER_HITS) {
+            hitChan.addExpectedHit(utcTime, domRegistry.getChannelId(domId),
+                                   trigMode);
+        } else {
+            hitChan.addExpectedHit(domId, utcTime, trigMode, 0, HUB_SRCID,
+                                   trigMode);
+        }
 
         sender.consume(buf);
 
@@ -1841,7 +1944,7 @@ public class SenderTest
     {
         MockBufferCache cache = new MockBufferCache("foo");
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
-        //sender.setDOMRegistry(domRegistry);
+        sender.setDOMRegistry(domRegistry);
 
         MockHitChannel hitChan = new MockHitChannel();
         sender.setHitOutput(new MockOutputChannelManager(hitChan));
@@ -1870,8 +1973,13 @@ public class SenderTest
                                         domClock, lcMode, trigMode,
                                         waveformFlags, peakInfo, data);
 
-        hitChan.addExpectedHit(domId, utcTime, trigMode, 0, HUB_SRCID,
-                               trigMode);
+        if (DOMHit.USE_SIMPLER_HITS) {
+            hitChan.addExpectedHit(utcTime, domRegistry.getChannelId(domId),
+                                   trigMode);
+        } else {
+            hitChan.addExpectedHit(domId, utcTime, trigMode, 0, HUB_SRCID,
+                                   trigMode);
+        }
 
         sender.consume(buf);
 
@@ -1958,8 +2066,12 @@ public class SenderTest
 
         short engChanId = domRegistry.getChannelId(engDomId);
 
-        hitChan.addExpectedHit(engDomId, engTime, trigMode, 0, HUB_SRCID,
-                               trigMode);
+        if (DOMHit.USE_SIMPLER_HITS) {
+            hitChan.addExpectedHit(engTime, engChanId, trigMode);
+        } else {
+            hitChan.addExpectedHit(engDomId, engTime, trigMode, 0,
+                                   HUB_SRCID, trigMode);
+        }
 
         sender.consume(buf);
 
@@ -1995,8 +2107,12 @@ public class SenderTest
 
         short deltaChanId = domRegistry.getChannelId(deltaDomId);
 
-        hitChan.addExpectedHit(deltaDomId, deltaTime, trigMode, 0, HUB_SRCID,
-                               trigMode);
+        if (DOMHit.USE_SIMPLER_HITS) {
+            hitChan.addExpectedHit(deltaTime, deltaChanId, trigMode);
+        } else {
+            hitChan.addExpectedHit(deltaDomId, deltaTime, trigMode, 0,
+                                   HUB_SRCID, trigMode);
+        }
 
         sender.consume(buf);
 
@@ -2048,8 +2164,14 @@ public class SenderTest
                                atwd2Data, atwd3Data);
         }
 
-        hitChan.addExpectedHit(flushDomId, flushTime, trigMode, 0, HUB_SRCID,
-                               trigMode);
+        if (DOMHit.USE_SIMPLER_HITS) {
+            hitChan.addExpectedHit(flushTime,
+                                   domRegistry.getChannelId(flushDomId),
+                                   trigMode);
+        } else {
+            hitChan.addExpectedHit(flushDomId, flushTime, trigMode, 0,
+                                   HUB_SRCID, trigMode);
+        }
 
         sender.consume(buf);
 

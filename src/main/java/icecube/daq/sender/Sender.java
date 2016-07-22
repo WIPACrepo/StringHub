@@ -317,7 +317,8 @@ public class Sender
                         // extract hit's ByteBuffer
                         ByteBuffer payBuf;
                         try {
-                            payBuf = tinyHit.getHitBuffer(hitCache);
+                            payBuf = tinyHit.getHitBuffer(hitCache,
+                                                          domRegistry);
                         } catch (PayloadException pe) {
                             log.error("Couldn't get buffer for hit " +
                                       tinyHit, pe);
