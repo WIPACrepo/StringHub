@@ -1922,7 +1922,6 @@ public class SenderTest
         short trigMode = 3;
 
         long engDomId = 0xfedcba987654L;
-        short engChanId = 123;
         long engTime = baseTime + 100L;
         byte atwdChip = 1;
         long engClock = engTime / 234L;
@@ -1957,6 +1956,8 @@ public class SenderTest
                                atwd3Data);
         }
 
+        short engChanId = domRegistry.getChannelId(engDomId);
+
         hitChan.addExpectedHit(engDomId, engTime, trigMode, 0, HUB_SRCID,
                                trigMode);
 
@@ -1966,7 +1967,6 @@ public class SenderTest
         lastHitTime = engTime;
 
         long deltaDomId = 0xedcba9876543L;
-        short deltaChanId = 124;
         long deltaTime = baseTime + 200L;
         short version = 1;
         short pedestal = 34;
@@ -1992,6 +1992,8 @@ public class SenderTest
                                  deltaClock, lcMode, trigMode, waveformFlags,
                                  peakInfo, data);
         }
+
+        short deltaChanId = domRegistry.getChannelId(deltaDomId);
 
         hitChan.addExpectedHit(deltaDomId, deltaTime, trigMode, 0, HUB_SRCID,
                                trigMode);

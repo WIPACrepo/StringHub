@@ -77,6 +77,12 @@ class MockDOMRegistry
     }
 
     @Override
+    public double distanceBetweenDOMs(DeployedDOM dom0, DeployedDOM dom1)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
     public double distanceBetweenDOMs(long dom0, long dom1)
     {
         throw new Error("Unimplemented");
@@ -681,7 +687,7 @@ public class RunMonitorTest
 
         List<DeployedDOM> cfgDOMList = new ArrayList<DeployedDOM>();
         cfgDOMList.add(new DeployedDOM(DOM0, string, 7));
-        cfgDOMList.add(new DeployedDOM(DOM1, string, 81));
+        cfgDOMList.add(new DeployedDOM(DOM1, string, 19));
 
         runMon.setConfiguredDOMs(cfgDOMList);
 
@@ -730,7 +736,7 @@ public class RunMonitorTest
 
         List<DeployedDOM> cfgDOMList = new ArrayList<DeployedDOM>();
         cfgDOMList.add(new DeployedDOM(DOM0, string, 7));
-        cfgDOMList.add(new DeployedDOM(DOM1, string, 80));
+        cfgDOMList.add(new DeployedDOM(DOM1, string, 8));
 
         runMon.setConfiguredDOMs(cfgDOMList);
 
@@ -813,8 +819,8 @@ public class RunMonitorTest
         final long DOM1 = 123456789L;
 
         List<DeployedDOM> cfgDOMList = new ArrayList<DeployedDOM>();
-        cfgDOMList.add(new DeployedDOM(DOM0, string, 7));
-        cfgDOMList.add(new DeployedDOM(DOM1, string, 80));
+        cfgDOMList.add(new DeployedDOM(DOM0, string, 1));
+        cfgDOMList.add(new DeployedDOM(DOM1, string, 2));
 
         runMon.setConfiguredDOMs(cfgDOMList);
 

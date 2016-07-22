@@ -3,12 +3,19 @@
   <string>
     <number>1</number>
     <dom>
+      <position>59</position>
       <mainBoardId>fedcba987654</mainBoardId>
+      <channelId>122</channelId>
+    </dom>
+    <dom>
+      <position>60</position>
+      <mainBoardId>edcba9876543</mainBoardId>
       <channelId>123</channelId>
     </dom>
     <dom>
-      <mainBoardId>edcba9876543</mainBoardId>
-      <channelId>124</channelId>
+      <position>58</position>
+      <mainBoardId>dcba98765432</mainBoardId>
+      <channelId>121</channelId>
     </dom>
   </string>
   <string>
