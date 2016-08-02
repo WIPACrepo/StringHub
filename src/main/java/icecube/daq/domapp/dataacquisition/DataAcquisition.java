@@ -642,7 +642,6 @@ public class DataAcquisition
                     app = new DOMApp(card, pair, dom);
                     if (app.isRunningDOMApp())
                     {
-                        needSoftboot = false;
                         try
                         {
                             app.endRun();
@@ -653,6 +652,13 @@ public class DataAcquisition
                             // DOMApp not currently in running mode, ignore
                         }
                         reportedMBID = app.getMainboardID();
+
+                        // wait for a successful mbid query before declaring
+                        // this domapp instance good.
+                        if(reportedMBID != null)
+                        {
+                            needSoftboot = false;
+                        }
                     }
                     else
                     {
@@ -668,6 +674,8 @@ public class DataAcquisition
                     //
                     logger.warn("DOM is not responding to DOMApp query -" +
                             " will attempt to softboot", ex);
+
+                    needSoftboot = true;
 
                     if(app != null)
                     {

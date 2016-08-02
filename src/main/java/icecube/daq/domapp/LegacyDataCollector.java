@@ -1675,7 +1675,6 @@ public class LegacyDataCollector
                 app = new DOMApp(card, pair, dom);
                 if (app.isRunningDOMApp())
                 {
-                    needSoftboot = false;
                     try
                     {
                         app.endRun();
@@ -1686,6 +1685,13 @@ public class LegacyDataCollector
                         // DOMApp not currently in running mode, ignore
                     }
                     reportedMbid = app.getMainboardID();
+
+                    // wait for a successful mbid query before declaring
+                    // this domapp instance good.
+                    if(reportedMbid != null)
+                    {
+                        needSoftboot = false;
+                    }
                 }
                 else
                 {
@@ -1696,6 +1702,8 @@ public class LegacyDataCollector
             catch (Exception x)
             {
                 logger.warn("DOM is not responding to DOMApp query - will attempt to softboot");
+                needSoftboot = true;
+
                 // Clear this thread's interrupted status
                 watchdog.ping();
                 interrupted();
