@@ -2488,6 +2488,9 @@ public class LegacyDataCollector
                 // clear interrupted flag if it is set
                 Thread.interrupted();
 
+                // close device file
+                if (app != null) app.close();
+
                 // Generate an alert if this was an unrequested exit
                 if(aborting || abnormalExit)
                 {

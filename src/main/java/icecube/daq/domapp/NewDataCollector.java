@@ -994,6 +994,9 @@ public class NewDataCollector
                 Thread.interrupted();
                 ping();
 
+                // close acquisition
+                dataAcquisition.doClose();
+
                 // Generate an alert if this was an unrequested exit
                 if(aborting || abnormalExit)
                 {
