@@ -86,13 +86,19 @@ class UTCMonotonicDispatcher extends UTCDispatcher
     {
         // At EOS, deferred data will be dispatched regardless
         // of the rapcal bounding.
-        while(deferred.size() > 0)
+        try
         {
-            DeferredDataRecord record = deferred.removeFirst();
-            super.dispatchBuffer(record.data, record.callback);
+            while(deferred.size() > 0)
+            {
+                DeferredDataRecord record = deferred.removeFirst();
+                super.dispatchBuffer(record.data, record.callback);
+            }
+        }
+        finally
+        {
+            super.eos(eos);
         }
 
-        super.eos(eos);
     }
 
 

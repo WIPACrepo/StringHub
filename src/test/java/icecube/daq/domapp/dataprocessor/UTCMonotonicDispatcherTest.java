@@ -226,6 +226,118 @@ public class UTCMonotonicDispatcherTest
     }
 
     @Test
+    public void testExceptionOnEOS() throws DataProcessorError
+    {
+
+        //
+        // Test that EOS is sent even if deferred data generates an error
+        //
+
+        MockRapCal rapcal = new MockRapCal(99999);
+        MockBufferConsumer consumer = new MockBufferConsumer();
+        UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
+                DataProcessor.StreamType.HIT,
+                rapcal);
+
+        // set upper bound to cover no times
+        rapcal.setUpperBound(Long.MIN_VALUE);
+
+        subject.dispatchBuffer(generateBuffer(0));
+        subject.dispatchBuffer(generateBuffer(1));
+        subject.dispatchBuffer(generateBuffer(100000000));
+        subject.dispatchBuffer(generateBuffer(444444444));
+        subject.dispatchBuffer(generateBuffer(999999999));
+        subject.dispatchBuffer(generateBuffer(777777777777L));
+        subject.dispatchBuffer(generateBuffer(888888888888L));
+        subject.dispatchBuffer(generateBuffer(MAX_DOM_CLOCK));
+
+        assertEquals("no dispatch expected",
+                0, consumer.getReceivedTimes().length);
+
+        assertEquals("deferred records expected",
+                8, subject.getDeferredRecordCount());
+
+        consumer.setErrorMode(new MockBufferConsumer.CallNumberErrorMode(1,1, false));
+
+        try
+        {
+            subject.eos(generateBuffer(Long.MAX_VALUE));
+            fail("Exception expected");
+        }
+        catch (DataProcessorError dataProcessorError)
+        {
+            //expected, but EOS should still be generated
+
+            assertEquals("only EOS dispatch expected",
+                    1, consumer.getReceivedTimes().length);
+
+            assertEquals("remaining deferred records expected",
+                    7, subject.getDeferredRecordCount());
+
+            assertEquals("eos marker expected",
+                    Long.MAX_VALUE, consumer.getReceivedTimes()[0]);
+
+        }
+
+    }
+
+    @Test
+    public void testErrorOnEOS() throws DataProcessorError
+    {
+
+        //
+        // Test that EOS is sent even if deferred data generates an error
+        //
+
+        MockRapCal rapcal = new MockRapCal(99999);
+        MockBufferConsumer consumer = new MockBufferConsumer();
+        UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
+                DataProcessor.StreamType.HIT,
+                rapcal);
+
+        // set upper bound to cover no times
+        rapcal.setUpperBound(Long.MIN_VALUE);
+
+        subject.dispatchBuffer(generateBuffer(0));
+        subject.dispatchBuffer(generateBuffer(1));
+        subject.dispatchBuffer(generateBuffer(100000000));
+        subject.dispatchBuffer(generateBuffer(444444444));
+        subject.dispatchBuffer(generateBuffer(999999999));
+        subject.dispatchBuffer(generateBuffer(777777777777L));
+        subject.dispatchBuffer(generateBuffer(888888888888L));
+        subject.dispatchBuffer(generateBuffer(MAX_DOM_CLOCK));
+
+        assertEquals("no dispatch expected",
+                0, consumer.getReceivedTimes().length);
+
+        assertEquals("deferred records expected",
+                8, subject.getDeferredRecordCount());
+
+        consumer.setErrorMode(new MockBufferConsumer.CallNumberErrorMode(1,1, true));
+
+        try
+        {
+            subject.eos(generateBuffer(Long.MAX_VALUE));
+            fail("Exception expected");
+        }
+        catch (Throwable th)
+        {
+            //expected, but EOS should still be generated
+
+            assertEquals("only EOS dispatch expected",
+                    1, consumer.getReceivedTimes().length);
+
+            assertEquals("remaining deferred records expected",
+                    7, subject.getDeferredRecordCount());
+
+            assertEquals("eos marker expected",
+                    Long.MAX_VALUE, consumer.getReceivedTimes()[0]);
+
+        }
+
+    }
+
+    @Test
     public void testMaxDeferred() throws DataProcessorError
     {
 
@@ -374,5 +486,6 @@ public class UTCMonotonicDispatcherTest
             return unboxed;
         }
     }
+
 
 }

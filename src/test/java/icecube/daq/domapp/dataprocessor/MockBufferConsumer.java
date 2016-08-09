@@ -14,8 +14,56 @@ public class MockBufferConsumer implements BufferConsumer
 {
     List<Long> receivedTimes = new ArrayList<Long>(10);
 
+    private ErrorMode errorMode = new NoError();
+
+    public interface ErrorMode
+    {
+        public void invoke(String msg) throws IOException;
+    }
+
+    public static class NoError implements ErrorMode
+    {
+        public void invoke(String msg) throws IOException {}
+    }
+
+    public static class CallNumberErrorMode implements ErrorMode
+    {
+        final int onCallNumber;
+        final int toCallNumber;
+        final boolean unchecked;
+
+        private int callCount;
+
+        public CallNumberErrorMode(final int onCallNumber,
+                         final int toCallNumber,
+                         final boolean unchecked)
+        {
+            this.onCallNumber = onCallNumber;
+            this.toCallNumber = toCallNumber;
+            this.unchecked = unchecked;
+        }
+
+        public void invoke(String msg) throws IOException
+        {
+            callCount++;
+            if(callCount >= onCallNumber && callCount <= toCallNumber)
+            {
+                if(unchecked)
+                {
+                    throw new Error(msg);
+                }
+                else
+                {
+                    throw new IOException(msg);
+                }
+            }
+        }
+    }
+
+
     public void consume(final ByteBuffer buf) throws IOException
     {
+        errorMode.invoke("generated Error on consume()");
         receivedTimes.add(buf.getLong(24));
     }
 
@@ -34,6 +82,10 @@ public class MockBufferConsumer implements BufferConsumer
         receivedTimes.clear();
     }
 
+    public void setErrorMode(ErrorMode errorMode)
+    {
+        this.errorMode = errorMode;
+    }
 
     private static long[] unbox(List<Long> boxed)
     {
