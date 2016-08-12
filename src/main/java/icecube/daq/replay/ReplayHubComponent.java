@@ -527,7 +527,7 @@ public class ReplayHubComponent
 
     /**
      * Return an array of the number of active doms and the number of total
-     * doms packed into an integer array to avoid 2 xmlrpc calls from the
+     * doms packed into an integer array to avoid 2 rpc calls from the
      * ActiveDOMsTask
      *
      * @return [0] = number of active doms, [1] = total number of doms
