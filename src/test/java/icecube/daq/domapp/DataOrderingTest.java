@@ -33,11 +33,6 @@ public class DataOrderingTest
 {
 
 
-    // This class tests two code lines, the original
-    // and the class that the original code migrated to.
-    private static final int ORIGINAL_IMPLEMENTATION = 1;
-    private static final int MIGRATED_IMPLEMENTATION = 2;
-
     @BeforeClass
     public static void setupLogging()
     {
@@ -56,17 +51,10 @@ public class DataOrderingTest
     @Test
     public void testNullInstantiation() throws DataProcessorError
     {
-        testNullInstantiation(ORIGINAL_IMPLEMENTATION);
-        testNullInstantiation(MIGRATED_IMPLEMENTATION);
-    }
-    public void testNullInstantiation(int whichVersion) throws DataProcessorError
-    {
         // must support null consumer modes
         BufferConsumer nullConsumer = null;
 
-        DataDispatcher dispatcher = constructDispatcher(null, nullConsumer, "test",10000, 1000, whichVersion);
-//        DataCollector.UTCMessageStream stream = new DataCollector
-//                .UTCMessageStream(nullConsumer, "test", 10000);
+        DataDispatcher dispatcher = constructDispatcher(null, nullConsumer,10000, 1000);
 
         assertFalse("Null consumer not supported", dispatcher.hasConsumer());
 
@@ -81,23 +69,15 @@ public class DataOrderingTest
     }
 
     @Test
-    public void testConsumerManagement() throws DataProcessorError
-    {
-        testConsumerManagement(ORIGINAL_IMPLEMENTATION);
-        testConsumerManagement(MIGRATED_IMPLEMENTATION);
-    }
-    public void testConsumerManagement(int whichVersion)
+    public void testConsumerManagement()
             throws DataProcessorError
     {
         // must support ad hoc consumer methods
         MockBufferConsumer consumerMock = new MockBufferConsumer();
 
-        DataDispatcher dispatcher = constructDispatcher(null, consumerMock, "test", 10000, 1000, whichVersion);
-//        DataCollector.UTCMessageStream stream = new DataCollector
-//                .UTCMessageStream(consumerMock, "test", 10000);
+        DataDispatcher dispatcher = constructDispatcher(null, consumerMock, 10000, 1000);
 
         assertTrue("Consumer existence not supported", dispatcher.hasConsumer());
-
 
         ByteBuffer eos = ByteBuffer.allocate(32);
         eos.putLong(24, Long.MAX_VALUE);
@@ -111,17 +91,12 @@ public class DataOrderingTest
     @Test
     public void testInOrderCondition()
     {
-        testInOrderCondition(ORIGINAL_IMPLEMENTATION);
-        testInOrderCondition(MIGRATED_IMPLEMENTATION);
-    }
-    public void testInOrderCondition(int whichVersion)
-    {
 
         try
         {
-            internalTestInOrderCondition(whichVersion, 10000);  // 10 microseconds
-            internalTestInOrderCondition(whichVersion, 0);      // zero epsilon
-            internalTestInOrderCondition(whichVersion, -1);     // negative epsilon
+            internalTestInOrderCondition(10000);  // 10 microseconds
+            internalTestInOrderCondition(0);      // zero epsilon
+            internalTestInOrderCondition( -1);     // negative epsilon
         }
         catch (DataProcessorError e)
         {
@@ -129,16 +104,14 @@ public class DataOrderingTest
         }
     }
 
-    public void internalTestInOrderCondition(int whichVersion, long epsilon) throws DataProcessorError
+    public void internalTestInOrderCondition(long epsilon) throws DataProcessorError
     {
         // generate data payloads in time order
         // this is the predominate condition
         MockRapCal rapcal = new MockRapCal(500);
       MockBufferConsumer sink = new MockBufferConsumer();
 
-        DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test", epsilon, 1000, whichVersion);
-//        DataCollector.UTCMessageStream stream = new DataCollector
-//                .UTCMessageStream(sink, "test", epsilon);
+        DataDispatcher dispatcher = constructDispatcher(rapcal, sink, epsilon, 1000);
 
         long domclockSeed = 123556678;
         long[] domTimestamps = new long[]
@@ -174,19 +147,10 @@ public class DataOrderingTest
     @Test
     public void testRetrogradeWithinEpsilon() throws DataProcessorError
     {
-        testRetrogradeWithinEpsilon(ORIGINAL_IMPLEMENTATION);
-        testRetrogradeWithinEpsilon(MIGRATED_IMPLEMENTATION);
-    }
-    public void testRetrogradeWithinEpsilon(int whichVersion) throws DataProcessorError
-    {
         MockRapCal rapcal = new MockRapCal(500);
         MockBufferConsumer sink = new MockBufferConsumer();
 
-        DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test", 10000, 1000, whichVersion);
-
-//        DataCollector.UTCMessageStream stream = new DataCollector
-//                .UTCMessageStream(sink, "test", 10000);
-
+        DataDispatcher dispatcher = constructDispatcher(rapcal, sink, 10000, 1000);
 
         // test retrograde within epsilon
         long[] domTimestamps = new long[]
@@ -241,18 +205,10 @@ public class DataOrderingTest
     @Test
     public void testRetrogradeBeyondEpsilon() throws DataProcessorError
     {
-        testRetrogradeBeyondEpsilon(ORIGINAL_IMPLEMENTATION);
-        testRetrogradeBeyondEpsilon(MIGRATED_IMPLEMENTATION);
-    }
-    public void testRetrogradeBeyondEpsilon(int whichVersion) throws DataProcessorError
-    {
         MockRapCal rapcal = new MockRapCal(500);
         MockBufferConsumer sink = new MockBufferConsumer();
 
-        DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test", 10000, 1000, whichVersion);
-//        DataCollector.UTCMessageStream stream = new DataCollector
-//                .UTCMessageStream(sink, "test", 10000);
-
+        DataDispatcher dispatcher = constructDispatcher(rapcal, sink, 10000, 1000);
 
         // test retrograde beyond epsilon
         long[] domTimestamps = new long[]
@@ -317,18 +273,10 @@ public class DataOrderingTest
     @Test
     public void testRetrogradeZeroEpsilon() throws DataProcessorError
     {
-        testRetrogradeZeroEpsilon(ORIGINAL_IMPLEMENTATION);
-        testRetrogradeZeroEpsilon(MIGRATED_IMPLEMENTATION);
-    }
-    public void testRetrogradeZeroEpsilon(int whichVersion) throws DataProcessorError
-    {
         MockRapCal rapcal = new MockRapCal(500);
         MockBufferConsumer sink = new MockBufferConsumer();
 
-        DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test", 0, 1000,  whichVersion);
-//        DataCollector.UTCMessageStream stream = new DataCollector
-//                .UTCMessageStream(sink, "test", 0);
-
+        DataDispatcher dispatcher = constructDispatcher(rapcal, sink, 0, 1000);
 
         // test retrograde wit epsilon at zero
         long[] domTimestamps = new long[]
@@ -413,13 +361,11 @@ public class DataOrderingTest
 
         int MAX_DROPS = 1000;
 
-        //NOTE:  This behavior is not implemented in the original
-        //       implementation.
         MockRapCal rapcal = new MockRapCal(500);
         MockBufferConsumer sink = new MockBufferConsumer();
 
-        DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test",
-                10000, MAX_DROPS, MIGRATED_IMPLEMENTATION);
+        DataDispatcher dispatcher = constructDispatcher(rapcal, sink,
+                10000, MAX_DROPS);
 
         long CURRENT_TIME=100000;
         long BACKWARDS_TIME=1234;
@@ -446,8 +392,8 @@ public class DataOrderingTest
 
         /// SCENARIO II : Out of orders mixed with in-order and
         //  sub-epsilon out-of-order
-        dispatcher = constructDispatcher(rapcal, sink, "test",
-                10000, MAX_DROPS, MIGRATED_IMPLEMENTATION);
+        dispatcher = constructDispatcher(rapcal, sink,
+                10000, MAX_DROPS);
 
         CURRENT_TIME=100000;
         BACKWARDS_TIME=1234;
@@ -487,39 +433,17 @@ public class DataOrderingTest
     @Test
     public void testLoggingThrottling() throws DataProcessorError
     {
-        testLoggingThrottling(ORIGINAL_IMPLEMENTATION);
-        testLoggingThrottling(MIGRATED_IMPLEMENTATION);
-    }
-    public void testLoggingThrottling(int whichVersion) throws DataProcessorError
-    {
 
         int MAX_DROPS=Integer.MAX_VALUE;
 
         MockRapCal rapcal = new MockRapCal(500);
         MockBufferConsumer sink = new MockBufferConsumer();
 
-        DataDispatcher dispatcher = constructDispatcher(rapcal, sink, "test", 0, MAX_DROPS,  whichVersion);
+        UTCDispatcher dispatcher = constructDispatcher(rapcal, sink, 0, MAX_DROPS);
 
-        int MAX_LOGGING = 0;
-        int LOGGED_OCCURRENCES_PERIOD = 0;
-        if(dispatcher instanceof UTCDispatchAdapter)
-        {
-            MAX_LOGGING = ((UTCDispatchAdapter)dispatcher).original.MAX_LOGGING;
-            LOGGED_OCCURRENCES_PERIOD = ((UTCDispatchAdapter)dispatcher).original.LOGGED_OCCURRENCES_PERIOD;
-        }
-        else if(dispatcher instanceof UTCDispatcher)
-        {
-            MAX_LOGGING = ((UTCDispatcher)dispatcher).MAX_LOGGING;
-            LOGGED_OCCURRENCES_PERIOD = ((UTCDispatcher)dispatcher).LOGGED_OCCURRENCES_PERIOD;
+        int MAX_LOGGING = dispatcher.MAX_LOGGING;
+        int LOGGED_OCCURRENCES_PERIOD = dispatcher.LOGGED_OCCURRENCES_PERIOD;
 
-        }
-        else
-        {
-            fail("Test does not support class" + dispatcher.getClass());
-        }
-
-//        DataCollector.UTCMessageStream stream = new DataCollector
-//                .UTCMessageStream(sink, "test", 0);
 
         long CURRENT_TIME=100000;
         long BACKWARDS_TIME=1234;
@@ -557,7 +481,7 @@ public class DataOrderingTest
         //MAX_LOGGING+1 every LOGGED_OCCURRENCES_PERIOD
         mockLogger.clear();
         mockLogger.setVerbose(false);
-        dispatcher = constructDispatcher(rapcal, sink, "test", 0,  MAX_DROPS, whichVersion);
+        dispatcher = constructDispatcher(rapcal, sink, 0,  MAX_DROPS);
        // stream = new DataCollector.UTCMessageStream(sink, "test", 0);
         for (int i=1; i<100000; i++)
         {
@@ -615,92 +539,18 @@ public class DataOrderingTest
     }
 
     /**
-     * factory for creating test instances based on both the original
-     * an migrated implementation.
+     * factory for creating test instances
      */
-    private static DataDispatcher constructDispatcher(final RAPCal rapcal,
+    private static UTCDispatcher constructDispatcher(final RAPCal rapcal,
                                                       final BufferConsumer target,
-                                                      String type,
                                                       long orderingEpsilon,
-                                                      long maxDrops,
-                                                      int implementation)
+                                                      long maxDrops)
     {
-        switch (implementation)
-        {
-            case ORIGINAL_IMPLEMENTATION:
-                LegacyDataCollector.UTCMessageStream original =
-                        new LegacyDataCollector.UTCMessageStream(target,
-                                type, orderingEpsilon);
-                return new UTCDispatchAdapter(original, rapcal);
-            case MIGRATED_IMPLEMENTATION:
+
                 return new UTCDispatcher(target,
                         DataProcessor.StreamType.MONI, rapcal,orderingEpsilon,
                         maxDrops);
-            default:
-                throw new Error("Test Fail");
 
-        }
-    }
-
-    /**
-     * Adapt the original implementation to the UTCDispatcherInterface
-     */
-    private static class UTCDispatchAdapter implements DataDispatcher
-    {
-        private final LegacyDataCollector.UTCMessageStream original;
-        private final RAPCal rapcal;
-
-
-        private UTCDispatchAdapter(final LegacyDataCollector.UTCMessageStream original, final RAPCal rapcal)
-        {
-            this.original = original;
-            this.rapcal = rapcal;
-        }
-
-        @Override
-        public boolean hasConsumer()
-        {
-            return original.hasConsumer();
-        }
-
-        @Override
-        public void eos(final ByteBuffer eos) throws DataProcessorError
-        {
-            try
-            {
-                original.eos(eos);
-            }
-            catch (IOException ioe)
-            {
-                throw new DataProcessorError(ioe);
-            }
-        }
-
-        @Override
-        public void dispatchBuffer(final ByteBuffer buf) throws DataProcessorError
-        {
-            try
-            {
-                original.dispatchBuffer(rapcal, buf);
-            }
-            catch (IOException ioe)
-            {
-                throw new DataProcessorError(ioe);
-            }
-        }
-
-        @Override
-        public void dispatchBuffer(final ByteBuffer buf,
-                                   final DispatchCallback callback) throws DataProcessorError
-        {
-            throw new Error("Not Implemented in Original");
-        }
-
-        @Override
-        public void dispatchHitBuffer(final int atwdChip, final ByteBuffer hitBuf, final DataStats counters) throws DataProcessorError
-        {
-            throw new Error("Not Implemented in Original");
-        }
     }
 
 }
