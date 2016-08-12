@@ -114,6 +114,8 @@ public class ReplayHubComponent
     private IByteBufferCache cache;
     /** Hit sender */
     private Sender sender;
+    /** DOM database */
+    private IDOMRegistry domRegistry;
 
     /** directory which holds pDAQ run configuration files */
     private File configurationPath;
@@ -142,7 +144,10 @@ public class ReplayHubComponent
         super(COMPONENT_NAME, hubId);
 
         this.hubId = hubId;
+    }
 
+    public void initialize()
+    {
         addMBean("jvm", new MemoryStatistics());
         addMBean("system", new SystemStatistics());
         addMBean("stringhub", this);
@@ -155,6 +160,9 @@ public class ReplayHubComponent
             new VitreousBufferCache("SHRdOut#" + hubId);
         addCache(DAQConnector.TYPE_READOUT_DATA, rdoutDataCache);
         sender = new Sender(hubId, rdoutDataCache);
+        if (domRegistry != null) {
+            sender.setDOMRegistry(domRegistry);
+        }
 
         if (LOG.isInfoEnabled()) {
             LOG.info("starting up ReplayHub component " + hubId);
@@ -684,10 +692,11 @@ public class ReplayHubComponent
         }
 
         // load DOM registry and pass it to the sender
-        IDOMRegistry domRegistry;
         try {
             domRegistry = DOMRegistry.loadRegistry(configurationPath);
-            sender.setDOMRegistry(domRegistry);
+            if (sender != null) {
+                sender.setDOMRegistry(domRegistry);
+            }
         } catch (ParserConfigurationException e) {
             LOG.error("Cannot load hub#" + hubId + " DOM registry", e);
         } catch (SAXException e) {

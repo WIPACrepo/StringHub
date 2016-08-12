@@ -117,17 +117,19 @@ public class StringHubComponent
 
 	public StringHubComponent(int hubId)
 	{
-		this(hubId, true, true, true, true, true, true);
-	}
-
-	public StringHubComponent(int hubId, boolean includeHitOut,
-							  boolean includeReqIn, boolean includeDataOut,
-							  boolean includeMoniOut, boolean includeTCalOut,
-							  boolean includeSNOut)
-	{
 		super(COMPONENT_NAME, hubId);
 
 		this.hubId = hubId;
+	}
+
+	public void initialize()
+	{
+		final boolean includeHitOut = true;
+		final boolean includeReqIn = true;
+		final boolean includeDataOut = true;
+		final boolean includeMoniOut = true;
+		final boolean includeTCalOut = true;
+		final boolean includeSNOut = true;
 
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
@@ -179,6 +181,9 @@ public class StringHubComponent
 		}
 
 		sender = new Sender(hubId, rdoutDataCache);
+		if (domRegistry != null) {
+			sender.setDOMRegistry(domRegistry);
+		}
 
 		if (logger.isInfoEnabled()) {
 			logger.info("starting up StringHub component " + hubId);
@@ -357,7 +362,9 @@ public class StringHubComponent
 			logger.error("Could not load DOMRegistry", e);
 		}
 
-		sender.setDOMRegistry(domRegistry);
+		if (sender != null) {
+			sender.setDOMRegistry(domRegistry);
+		}
 	}
 
     @Override
@@ -1163,7 +1170,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16182 2016-07-20 19:48:53Z dglo $";
+		return "$Id: StringHubComponent.java 16198 2016-08-12 20:48:03Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
