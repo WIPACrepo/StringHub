@@ -32,14 +32,6 @@ import org.apache.log4j.Logger;
 public class FilesHitSpool
     implements BufferConsumer
 {
-    public static final String PACK_HEADERS_PROPERTY =
-        "icecube.daq.stringhub.hitspool.packHeaders";
-
-    public static final String UNIFIED_CACHE_PROPERTY =
-        "icecube.daq.stringhub.hitspool.unified";
-
-    public static boolean INCLUDE_OLD_METADATA = true;
-
     private static final Logger logger = Logger.getLogger(FilesHitSpool.class);
 
     private BufferConsumer out;
@@ -101,17 +93,13 @@ public class FilesHitSpool
         this.out = out;
         this.topDir = topDir;
 
-        boolean packHeaders = Boolean.getBoolean(PACK_HEADERS_PROPERTY);
-        boolean unifiedCache = Boolean.getBoolean(UNIFIED_CACHE_PROPERTY);
-
         // make sure hitspool directory exists
         if (topDir == null) {
             throw new IOException("Top directory cannot be null");
         }
         createDirectory(topDir);
 
-        files = new FileBundle(configDir, fileInterval, maxNumberOfFiles,
-                               unifiedCache, packHeaders);
+        files = new FileBundle(configDir, fileInterval, maxNumberOfFiles);
     }
 
     public void consume(ByteBuffer buf) throws IOException
@@ -192,18 +180,12 @@ public class FilesHitSpool
     private void reset()
         throws IOException
     {
-        if (files.isUnified()) {
-            File newDir = new File(topDir, "hitspool");
-            try {
-                createDirectory(newDir);
-                targetDirectory = newDir;
-            } catch (IOException ioe) {
-                logger.error("Cannot create " + newDir, ioe);
-            }
-        } else {
-            synchronized (files) {
-                rotateDirectories();
-            }
+        File newDir = new File(topDir, "hitspool");
+        try {
+            createDirectory(newDir);
+            targetDirectory = newDir;
+        } catch (IOException ioe) {
+            logger.error("Cannot create " + newDir, ioe);
         }
     }
 
@@ -307,11 +289,8 @@ class FileBundle
 
     private long fileInterval;
     private int maxNumberOfFiles;
-    private boolean unifiedCache;
-    private boolean packHeaders;
 
     private OutputStream dataOut;
-    private OldMetadata oldMetadata;
     private Metadata metadata;
 
     private int currentFileIndex;
@@ -320,16 +299,10 @@ class FileBundle
     private long prevT;
     private boolean isHosed;
 
-    // scratch buffer used to transform input hit
-    private byte[] iobuf = new byte[5000];
-
-    FileBundle(File configDir, long fileInterval, int maxNumberOfFiles,
-               boolean unifiedCache, boolean packHeaders)
+    FileBundle(File configDir, long fileInterval, int maxNumberOfFiles)
     {
         this.fileInterval = fileInterval;
         this.maxNumberOfFiles = maxNumberOfFiles;
-        this.unifiedCache = unifiedCache;
-        this.packHeaders = packHeaders;
 
         loadRegistry(configDir);
     }
@@ -388,13 +361,9 @@ class FileBundle
         return isHosed;
     }
 
-    boolean isUnified()
-    {
-        return unifiedCache;
-    }
-
     private void loadRegistry(File configDir)
     {
+/*
         if (packHeaders && configDir != null) {
             try {
                 registry = DOMRegistry.loadRegistry(configDir);
@@ -404,10 +373,10 @@ class FileBundle
                 registry = null;
             }
         }
+*/
 
         logger.info("DOM registry " + (registry != null ? "" : "NOT") +
-                    " found; header packing " + (packHeaders ? "" : "NOT") +
-                    " activated.");
+                    " found.");
     }
 
     /**
@@ -431,25 +400,14 @@ class FileBundle
 
         final String fileName = FilesHitSpool.getFileName(fileNo);
 
-        // write old hitspool metadata
-        if (!unifiedCache || FilesHitSpool.INCLUDE_OLD_METADATA) {
-            if (oldMetadata == null) {
-                oldMetadata = new OldMetadata(targetDirectory, fileInterval,
-                                              maxNumberOfFiles, unifiedCache);
+        // write hitspool metadata
+        try {
+            if (metadata == null) {
+                metadata = new Metadata(targetDirectory);
             }
-            oldMetadata.write(t0, t, fileNo);
-        }
-
-        // write new hitspool metadata
-        if (unifiedCache) {
-            try {
-                if (metadata == null) {
-                    metadata = new Metadata(targetDirectory);
-                }
-                metadata.write(fileName, t, fileInterval);
-            } catch (SQLException se) {
-                logger.error("Cannot update metadata", se);
-            }
+            metadata.write(fileName, t, fileInterval);
+        } catch (SQLException se) {
+            logger.error("Cannot update metadata", se);
         }
 
         // open new file
@@ -457,30 +415,6 @@ class FileBundle
         dataOut =
             new BufferedOutputStream(new FileOutputStream(newFile), 32768);
         isHosed = false;
-    }
-
-    private int transform(ByteBuffer buf, byte[] iobuf)
-    {
-        int cpos = 0;
-        // Here's your chance to compactify the buffer
-        if (registry != null && packHeaders) {
-            buf.putShort(0, (short)(0xC000 | (buf.getInt(0)-24)));
-            long mbid = buf.getLong(8);
-            short chid = registry.getChannelId(mbid);
-            buf.putShort(2, chid);
-            buf.putLong(4, buf.getLong(24));
-            // pack in the version (bytes 34-35) and
-            // the PED / ATWD-chargestamp flags (36-37)
-            buf.putShort(12, (short)((buf.getShort(34) & 0xff) |
-                                     ((buf.getShort(36) & 0xff) << 8)));
-            buf.get(iobuf, 0, 14);
-            buf.position(38);
-            cpos = 14;
-        }
-        int br = buf.remaining();
-        buf.get(iobuf, cpos, br);
-        buf.rewind();
-        return br + cpos;
     }
 
     /**
@@ -492,17 +426,7 @@ class FileBundle
     synchronized void write(File targetDirectory, ByteBuffer buf, long t)
     {
         // get the current file number for this hit
-        final int fileNo;
-        if (unifiedCache) {
-            fileNo = (int) ((t / fileInterval) % maxNumberOfFiles);
-        } else {
-            // set the base time
-            if (t0 == 0L) {
-                t0 = t;
-            }
-
-            fileNo = (int) (((t - t0) / fileInterval) % maxNumberOfFiles);
-        }
+        final int fileNo = (int) ((t / fileInterval) % maxNumberOfFiles);
 
         // if metadata needs to be updated...
         if (fileNo != currentFileIndex || t == Long.MAX_VALUE ||
@@ -528,13 +452,9 @@ class FileBundle
             currentFileIndex = fileNo;
         }
 
-        // now I should be free to pack the buffer, if that is the
-        // behavior desired.
-        final int nw = transform(buf, iobuf);
-
         // finally ready to write the hit data to the hitspool file
         try {
-            dataOut.write(iobuf, 0, nw);
+            dataOut.write(buf.array(), 0, buf.limit());
         } catch (IOException iox) {
             logger.error("Write failed.  Hit spooling will be terminated.",
                          iox);
@@ -544,55 +464,5 @@ class FileBundle
 
         // save hit time so metadata can record last hit in file
         prevT = t;
-    }
-}
-
-/**
- * Old hitspool metadata.
- *
- * TODO remove from New_Glarus
- */
-class OldMetadata
-{
-    private File directory;
-    private long fileInterval;
-    private int maxNumberOfFiles;
-    private boolean unifiedCache;
-
-    OldMetadata(File directory, long fileInterval, int maxNumberOfFiles,
-                boolean unifiedCache)
-    {
-        this.directory = directory;
-        this.fileInterval = fileInterval;
-        this.maxNumberOfFiles = maxNumberOfFiles;
-        this.unifiedCache = unifiedCache;
-    }
-
-    void write(long firstTime, long currentTime, int currentFileIndex)
-        throws IOException
-    {
-        File infFile = new File(directory, "info.txt");
-        FileOutputStream ostr = new FileOutputStream(infFile);
-        FileLock lock = ostr.getChannel().lock();
-        try {
-            PrintStream info = new PrintStream(ostr);
-            try {
-                if (unifiedCache) {
-                    info.println("T0   0");
-                } else {
-                    info.printf("T0   %20d\n", firstTime);
-                }
-                info.printf("CURT %20d\n", currentTime);
-                info.printf("IVAL %20d\n", fileInterval);
-                info.printf("CURF %4d\n", currentFileIndex);
-                info.printf("MAXF %4d\n", maxNumberOfFiles);
-            } finally {
-                info.close();
-            }
-        } finally {
-            if (lock.isValid()) {
-                lock.release();
-            }
-        }
     }
 }

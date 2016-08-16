@@ -35,9 +35,6 @@ public class FilesHitSpoolTest
 
         BasicConfigurator.resetConfiguration();
         BasicConfigurator.configure(appender);
-
-        System.clearProperty(FilesHitSpool.PACK_HEADERS_PROPERTY);
-        System.clearProperty(FilesHitSpool.UNIFIED_CACHE_PROPERTY);
     }
 
     @After
@@ -72,17 +69,6 @@ public class FilesHitSpoolTest
         // nothing logged if headers are not packed
         assertEquals("Bad number of log messages",
                      0, appender.getNumberOfMessages());
-
-        System.setProperty(FilesHitSpool.PACK_HEADERS_PROPERTY, "true");
-
-        new FilesHitSpool(null, badConfigDir, new File("/tmp"));
-
-        assertEquals("Bad number of log messages",
-                     1, appender.getNumberOfMessages());
-        final String expMsg = "Failed to load registry from " + badConfigDir +
-            "; headers will not be packed";
-        assertEquals("Bad log message",
-                     expMsg, (String) appender.getMessage(0));
         appender.clear();
     }
 
@@ -90,34 +76,7 @@ public class FilesHitSpoolTest
     public void testNormal()
         throws IOException
     {
-        Runner r = new Runner(10000000000L, 5, false);
-
-        r.create();
-        r.startRun();
-
-        final long startTime = 1195000000L;
-        final long endTime = startTime + r.fileInterval();
-        final long timeStep = (r.fileInterval() / 10) * 3;
-
-        r.writeHits(startTime, endTime, timeStep);
-
-        r.switchRun();
-
-        final long startAgain = endTime + (r.fileInterval() / 10);
-        final long endAgain = startAgain + r.fileInterval();
-        final long timeStep2 = (r.fileInterval() / 2);
-
-        r.writeHits(startAgain, endAgain, timeStep2);
-
-        // rotate directories again and do final verification
-        r.switchRun();
-    }
-
-    @Test
-    public void testNormalUnified()
-        throws IOException
-    {
-        Runner r = new Runner(10000000000L, 5, true);
+        Runner r = new Runner(10000000000L, 5);
 
         r.create();
         r.startRun();
@@ -144,42 +103,7 @@ public class FilesHitSpoolTest
     public void testRollover()
         throws IOException
     {
-        Runner r = new Runner(10000000000L, 5, false);
-
-        r.create();
-        r.startRun();
-
-        final long startTime = 1195000000L;
-        final long endTime = startTime + (r.fileInterval() *
-                                          (r.maxNumberOfFiles() + 1));
-        final long timeStep = (r.fileInterval() / 10) * 3;
-
-        r.writeHits(startTime, endTime, timeStep);
-    }
-
-    @Test
-    public void testRolloverUnified()
-        throws IOException
-    {
-        Runner r = new Runner(10000000000L, 5, true);
-
-        r.create();
-        r.startRun();
-
-        final long startTime = 1195000000L;
-        final long endTime = startTime + (r.fileInterval() *
-                                          (r.maxNumberOfFiles() + 1));
-        final long timeStep = (r.fileInterval() / 10) * 3;
-
-        r.writeHits(startTime, endTime, timeStep);
-    }
-
-    @Test
-    public void testPackHeaders()
-        throws IOException
-    {
-        Runner r = new Runner(10000000000L, 5, false);
-        r.packHeaders();
+        Runner r = new Runner(10000000000L, 5);
 
         r.create();
         r.startRun();
@@ -247,7 +171,6 @@ class TimeWriter
     private long startTime;
     private long endTime;
     private long timeStep;
-    private boolean unifiedCache;
 
     private ByteBuffer buf = ByteBuffer.allocate(100);
 
@@ -255,13 +178,12 @@ class TimeWriter
     private int numFiles;
 
     TimeWriter(long fileInterval, int maxNumberOfFiles, long startTime,
-               long timeStep, boolean unifiedCache)
+               long timeStep)
     {
         this.fileInterval = fileInterval;
         this.maxNumberOfFiles = maxNumberOfFiles;
         this.startTime = startTime;
         this.timeStep = timeStep;
-        this.unifiedCache = unifiedCache;
     }
 
     private void addTime(int fileNum, long startTime, long fileInterval)
@@ -288,17 +210,10 @@ class TimeWriter
         return buf;
     }
 
-    void checkSpoolDir(File topDir, boolean checkLastRun)
+    void checkSpoolDir(File topDir)
         throws IOException
     {
-        String runDir;
-        if (unifiedCache) {
-            runDir = "hitspool";
-        } else if (checkLastRun) {
-            runDir = "lastRun";
-        } else {
-            runDir = "currentRun";
-        }
+        String runDir = "hitspool";
 
         File path = new File(topDir, runDir);
         if (!path.exists()) {
@@ -306,12 +221,8 @@ class TimeWriter
         }
 
         // first file number
-        final int firstNum;
-        if (unifiedCache) {
-            firstNum = (int) ((startTime / fileInterval) % maxNumberOfFiles);
-        } else {
-            firstNum = 0;
-        }
+        final int firstNum = (int) ((startTime / fileInterval) %
+                                    maxNumberOfFiles);
 
         // maximum number of cached files
         final int numToCheck;
@@ -331,25 +242,8 @@ class TimeWriter
         }
 
         // check metadata file
-        if (unifiedCache) {
-            expected.add("hitspool.db");
-            if (!checkLastRun) {
-                validateInfoDB(path, startTime, curTime);
-            }
-        }
-
-        // check old metadata file
-        if (!unifiedCache || FilesHitSpool.INCLUDE_OLD_METADATA) {
-            // last file number
-            final int lastNum = (firstNum + numFiles - 1) % maxNumberOfFiles;
-
-            expected.add("info.txt");
-            if (!unifiedCache || !checkLastRun) {
-                long t0 = (unifiedCache ? 0L : startTime);
-                validateInfoTxt(path, t0, curTime, fileInterval, lastNum,
-                                maxNumberOfFiles);
-            }
-        }
+        expected.add("hitspool.db");
+        validateInfoDB(path, startTime, curTime);
 
         // make sure that expected files (and *only* those files) are present
         for (String name : path.list()) {
@@ -484,17 +378,11 @@ class TimeWriter
         int index = 0;
         long lastTime = Long.MAX_VALUE;
         for (long t = startTime; t < endTime; t += timeStep) {
-            final int newNum;
-            if (unifiedCache) {
-                newNum = (int) ((t / fileInterval) % maxNumberOfFiles);
-            } else {
-                newNum = (int) (((t - startTime) / fileInterval) %
-                                maxNumberOfFiles);
-            }
+            final int newNum = (int) ((t / fileInterval) % maxNumberOfFiles);
 
             // save times when file number changes
             if (newNum != curFile) {
-                if (unifiedCache && lastTime != Long.MAX_VALUE) {
+                if (lastTime != Long.MAX_VALUE) {
                     setStopTime(lastTime, fileInterval, maxNumberOfFiles);
                 }
                 addTime(newNum, t, fileInterval);
@@ -511,7 +399,7 @@ class TimeWriter
         // send end-of-stream marker
         hitspool.consume(buildHit(buf, index++, Long.MAX_VALUE));
 
-        if (unifiedCache && lastTime != Long.MAX_VALUE) {
+        if (lastTime != Long.MAX_VALUE) {
             setStopTime(lastTime, fileInterval, maxNumberOfFiles);
         }
     }
@@ -552,7 +440,6 @@ class CountingConsumer
 
 class Runner
 {
-    private boolean unifiedCache;
     private long fileInterval = 10000000000L;
     private int maxNumberOfFiles = 5;
 
@@ -569,28 +456,20 @@ class Runner
     private TimeWriter previousWriter;
     private TimeWriter currentWriter;
 
-    Runner(long fileInterval, int maxNumberOfFiles, boolean unifiedCache)
+    Runner(long fileInterval, int maxNumberOfFiles)
         throws IOException
     {
         this.fileInterval = fileInterval;
         this.maxNumberOfFiles = maxNumberOfFiles;
-        this.unifiedCache = unifiedCache;
 
         configDir = new File(getClass().getResource("/config").getPath());
         topDir = createTempDirectory();
-
-        if (unifiedCache) {
-            System.setProperty(FilesHitSpool.UNIFIED_CACHE_PROPERTY, "true");
-        }
     }
 
     private void checkTopDir(boolean includeLast)
     {
         for (String name : topDir.list()) {
-            if (!(unifiedCache ? name.equals("hitspool") :
-                  (name.equals("currentRun") ||
-                   (includeLast && name.equals("lastRun")))))
-            {
+            if (!name.equals("hitspool")) {
                 fail("Unexpected file \"" + name + "\"");
             }
         }
@@ -638,11 +517,6 @@ class Runner
         return fileInterval;
     }
 
-    void packHeaders()
-    {
-        System.setProperty(FilesHitSpool.PACK_HEADERS_PROPERTY, "true");
-    }
-
     void startRun()
         throws IOException
     {
@@ -654,7 +528,7 @@ class Runner
         // save previous run data
         if (currentWriter != null) {
             previousWriter = currentWriter;
-            previousWriter.checkSpoolDir(topDir, true);
+            previousWriter.checkSpoolDir(topDir);
             currentWriter = null;
         }
     }
@@ -671,7 +545,7 @@ class Runner
         // save previous run data
         if (currentWriter != null) {
             previousWriter = currentWriter;
-            previousWriter.checkSpoolDir(topDir, true);
+            previousWriter.checkSpoolDir(topDir);
             currentWriter = null;
         }
     }
@@ -680,7 +554,7 @@ class Runner
         throws IOException
     {
         currentWriter = new TimeWriter(fileInterval, maxNumberOfFiles,
-                                       startTime, timeStep, unifiedCache);
+                                       startTime, timeStep);
         currentWriter.write(hitspool, endTime);
 
         // verify that only expected spool directories exist
@@ -691,9 +565,6 @@ class Runner
         assertEquals("Unexpected number of hits consumed",
                      totalHits, cc.getNumberConsumed());
 
-        currentWriter.checkSpoolDir(topDir, false);
-        if (previousWriter != null) {
-            previousWriter.checkSpoolDir(topDir, true);
-        }
+        currentWriter.checkSpoolDir(topDir);
     }
 }
