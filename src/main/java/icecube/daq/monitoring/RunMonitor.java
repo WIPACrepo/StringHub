@@ -771,8 +771,8 @@ class IsoConsumer
 
             HashMap<String, Object> histo = new HashMap<String, Object>();
             histo.put("binContents", values);
-            histo.put("xmin", h.getMinValue());
-            histo.put("xmax", h.getMaxValue());
+            histo.put("xmin", h.getMinValue() * 2E6);
+            histo.put("xmax", h.getMaxValue() * 2E6);
             histo.put("underflow", h.getUnderflow());
             histo.put("overflow", h.getOverflow());
 
@@ -794,7 +794,7 @@ class IsoConsumer
             map.put("string", entry.getKey());
 
             map.put("histograms", entry.getValue());
-            map.put("xlabel", "cable length");
+            map.put("xlabel", "Round-trip time (µs)");
             map.put("ylabel", "nentries");
             map.put("nentries", CableHisto.BINS);
 
