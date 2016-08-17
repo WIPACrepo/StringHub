@@ -46,7 +46,7 @@ public class Metadata
         conn = DriverManager.getConnection(jdbcURL);
 
         // make sure the 'hitspool' table exists
-        createTable();
+        createTable(conn);
 
         // prepare the standard INSERT statement
         final String isql =
@@ -59,7 +59,7 @@ public class Metadata
         updateStmt = conn.prepareStatement(usql);
     }
 
-    public void close()
+    public synchronized void close()
     {
         // don't bother if we never loaded the SQLite driver
         if (!loadedSQLite) {
@@ -85,16 +85,17 @@ public class Metadata
         }
     }
 
-    private void createTable()
+    private static void createTable(Connection conn)
         throws SQLException
     {
         Statement stmt = conn.createStatement();
         stmt.executeUpdate("create table if not exists hitspool(" +
                            "filename text primary key not null," +
                            "start_tick integer, stop_tick integer)");
+        stmt.close();
     }
 
-    public void updateStop(String filename, long stop_tick)
+    public synchronized void updateStop(String filename, long stop_tick)
     {
         // don't bother if we never loaded the SQLite driver
         if (!loadedSQLite) {
@@ -119,7 +120,8 @@ public class Metadata
         }
     }
 
-    public void write(String filename, long start_tick, long interval)
+    public synchronized void write(String filename, long start_tick,
+                                   long interval)
     {
         // don't bother if we never loaded the SQLite driver
         if (!loadedSQLite) {
