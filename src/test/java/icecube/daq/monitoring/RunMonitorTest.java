@@ -101,6 +101,12 @@ class MockDOMRegistry
     }
 
     @Override
+    public DeployedDOM getDom(int major, int minor)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
     public DeployedDOM getDom(short channelId)
     {
         throw new Error("Unimplemented");
