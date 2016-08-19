@@ -26,7 +26,7 @@ public class MockDataProcessor implements DataProcessor
 
     public RunLevel runLevel;
 
-    final DataStats stats = new DataStats();
+    final DataStats stats = new DataStats(-1);
 
     public enum Mode
     {

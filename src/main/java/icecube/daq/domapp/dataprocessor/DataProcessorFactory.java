@@ -94,7 +94,7 @@ public class DataProcessorFactory
                                               final BufferConsumer moniConsumer,
                                               final BufferConsumer tcalConsumer)
     {
-        DataStats dataStats = buildDataStats();
+        DataStats dataStats = buildDataStats(mbid);
 
         final RAPCal rapcal = instantiateRAPCal();
         rapcal.setMainboardID(mbid);
@@ -148,15 +148,15 @@ public class DataProcessorFactory
     /**
      * Build the DataStats implementation
      */
-    private static DataStats buildDataStats()
+    private static DataStats buildDataStats(final long mbid)
     {
         if(PRINT_VERBOSE_PROCESSING_STATS)
         {
-            return new DataProcessingMonitor();
+            return new DataProcessingMonitor(mbid);
         }
         else
         {
-            return new DataStats();
+            return new DataStats(mbid);
         }
     }
 

@@ -18,6 +18,11 @@ public class DataProcessingMonitor extends DataStats
     private ProcessingInterval current;
 
 
+    public DataProcessingMonitor(final long mbid)
+    {
+        super(mbid);
+    }
+
     @Override
     protected void reportProcessingStart(
             final DataProcessor.StreamType streamType,

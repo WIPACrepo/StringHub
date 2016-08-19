@@ -24,6 +24,8 @@ public class DataStats
     //NOTE: Instances of this class are shared between threads,
     //      all members must be thread safe.
 
+    private final long mbid;
+
     private volatile int     numHits               = 0;
     private volatile int     numMoni               = 0;
     private volatile int     numSupernova          = 0;
@@ -90,6 +92,10 @@ public class DataStats
     private final DOMToSystemTimer domToSystemTimer = new
             DOMToSystemTimer();
 
+    public DataStats(long mbid)
+    {
+        this.mbid = mbid;
+    }
 
     protected  void reportProcessingStart(DataProcessor.StreamType streamType,
                                           ByteBuffer data)
@@ -194,6 +200,11 @@ public class DataStats
     private long now()
     {
         return System.nanoTime();
+    }
+
+    public long getMainboardID()
+    {
+        return mbid;
     }
 
     public int getNumHits()
