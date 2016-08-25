@@ -31,21 +31,46 @@ abstract class QueueConsumer<T>
     protected static final Logger LOG = Logger.getLogger(QueueConsumer.class);
 
     /** Parent which sends messages to Live */
-    protected RunMonitor parent;
+    protected IRunMonitor parent;
 
     /** Queue of data to be consumed */
     private LinkedList<T> queue = new LinkedList<T>();
     /** A single piece of data to be processed outside any locks */
-    private T stashedValue;
+    private T heldValue;
 
     /**
      * Create a queue consumer
      *
      * @param parent main monitoring object
      */
-    QueueConsumer(RunMonitor parent)
+    QueueConsumer(IRunMonitor parent)
     {
         this.parent = parent;
+    }
+
+    /**
+     * Hold a value for later processing.
+     * This is run while the RunMonitor lock is active, so should do
+     * as little as possible.
+     * @return <tt>true</tt> if a value was held
+     */
+    boolean holdValue()
+    {
+        synchronized (queue) {
+            // if we already have a value, complain
+            if (heldValue != null) {
+                LOG.error("Cannot hold value; already have " +
+                          heldValue);
+                return true;
+            } else if (!isEmpty()) {
+                // if there's a value available, hold it in temporary storage
+                heldValue = queue.removeFirst();
+                return true;
+            }
+        }
+
+        // no values available
+        return false;
     }
 
     /**
@@ -67,19 +92,43 @@ abstract class QueueConsumer<T>
     abstract void process(T value);
 
     /**
-     * Process the stashed value in the RunMonitor thread.
+     * Process everything in the queue.
+     */
+    void processAll()
+    {
+        // while there are values to process
+        while (true) {
+            synchronized (queue) {
+                // if we don't have a value...
+                if (heldValue == null) {
+                    // ...get one from the queue and temporarily hold it
+                    if (!holdValue()) {
+                        // no values, we're done
+                        break;
+                    }
+                }
+            }
+
+            // process the temporarily held value
+            processHeldValue();
+        }
+    }
+
+    /**
+     * Process the held value in the RunMonitor thread.
      * This is run outside any active lock.
      */
-    void processStashedValue()
+    void processHeldValue()
     {
-        if (stashedValue != null) {
+        if (heldValue != null) {
             try {
-                process(stashedValue);
+                process(heldValue);
             } catch (Throwable thr) {
                 LOG.error(getClass().getName() + " cannot process " +
-                          stashedValue, thr);
+                          heldValue, thr);
             }
-            stashedValue = null;
+
+            heldValue = null;
         }
     }
 
@@ -101,58 +150,9 @@ abstract class QueueConsumer<T>
     abstract void reset();
 
     /**
-     * Process everything in the queue.
-     */
-    void processAll()
-    {
-        synchronized (queue) {
-            while (true) {
-                // if we don't have a value, try to get one from the queue
-                if (stashedValue == null) {
-                    stashValue();
-
-                    // if the queue is empty, we're done
-                    if (stashedValue == null) {
-                        break;
-                    }
-                }
-
-                // process the next value
-                try {
-                    process(stashedValue);
-                } catch (Throwable thr) {
-                    LOG.error(getClass().getName() + " cannot process " +
-                              stashedValue, thr);
-                }
-            }
-        }
-    }
-
-    /**
      * Send per-run quantities.
      */
     abstract void sendRunData();
-
-    /**
-     * Stash a value for later processing.
-     * This is run while the RunMonitor lock is active, so should do
-     * as little as possible.
-     * @return <tt>true</tt> if a value was stashed
-     */
-    boolean stashValue()
-    {
-        synchronized (queue) {
-            if (stashedValue != null) {
-                LOG.error("Cannot stash value; already have " +
-                          stashedValue);
-                return true;
-            } else if (!isEmpty()) {
-                stashedValue = queue.removeFirst();
-                return true;
-            }
-        }
-        return false;
-    }
 }
 
 /**
@@ -180,6 +180,15 @@ class Counter
     {
         count++;
     }
+
+    /**
+     * Return a debugging representation of the counter
+     * @return debugging string
+     */
+    public String toString()
+    {
+        return String.format("Counter=%d", count);
+    }
 }
 
 /**
@@ -197,7 +206,7 @@ abstract class CountingConsumer<K, T>
      *
      * @param parent main monitoring object
      */
-    CountingConsumer(RunMonitor parent)
+    CountingConsumer(IRunMonitor parent)
     {
         super(parent);
     }
@@ -270,7 +279,7 @@ abstract class DOMCountingConsumer<T>
      *
      * @param parent main monitoring object
      */
-    DOMCountingConsumer(RunMonitor parent)
+    DOMCountingConsumer(IRunMonitor parent)
     {
         super(parent);
     }
@@ -283,22 +292,15 @@ abstract class DOMCountingConsumer<T>
      */
     Map<String, Integer> getCountMap()
     {
-        HashMap<DeployedDOM, Integer> domMap =
-            new HashMap<DeployedDOM, Integer>();
+        HashMap<String, Integer> counts = new HashMap<String, Integer>();
         for (DeployedDOM dom : parent.getConfiguredDOMs()) {
             final Long key = Long.valueOf(dom.getNumericMainboardId());
             if (countMap.containsKey(key)) {
-                domMap.put(dom, countMap.get(key).get());
+                counts.put(dom.getDeploymentLocation(),
+                           countMap.get(key).get());
             } else {
-                domMap.put(dom, Integer.valueOf(0));
+                counts.put(dom.getDeploymentLocation(), Integer.valueOf(0));
             }
-        }
-
-        HashMap<String, Integer> counts = new HashMap<String, Integer>();
-        for (Map.Entry<DeployedDOM, Integer> entry : domMap.entrySet()) {
-            final Integer key =
-                Integer.valueOf(entry.getKey().getStringMinor());
-            counts.put(key.toString(), entry.getValue());
         }
         return counts;
     }
@@ -350,7 +352,7 @@ class GPSMisalignmentConsumer
      *
      * @param parent main monitoring object
      */
-    GPSMisalignmentConsumer(RunMonitor parent)
+    GPSMisalignmentConsumer(IRunMonitor parent)
     {
         super(parent);
     }
@@ -417,7 +419,7 @@ class GPSProblemConsumer
      *
      * @param parent main monitoring object
      */
-    GPSProblemConsumer(RunMonitor parent)
+    GPSProblemConsumer(IRunMonitor parent)
     {
         super(parent);
     }
@@ -462,6 +464,603 @@ class GPSProblemConsumer
         sendRunData(NAME, VERSION, PRIORITY);
     }
 }
+
+/**
+ * Manage an active bin and a previous bin
+ */
+abstract class BinManager<C>
+{
+    /**
+     * Bin of data
+     */
+    class Bin<C>
+    {
+        /** Start of this bin */
+        private long binStart;
+        /** End of this bin */
+        private long binEnd;
+        /** Current container for this bin */
+        private C container;
+
+        /**
+         * Create a bin
+         * @param binStart start of bin
+         * @param binEnd end of bin
+         * @param container container for the bin's value(s)
+         */
+        Bin(long binStart, long binEnd, C container)
+        {
+            this.binStart = binStart;
+            this.binEnd = binEnd;
+            this.container = container;
+        }
+
+        /**
+         * Does this bin contain the specified index?
+         * @return <tt>true</tt> if the index is inside this bin
+         */
+        boolean contains(long binIndex)
+        {
+            return binStart <= binIndex && binEnd > binIndex;
+        }
+
+        /**
+         * Get the end of this bin
+         * @return bin end
+         */
+        long getEnd()
+        {
+            return binEnd;
+        }
+
+        /**
+         * Get the start of this bin
+         * @return bin start
+         */
+        long getStart()
+        {
+            return binStart;
+        }
+
+        /**
+         * Get the container for this bin's values
+         * @return bin container
+         */
+        C getContainer()
+        {
+            return container;
+        }
+
+        boolean overlaps(long start, long end)
+        {
+            return start < binEnd && end > binStart;
+        }
+
+        public String toString()
+        {
+            return String.format("Bin[%d-%d: %s]", binStart, binEnd,
+                                 container.toString());
+        }
+    }
+
+    /** Width of each bin */
+    private long binWidth;
+    /** Active bin */
+    private Bin<C> active;
+    /** Previous bin (may be null) */
+    private Bin<C> previous;
+    /** Lock used to serialize access to the active and previous bins */
+    private Object binLock = new Object();
+
+    /**
+     * Create a bin manager
+     * @param binStart starting index for the first bin
+     * @param binWidth size of each bin
+     */
+    BinManager(long binStart, long binWidth)
+    {
+        this.binWidth = binWidth;
+
+        long partial = binStart % binWidth;
+
+        long binEnd = binStart + binWidth;
+        if (partial != 0) {
+            // ensure initial bin ends on a boundary
+            binEnd -= partial;
+        }
+
+        active = new Bin(binStart, binEnd, createBinContainer());
+    }
+
+    public void clearBin(long binStart, long binEnd)
+    {
+        if (active != null && active.overlaps(binStart, binEnd)) {
+            if (previous != null) {
+                throw new Error("Cannot clear active bin without clearing" +
+                                " previous bin");
+            }
+
+            active = null;
+        } else if (previous != null && previous.overlaps(binStart, binEnd)) {
+            previous = null;
+        }
+    }
+
+    /**
+     * Create a bin container
+     * @return new bin container
+     */
+    abstract C createBinContainer();
+
+    /**
+     * Get the container for the specified index,
+     * creating a container if necessary
+     * @param binIndex index of container to return
+     * @return bin container
+     */
+    C get(long binIndex)
+    {
+        synchronized (binLock) {
+            // if the active bin doesn't contain this index...
+            if (!active.contains(binIndex)) {
+                // die if there's already a previous bin
+                if (previous != null) {
+                    throw new Error("Previous bin has not been cleared!");
+                }
+
+                // demote the active bin
+                previous = active;
+
+                // create a new active bin
+                final long prevEnd = previous.getEnd();
+                active = new Bin(prevEnd, prevEnd + binWidth,
+                                 createBinContainer());
+            }
+
+            // return the container associated with this bin
+            return active.getContainer();
+        }
+    }
+
+    long getActiveEnd()
+    {
+        if (active == null) {
+            throw new Error("BinManager has no active bin");
+        }
+
+        return active.getEnd();
+    }
+
+    long getActiveStart()
+    {
+        if (active == null) {
+            throw new Error("BinManager has no active bin");
+        }
+
+        return active.getStart();
+    }
+
+    /**
+     * Get the container for the specified index
+     * @param binIndex index of container to return
+     * @return bin container
+     */
+    C getExisting(long binStart, long binEnd)
+    {
+        synchronized (binLock) {
+            if (previous != null && previous.overlaps(binStart, binEnd)) {
+                return previous.getContainer();
+            } else if (active != null && active.overlaps(binStart, binEnd)) {
+                return active.getContainer();
+            }
+        }
+
+        return null;
+    }
+
+    long getPreviousEnd()
+    {
+        if (previous == null) {
+            throw new Error("BinManager has no previous bin");
+        }
+
+        return previous.getEnd();
+    }
+
+    long getPreviousStart()
+    {
+        if (previous == null) {
+            throw new Error("BinManager has no previous bin");
+        }
+
+        return previous.getStart();
+    }
+
+    /**
+     * Does this manager have an active bin?
+     * @return <tt>true</tt> if there's an active bin
+     */
+    boolean hasActive()
+    {
+        return active != null;
+    }
+
+    /**
+     * Does this manager have a previous bin?
+     * @return <tt>true</tt> if there's a previous bin
+     */
+    boolean hasPrevious()
+    {
+        return previous != null;
+    }
+
+    /**
+     * Is the bin index inside the active bin?
+     * @param binIndex index to check
+     * @return <tt>true</tt> if the index is inside the active bin
+     */
+    boolean isInActiveBin(long binIndex)
+    {
+        return active.contains(binIndex);
+    }
+
+    public String toString()
+    {
+        if (previous == null) {
+            if (active == null) {
+                return "null";
+            }
+
+            return active.toString();
+        }
+
+        if (active == null) {
+            return previous.toString() + "/<NoActive>";
+        }
+
+        return previous.toString() + "/" + active.toString();
+    }
+}
+
+/**
+ * Send periodic reports throughout a run
+ */
+abstract class BinnedQueueConsumer<T, K, C>
+    extends QueueConsumer<T>
+{
+    class BinRange
+    {
+        long binStart;
+        long binEnd;
+        boolean isPrevious;
+
+        BinRange(long binStart, long binEnd, boolean isPrevious)
+        {
+            this.binStart = binStart;
+            this.binEnd = binEnd;
+            this.isPrevious = isPrevious;
+        }
+    }
+
+    private long binWidth;
+
+    private HashMap<K, BinManager<C>> map =
+        new HashMap<K, BinManager<C>>();
+
+    BinnedQueueConsumer(IRunMonitor parent, long binWidth)
+    {
+        super(parent);
+
+        this.binWidth = binWidth;
+    }
+
+    void clearBin(long binStart, long binEnd)
+    {
+        for (BinManager<C> mgr : map.values()) {
+            mgr.clearBin(binStart, binEnd);
+        }
+    }
+
+    boolean containsKey(K key)
+    {
+        return map.containsKey(key);
+    }
+
+    abstract BinManager<C> createBinManager(long binStart, long binWidth);
+
+    Iterable<Map.Entry<K, BinManager<C>>> entries()
+    {
+        return map.entrySet();
+    }
+
+    BinRange findRange()
+    {
+        long binStart = Long.MAX_VALUE;
+        long binEnd = Long.MIN_VALUE;
+        boolean isPrevious = false;
+        for (BinManager<C> mgr : map.values()) {
+            if (mgr.hasPrevious()) {
+                isPrevious = true;
+                break;
+            }
+        }
+
+        for (BinManager<C> mgr : map.values()) {
+            if (isPrevious) {
+                if (mgr.hasPrevious()) {
+                    if (mgr.getPreviousStart() < binStart) {
+                        binStart = mgr.getPreviousStart();
+                    }
+                    if (mgr.getPreviousEnd() > binEnd) {
+                        binEnd = mgr.getPreviousEnd() - 1;
+                    }
+                }
+            } else if (mgr.hasActive()) {
+                if (mgr.getActiveStart() < binStart) {
+                    binStart = mgr.getActiveStart();
+                }
+                if (mgr.getActiveEnd() > binEnd) {
+                    binEnd = mgr.getActiveEnd() - 1;
+                }
+            }
+        }
+
+        if (binStart == Long.MAX_VALUE) {
+            return null;
+        }
+
+        return new BinRange(binStart, binEnd, isPrevious);
+    }
+
+    public synchronized C getContainer(long binIndex, K key)
+    {
+        if (!map.containsKey(key)) {
+            map.put(key, createBinManager(binIndex, binWidth));
+        }
+
+        BinManager<C> mgr = map.get(key);
+        C container = mgr.get(binIndex);
+        if (mgr.hasPrevious()) {
+            long prevEnd = mgr.getPreviousEnd() - 1;
+            boolean sendData = true;
+            for (BinManager<C> chkMgr : map.values()) {
+                // if the binIndex is in an active bin...
+                if (chkMgr.isInActiveBin(prevEnd)) {
+                    // ...don't send a report yet
+                    sendData = false;
+                    break;
+                }
+            }
+
+            if (sendData) {
+                BinRange rng = findRange();
+                if (rng == null || !rng.isPrevious) {
+                    throw new Error("No previous data to report!");
+                }
+
+                sendData(rng.binStart, rng.binEnd);
+
+                clearBin(rng.binStart, rng.binEnd);
+            }
+        }
+
+        return container;
+    }
+
+    /**
+     * Get the existing container
+     * @param key key
+     * @param binStart starting index
+     * @param binEnd ending index
+     * @return bin container
+     */
+    C getExisting(K key, long binStart, long binEnd)
+    {
+        if (map.containsKey(key)) {
+            return map.get(key).getExisting(binStart, binEnd);
+        }
+
+        return null;
+    }
+
+    /**
+     * Reset everything back to initial conditions for the next run
+     */
+    public void reset()
+    {
+        map.clear();
+    }
+
+    /**
+     * Send the totals for the specified bin to Live
+     */
+    abstract void sendData(long binStart, long binEnd);
+
+    /**
+     * Send per-run quantities.
+     */
+    @Override
+    public void sendRunData()
+    {
+        while (true) {
+            BinRange rng = findRange();
+            if (rng == null) {
+                break;
+            }
+
+            sendData(rng.binStart, rng.binEnd);
+            clearBin(rng.binStart, rng.binEnd);
+
+            if (!rng.isPrevious) {
+                break;
+            }
+        }
+
+        reset();
+    }
+
+    public String toString()
+    {
+        StringBuilder buf = new StringBuilder("{");
+        for (K key : map.keySet()) {
+            if (buf.length() > 1) {
+                buf.append(", ");
+            }
+            buf.append(key).append(": ").append(map.get(key));
+        }
+        buf.append("}");
+        return buf.toString();
+    }
+}
+
+class HLCBinManager
+    extends BinManager<Counter>
+{
+    HLCBinManager(long binStart, long binWidth)
+    {
+        super(binStart, binWidth);
+    }
+
+    public Counter createBinContainer()
+    {
+        return new Counter();
+    }
+}
+
+/**
+ * Consume HLC hits and periodically report the counts
+ */
+class HLCCountConsumer
+    extends BinnedQueueConsumer<HLCCountConsumer.DOMTime, Long, Counter>
+{
+    class DOMTime
+    {
+        long utc;
+        long mbid;
+
+        DOMTime(long utc, long mbid)
+        {
+            this.utc = utc;
+            this.mbid = mbid;
+        }
+
+        /**
+         * Return a debugging representation of the counter
+         * @return debugging string
+         */
+        public String toString()
+        {
+            return String.format("%d@%012x", utc, mbid);
+        }
+    }
+
+    /** Live quantity name */
+    public static final String NAME = "dom_hlc_count";
+    /** Live quantity version */
+    public static final int VERSION = 1;
+
+    /** logging object */
+    protected static final Logger LOG =
+        Logger.getLogger(HLCCountConsumer.class);
+
+    private static final long DAQ_TICKS_PER_SECOND = 10000000000L;
+    private static final long MINUTE = 60L * DAQ_TICKS_PER_SECOND;
+    private static final long TEN_MINUTES = 10L * 60L * DAQ_TICKS_PER_SECOND;
+    /** Live message priority */
+    private static final Alerter.Priority PRIORITY = Alerter.Priority.SCP;
+
+    /**
+     * Create an HLC hit rate consumer
+     *
+     * @param parent main monitoring object
+     */
+    HLCCountConsumer(IRunMonitor parent)
+    {
+        this(parent, TEN_MINUTES);
+    }
+
+    /**
+     * Create an HLC hit rate consumer
+     *
+     * @param parent main monitoring object
+     * @param binWidth size of each bin
+     */
+    HLCCountConsumer(IRunMonitor parent, long binWidth)
+    {
+        super(parent, binWidth);
+    }
+
+    public BinManager<Counter> createBinManager(long binStart, long binWidth)
+    {
+        return new HLCBinManager(binStart, binWidth);
+    }
+
+    public Counter createBinContainer()
+    {
+        return new Counter();
+    }
+
+    /**
+     * Build a hashmap of DOM "string-position" to associated counts (or zero
+     * if a DOM has no counts)
+     *
+     * @return map of all configured DOMs to associated counts
+     */
+    Map<String, Integer> getCountMap(long binStart, long binEnd)
+    {
+        HashMap<String, Integer> counts = new HashMap<String, Integer>();
+        for (DeployedDOM dom : parent.getConfiguredDOMs()) {
+            final Long key = Long.valueOf(dom.getNumericMainboardId());
+
+            Counter counter = getExisting(key, binStart, binEnd);
+
+            int count;
+            if (counter == null) {
+                count = 0;
+            } else {
+                count = counter.get();
+            }
+
+            counts.put(dom.getDeploymentLocation(), count);
+        }
+
+        return counts;
+    }
+
+    /**
+     * Process a single piece of data
+     *
+     * @param domTime mainboard ID and UTC
+     */
+    @Override
+    void process(DOMTime domTime)
+    {
+        Counter cntr = getContainer(domTime.utc, Long.valueOf(domTime.mbid));
+        cntr.inc();
+    }
+
+    /**
+     * Push the data onto this consumer's queue
+     *
+     * @param mbid mainboard ID of DOM which saw this hit
+     * @param utc UTC time of hit
+     */
+    void pushData(long utc, long mbid)
+    {
+        push(new DOMTime(utc, mbid));
+    }
+
+    void sendData(long binStart, long binEnd)
+    {
+        HashMap<String, Object> map = new HashMap<String, Object>();
+        map.put("version", VERSION);
+
+        map.put("counts", getCountMap(binStart, binEnd));
+
+        parent.sendMoni(NAME, PRIORITY, map, false);
+    }
+}
+
 /**
  * Consume isochrons
  */
@@ -703,7 +1302,7 @@ class IsoConsumer
      *
      * @param parent main monitoring object
      */
-    IsoConsumer(RunMonitor parent)
+    IsoConsumer(IRunMonitor parent)
     {
         super(parent);
     }
@@ -825,7 +1424,7 @@ class ProcfileConsumer
      *
      * @param parent main monitoring object
      */
-    ProcfileConsumer(RunMonitor parent)
+    ProcfileConsumer(IRunMonitor parent)
     {
         super(parent);
     }
@@ -886,7 +1485,7 @@ class RAPCalProblemConsumer
      *
      * @param parent main monitoring object
      */
-    RAPCalProblemConsumer(RunMonitor parent)
+    RAPCalProblemConsumer(IRunMonitor parent)
     {
         super(parent);
     }
@@ -1015,7 +1614,7 @@ class WildTCalConsumer
      *
      * @param parent main monitoring object
      */
-    WildTCalConsumer(RunMonitor parent)
+    WildTCalConsumer(IRunMonitor parent)
     {
         super(parent);
     }
@@ -1249,6 +1848,8 @@ public class RunMonitor
     private RAPCalProblemConsumer rapexcConsumer;
     /** Wild TCal consumer */
     private WildTCalConsumer wildConsumer;
+    /** HLC hit rate consumer */
+    private HLCCountConsumer hlcCountConsumer;
 
     /** List of active consumers */
     private ArrayList<QueueConsumer> consumers =
@@ -1268,6 +1869,25 @@ public class RunMonitor
 
         dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
         dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+    }
+
+    /**
+     * Increment the total number of HLC hits for this period.
+     * @param mbid mainboard ID
+     * @param utc UTC time of hit
+     */
+    public void countHLCHit(long mbid, long utc)
+    {
+        synchronized (queueLock) {
+            if (hasRunNumber()) {
+                if (hlcCountConsumer == null) {
+                    hlcCountConsumer = new HLCCountConsumer(this);
+                    consumers.add(hlcCountConsumer);
+                }
+                hlcCountConsumer.pushData(utc, mbid);
+                queueLock.notify();
+            }
+        }
     }
 
     /**
@@ -1307,7 +1927,7 @@ public class RunMonitor
      *
      * @return dom information
      */
-    DeployedDOM getDom(long mbid)
+    public DeployedDOM getDom(long mbid)
     {
         if (mbidMap == null) {
             throw new Error("List of configured DOMs has not been set");
@@ -1327,23 +1947,23 @@ public class RunMonitor
     }
 
     /**
-     * Get the string representation of the ending time for this run
-     *
-     * @return ending time
-     */
-    String getStopTimeString()
-    {
-        return dateFormat.format(stopTime);
-    }
-
-    /**
      * Get the string representation of the starting time for this run
      *
      * @return starting time
      */
-    String getStartTimeString()
+    public String getStartTimeString()
     {
         return dateFormat.format(startTime);
+    }
+
+    /**
+     * Get the string representation of the ending time for this run
+     *
+     * @return ending time
+     */
+    public String getStopTimeString()
+    {
+        return dateFormat.format(stopTime);
     }
 
     /**
@@ -1402,7 +2022,7 @@ public class RunMonitor
     @Override
     void mainloop()
     {
-        ArrayList<QueueConsumer> stashed = new ArrayList<QueueConsumer>();
+        ArrayList<QueueConsumer> held = new ArrayList<QueueConsumer>();
 
         stopTime = null;
         while (true) {
@@ -1444,18 +2064,18 @@ public class RunMonitor
                     break;
                 }
 
-                // stash a value while we're inside the lock
-                stashed.clear();
+                // hold a value while we're inside the lock
+                held.clear();
                 for (QueueConsumer consumer : consumers) {
-                    if (consumer.stashValue()) {
-                        stashed.add(consumer);
+                    if (consumer.holdValue()) {
+                        held.add(consumer);
                     }
                 }
             }
 
             // now that we're outside the lock, process stashed values
-            for (QueueConsumer consumer : stashed) {
-                consumer.processStashedValue();
+            for (QueueConsumer consumer : held) {
+                consumer.processHeldValue();
             }
         }
 
@@ -1614,14 +2234,28 @@ public class RunMonitor
      *
      * @param varname quantity name
      * @param priority message priority
-     * @param map field->value map
+     * @param map field-&gt;value map
      */
-    void sendMoni(String varname, Alerter.Priority priority,
-                  Map<String, Object> map)
+    public void sendMoni(String varname, Alerter.Priority priority,
+                         Map<String, Object> map)
+    {
+        sendMoni(varname, priority, map, true);
+    }
+
+    /**
+     * Send monitoring message to Live
+     *
+     * @param varname quantity name
+     * @param priority message priority
+     * @param map field-&gt;value map
+     * @param addString if <tt>true</tt>, add "string" entry to map
+     */
+    public void sendMoni(String varname, Alerter.Priority priority,
+                         Map<String, Object> map, boolean addString)
     {
         // fill in standard values
         map.put("runNumber", runNumber);
-        if (!map.containsKey("string")) {
+        if (addString && !map.containsKey("string")) {
             map.put("string", string);
         }
 

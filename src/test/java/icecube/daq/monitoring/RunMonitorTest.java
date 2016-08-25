@@ -859,4 +859,39 @@ public class RunMonitorTest
         // check alert counts for the run
         assertEquals("Did not receive monitoring data", 1, aq.getNumPushed());
     }
+
+    @Test
+    public void testHLCCount()
+        throws InterruptedException
+    {
+        final int string = 5;
+
+        MockAlertQueue aq = new MockAlertQueue();
+        RunMonitor runMon = new RunMonitor(string, aq);
+        runMon.start();
+
+        final long DOM0 = 111111111L;
+        final long DOM1 = 123456789L;
+
+        List<DeployedDOM> cfgDOMList = new ArrayList<DeployedDOM>();
+        cfgDOMList.add(new DeployedDOM(DOM0, string, 7));
+        cfgDOMList.add(new DeployedDOM(DOM1, string, 62));
+
+        runMon.setConfiguredDOMs(cfgDOMList);
+
+        waitForThreadStart(runMon);
+
+        final int runNum = 123456;
+        runMon.setRunNumber(runNum);
+        waitForRunSwitch(runMon, runNum, 100);
+
+        runMon.countHLCHit(DOM0, 123456L);
+        runMon.countHLCHit(DOM1, 123499L);
+        runMon.countHLCHit(DOM0, 234567L);
+
+        runMon.stop();
+        runMon.join();
+
+        assertEquals("Did not receive monitoring data", 1, aq.getNumPushed());
+    }
 }

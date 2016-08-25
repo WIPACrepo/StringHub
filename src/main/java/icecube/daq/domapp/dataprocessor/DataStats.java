@@ -1,6 +1,7 @@
 package icecube.daq.domapp.dataprocessor;
 
 import icecube.daq.dor.TimeCalib;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.util.RealTimeRateMeter;
 import icecube.daq.util.SimpleMovingAverage;
 
@@ -62,6 +63,8 @@ public class DataStats
     // Calculate 10-sec averages of the hit rate
     private RealTimeRateMeter rtHitRate = new RealTimeRateMeter(100000000000L);
     private RealTimeRateMeter rtLCRate  = new RealTimeRateMeter(100000000000L);
+
+    private IRunMonitor runMonitor;
 
     //consider eliminating not used
     private long lastTcalUT;
@@ -167,6 +170,7 @@ public class DataStats
         if(isLC)
         {
             rtLCRate.recordEvent(utc);
+            runMonitor.countHLCHit(mbid, utc);
         }
         rtHitRate.recordEvent(utc);
 
@@ -317,5 +321,9 @@ public class DataStats
         return avgHitAcquisitionLatencyMillis.getAverage();
     }
 
+    public void setRunMonitor(final IRunMonitor runMonitor)
+    {
+        this.runMonitor = runMonitor;
+    }
 
 }

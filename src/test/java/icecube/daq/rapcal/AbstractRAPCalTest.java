@@ -3,6 +3,7 @@ package icecube.daq.rapcal;
 import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.TimeCalib;
+import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.TimeUnits;
@@ -10,6 +11,7 @@ import icecube.daq.util.UTC;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Map;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
@@ -62,6 +64,12 @@ class MyMonitor
     private boolean expectWildTCal;
     private int wildCount;
 
+    @Override
+    public void countHLCHit(long mbid, long utc)
+    {
+        throw new Error("Unimplemented");
+    }
+
     public void expectExceptionString(String excStr)
     {
         exceptionString = excStr;
@@ -70,6 +78,58 @@ class MyMonitor
     public void expectWildTCal()
     {
         expectWildTCal = true;
+    }
+
+    /**
+     * Return the list of DOMs configured for this string
+     *
+     * @return map of mainboard ID -&gt; deployed DOM data
+     */
+    public Iterable<DeployedDOM> getConfiguredDOMs()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    /**
+     * Get DOM information
+     *
+     * @param mbid DOM mainboard ID
+     *
+     * @return dom information
+     */
+    public DeployedDOM getDom(long mbid)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    /**
+     * Get the string representation of the starting time for this run
+     *
+     * @return starting time
+     */
+    public String getStartTimeString()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    /**
+     * Get the string representation of the ending time for this run
+     *
+     * @return ending time
+     */
+    public String getStopTimeString()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    /**
+     * Get this string's number
+     *
+     * @return string number
+     */
+    public int getString()
+    {
+        throw new Error("Unimplemented");
     }
 
     public int getWildCount()
@@ -154,6 +214,33 @@ class MyMonitor
     {
         receivedException = false;
         wildCount = 0;
+    }
+
+    /**
+     * Send monitoring message to Live
+     *
+     * @param varname quantity name
+     * @param priority message priority
+     * @param map field->value map
+     */
+    public void sendMoni(String varname, Alerter.Priority priority,
+                         Map<String, Object> map)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    /**
+     * Send monitoring message to Live
+     *
+     * @param varname quantity name
+     * @param priority message priority
+     * @param map field->value map
+     * @param addString if <tt>true</tt>, add "string" entry to map
+     */
+    public void sendMoni(String varname, Alerter.Priority priority,
+                         Map<String, Object> map, boolean addString)
+    {
+        throw new Error("Unimplemented");
     }
 
     @Override

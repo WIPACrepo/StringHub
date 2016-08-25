@@ -24,6 +24,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import static icecube.daq.time.gps.test.BuilderMethods.*;
 import static org.junit.Assert.*;
@@ -35,9 +36,67 @@ class MyMonitor
 {
     private boolean expectNotReady;
 
+    @Override
+    public void countHLCHit(long mbid, long utc)
+    {
+        throw new Error("Unimplemented");
+    }
+
     void expectNotReady()
     {
         expectNotReady = true;
+    }
+
+    /**
+     * Return the list of DOMs configured for this string
+     *
+     * @return map of mainboard ID -&gt; deployed DOM data
+     */
+    public Iterable<DeployedDOM> getConfiguredDOMs()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    /**
+     * Get DOM information
+     *
+     * @param mbid DOM mainboard ID
+     *
+     * @return dom information
+     */
+    public DeployedDOM getDom(long mbid)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    /**
+     * Get the string representation of the starting time for this run
+     *
+     * @return starting time
+     */
+    public String getStartTimeString()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    /**
+     * Get the string representation of the ending time for this run
+     *
+     * @return ending time
+     */
+    public String getStopTimeString()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    /**
+     * Get this string's number
+     *
+     * @return string number
+     */
+    public int getString()
+    {
+        throw new Error("Unimplemented");
     }
 
     @Override
@@ -97,6 +156,33 @@ class MyMonitor
     public void reset()
     {
         expectNotReady = false;
+    }
+
+    /**
+     * Send monitoring message to Live
+     *
+     * @param varname quantity name
+     * @param priority message priority
+     * @param map field->value map
+     */
+    public void sendMoni(String varname, Alerter.Priority priority,
+                         Map<String, Object> map)
+    {
+        throw new Error("Unimplemented");
+    }
+
+    /**
+     * Send monitoring message to Live
+     *
+     * @param varname quantity name
+     * @param priority message priority
+     * @param map field->value map
+     * @param addString if <tt>true</tt>, add "string" entry to map
+     */
+    public void sendMoni(String varname, Alerter.Priority priority,
+                         Map<String, Object> map, boolean addString)
+    {
+        throw new Error("Unimplemented");
     }
 
     @Override
