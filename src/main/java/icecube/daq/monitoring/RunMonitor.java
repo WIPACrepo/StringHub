@@ -1291,7 +1291,7 @@ class IsoConsumer
     public static final int VERSION = 1;
 
     /** Live message priority */
-    private static final Alerter.Priority PRIORITY = Alerter.Priority.EMAIL;
+    private static final Alerter.Priority PRIORITY = Alerter.Priority.SCP;
 
     /** Map mainboard IDs to histogram generators */
     private HashMap<Long, CableHisto> histograms =
