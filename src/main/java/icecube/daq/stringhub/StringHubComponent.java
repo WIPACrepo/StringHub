@@ -579,6 +579,9 @@ public class StringHubComponent
 				new SecondaryStreamConsumer(hubId, tcalBufMgr,
 											tcalOut.getChannel(),
 											cfgData.tcalPrescale);
+
+            // Support tcal capture, a non-standard diagnostic
+            TimeCalibrationCaptureSubsystem.activate(tcalConsumer);
 		}
 
 		// the hit buffer consumer is either the sender or a hitspool
@@ -1170,7 +1173,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16198 2016-08-12 20:48:03Z dglo $";
+		return "$Id: StringHubComponent.java 16216 2016-09-06 22:03:33Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
