@@ -35,7 +35,7 @@ import java.nio.file.StandardOpenOption;
  *    icecube.daq.stringhub.TimeCalibrationCapture.mbid-filter = [none]
  *
  *       A comma-separated list of mbids to capture tcals for. Supports
- *       any format accepted by Long.parseLong(). The values "none" and
+ *       any format accepted by Long.decode(). The values "none" and
  *       "all" are also accepted.
  *
  *</pre>
@@ -129,7 +129,7 @@ public class TimeCalibrationCaptureSubsystem
             long[] values = new long[mbids.length];
             for (int i = 0; i < values.length; i++)
             {
-                values[i] = Long.parseLong(mbids[i]);
+                values[i] = Long.decode(mbids[i]);
             }
             return new Filter.MbidFilter(values);
         }
