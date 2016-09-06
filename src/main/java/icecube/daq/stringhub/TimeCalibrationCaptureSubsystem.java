@@ -101,6 +101,7 @@ public class TimeCalibrationCaptureSubsystem
 
                 try
                 {
+                    tcalCapture.manageFiles();
                     tcalCapture.attach(tcalStream);
                 }
                 catch (IOException ioe)
