@@ -6,6 +6,7 @@ import icecube.daq.dor.TimeCalib;
 import icecube.daq.juggler.alert.AlertException;
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.juggler.alert.IAlertQueue;
+import icecube.daq.payload.impl.UTCTime;
 import icecube.daq.rapcal.BadTCalException;
 import icecube.daq.rapcal.Isochron;
 import icecube.daq.rapcal.RAPCalException;
@@ -120,17 +121,21 @@ abstract class DOMCountingConsumer<T>
      *
      * @return map of all configured DOMs to associated counts
      */
+    @Override
     Map<String, Integer> getCountMap()
     {
         HashMap<String, Integer> counts = new HashMap<String, Integer>();
         for (DeployedDOM dom : parent.getConfiguredDOMs()) {
             final Long key = Long.valueOf(dom.getNumericMainboardId());
-            if (countMap.containsKey(key)) {
-                counts.put(dom.getDeploymentLocation(),
-                           countMap.get(key).get());
+
+            int count;
+            if (!countMap.containsKey(key)) {
+                count = 0;
             } else {
-                counts.put(dom.getDeploymentLocation(), Integer.valueOf(0));
+                count = countMap.get(key).get();
             }
+
+            counts.put(dom.getDeploymentLocation(), count);
         }
         return counts;
     }
@@ -379,18 +384,13 @@ class HLCCountConsumer
                                  binWidth);
     }
 
-    public Counter createBinContainer()
-    {
-        return new Counter();
-    }
-
     /**
      * Build a hashmap of DOM "string-position" to associated counts (or zero
      * if a DOM has no counts)
      *
      * @return map of all configured DOMs to associated counts
      */
-    Map<String, Integer> getCountMap(long binStart, long binEnd)
+    private Map<String, Integer> getCountMap(long binStart, long binEnd)
     {
         HashMap<String, Integer> counts = new HashMap<String, Integer>();
         for (DeployedDOM dom : parent.getConfiguredDOMs()) {
@@ -440,6 +440,9 @@ class HLCCountConsumer
         map.put("version", VERSION);
 
         map.put("counts", getCountMap(binStart, binEnd));
+
+        map.put("recordingStartTime", new UTCTime(binStart).toDateString());
+        map.put("recordingStopTime", new UTCTime(binEnd).toDateString());
 
         parent.sendMoni(NAME, PRIORITY, map, false);
     }
