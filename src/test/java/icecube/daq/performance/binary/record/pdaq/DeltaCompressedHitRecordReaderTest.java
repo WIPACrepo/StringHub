@@ -1,6 +1,10 @@
 package icecube.daq.performance.binary.record.pdaq;
+import icecube.daq.payload.impl.DOMHitFactory;
+import icecube.daq.payload.impl.DeltaCompressedHit;
+import icecube.daq.payload.impl.SourceID;
 import icecube.daq.performance.binary.buffer.RecordBuffer;
 import icecube.daq.performance.binary.buffer.RecordBuffers;
+import icecube.daq.performance.binary.test.TestData;
 import icecube.daq.performance.common.BufferContent;
 import org.junit.Before;
 import org.junit.Test;
@@ -8,6 +12,8 @@ import org.junit.Test;
 import java.nio.ByteBuffer;
 
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 
 
 /**
@@ -190,6 +196,49 @@ public class DeltaCompressedHitRecordReaderTest
         assertEquals(1, subject.getTriggerMode(0x0004 << 18));
         assertEquals(0, subject.getTriggerMode(0x0000));
 
+    }
+
+
+    @Test
+    public void testProductionData() throws Exception
+    {
+
+        ///
+        /// Compare DeltaCompressedHitRecordReader against DeltaCompressedHit
+        /// using production data
+
+        ByteBuffer productionData =
+                TestData.DELTA_COMPRESSED.toByteBuffer();
+
+        RecordBuffer rb = RecordBuffers.wrap(productionData,
+                BufferContent.ZERO_TO_CAPACITY);
+
+        for (ByteBuffer buffer : rb.eachBuffer(subject))
+        {
+            DeltaCompressedHit standard =
+                    (DeltaCompressedHit) DOMHitFactory.getHit(new SourceID(99),
+                            buffer, 0);
+            buffer.rewind();
+
+            assertEquals(standard.length(), subject.getLength(buffer));
+            assertEquals(3, subject.getTypeId(buffer));
+            assertEquals(standard.getDomId(), subject.getDOMId(buffer));
+//            assertEquals(subject.getPadding(buffer), ); //not exposed
+            assertEquals(standard.getUTCTime(), subject.getUTC(buffer));
+            assertEquals(0x01, subject.getByteOrderMark(buffer));
+            assertEquals(2, subject.getVersion(buffer));
+//            assertEquals(subject.getFQP(buffer), ); //not exposed
+//            assertEquals(subject.getDOMClock(buffer), ); //not exposed
+//            assertEquals(subject.getWord1(buffer), ); //not exposed
+//            assertEquals(subject.getWord3(buffer), ); //not exposed
+            assertArrayEquals(standard.getCompressedData(),
+                    subject.getHitData(buffer));
+
+            assertEquals(standard.getLocalCoincidenceMode(),
+                    subject.getLCMode(buffer));
+            assertEquals(standard.getTriggerMode(),
+                    subject.getTriggerMode(buffer));
+        }
     }
 
 }
