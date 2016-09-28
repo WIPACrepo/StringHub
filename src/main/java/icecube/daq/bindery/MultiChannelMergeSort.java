@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import icecube.daq.performance.diagnostic.Metered;
 import org.apache.log4j.Logger;
 
 /**
@@ -67,6 +68,11 @@ public class MultiChannelMergeSort
 
     private Thread thread;
 
+
+    /** Meters for tracing throughput. */
+    private final Metered.UTCBuffered sortMeter;
+
+
     public MultiChannelMergeSort(int nch, BufferConsumer out)
     {
         this(nch, out, "g");
@@ -75,14 +81,24 @@ public class MultiChannelMergeSort
     public MultiChannelMergeSort(int nch, BufferConsumer out,
                                  String channelType, int maxQueue)
     {
+        this(nch, out, channelType, maxQueue,
+                new Metered.DisabledMeter(), new Metered.DisabledMeter());
+    }
+    public MultiChannelMergeSort(int nch, BufferConsumer out,
+                                 String channelType, int maxQueue,
+                                 Metered.Buffered queueMeter,
+                                 Metered.UTCBuffered sortMeter)
+    {
         this.out = out;
         terminalNode = null;
         running = false;
         lastUT = 0L;
         inputMap = new HashMap<Long, Node<DAQBuffer>>();
-        q = new LinkedBlockingQueue<ByteBuffer>(maxQueue);
+        q = new MeteredQueue(queueMeter, maxQueue);
         inputCounter = 0;
         outputCounter = 0;
+
+        this.sortMeter = sortMeter;
 
         this.thread = new Thread(this, "MultiChannelMergeSort-" + channelType);
     }
@@ -91,6 +107,14 @@ public class MultiChannelMergeSort
                                  String channelType)
     {
         this(nch, out, channelType, 100000);
+    }
+
+    public MultiChannelMergeSort(int nch, BufferConsumer out,
+                                 String channelType,
+                                 Metered.Buffered queueMeter,
+                                 Metered.UTCBuffered sortMeter)
+    {
+        this(nch, out, channelType, 100000, queueMeter, sortMeter);
     }
 
     @Override
@@ -153,8 +177,12 @@ public class MultiChannelMergeSort
             try
             {
                 ByteBuffer buf = q.take();
+                int inSize = buf.remaining();
+
                 DAQBuffer daqBuffer = new DAQBuffer(buf);
                 lastInputUT = daqBuffer.timestamp;
+
+
                 if (logger.isDebugEnabled())
                 {
                     logger.debug(
@@ -173,6 +201,8 @@ public class MultiChannelMergeSort
                 else
                 {
                     inputCounter++;
+                    sortMeter.reportIn(inSize, daqBuffer.timestamp);
+
                     if (logger.isDebugEnabled() && inputCounter % 1000 == 0)
                     {
                         logger.debug("Inputs: " + inputCounter + " Outputs: " + outputCounter);
@@ -198,8 +228,10 @@ public class MultiChannelMergeSort
                         }
                         else
                         {
+                            int outSize = sorted.buf.remaining();
                             out.consume(sorted.buf);
                             outputCounter++;
+                            sortMeter.reportOut(outSize, sorted.timestamp);
                         }
                     }
                 }
@@ -222,5 +254,38 @@ public class MultiChannelMergeSort
 
     public long getLastInputTime() { return lastInputUT; }
     public long getLastOutputTime() { return lastUT; }
+
+
+    /**
+     * Decorate a LinkedBlockingQueue with metering on put()
+     * and take().
+     */
+    private class MeteredQueue extends LinkedBlockingQueue<ByteBuffer>
+    {
+        private final Metered.Buffered meter;
+
+        private MeteredQueue(final Metered.Buffered meter, int bound)
+        {
+            super(bound);
+            this.meter = meter;
+        }
+
+        @Override
+        public void put(final ByteBuffer buffer) throws InterruptedException
+        {
+            meter.reportIn(buffer.remaining());
+            super.put(buffer);
+        }
+
+        @Override
+        public ByteBuffer take() throws InterruptedException
+        {
+            ByteBuffer buffer = super.take();
+            meter.reportOut(buffer.remaining());
+            return buffer;
+        }
+
+    }
+
 
 }

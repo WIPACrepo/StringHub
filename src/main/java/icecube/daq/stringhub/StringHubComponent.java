@@ -13,6 +13,7 @@ import icecube.daq.bindery.ChannelSorter;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.DataCollector;
 import icecube.daq.domapp.DataCollectorFactory;
+import icecube.daq.domapp.DataCollectorMBean;
 import icecube.daq.domapp.MessageException;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
@@ -38,6 +39,12 @@ import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.impl.ReadoutRequestFactory;
 import icecube.daq.payload.impl.VitreousBufferCache;
+import icecube.daq.performance.diagnostic.Content;
+import icecube.daq.performance.diagnostic.DataCollectorAggregateContent;
+import icecube.daq.performance.diagnostic.DiagnosticTrace;
+import icecube.daq.performance.diagnostic.MeterContent;
+import icecube.daq.performance.diagnostic.Metered;
+import icecube.daq.performance.diagnostic.SenderContent;
 import icecube.daq.priority.AdjustmentTask;
 import icecube.daq.priority.SorterException;
 import icecube.daq.sender.RequestReader;
@@ -53,7 +60,10 @@ import icecube.daq.util.JAXPUtilException;
 import icecube.daq.util.StringHubAlert;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -105,6 +115,7 @@ public class StringHubComponent
 	private File configurationPath;
 	private int numConfigured;
 	private IRunMonitor runMonitor;
+    private DiagnosticTraceConfig trace;
 
 	private FilesHitSpool hitSpooler;
 
@@ -272,6 +283,8 @@ public class StringHubComponent
 		}
 		runMonitor = new RunMonitor(hubId % 1000, getAlertQueue());
 		runMonitor.start();
+
+        trace = new DiagnosticTraceConfig();
 	}
 
 	List<DeployedDOM> applyConfigToDOMs(ConfigData cfgData,
@@ -599,7 +612,8 @@ public class StringHubComponent
 
 		// Start the hit merger-sorter
 		if (!usePriority) {
-			hitsSort = new MultiChannelMergeSort(numConfigured, consumer);
+			hitsSort = new MultiChannelMergeSort(numConfigured, consumer,
+                    "hit", trace.getSortQueueMeter(), trace.getSortMeter());
 		} else {
 			PrioritySort tmp;
 			try {
@@ -725,7 +739,7 @@ public class StringHubComponent
 							 ").");
 			}
 		}
-	}
+    }
 
 	private BufferConsumer createHitspooler(BufferConsumer consumer)
 		throws IOException
@@ -769,7 +783,8 @@ public class StringHubComponent
 		// use a dedicated thread for consumption from the sorter
 		// to separate the hitspool IO load from sorting load.
 		return new BufferConsumerAsync(hitSpooler, 20000000,
-			BufferConsumerAsync.QueueFullPolicy.Block, "hit-consumer");
+			BufferConsumerAsync.QueueFullPolicy.Block, "hit-consumer",
+                trace.getAsyncHitConsumerMeter());
 	}
 
 	/**
@@ -967,7 +982,10 @@ public class StringHubComponent
 	public void starting(int runNumber)
 		throws DAQCompException
 	{
-		setRunNumber(runNumber);
+        trace.startTrace(trace.narrowCollectors(conn.getCollectors()),
+                         sender);
+
+        setRunNumber(runNumber);
 		if (hitSpooler != null) {
 			try {
 				hitSpooler.startRun(runNumber);
@@ -1136,6 +1154,9 @@ public class StringHubComponent
 		if (runMonitor != null) {
 			runMonitor.stop();
 		}
+
+        trace.stopTrace();
+
 		logger.info("Returning from stop.");
 	}
 
@@ -1173,7 +1194,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16216 2016-09-06 22:03:33Z bendfelt $";
+		return "$Id: StringHubComponent.java 16243 2016-09-28 19:01:04Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1338,4 +1359,122 @@ public class StringHubComponent
 			Collections.sort(doms, this);
 		}
 	}
+
+    /**
+     * Encapsulates the optional injection of a performance trace into the
+     * hit processing stack.
+     */
+    private static class DiagnosticTraceConfig
+    {
+
+        private static boolean enabled =
+                Boolean.getBoolean("icecube.daq.stringhub.trace.enabled");
+
+        private static int period =
+                Integer.getInteger("icecube.daq.stringhub.trace.period", 1000);
+
+        private static String file =
+                System.getProperty("icecube.daq.stringhub.trace.file",
+                        "/dev/null");
+
+        final Metered.Buffered sortQueueMeter;
+        final Metered.UTCBuffered sortMeter;
+        final Metered.Buffered asyncHitConsumerMeter;
+
+        DiagnosticTrace trace;
+
+        DiagnosticTraceConfig()
+        {
+            if(enabled)
+            {
+                sortQueueMeter = Metered.Factory.bufferMeter(
+                        Metered.Factory.ConcurrencyModel.MPMC);
+                sortMeter = Metered.Factory.utcBufferMeter();
+                asyncHitConsumerMeter = Metered.Factory.bufferMeter();
+            }
+            else
+            {
+                sortQueueMeter = new Metered.DisabledMeter();
+                sortMeter = new Metered.DisabledMeter();
+                asyncHitConsumerMeter = new Metered.DisabledMeter();
+            }
+        }
+
+        Metered.Buffered getSortQueueMeter()
+        {
+            return sortQueueMeter;
+        }
+
+        Metered.UTCBuffered getSortMeter()
+        {
+            return sortMeter;
+        }
+
+        Metered.Buffered getAsyncHitConsumerMeter()
+        {
+            return asyncHitConsumerMeter;
+        }
+
+        private void startTrace(final List<DataCollectorMBean> collectors,
+                                final Sender sender)
+        {
+            try
+            {
+                if(enabled)
+                {
+                    FileOutputStream fos = new FileOutputStream(file);
+
+                    trace = new DiagnosticTrace(period, 30,
+                            new PrintStream(fos));
+                    trace.addTimeContent();
+                    trace.addAgeContent();
+                    trace.addHeapContent();
+                    trace.addGCContent();
+                    trace.addContent(new DataCollectorAggregateContent(collectors));
+                    trace.addMeter("sortq", sortQueueMeter, MeterContent.Style.HELD_DATA);
+                    trace.addMeter("sorter", sortMeter, MeterContent.Style.HELD_DATA,
+                            MeterContent.Style.UTC_DELAY,
+                            MeterContent.Style.DATA_RATE_OUT);
+                    trace.addMeter("hitOut", asyncHitConsumerMeter,
+                            MeterContent.Style.HELD_DATA,
+                            MeterContent.Style.DATA_RATE_OUT);
+
+                    trace.addContent(new Content.GroupedContent("sender", new SenderContent(sender)));
+                    trace.start();
+                }
+            }
+            catch (FileNotFoundException e)
+            {
+                logger.warn("Can not start trace ", e);
+            }
+        }
+
+        private void stopTrace()
+        {
+            if(enabled)
+            {
+                if(trace != null)
+                {
+                    trace.stop();
+                }
+            }
+        }
+
+        private List<DataCollectorMBean> narrowCollectors(
+                final List<AbstractDataCollector> collectors)
+        {
+            final List<DataCollectorMBean> narrow =
+                    new ArrayList<>(collectors.size());
+
+            for(AbstractDataCollector dc : collectors)
+            {
+                if(dc instanceof  DataCollectorMBean)
+                {
+                    narrow.add((DataCollectorMBean) dc);
+                }
+            }
+
+            return narrow;
+        }
+    }
 }

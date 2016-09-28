@@ -1,10 +1,12 @@
 package icecube.daq.bindery;
 
+import icecube.daq.performance.diagnostic.Metered;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -35,6 +37,8 @@ public class BufferConsumerAsync implements BufferConsumer
 {
     private final BufferConsumer delegate;
     private final ExecutorService executor;
+
+    private final Metered.Buffered meter;
 
     private static final int MAX_QUEUED_BUFFERS = Integer.MAX_VALUE;
 
@@ -70,31 +74,66 @@ public class BufferConsumerAsync implements BufferConsumer
 
     public BufferConsumerAsync(final BufferConsumer delegate,
                                final int capacity,
+                               final String threadName,
+                               final Metered.Buffered meter)
+    {
+        this(delegate, capacity, QueueFullPolicy.Block, threadName, meter);
+    }
+
+    public BufferConsumerAsync(final BufferConsumer delegate,
+                               final int capacity,
                                final QueueFullPolicy policy,
                                final String threadName)
     {
+        this(delegate, new LinkedBlockingQueue<Runnable>(capacity),
+                policy, threadName, new Metered.DisabledMeter());
+
+    }
+
+    public BufferConsumerAsync(final BufferConsumer delegate,
+                               final int capacity,
+                               final QueueFullPolicy policy,
+                               final String threadName,
+                               final Metered.Buffered meter)
+    {
+        this(delegate, new LinkedBlockingQueue<Runnable>(capacity),
+                policy, threadName, meter);
+
+    }
+
+    public BufferConsumerAsync(final BufferConsumer delegate,
+                               BlockingQueue<Runnable> jobQueue,
+                               final QueueFullPolicy policy,
+                               final String threadName,
+                               Metered.Buffered meter)
+    {
+
         this.delegate = delegate;
 
         switch (policy)
         {
+
             case Block:
                 this.executor =
                         new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
-                                new LinkedBlockingQueue<Runnable>(capacity),
+                                jobQueue,
                                 new SingleThreadFactory(threadName),
                                 new BlockingExecutorRejectionHandler());
                 break;
             case Reject:
                 this.executor =
                         new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
-                                new LinkedBlockingQueue<Runnable>(capacity),
+                                jobQueue,
                                 new SingleThreadFactory(threadName));
                 break;
             default:
                 throw new Error("Unknown policy: " + policy);
         }
 
+        this.meter = meter;
+
     }
+
 
     public int getQueueSize()
     {
@@ -173,6 +212,8 @@ public class BufferConsumerAsync implements BufferConsumer
     {
         try
         {
+            final int inSize = buf.remaining();
+            meter.reportIn(inSize);
             executor.submit(new Callable<Void>()
             {
                 @Override
@@ -181,6 +222,7 @@ public class BufferConsumerAsync implements BufferConsumer
                     try
                     {
                         delegate.consume(buf);
+                        meter.reportOut(inSize);
                     }
                     catch (Throwable th)
                     {
