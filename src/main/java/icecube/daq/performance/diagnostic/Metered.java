@@ -1,5 +1,9 @@
 package icecube.daq.performance.diagnostic;
 
+import sun.misc.Contended;
+
+import java.util.concurrent.atomic.LongAdder;
+
 /**
  * Defines interfaces for measuring throughput of components that
  * handle messages.
@@ -10,6 +14,12 @@ package icecube.daq.performance.diagnostic;
  *
  * The implementation skews performance to the benefit of the reporter
  * which will be the dominant method invoker.
+ *
+ * Metering is not synchronized. Atomics and volatiles are employed to
+ * maintain consistency of individual counters, but Samples are not
+ * necessarily consistent between counters.  Implementations attempt
+ * to bias Samples to over-report input rather than output to avoid
+ * calculating negative values for buffered data.
  */
 public interface Metered
 {
@@ -201,12 +211,122 @@ public interface Metered
 
 
     /**
-     * Tracks throughput in message and byte count
+     * Implementations are held in a container to reduce visibility and
+     * promoted access via the factory methods. (All top level classes
+     * in an interface are public)
      */
-    public class ThroughputMeter implements Throughput
+    public class Factory
     {
-        private long msgs;
-        private long bytes;
+
+        /**
+         * To select the most efficient metering implementation,
+         * clients may specify their concurrency model.
+         */
+        public static enum ConcurrencyModel
+        {
+            MPMC,  // multiple threads reporting input and
+                   // multiple threads reporting output
+
+            SPSC   // single thread reporting input and
+                   // single thread reporting output
+        }
+
+        // Factory methods are provided to narrow the scope of
+        // the reporting interface to the needs of the client.
+
+        public static Throughput throughputMeter()
+        {
+            return throughputMeter(ConcurrencyModel.SPSC);
+        }
+
+        public static UTCThroughput utcThroughputMeter()
+        {
+            return utcThroughputMeter(ConcurrencyModel.SPSC);
+
+        }
+
+        public static Buffered bufferMeter()
+        {
+            return bufferMeter(ConcurrencyModel.SPSC);
+
+        }
+
+        public static UTCBuffered utcBufferMeter()
+        {
+            return utcBufferMeter(ConcurrencyModel.SPSC);
+
+        }
+
+        public static Throughput throughputMeter(ConcurrencyModel concurrency)
+        {
+            switch (concurrency)
+            {
+                case SPSC:
+                    return new ThroughputMeterImpl();
+                case MPMC:
+                    return new ConcurrentThroughputMeterImpl();
+                default:
+                    throw new IllegalArgumentException("unknown" + concurrency);
+            }
+
+        }
+
+        public static UTCThroughput utcThroughputMeter(
+                ConcurrencyModel concurrency)
+        {
+            switch (concurrency)
+            {
+                case SPSC:
+                    return new ThroughputMeterImpl();
+                case MPMC:
+                    return new ConcurrentThroughputMeterImpl();
+                default:
+                    throw new IllegalArgumentException("unknown" + concurrency);
+            }
+        }
+
+        public static Buffered bufferMeter(ConcurrencyModel concurrency)
+        {
+            switch (concurrency)
+            {
+                case SPSC:
+                    return new BufferedMeterImpl();
+                case MPMC:
+                    return new ConcurrentBufferedMeterImpl();
+                default:
+                    throw new IllegalArgumentException("unknown" + concurrency);
+            }
+        }
+
+        public static UTCBuffered utcBufferMeter(ConcurrencyModel concurrency)
+        {
+            switch (concurrency)
+            {
+                case SPSC:
+                    return new BufferedMeterImpl();
+                case MPMC:
+                    return new ConcurrentBufferedMeterImpl();
+                default:
+                    throw new IllegalArgumentException("unknown" + concurrency);
+            }
+        }
+
+
+
+    /**
+     * A throughput meter.
+     *
+     * Tracks in/out quantities in a single member for a small efficiency
+     * gain for meters that only track throughput.
+     *
+     *
+     */
+    protected static class ThroughputMeterImpl
+            implements Throughput, UTCThroughput
+    {
+        private volatile long msgs;
+        private volatile long bytes;
+        private volatile long utc;
 
         public void report(final int size)
         {
@@ -218,24 +338,6 @@ public interface Metered
             this.msgs+=msgCount;
             this.bytes+=size;
         }
-
-        @Override
-        public Sample getSample()
-        {
-            return new Sample(msgs, bytes, msgs, bytes);
-        }
-    }
-
-
-    /**
-     * Adds UTC timestamp tracking to the throughput meter.
-     */
-    public class UTCThroughputMeter implements UTCThroughput
-    {
-        private long msgs;
-        private long bytes;
-        private long utc;
-
 
         public void report(final int size, final long utc)
         {
@@ -256,60 +358,52 @@ public interface Metered
         }
     }
 
-
     /**
-     * Breaks input/output reporting to track held (buffered) data.
+     * A buffered metered
+     *
+     * Tracks in/out quantities separately to provide support for calculating
+     * the amount of data held in the component.
      */
-    public class BufferMeter implements Buffered
+    protected static class BufferedMeterImpl implements  Buffered, UTCBuffered
     {
-        private long msgIn;
-        private long byteIn;
-        private long msgOut;
-        private long byteOut;
+        @Contended("in")
+        private volatile long msgIn;
+        @Contended("in")
+        private volatile long byteIn;
+        @Contended("out")
+        private volatile long msgOut;
+        @Contended("out")
+        private volatile long byteOut;
+        @Contended("in")
+        private volatile long utcIn;
+        @Contended("out")
+        private volatile long utcOut;
 
+        @Override
         public void reportIn(final int size)
         {
             reportIn(1, size);
         }
 
+        @Override
         public void reportIn(final int msgCount, final int size)
         {
-            this.msgIn+=msgCount;
-            this.byteIn+=size;
+            msgIn+=msgCount;
+            byteIn+=size;
         }
 
+        @Override
         public void reportOut(final int size)
         {
             reportOut(1, size);
         }
 
+        @Override
         public void reportOut(final int msgCount, final int size)
         {
-            this.msgOut+=msgCount;
-            this.byteOut+=size;
+            msgOut+=msgCount;
+            byteOut+=size;
         }
-
-        @Override
-        public Sample getSample()
-        {
-            return new Sample(msgIn, byteIn, msgOut, byteOut);
-        }
-    }
-
-
-    /**
-     * Adds tracking for utc timestamps to a buffered meter.
-     */
-    public class UTCBufferMeter implements UTCBuffered
-    {
-
-        private long msgIn;
-        private long byteIn;
-        private long msgOut;
-        private long byteOut;
-        private long utcIn;
-        private long utcOut;
-
 
         public void reportIn(final int size, final long utc)
         {
@@ -340,9 +434,146 @@ public interface Metered
         @Override
         public Sample getSample()
         {
-            return new Sample(msgIn, byteIn, msgOut, byteOut,
-                    utcIn, utcOut);
+            // access output first to prefer an over-count of held
+            // data over an under-count
+            long localMsgOut = msgOut;
+            long localByteOut = byteOut;
+            long localUtcOut = utcOut;
+            return new Sample(msgIn, byteIn, localMsgOut, localByteOut,
+                    utcIn, localUtcOut);
         }
+
+    }
+
+        /**
+         * A throughput metered that supports multiple threads reporting.
+         */
+        protected static class ConcurrentThroughputMeterImpl
+                implements Throughput, UTCThroughput
+        {
+            private LongAdder msgs = new LongAdder();
+            private LongAdder bytes = new LongAdder();
+            private volatile long utc;
+
+            public void report(final int size)
+            {
+                report(1, size);
+            }
+
+            public void report(final int msgCount, final int size)
+            {
+                this.msgs.add(msgCount);
+                this.bytes.add(size);
+            }
+
+            public void report(final int size, final long utc)
+            {
+                report(1, size, utc);
+            }
+
+            public void report(final int msgCount, final int size,
+                               final long utc)
+            {
+                this.msgs.add(msgCount);
+                this.bytes.add(size);
+                this.utc = utc;
+            }
+
+            @Override
+            public Sample getSample()
+            {
+                long msgIn = msgs.longValue();
+                long bytesIn = bytes.longValue();
+                return new Sample(msgIn, bytesIn, msgIn, bytesIn, utc, utc);
+            }
+        }
+
+        /**
+         * A buffered metered that supports multiple threads reporting
+         * input and multiple threads reporting output.
+         */
+        protected static class ConcurrentBufferedMeterImpl
+                implements  Buffered, UTCBuffered
+        {
+            private LongAdder msgIn = new LongAdder();
+            private LongAdder byteIn = new LongAdder();
+            private LongAdder msgOut = new LongAdder();
+            private LongAdder byteOut = new LongAdder();
+            @Contended("in")
+            private volatile long utcIn;
+            @Contended("out")
+            private volatile long utcOut;
+
+            @Override
+            public void reportIn(final int size)
+            {
+                reportIn(1, size);
+            }
+
+            @Override
+            public void reportIn(final int msgCount, final int size)
+            {
+                msgIn.add(msgCount);
+                byteIn.add(size);
+            }
+
+            @Override
+            public void reportOut(final int size)
+            {
+                reportOut(1, size);
+            }
+
+            @Override
+            public void reportOut(final int msgCount, final int size)
+            {
+                msgOut.add(msgCount);
+                byteOut.add(size);
+            }
+
+            public void reportIn(final int size, final long utc)
+            {
+                reportIn(1, size, utc);
+            }
+
+            public void reportIn(final int msgCount, final int size,
+                                 final long utc)
+            {
+
+                msgIn.add(msgCount);
+                byteIn.add(size);
+                utcIn = utc;
+            }
+
+            public void reportOut(final int size, final long utc)
+            {
+                reportOut(1, size, utc);
+            }
+
+            public void reportOut(final int msgCount, final int size,
+                                  final long utc)
+            {
+                msgOut.add(msgCount);
+                byteOut.add(size);
+                utcOut = utc;
+            }
+
+            @Override
+            public Sample getSample()
+            {
+
+                // access output first to prefer an over-count of held
+                // data over an under-count
+                long localMsgOut = msgOut.longValue();
+                long localBytesOut = byteOut.longValue();
+                long localUtcOut = utcOut;
+                return new Sample(msgIn.longValue(), byteIn.longValue(),
+                        localMsgOut, localBytesOut,
+                        utcIn, localUtcOut);
+            }
+
+        }
+
+
     }
 
 
