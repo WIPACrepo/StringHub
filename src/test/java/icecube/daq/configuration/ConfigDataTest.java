@@ -5,7 +5,7 @@ import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.stringhub.test.MockAppender;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.IDOMRegistry;
-import icecube.daq.util.DeployedDOM;
+import icecube.daq.util.DOMInfo;
 import icecube.daq.util.JAXPUtilException;
 
 import java.io.File;
@@ -95,7 +95,7 @@ public class ConfigDataTest
     {
         final int hubId = 2;
 
-        Collection<DeployedDOM> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+        Collection<DOMInfo> deployedDOMs = domRegistry.getDomsOnHub(hubId);
 
         ConfigData cfgData =
             new ConfigData(CONFIGDIR, "sps-IC2-remove-Sauron-V099", hubId,
@@ -109,7 +109,7 @@ public class ConfigDataTest
     {
         final int hubId = 2;
 
-        Collection<DeployedDOM> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+        Collection<DOMInfo> deployedDOMs = domRegistry.getDomsOnHub(hubId);
 
         ConfigData cfgData =
             new ConfigData(CONFIGDIR, "sps-IC2-message-packing-V235", hubId,
@@ -123,7 +123,7 @@ public class ConfigDataTest
     {
         final int hubId = 2;
 
-        Collection<DeployedDOM> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+        Collection<DOMInfo> deployedDOMs = domRegistry.getDomsOnHub(hubId);
 
         ConfigData cfgData =
             new ConfigData(CONFIGDIR, "replay-125659-local", hubId,
@@ -137,7 +137,7 @@ public class ConfigDataTest
     {
         final int hubId = 1002;
 
-        Collection<DeployedDOM> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+        Collection<DOMInfo> deployedDOMs = domRegistry.getDomsOnHub(hubId);
 
         ConfigData cfgData =
             new ConfigData(CONFIGDIR, "sim2strIT-stdtest-01", hubId,
@@ -151,7 +151,7 @@ public class ConfigDataTest
     {
         final int hubId = 2;
 
-        Collection<DeployedDOM> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+        Collection<DOMInfo> deployedDOMs = domRegistry.getDomsOnHub(hubId);
 
         ConfigData cfgData =
             new ConfigData(CONFIGDIR, "random-01", hubId,

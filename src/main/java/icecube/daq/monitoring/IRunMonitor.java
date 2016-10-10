@@ -6,7 +6,7 @@ import icecube.daq.dor.TimeCalib;
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.rapcal.Isochron;
 import icecube.daq.rapcal.RAPCalException;
-import icecube.daq.util.DeployedDOM;
+import icecube.daq.util.DOMInfo;
 
 import java.util.Collection;
 import java.util.Map;
@@ -25,7 +25,7 @@ public interface IRunMonitor
      *
      * @return map of mainboard ID -&gt; deployed DOM data
      */
-    Iterable<DeployedDOM> getConfiguredDOMs();
+    Iterable<DOMInfo> getConfiguredDOMs();
 
     /**
      * Get DOM information
@@ -34,7 +34,7 @@ public interface IRunMonitor
      *
      * @return dom information
      */
-    DeployedDOM getDom(long mbid);
+    DOMInfo getDom(long mbid);
 
     /**
      * Get the string representation of the starting time for this run
@@ -151,7 +151,7 @@ public interface IRunMonitor
      *
      * @param configuredDOMs list of configured DOMs
      */
-    void setConfiguredDOMs(Collection<DeployedDOM> configuredDOMs);
+    void setConfiguredDOMs(Collection<DOMInfo> configuredDOMs);
 
     /**
      * Set the run number

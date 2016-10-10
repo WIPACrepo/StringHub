@@ -52,9 +52,9 @@ import icecube.daq.sender.Sender;
 import icecube.daq.time.gps.IGPSService;
 import icecube.daq.time.gps.GPSService;
 import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
+import icecube.daq.util.DOMInfo;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.IDOMRegistry;
-import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
 import icecube.daq.util.JAXPUtilException;
 import icecube.daq.util.StringHubAlert;
@@ -120,7 +120,7 @@ public class StringHubComponent
 	private FilesHitSpool hitSpooler;
 
 	/** list of configured DOMs filled during configuring() */
-	private List<DeployedDOM> configuredDOMs;
+	private List<DOMInfo> configuredDOMs;
 
 	private ArrayList<PrioritySort> prioList = new ArrayList<PrioritySort>();
 
@@ -287,8 +287,8 @@ public class StringHubComponent
         trace = new DiagnosticTraceConfig();
 	}
 
-	List<DeployedDOM> applyConfigToDOMs(ConfigData cfgData,
-										Collection<DeployedDOM> deployedDOMs,
+	List<DOMInfo> applyConfigToDOMs(ConfigData cfgData,
+										Collection<DOMInfo> deployedDOMs,
 										List<DOMChannelInfo> activeDOMs)
 		throws DAQCompException
 	{
@@ -312,8 +312,8 @@ public class StringHubComponent
 		}
 
 		// check all the DOMs which are known to be on this hub
-		ArrayList<DeployedDOM> doms = new ArrayList<DeployedDOM>();
-		for (DeployedDOM deployedDOM : deployedDOMs) {
+		ArrayList<DOMInfo> doms = new ArrayList<DOMInfo>();
+		for (DOMInfo deployedDOM : deployedDOMs) {
 			String mbid = deployedDOM.getMainboardId();
 
 			// if this DOM is in the run configuration...
@@ -457,12 +457,12 @@ public class StringHubComponent
 	 *
 	 * @return list of DOMChannelInfo entries
 	 */
-	private List<DOMChannelInfo> discoverSimDOMs(Collection<DeployedDOM>
+	private List<DOMChannelInfo> discoverSimDOMs(Collection<DOMInfo>
 												 attachedDOMs)
 	{
 		List<DOMChannelInfo> activeDOMs =
 			new ArrayList<DOMChannelInfo>(attachedDOMs.size());
-		for (DeployedDOM dom : attachedDOMs) {
+		for (DOMInfo dom : attachedDOMs) {
 			int card = (dom.getStringMinor()-1) / 8;
 			int pair = ((dom.getStringMinor()-1) % 8) / 2;
 			char aorb = 'A';
@@ -495,7 +495,7 @@ public class StringHubComponent
 									   " has not been set");
 		}
 
-		Collection<DeployedDOM> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+		Collection<DOMInfo> deployedDOMs = domRegistry.getDomsOnHub(hubId);
 
 		ConfigData cfgData;
 		try {
@@ -704,7 +704,7 @@ public class StringHubComponent
 
 			String cwd = chanInfo.card + "" + chanInfo.pair + chanInfo.dom;
 
-			DeployedDOM domInfo = domRegistry.getDom(chanInfo.mbid_numerique);
+			DOMInfo domInfo = domRegistry.getDom(chanInfo.mbid_numerique);
 
 			// Associate a GPS service to this card, if not already done
 			if (!isSim) {
@@ -836,7 +836,7 @@ public class StringHubComponent
 		int strnum = -1;
 		int first = 0;
 		for (int i = 0; i < configuredDOMs.size(); i++) {
-			DeployedDOM dom = configuredDOMs.get(i);
+			DOMInfo dom = configuredDOMs.get(i);
 			if (dom.getStringMajor() == strnum) {
 				// this DOM is on the same string
 				continue;
@@ -870,7 +870,7 @@ public class StringHubComponent
 		int[] list = new int[configuredDOMs.size()];
 
 		int idx = 0;
-		for (DeployedDOM dom : configuredDOMs) {
+		for (DOMInfo dom : configuredDOMs) {
 			list[idx++] = dom.getStringMinor();
 		}
 
@@ -1194,7 +1194,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16243 2016-09-28 19:01:04Z bendfelt $";
+		return "$Id: StringHubComponent.java 16245 2016-10-10 19:39:14Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1320,7 +1320,7 @@ public class StringHubComponent
 	}
 
 	class DOMSorter
-		implements Comparator<DeployedDOM>
+		implements Comparator<DOMInfo>
 	{
 		/**
 		 * Compare two DOMs.
@@ -1330,7 +1330,7 @@ public class StringHubComponent
 		 *
 		 * @return the usual comparison values
 		 */
-		public int compare(DeployedDOM d1, DeployedDOM d2)
+		public int compare(DOMInfo d1, DOMInfo d2)
 		{
 			int val = d1.getStringMajor() - d2.getStringMajor();
 			if (val == 0) {
@@ -1354,7 +1354,7 @@ public class StringHubComponent
 		 *
 		 * @param files list of files
 		 */
-		public void sort(List<DeployedDOM> doms)
+		public void sort(List<DOMInfo> doms)
 		{
 			Collections.sort(doms, this);
 		}

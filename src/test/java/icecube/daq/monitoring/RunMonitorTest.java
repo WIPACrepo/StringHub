@@ -11,7 +11,7 @@ import icecube.daq.rapcal.BadTCalException;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.Isochron;
 import icecube.daq.stringhub.test.MockAppender;
-import icecube.daq.util.DeployedDOM;
+import icecube.daq.util.DOMInfo;
 import icecube.daq.util.IDOMRegistry;
 
 import java.nio.ByteBuffer;
@@ -69,15 +69,15 @@ class MockAlertQueue
 class MockDOMRegistry
     implements IDOMRegistry
 {
-    private HashMap<Long, DeployedDOM> doms = new HashMap<Long, DeployedDOM>();
+    private HashMap<Long, DOMInfo> doms = new HashMap<Long, DOMInfo>();
 
     void addDom(long mbid, int string, int location)
     {
-        doms.put(mbid, new DeployedDOM(mbid, string, location));
+        doms.put(mbid, new DOMInfo(mbid, string, location));
     }
 
     @Override
-    public double distanceBetweenDOMs(DeployedDOM dom0, DeployedDOM dom1)
+    public double distanceBetweenDOMs(DOMInfo dom0, DOMInfo dom1)
     {
         throw new Error("Unimplemented");
     }
@@ -95,31 +95,31 @@ class MockDOMRegistry
     }
 
     @Override
-    public DeployedDOM getDom(long mbid)
+    public DOMInfo getDom(long mbid)
     {
         return doms.get(mbid);
     }
 
     @Override
-    public DeployedDOM getDom(int major, int minor)
+    public DOMInfo getDom(int major, int minor)
     {
         throw new Error("Unimplemented");
     }
 
     @Override
-    public DeployedDOM getDom(short channelId)
+    public DOMInfo getDom(short channelId)
     {
         throw new Error("Unimplemented");
     }
 
     @Override
-    public Set<DeployedDOM> getDomsOnHub(int hubId)
+    public Set<DOMInfo> getDomsOnHub(int hubId)
     {
         throw new Error("Unimplemented");
     }
 
     @Override
-    public Set<DeployedDOM> getDomsOnString(int string)
+    public Set<DOMInfo> getDomsOnString(int string)
     {
         throw new Error("Unimplemented");
     }
@@ -208,10 +208,10 @@ public class RunMonitorTest
         }
     }
 
-    private void addRapcalLogMsg(List<String> expLog, List<DeployedDOM> doms,
+    private void addRapcalLogMsg(List<String> expLog, List<DOMInfo> doms,
                                  long mbid, short[] waveform)
     {
-        for (DeployedDOM dom : doms) {
+        for (DOMInfo dom : doms) {
             if (dom.getNumericMainboardId() == mbid) {
                 final String wfStr;
                 if (waveform == null) {
@@ -588,9 +588,9 @@ public class RunMonitorTest
         final long DOM0 = 111111111L;
         final long DOM1 = 123456789L;
 
-        List<DeployedDOM> cfgDOMList = new ArrayList<DeployedDOM>();
-        cfgDOMList.add(new DeployedDOM(DOM0, string, 7));
-        cfgDOMList.add(new DeployedDOM(DOM1, string, 62));
+        List<DOMInfo> cfgDOMList = new ArrayList<DOMInfo>();
+        cfgDOMList.add(new DOMInfo(DOM0, string, 7));
+        cfgDOMList.add(new DOMInfo(DOM1, string, 62));
 
         runMon.setConfiguredDOMs(cfgDOMList);
 
@@ -691,9 +691,9 @@ public class RunMonitorTest
         final long DOM0 = 111111111L;
         final long DOM1 = 123456789L;
 
-        List<DeployedDOM> cfgDOMList = new ArrayList<DeployedDOM>();
-        cfgDOMList.add(new DeployedDOM(DOM0, string, 7));
-        cfgDOMList.add(new DeployedDOM(DOM1, string, 19));
+        List<DOMInfo> cfgDOMList = new ArrayList<DOMInfo>();
+        cfgDOMList.add(new DOMInfo(DOM0, string, 7));
+        cfgDOMList.add(new DOMInfo(DOM1, string, 19));
 
         runMon.setConfiguredDOMs(cfgDOMList);
 
@@ -740,9 +740,9 @@ public class RunMonitorTest
         final long DOM0 = 111111111L;
         final long DOM1 = 123456789L;
 
-        List<DeployedDOM> cfgDOMList = new ArrayList<DeployedDOM>();
-        cfgDOMList.add(new DeployedDOM(DOM0, string, 7));
-        cfgDOMList.add(new DeployedDOM(DOM1, string, 8));
+        List<DOMInfo> cfgDOMList = new ArrayList<DOMInfo>();
+        cfgDOMList.add(new DOMInfo(DOM0, string, 7));
+        cfgDOMList.add(new DOMInfo(DOM1, string, 8));
 
         runMon.setConfiguredDOMs(cfgDOMList);
 
@@ -824,9 +824,9 @@ public class RunMonitorTest
         final long DOM0 = 111111111L;
         final long DOM1 = 123456789L;
 
-        List<DeployedDOM> cfgDOMList = new ArrayList<DeployedDOM>();
-        cfgDOMList.add(new DeployedDOM(DOM0, string, 1));
-        cfgDOMList.add(new DeployedDOM(DOM1, string, 2));
+        List<DOMInfo> cfgDOMList = new ArrayList<DOMInfo>();
+        cfgDOMList.add(new DOMInfo(DOM0, string, 1));
+        cfgDOMList.add(new DOMInfo(DOM1, string, 2));
 
         runMon.setConfiguredDOMs(cfgDOMList);
 
@@ -873,9 +873,9 @@ public class RunMonitorTest
         final long DOM0 = 111111111L;
         final long DOM1 = 123456789L;
 
-        List<DeployedDOM> cfgDOMList = new ArrayList<DeployedDOM>();
-        cfgDOMList.add(new DeployedDOM(DOM0, string, 7));
-        cfgDOMList.add(new DeployedDOM(DOM1, string, 62));
+        List<DOMInfo> cfgDOMList = new ArrayList<DOMInfo>();
+        cfgDOMList.add(new DOMInfo(DOM0, string, 7));
+        cfgDOMList.add(new DOMInfo(DOM1, string, 62));
 
         runMon.setConfiguredDOMs(cfgDOMList);
 

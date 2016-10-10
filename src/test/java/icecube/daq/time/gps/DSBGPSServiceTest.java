@@ -11,7 +11,7 @@ import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.rapcal.Isochron;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.time.gps.test.MockGPSDriver;
-import icecube.daq.util.DeployedDOM;
+import icecube.daq.util.DOMInfo;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -52,7 +52,7 @@ class MyMonitor
      *
      * @return map of mainboard ID -&gt; deployed DOM data
      */
-    public Iterable<DeployedDOM> getConfiguredDOMs()
+    public Iterable<DOMInfo> getConfiguredDOMs()
     {
         throw new Error("Unimplemented");
     }
@@ -64,7 +64,7 @@ class MyMonitor
      *
      * @return dom information
      */
-    public DeployedDOM getDom(long mbid)
+    public DOMInfo getDom(long mbid)
     {
         throw new Error("Unimplemented");
     }
@@ -186,7 +186,7 @@ class MyMonitor
     }
 
     @Override
-    public void setConfiguredDOMs(Collection<DeployedDOM> configuredDOMs)
+    public void setConfiguredDOMs(Collection<DOMInfo> configuredDOMs)
     {
         throw new Error("Unimplemented");
     }

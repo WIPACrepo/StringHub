@@ -2,7 +2,7 @@ package icecube.daq.configuration;
 
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.juggler.component.DAQCompException;
-import icecube.daq.util.DeployedDOM;
+import icecube.daq.util.DOMInfo;
 import icecube.daq.util.JAXPUtil;
 import icecube.daq.util.JAXPUtilException;
 
@@ -43,7 +43,7 @@ public class ConfigData
     private XMLConfig xmlConfig;
 
     public ConfigData(File configurationPath, String configName, int hubId,
-                      Collection<DeployedDOM> deployedDOMs)
+                      Collection<DOMInfo> deployedDOMs)
         throws DAQCompException, JAXPUtilException
     {
         this.name = configName;
@@ -89,7 +89,7 @@ public class ConfigData
 
     private void parseDOMConfig(File configurationPath, Document doc,
                                 int hubId,
-                                Collection<DeployedDOM> deployedDOMs)
+                                Collection<DOMInfo> deployedDOMs)
         throws DAQCompException, JAXPUtilException
     {
         Node rndNode = JAXPUtil.extractNode(doc, "runConfig/randomConfig");
@@ -174,7 +174,7 @@ public class ConfigData
     }
 
     private void parseDOMRandomConfig(Node topNode, int hubId,
-                                      Collection<DeployedDOM> deployedDOMs)
+                                      Collection<DOMInfo> deployedDOMs)
         throws JAXPUtilException
     {
         isRandom = true;
@@ -209,7 +209,7 @@ public class ConfigData
             }
         }
 
-        for (DeployedDOM dom : deployedDOMs) {
+        for (DOMInfo dom : deployedDOMs) {
             final String mbid = dom.getMainboardId();
             if (excluded.contains(mbid)) {
                 // skip excluded DOMs

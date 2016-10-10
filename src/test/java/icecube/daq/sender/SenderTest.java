@@ -18,7 +18,6 @@ import icecube.daq.stringhub.test.MockBufferCache;
 import icecube.daq.stringhub.test.MockReadoutRequest;
 import icecube.daq.stringhub.test.MockUTCTime;
 import icecube.daq.util.DOMRegistry;
-import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.IDOMRegistry;
 
 import java.io.IOException;

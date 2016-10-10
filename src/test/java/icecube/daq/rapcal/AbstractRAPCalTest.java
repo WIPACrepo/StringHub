@@ -5,7 +5,7 @@ import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.monitoring.IRunMonitor;
-import icecube.daq.util.DeployedDOM;
+import icecube.daq.util.DOMInfo;
 import icecube.daq.util.TimeUnits;
 import icecube.daq.util.UTC;
 
@@ -85,7 +85,7 @@ class MyMonitor
      *
      * @return map of mainboard ID -&gt; deployed DOM data
      */
-    public Iterable<DeployedDOM> getConfiguredDOMs()
+    public Iterable<DOMInfo> getConfiguredDOMs()
     {
         throw new Error("Unimplemented");
     }
@@ -97,7 +97,7 @@ class MyMonitor
      *
      * @return dom information
      */
-    public DeployedDOM getDom(long mbid)
+    public DOMInfo getDom(long mbid)
     {
         throw new Error("Unimplemented");
     }
@@ -244,7 +244,7 @@ class MyMonitor
     }
 
     @Override
-    public void setConfiguredDOMs(Collection<DeployedDOM> configuredDOMs)
+    public void setConfiguredDOMs(Collection<DOMInfo> configuredDOMs)
     {
         throw new Error("Unimplemented");
     }

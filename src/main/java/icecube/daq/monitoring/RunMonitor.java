@@ -10,7 +10,7 @@ import icecube.daq.payload.impl.UTCTime;
 import icecube.daq.rapcal.BadTCalException;
 import icecube.daq.rapcal.Isochron;
 import icecube.daq.rapcal.RAPCalException;
-import icecube.daq.util.DeployedDOM;
+import icecube.daq.util.DOMInfo;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -125,7 +125,7 @@ abstract class DOMCountingConsumer<T>
     Map<String, Integer> getCountMap()
     {
         HashMap<String, Integer> counts = new HashMap<String, Integer>();
-        for (DeployedDOM dom : parent.getConfiguredDOMs()) {
+        for (DOMInfo dom : parent.getConfiguredDOMs()) {
             final Long key = Long.valueOf(dom.getNumericMainboardId());
 
             int count;
@@ -393,7 +393,7 @@ class HLCCountConsumer
     private Map<String, Integer> getCountMap(long binStart, long binEnd)
     {
         HashMap<String, Integer> counts = new HashMap<String, Integer>();
-        for (DeployedDOM dom : parent.getConfiguredDOMs()) {
+        for (DOMInfo dom : parent.getConfiguredDOMs()) {
             final Long key = Long.valueOf(dom.getNumericMainboardId());
 
             Counter counter = getExisting(key, binStart, binEnd);
@@ -489,7 +489,7 @@ class IsoConsumer
         private static final double HALF_RANGE = (double) BINS / 2.0;
 
         /** The DOM being histogrammed */
-        private DeployedDOM dom;
+        private DOMInfo dom;
 
         /** Initial cache of seed values */
         private double[] cache = new double[5];
@@ -513,7 +513,7 @@ class IsoConsumer
          *
          * @param dom DOM being tracked
          */
-        CableHisto(DeployedDOM dom)
+        CableHisto(DOMInfo dom)
         {
             this.dom = dom;
         }
@@ -703,7 +703,7 @@ class IsoConsumer
     void process(Data data)
     {
         if (!histograms.containsKey(data.mbid)) {
-            DeployedDOM dom = parent.getDom(data.mbid);
+            DOMInfo dom = parent.getDom(data.mbid);
             if (dom == null) {
                 LOG.error(String.format("Ignoring Isochron for bad DOM %012x",
                                         data.mbid));
@@ -885,7 +885,7 @@ class RAPCalProblemConsumer
      */
     private void logException(long mbid, RAPCalException exception)
     {
-        DeployedDOM dom = parent.getDom(mbid);
+        DOMInfo dom = parent.getDom(mbid);
 
         final String domStr;
         if (dom == null) {
@@ -1206,7 +1206,7 @@ public class RunMonitor
     /** Alert queue which send messages to Live */
     private IAlertQueue alertQueue;
     /** Map mainboard IDs to DOMs on this string */
-    private Map<Long, DeployedDOM> mbidMap;
+    private Map<Long, DOMInfo> mbidMap;
 
     /** Current run number */
     private int runNumber = NO_ACTIVE_RUN;
@@ -1302,7 +1302,7 @@ public class RunMonitor
      *
      * @return map of mainboard ID -&gt; deployed DOM data
      */
-    public Iterable<DeployedDOM> getConfiguredDOMs()
+    public Iterable<DOMInfo> getConfiguredDOMs()
     {
         return mbidMap.values();
     }
@@ -1314,7 +1314,7 @@ public class RunMonitor
      *
      * @return dom information
      */
-    public DeployedDOM getDom(long mbid)
+    public DOMInfo getDom(long mbid)
     {
         if (mbidMap == null) {
             throw new Error("List of configured DOMs has not been set");
@@ -1659,11 +1659,11 @@ public class RunMonitor
      * @param configuredDOMs list of configured DOMs
      */
     @Override
-    public void setConfiguredDOMs(Collection<DeployedDOM> configuredDOMs)
+    public void setConfiguredDOMs(Collection<DOMInfo> configuredDOMs)
     {
-        mbidMap = new HashMap<Long, DeployedDOM>();
+        mbidMap = new HashMap<Long, DOMInfo>();
 
-        for (DeployedDOM dom : configuredDOMs) {
+        for (DOMInfo dom : configuredDOMs) {
             mbidMap.put(dom.getNumericMainboardId(), dom);
         }
     }

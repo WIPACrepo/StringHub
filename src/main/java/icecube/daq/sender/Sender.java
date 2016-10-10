@@ -24,7 +24,6 @@ import icecube.daq.payload.impl.DOMID;
 import icecube.daq.payload.impl.HitRecordList;
 import icecube.daq.reqFiller.RequestFiller;
 import icecube.daq.util.IDOMRegistry;
-import icecube.daq.util.DeployedDOM;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
