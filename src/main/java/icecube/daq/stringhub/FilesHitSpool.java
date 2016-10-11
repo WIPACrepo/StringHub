@@ -1,7 +1,7 @@
 package icecube.daq.stringhub;
 
 import icecube.daq.bindery.BufferConsumer;
-import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.DOMRegistryFactory;
 import icecube.daq.util.IDOMRegistry;
 
 import java.io.BufferedOutputStream;
@@ -366,7 +366,7 @@ class FileBundle
 /*
         if (packHeaders && configDir != null) {
             try {
-                registry = DOMRegistry.loadRegistry(configDir);
+                registry = DOMRegistryFactory.load(configDir);
             } catch (Exception x) {
                 logger.error("Failed to load registry from " + configDir +
                              "; headers will not be packed", x);

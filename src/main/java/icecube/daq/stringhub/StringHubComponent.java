@@ -53,7 +53,8 @@ import icecube.daq.time.gps.IGPSService;
 import icecube.daq.time.gps.GPSService;
 import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
 import icecube.daq.util.DOMInfo;
-import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.DOMRegistryException;
+import icecube.daq.util.DOMRegistryFactory;
 import icecube.daq.util.IDOMRegistry;
 import icecube.daq.util.FlasherboardConfiguration;
 import icecube.daq.util.JAXPUtilException;
@@ -366,13 +367,9 @@ public class StringHubComponent
 		}
 		// get a reference to the DOM registry - useful later
 		try {
-			domRegistry = DOMRegistry.loadRegistry(configurationPath);
-		} catch (ParserConfigurationException e) {
-			logger.error("Could not load DOMRegistry", e);
-		} catch (SAXException e) {
-			logger.error("Could not load DOMRegistry", e);
-		} catch (IOException e) {
-			logger.error("Could not load DOMRegistry", e);
+			domRegistry = DOMRegistryFactory.load(configurationPath);
+		} catch (DOMRegistryException dre) {
+			logger.error("Could not load DOMRegistry", dre);
 		}
 
 		if (sender != null) {
@@ -495,7 +492,12 @@ public class StringHubComponent
 									   " has not been set");
 		}
 
-		Collection<DOMInfo> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+		Collection<DOMInfo> deployedDOMs;
+		try {
+			deployedDOMs = domRegistry.getDomsOnHub(hubId);
+		} catch (DOMRegistryException dre) {
+			throw new DAQCompException("Cannot get DOMs on hub " + hubId, dre);
+		}
 
 		ConfigData cfgData;
 		try {
@@ -1194,7 +1196,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16245 2016-10-10 19:39:14Z dglo $";
+		return "$Id: StringHubComponent.java 16247 2016-10-11 14:26:24Z dglo $";
 	}
 
 	public IByteBufferCache getCache()

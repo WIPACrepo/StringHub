@@ -77,13 +77,19 @@ class MockDOMRegistry
     }
 
     @Override
+    public Iterable<DOMInfo> allDOMs()
+    {
+        throw new Error("Unimplemented");
+    }
+
+    @Override
     public double distanceBetweenDOMs(DOMInfo dom0, DOMInfo dom1)
     {
         throw new Error("Unimplemented");
     }
 
     @Override
-    public double distanceBetweenDOMs(long dom0, long dom1)
+    public double distanceBetweenDOMs(short chan0, short chan1)
     {
         throw new Error("Unimplemented");
     }
@@ -144,12 +150,6 @@ class MockDOMRegistry
 
     @Override
     public int getStringMinor(long mbid)
-    {
-        throw new Error("Unimplemented");
-    }
-
-    @Override
-    public Set<Long> keys()
     {
         throw new Error("Unimplemented");
     }

@@ -3,9 +3,10 @@ package icecube.daq.configuration;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.juggler.component.DAQCompException;
 import icecube.daq.stringhub.test.MockAppender;
-import icecube.daq.util.DOMRegistry;
-import icecube.daq.util.IDOMRegistry;
 import icecube.daq.util.DOMInfo;
+import icecube.daq.util.DOMRegistryException;
+import icecube.daq.util.DOMRegistryFactory;
+import icecube.daq.util.IDOMRegistry;
 import icecube.daq.util.JAXPUtilException;
 
 import java.io.File;
@@ -31,7 +32,7 @@ public class ConfigDataTest
     static {
         final String path = CONFIGDIR.getPath();
         try {
-            domRegistry = DOMRegistry.loadRegistry(path);
+            domRegistry = DOMRegistryFactory.load(path);
         } catch (Exception ex) {
             ex.printStackTrace();
             throw new Error("Cannot initialize DOM registry from " + path, ex);
@@ -95,7 +96,12 @@ public class ConfigDataTest
     {
         final int hubId = 2;
 
-        Collection<DOMInfo> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+        Collection<DOMInfo> deployedDOMs;
+        try {
+            deployedDOMs = domRegistry.getDomsOnHub(hubId);
+        } catch (DOMRegistryException dre) {
+            throw new DAQCompException("Cannot get DOMs on hub " + hubId, dre);
+        }
 
         ConfigData cfgData =
             new ConfigData(CONFIGDIR, "sps-IC2-remove-Sauron-V099", hubId,
@@ -109,7 +115,12 @@ public class ConfigDataTest
     {
         final int hubId = 2;
 
-        Collection<DOMInfo> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+        Collection<DOMInfo> deployedDOMs;
+        try {
+            deployedDOMs = domRegistry.getDomsOnHub(hubId);
+        } catch (DOMRegistryException dre) {
+            throw new DAQCompException("Cannot get DOMs on hub " + hubId, dre);
+        }
 
         ConfigData cfgData =
             new ConfigData(CONFIGDIR, "sps-IC2-message-packing-V235", hubId,
@@ -123,7 +134,12 @@ public class ConfigDataTest
     {
         final int hubId = 2;
 
-        Collection<DOMInfo> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+        Collection<DOMInfo> deployedDOMs;
+        try {
+            deployedDOMs = domRegistry.getDomsOnHub(hubId);
+        } catch (DOMRegistryException dre) {
+            throw new DAQCompException("Cannot get DOMs on hub " + hubId, dre);
+        }
 
         ConfigData cfgData =
             new ConfigData(CONFIGDIR, "replay-125659-local", hubId,
@@ -137,7 +153,12 @@ public class ConfigDataTest
     {
         final int hubId = 1002;
 
-        Collection<DOMInfo> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+        Collection<DOMInfo> deployedDOMs;
+        try {
+            deployedDOMs = domRegistry.getDomsOnHub(hubId);
+        } catch (DOMRegistryException dre) {
+            throw new DAQCompException("Cannot get DOMs on hub " + hubId, dre);
+        }
 
         ConfigData cfgData =
             new ConfigData(CONFIGDIR, "sim2strIT-stdtest-01", hubId,
@@ -151,7 +172,12 @@ public class ConfigDataTest
     {
         final int hubId = 2;
 
-        Collection<DOMInfo> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+        Collection<DOMInfo> deployedDOMs;
+        try {
+            deployedDOMs = domRegistry.getDomsOnHub(hubId);
+        } catch (DOMRegistryException dre) {
+            throw new DAQCompException("Cannot get DOMs on hub " + hubId, dre);
+        }
 
         ConfigData cfgData =
             new ConfigData(CONFIGDIR, "random-01", hubId,

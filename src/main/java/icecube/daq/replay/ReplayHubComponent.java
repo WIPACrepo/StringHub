@@ -15,7 +15,8 @@ import icecube.daq.payload.impl.ReadoutRequestFactory;
 import icecube.daq.payload.impl.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
-import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.DOMRegistryException;
+import icecube.daq.util.DOMRegistryFactory;
 import icecube.daq.util.IDOMRegistry;
 import icecube.daq.util.FlasherboardConfiguration;
 import icecube.daq.util.JAXPUtil;
@@ -693,16 +694,12 @@ public class ReplayHubComponent
 
         // load DOM registry and pass it to the sender
         try {
-            domRegistry = DOMRegistry.loadRegistry(configurationPath);
+            domRegistry = DOMRegistryFactory.load(configurationPath);
             if (sender != null) {
                 sender.setDOMRegistry(domRegistry);
             }
-        } catch (ParserConfigurationException e) {
-            LOG.error("Cannot load hub#" + hubId + " DOM registry", e);
-        } catch (SAXException e) {
-            LOG.error("Cannot load hub#" + hubId + " DOM registry", e);
-        } catch (IOException e) {
-            LOG.error("Cannot load hub#" + hubId + " DOM registry", e);
+        } catch (DOMRegistryException dre) {
+            LOG.error("Cannot load hub#" + hubId + " DOM registry", dre);
         }
     }
 

@@ -17,7 +17,7 @@ import icecube.daq.stringhub.test.MockAppender;
 import icecube.daq.stringhub.test.MockBufferCache;
 import icecube.daq.stringhub.test.MockReadoutRequest;
 import icecube.daq.stringhub.test.MockUTCTime;
-import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.DOMRegistryFactory;
 import icecube.daq.util.IDOMRegistry;
 
 import java.io.IOException;
@@ -1806,7 +1806,7 @@ public class SenderTest
         if (domRegistry == null) {
             String configDir = getClass().getResource("/config").getPath();
             try {
-                domRegistry = DOMRegistry.loadRegistry(configDir);
+                domRegistry = DOMRegistryFactory.load(configDir);
             } catch (Exception ex) {
                 throw new Error("Couldn't load DOM registry", ex);
             }
