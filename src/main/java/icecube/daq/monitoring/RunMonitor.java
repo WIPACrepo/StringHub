@@ -536,6 +536,20 @@ class IsoConsumer
         }
 
         /**
+         * Get the total counts from all bins
+         *
+         * @return total counts
+         */
+        long getBinTotal()
+        {
+            long total = 0;
+            for (int num : histogram) {
+                total += num;
+            }
+            return total;
+        }
+
+        /**
          * Get the list of histogram bins
          *
          * @return list of histogram bin counts
@@ -761,6 +775,7 @@ class IsoConsumer
             histo.put("xmax", h.getMaxValue() * 2E6);
             histo.put("underflow", h.getUnderflow());
             histo.put("overflow", h.getOverflow());
+            histo.put("nentries", h.getBinTotal());
 
             Map<String, Object> data;
             if (strings.containsKey(h.getString())) {
@@ -782,7 +797,6 @@ class IsoConsumer
             map.put("histograms", entry.getValue());
             map.put("xlabel", "Round-trip time (µs)");
             map.put("ylabel", "nentries");
-            map.put("nentries", CableHisto.BINS);
 
             map.put("recordingStartTime", parent.getStartTimeString());
             map.put("recordingStopTime", parent.getStopTimeString());
