@@ -1256,6 +1256,14 @@ public class RunMonitor
 
         dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
         dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+        // always send wild TCal counts
+        wildConsumer = new WildTCalConsumer(this);
+        consumers.add(wildConsumer);
+
+        // always send RAPCal exception counts
+        rapexcConsumer = new RAPCalProblemConsumer(this);
+        consumers.add(rapexcConsumer);
     }
 
     /**
