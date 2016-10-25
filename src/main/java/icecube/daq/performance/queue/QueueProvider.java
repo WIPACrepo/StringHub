@@ -19,10 +19,13 @@ public class QueueProvider
 {
 
      /** Optional Sorter config */
-    private static final String sorterConfig =
+    private static final String sorterInputConfig =
              System.getProperty("icecube.daq.performance.queue.sorter-input.queue",
                      MPSCOption.RELAXED_BACKOFF.name());
 
+    private static final String sorterOutputConfig =
+            System.getProperty("icecube.daq.performance.queue.sorter-output.queue",
+                    SPSCOption.RELAXED_BACKOFF.name());
 
     /**
      * Implemented as an enumeration to emphasize that queue selection details
@@ -43,12 +46,32 @@ public class QueueProvider
                     {
 
                         MPSCOption mpscOptions =
-                                MPSCOption.valueOf(sorterConfig.toUpperCase());
+                                MPSCOption.valueOf(sorterInputConfig.toUpperCase());
 
                         return mpscOptions.createQueue(size);
                     }
 
-                };
+                },
+
+        SORTER_OUTPUT
+        {
+            /**
+             * Creates the BufferConsumerAsyncFast queue.
+             *
+             * The async sorter output is a single-producer,
+             * single-consumer queue case.
+             */
+            @Override
+            public <T> QueueStrategy<T> createQueue(final PowersOfTwo size)
+            {
+
+                SPSCOption spscOptions =
+                        SPSCOption.valueOf(sorterOutputConfig.toUpperCase());
+
+                return spscOptions.createQueue(size);
+            }
+
+        };
 
         /**
          * Creates the queue that is optimized for the subsystem.
