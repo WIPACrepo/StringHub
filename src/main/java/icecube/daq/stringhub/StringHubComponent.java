@@ -46,6 +46,7 @@ import icecube.daq.performance.diagnostic.DiagnosticTrace;
 import icecube.daq.performance.diagnostic.MeterContent;
 import icecube.daq.performance.diagnostic.Metered;
 import icecube.daq.performance.diagnostic.SenderContent;
+import icecube.daq.performance.diagnostic.cpu.CPUUtilizationContent;
 import icecube.daq.priority.AdjustmentTask;
 import icecube.daq.priority.SorterException;
 import icecube.daq.sender.RequestReader;
@@ -1196,7 +1197,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16264 2016-10-25 20:30:25Z bendfelt $";
+		return "$Id: StringHubComponent.java 16272 2016-10-25 21:25:18Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1442,6 +1443,12 @@ public class StringHubComponent
                             MeterContent.Style.DATA_RATE_OUT);
 
                     trace.addContent(new Content.GroupedContent("sender", new SenderContent(sender)));
+
+                    CPUUtilizationContent cpu = new CPUUtilizationContent(10000/period);
+                    trace.addFlyWeight(cpu);
+                    trace.addContent(cpu.createSystemUtilizationContent());
+                    trace.addContent(cpu.createProcessUtilizationContent());
+
                     trace.start();
                 }
             }
