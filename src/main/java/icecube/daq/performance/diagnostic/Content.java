@@ -19,6 +19,16 @@ import java.util.List;
  */
 public interface Content
 {
+
+    /**
+     * Supports sharing per-line data across multiple content
+     * instances.
+     */
+    public interface FlyWeight
+    {
+        public void beforeContent();
+    }
+
     /**
      * Append the header field(s) to the buffer.
      */
@@ -102,6 +112,32 @@ public interface Content
 
     }
 
+    public class JoinedContent implements Content
+    {
+        private final Content first;
+        private final Content second;
+
+
+        public JoinedContent(final Content first, final Content second)
+        {
+            this.first = first;
+            this.second = second;
+        }
+
+        @Override
+        public void header(final StringBuilder sb)
+        {
+            first.header(sb);
+            second.header(sb);
+        }
+
+        @Override
+        public void content(final StringBuilder sb)
+        {
+            first.content(sb);
+            second.content(sb);
+        }
+    }
 
     /**
      * Bracket sub-content with a named grouping

@@ -69,6 +69,9 @@ import icecube.daq.performance.diagnostic.Content.HeapMemoryContent;
  *            [ 665         49          1972        0           ]          [ 1922        0           ]
  *
  * </PRE>
+ *
+ * Content instances that need to share a per-line resource can utilize a
+ * content fly-weight which provides a per-line hook method.
  */
 public class DiagnosticTrace
 {
@@ -127,6 +130,11 @@ public class DiagnosticTrace
         contentHolder.addContent(new CommentContent("#"));
     }
 
+    public void addFlyWeight(FlyWeight flyWeight)
+    {
+        contentHolder.addFlyWeight(flyWeight);
+    }
+
     public void addContent(Content content)
     {
         contentHolder.addContent(content);
@@ -177,6 +185,8 @@ public class DiagnosticTrace
                         }
 
                         sb.delete(0, sb.length());
+
+                        contentHolder.beforeContent();
                         contentHolder.content(sb);
 
                         out.println(sb.toString());
@@ -231,13 +241,28 @@ public class DiagnosticTrace
     /**
      * Content Holder.
      */
-    private static class ContentBuilder implements Content
+    private static class ContentBuilder implements Content, FlyWeight
     {
+        private List<FlyWeight> flyWeights = new ArrayList<>(4);
         private List<Content> contents = new ArrayList<>(4);
+
+        private void addFlyWeight(FlyWeight flyWeight)
+        {
+            flyWeights.add(flyWeight);
+        }
 
         private void addContent(Content content)
         {
             contents.add(content);
+        }
+
+        @Override
+        public void beforeContent()
+        {
+            for (FlyWeight flyWeight : flyWeights)
+            {
+                flyWeight.beforeContent();
+            }
         }
 
         @Override
