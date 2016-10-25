@@ -153,6 +153,14 @@
       <groupId>org.jctools</groupId>
       <artifactId>jctools-core</artifactId>
     </dependency>
+
+    <dependency>
+      <groupId>com.sun</groupId>
+      <artifactId>tools</artifactId>
+      <version>${daq.jdk}</version>
+      <scope>system</scope>
+      <systemPath>${tools-jar}</systemPath>
+    </dependency>
    </dependencies>
 
 </project>
