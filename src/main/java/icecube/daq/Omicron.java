@@ -1,6 +1,6 @@
 package icecube.daq;
 
-import icecube.daq.bindery.BufferConsumerAsync;
+import icecube.daq.bindery.AsyncSorterOutput;
 import icecube.daq.bindery.BufferConsumerBuffered;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.configuration.XMLConfig;
@@ -10,10 +10,12 @@ import icecube.daq.domapp.DataCollectorFactory;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
+import icecube.daq.performance.common.PowersOfTwo;
 import icecube.daq.performance.diagnostic.DataCollectorAggregateContent;
 import icecube.daq.performance.diagnostic.DiagnosticTrace;
 import icecube.daq.performance.diagnostic.MeterContent;
 import icecube.daq.performance.diagnostic.Metered;
+import icecube.daq.performance.diagnostic.cpu.CPUUtilizationContent;
 import icecube.daq.time.gps.GPSService;
 
 import java.io.BufferedOutputStream;
@@ -119,7 +121,7 @@ public class Omicron {
 		BufferConsumerBuffered scalChan = new BufferConsumerBuffered(fOutScal);
 
         // consume hits on a dedicated thread
-        BufferConsumerAsync asyncHitConsumer = new BufferConsumerAsync(hitsChan, 500000, "hit-consumer", hitConsumerMeter);
+        AsyncSorterOutput asyncHitConsumer = new AsyncSorterOutput(hitsChan, PowersOfTwo._2097152, "hit-consumer", hitConsumerMeter);
         MultiChannelMergeSort hitsSort = new MultiChannelMergeSort(nDOM, asyncHitConsumer, "hits", sortQueueMeter, sortMeter);
 		MultiChannelMergeSort moniSort = new MultiChannelMergeSort(nDOM, moniChan, "moni");
 		MultiChannelMergeSort tcalSort = new MultiChannelMergeSort(nDOM, tcalChan, "tcal");
@@ -147,7 +149,6 @@ public class Omicron {
 			if (logger.isDebugEnabled()) logger.debug("DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ") started.");
 		}
 
-        trace.startTrace(collectors);
 
         hitsSort.start();
 		moniSort.start();
@@ -179,7 +180,9 @@ public class Omicron {
 		    }
 		}
 
-		logger.info("Sending CONFIGURE signal to DataCollectors");
+        trace.startTrace(collectors);
+
+        logger.info("Sending CONFIGURE signal to DataCollectors");
 
 		for (DataCollector dc : collectors)
 		{
@@ -312,7 +315,7 @@ public class Omicron {
                 Boolean.getBoolean("omicron.trace.enabled");
 
         private static int period =
-                Integer.getInteger("omicron.trace.period", 1000);
+                Integer.getInteger("omicron.trace.period", 60000);
 
         final Metered.Buffered sortQueueMeter;
         final Metered.UTCBuffered sortMeter;
@@ -369,6 +372,27 @@ public class Omicron {
                 trace.addMeter("hitOut", asyncHitConsumerMeter,
                         MeterContent.Style.HELD_DATA,
                         MeterContent.Style.DATA_RATE_OUT);
+
+                CPUUtilizationContent cpu = new CPUUtilizationContent();
+                trace.addFlyWeight(cpu);
+                trace.addContent(cpu.createSystemUtilizationContent());
+                trace.addContent(cpu.createProcessUtilizationContent());
+
+                try
+                {
+                    //best effort, requires tools.jar on path
+                    trace.addContent(cpu.createThreadGroupUtilizationContent(".*", "acc%"));
+                    trace.addContent(cpu.createThreadGroupUtilizationContent("[0-7][0-3][AB]", "dcol%"));
+                    trace.addContent(cpu.createThreadGroupUtilizationContent("Processor-[0-7][0-3][AB]", "dcproc%"));
+                    trace.addContent(cpu.createThreadGroupUtilizationContent("MultiChannelMergeSort-hits", "sort%"));
+                    trace.addContent(cpu.createThreadGroupUtilizationContent(".*Compiler.*", "hotsp%"));
+                    trace.addContent(cpu.createThreadGroupUtilizationContent(".*GC task.*", "gc%"));
+                }
+                catch (Exception e)
+                {
+                    logger.warn("Ignoring Thread CPU tracing:");
+                    e.printStackTrace();
+                }
 
                 trace.start();
             }
