@@ -1,7 +1,7 @@
 /* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
 package icecube.daq.stringhub;
 
-import icecube.daq.bindery.BufferConsumerAsync;
+import icecube.daq.bindery.AsyncSorterOutput;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.PrioritySort;
 import icecube.daq.bindery.SecondaryStreamConsumer;
@@ -39,6 +39,7 @@ import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.impl.ReadoutRequestFactory;
 import icecube.daq.payload.impl.VitreousBufferCache;
+import icecube.daq.performance.common.PowersOfTwo;
 import icecube.daq.performance.diagnostic.Content;
 import icecube.daq.performance.diagnostic.DataCollectorAggregateContent;
 import icecube.daq.performance.diagnostic.DiagnosticTrace;
@@ -784,10 +785,9 @@ public class StringHubComponent
 
 		// use a dedicated thread for consumption from the sorter
 		// to separate the hitspool IO load from sorting load.
-		return new BufferConsumerAsync(hitSpooler, 20000000,
-			BufferConsumerAsync.QueueFullPolicy.Block, "hit-consumer",
-                trace.getAsyncHitConsumerMeter());
-	}
+        return new AsyncSorterOutput(hitSpooler, PowersOfTwo._2097152,
+                "hit-consumer", trace.getAsyncHitConsumerMeter());
+    }
 
 	/**
 	 * Used for testing StringHub without real DOMs
@@ -1196,7 +1196,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16247 2016-10-11 14:26:24Z dglo $";
+		return "$Id: StringHubComponent.java 16264 2016-10-25 20:30:25Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
