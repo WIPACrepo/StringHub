@@ -4,11 +4,12 @@ import icecube.daq.hkn1.Node;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.concurrent.LinkedBlockingQueue;
 
+import icecube.daq.performance.common.PowersOfTwo;
 import icecube.daq.performance.diagnostic.Metered;
+import icecube.daq.performance.queue.QueueProvider;
+import icecube.daq.performance.queue.QueueStrategy;
 import org.apache.log4j.Logger;
 
 /**
@@ -53,7 +54,7 @@ import org.apache.log4j.Logger;
 public class MultiChannelMergeSort
     implements BufferConsumer, ChannelSorter, Runnable
 {
-    private LinkedBlockingQueue<ByteBuffer> q;
+    private QueueStrategy<ByteBuffer> q;
     private BufferConsumer out;
     private HashMap<Long, Node<DAQBuffer>> inputMap;
     private Node<DAQBuffer> terminalNode;
@@ -72,6 +73,9 @@ public class MultiChannelMergeSort
     /** Meters for tracing throughput. */
     private final Metered.UTCBuffered sortMeter;
 
+    /** Default bound of input queue. */
+    public static final PowersOfTwo DEFAULT_INPUT_MAX = PowersOfTwo._131072;
+
 
     public MultiChannelMergeSort(int nch, BufferConsumer out)
     {
@@ -79,13 +83,13 @@ public class MultiChannelMergeSort
     }
 
     public MultiChannelMergeSort(int nch, BufferConsumer out,
-                                 String channelType, int maxQueue)
+                                 String channelType, PowersOfTwo maxQueue)
     {
         this(nch, out, channelType, maxQueue,
                 new Metered.DisabledMeter(), new Metered.DisabledMeter());
     }
     public MultiChannelMergeSort(int nch, BufferConsumer out,
-                                 String channelType, int maxQueue,
+                                 String channelType, PowersOfTwo maxQueue,
                                  Metered.Buffered queueMeter,
                                  Metered.UTCBuffered sortMeter)
     {
@@ -94,7 +98,9 @@ public class MultiChannelMergeSort
         running = false;
         lastUT = 0L;
         inputMap = new HashMap<Long, Node<DAQBuffer>>();
-        q = new MeteredQueue(queueMeter, maxQueue);
+        final QueueStrategy<ByteBuffer> queue =
+          QueueProvider.Subsystem.SORTER_INPUT.createQueue(maxQueue);
+        q = new MeteredQueue(queue, queueMeter);
         inputCounter = 0;
         outputCounter = 0;
 
@@ -106,7 +112,7 @@ public class MultiChannelMergeSort
     public MultiChannelMergeSort(int nch, BufferConsumer out,
                                  String channelType)
     {
-        this(nch, out, channelType, 100000);
+        this(nch, out, channelType, DEFAULT_INPUT_MAX);
     }
 
     public MultiChannelMergeSort(int nch, BufferConsumer out,
@@ -114,7 +120,7 @@ public class MultiChannelMergeSort
                                  Metered.Buffered queueMeter,
                                  Metered.UTCBuffered sortMeter)
     {
-        this(nch, out, channelType, 100000, queueMeter, sortMeter);
+        this(nch, out, channelType, DEFAULT_INPUT_MAX, queueMeter, sortMeter);
     }
 
     @Override
@@ -140,7 +146,7 @@ public class MultiChannelMergeSort
     {
         try
         {
-            q.put(buf);
+            q.enqueue(buf);
         }
         catch (Throwable th)
         {
@@ -176,7 +182,7 @@ public class MultiChannelMergeSort
         {
             try
             {
-                ByteBuffer buf = q.take();
+                ByteBuffer buf = q.dequeue();
                 int inSize = buf.remaining();
 
                 DAQBuffer daqBuffer = new DAQBuffer(buf);
@@ -257,32 +263,40 @@ public class MultiChannelMergeSort
 
 
     /**
-     * Decorate a LinkedBlockingQueue with metering on put()
-     * and take().
+     * Decorate a QueueStrategy<ByteBuffer></BByteBuffer> with metering
+     * on enqueue() and dequeue().
      */
-    private class MeteredQueue extends LinkedBlockingQueue<ByteBuffer>
+    private class MeteredQueue implements QueueStrategy<ByteBuffer>
     {
+        private final QueueStrategy<ByteBuffer> queue;
         private final Metered.Buffered meter;
 
-        private MeteredQueue(final Metered.Buffered meter, int bound)
+        private MeteredQueue(final QueueStrategy<ByteBuffer> queue,
+                             final Metered.Buffered meter)
         {
-            super(bound);
+            this.queue = queue;
             this.meter = meter;
         }
 
         @Override
-        public void put(final ByteBuffer buffer) throws InterruptedException
+        public void enqueue(final ByteBuffer buffer) throws InterruptedException
         {
             meter.reportIn(buffer.remaining());
-            super.put(buffer);
+            queue.enqueue(buffer);
         }
 
         @Override
-        public ByteBuffer take() throws InterruptedException
+        public ByteBuffer dequeue() throws InterruptedException
         {
-            ByteBuffer buffer = super.take();
+            ByteBuffer buffer = queue.dequeue();
             meter.reportOut(buffer.remaining());
             return buffer;
+        }
+
+        @Override
+        public int size()
+        {
+            return q.size();
         }
 
     }
