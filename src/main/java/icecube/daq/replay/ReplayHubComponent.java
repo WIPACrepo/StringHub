@@ -195,8 +195,11 @@ public class ReplayHubComponent
             sender.setHitCache(cache);
         }
 
+        IByteBufferCache rdoutReqCache  =
+            new VitreousBufferCache("SHRReq#" + hubId);
+        addCache(DAQConnector.TYPE_READOUT_REQUEST, rdoutReqCache);
         ReadoutRequestFactory rdoutReqFactory =
-            new ReadoutRequestFactory(cache);
+            new ReadoutRequestFactory(rdoutReqCache);
 
         RequestReader reqIn;
         try {
@@ -415,7 +418,7 @@ public class ReplayHubComponent
                 }
 
                 try {
-                    fileReader = new PayloadByteReader(f);
+                    fileReader = new PayloadByteReader(f, cache);
                 } catch (IOException ioe) {
                     throw new DAQCompException("Cannot create " + dst +
                                                " file handler", ioe);
