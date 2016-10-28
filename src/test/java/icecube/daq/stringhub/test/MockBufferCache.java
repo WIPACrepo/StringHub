@@ -32,11 +32,6 @@ if(DEBUG)System.err.println("ALO*"+bytes+"(#"+bufsAlloc+"*"+bytesAlloc+")");
         return ByteBuffer.allocate(bytes);
     }
 
-    public void destinationClosed()
-    {
-        throw new Error("Unimplemented");
-    }
-
     public void flush()
     {
         throw new Error("Unimplemented");
