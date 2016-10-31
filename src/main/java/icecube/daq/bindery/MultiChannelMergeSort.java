@@ -263,7 +263,7 @@ public class MultiChannelMergeSort
 
 
     /**
-     * Decorate a QueueStrategy<ByteBuffer></BByteBuffer> with metering
+     * Decorate a QueueStrategy&lt;ByteBuffer&gt; with metering
      * on enqueue() and dequeue().
      */
     private class MeteredQueue implements QueueStrategy<ByteBuffer>
@@ -296,7 +296,7 @@ public class MultiChannelMergeSort
         @Override
         public int size()
         {
-            return q.size();
+            return queue.size();
         }
 
     }
