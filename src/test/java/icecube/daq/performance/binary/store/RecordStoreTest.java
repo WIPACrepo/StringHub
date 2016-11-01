@@ -20,7 +20,7 @@ public class RecordStoreTest
 {
 
     // the number of iterations required to force a race condition
-    private static int RACINESS = 100;
+    private static int RACINESS = 1000;
 
     @Test
     public void testUnsychronizedMock() throws InterruptedException
@@ -30,7 +30,7 @@ public class RecordStoreTest
 
         PrunableMethods methods = new PrunableMethods(mock, RACINESS);
 
-        AsyncClient[] clients = new AsyncClient[2];
+        AsyncClient[] clients = new AsyncClient[4];
         for (int i = 0; i < clients.length; i++)
         {
             clients[i] = new AsyncClient(methods);
