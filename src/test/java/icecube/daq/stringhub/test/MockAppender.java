@@ -2,6 +2,7 @@ package icecube.daq.stringhub.test;
 
 import icecube.daq.common.IDAQAppender;
 
+import java.io.PrintStream;
 import java.util.ArrayList;
 
 import org.apache.log4j.Appender;
@@ -94,7 +95,7 @@ public class MockAppender
             }
 
             if (verbose) {
-                dumpEvent(evt);
+                dumpEvent(System.err, evt);
             }
         }
     }
@@ -104,17 +105,27 @@ public class MockAppender
      *
      * @param evt logging event
      */
-    private void dumpEvent(LoggingEvent evt)
+    public void dumpEvent(int i)
+    {
+        dumpEvent(System.err, getEvent(i));
+    }
+
+    /**
+     * Dump a logging event to the specified output destination
+     *
+     * @param out output destination
+     * @param evt logging event
+     */
+    private void dumpEvent(PrintStream out, LoggingEvent evt)
     {
         LocationInfo loc = evt.getLocationInformation();
 
-        System.out.println(evt.getLoggerName() + " " + evt.getLevel() +
-                           " [" + loc.fullInfo + "] " +
-                           evt.getMessage());
+        out.println(evt.getLoggerName() + " " + evt.getLevel() + " [" +
+                    loc.fullInfo + "] " + evt.getMessage());
 
         String[] stack = evt.getThrowableStrRep();
         for (int i = 0; stack != null && i < stack.length; i++) {
-            System.out.println("> " + stack[i]);
+            out.println("> " + stack[i]);
         }
     }
 
