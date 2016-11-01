@@ -32,7 +32,9 @@ import org.apache.log4j.varia.NullAppender;
 
 import org.junit.After;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import static org.junit.Assert.*;
 
 class MockAlertQueue
@@ -189,6 +191,9 @@ public class RunMonitorTest
 
     private static Random random = new Random(12345678L);
 
+    @Rule
+    public TestName name = new TestName();
+
     @BeforeClass
     public static void setupClass()
     {
@@ -201,8 +206,15 @@ public class RunMonitorTest
     public void teardown()
     {
         try {
-            assertEquals("Bad number of log messages",
-                         0, appender.getNumberOfMessages());
+            if (appender.getNumberOfMessages() > 0) {
+                System.err.println("Extra " + name.getMethodName() +
+                                   " log messages");
+                for (int i = 0; i < appender.getNumberOfMessages(); i++) {
+                    appender.dumpEvent(i);
+                }
+                fail("Found " +  appender.getNumberOfMessages() +
+                     " unexpected log messages");
+            }
         } finally {
             appender.clear();
         }
@@ -359,19 +371,19 @@ public class RunMonitorTest
     {
         int numAttempts = 0;
         while (runMon.getRunNumber() != runNum) {
+            if (numAttempts++ >= maxAttempts) {
+                final String errmsg =
+                    String.format("Run number did not switch to %s (now %d)",
+                                  runNum, runMon.getRunNumber());
+                throw new Error(errmsg);
+            }
+
             Thread.yield();
 
             try {
                 Thread.sleep(100);
             } catch (InterruptedException ie) {
                 // ignore interrupts
-            }
-
-            if (++numAttempts >= maxAttempts) {
-                final String errmsg =
-                    String.format("Run number did not switch to %s (now %d)",
-                                  runNum, runMon.getRunNumber());
-                throw new Error(errmsg);
             }
         }
     }
@@ -424,6 +436,15 @@ public class RunMonitorTest
         RunMonitor runMon = new RunMonitor(string, aq);
         runMon.start();
 
+
+        final long DOM0 = 111111111L;
+        final long DOM1 = 123456789L;
+
+        List<DOMInfo> cfgDOMList = new ArrayList<DOMInfo>();
+        cfgDOMList.add(new DOMInfo(DOM0, string, 7));
+        cfgDOMList.add(new DOMInfo(DOM1, string, 62));
+
+        runMon.setConfiguredDOMs(cfgDOMList);
         waitForThreadStart(runMon);
 
         // push some data before the run
@@ -446,7 +467,7 @@ public class RunMonitorTest
         runMon.join();
 
         // check alert counts for the run
-        assertEquals("Did not receive monitoring data", 1, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 3, aq.getNumPushed());
     }
 
     @Test
@@ -458,6 +479,15 @@ public class RunMonitorTest
         MockAlertQueue aq = new MockAlertQueue();
         RunMonitor runMon = new RunMonitor(string, aq);
         runMon.start();
+
+        final long DOM0 = 111111111L;
+        final long DOM1 = 123456789L;
+
+        List<DOMInfo> cfgDOMList = new ArrayList<DOMInfo>();
+        cfgDOMList.add(new DOMInfo(DOM0, string, 7));
+        cfgDOMList.add(new DOMInfo(DOM1, string, 62));
+
+        runMon.setConfiguredDOMs(cfgDOMList);
 
         waitForThreadStart(runMon);
 
@@ -478,7 +508,7 @@ public class RunMonitorTest
         waitForRunSwitch(runMon, runNum, 100);
 
         // check alert count from the first run
-        assertEquals("Did not receive monitoring data", 1, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 3, aq.getNumPushed());
 
         // push some data for the second run
         runMon.pushGPSProcfileNotReady(string, 3);
@@ -490,7 +520,7 @@ public class RunMonitorTest
         waitForRunSwitch(runMon, runNum, 100);
 
         // check alert count from the second run
-        assertEquals("Did not receive monitoring data", 2, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 6, aq.getNumPushed());
 
         // push some data for the third run
         runMon.pushGPSProcfileNotReady(string, 5);
@@ -500,7 +530,7 @@ public class RunMonitorTest
         runMon.join();
 
         // check alert count from the third run
-        assertEquals("Did not receive monitoring data", 3, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 9, aq.getNumPushed());
     }
 
     @Test
@@ -512,6 +542,15 @@ public class RunMonitorTest
         MockAlertQueue aq = new MockAlertQueue();
         RunMonitor runMon = new RunMonitor(string, aq);
         runMon.start();
+
+        final long DOM0 = 111111111L;
+        final long DOM1 = 123456789L;
+
+        List<DOMInfo> cfgDOMList = new ArrayList<DOMInfo>();
+        cfgDOMList.add(new DOMInfo(DOM0, string, 7));
+        cfgDOMList.add(new DOMInfo(DOM1, string, 62));
+
+        runMon.setConfiguredDOMs(cfgDOMList);
 
         waitForThreadStart(runMon);
 
@@ -532,7 +571,7 @@ public class RunMonitorTest
         waitForRunSwitch(runMon, runNum, 100);
 
         // check alert count from the first run
-        assertEquals("Did not receive monitoring data", 1, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 3, aq.getNumPushed());
 
         // push data for the second run
         runMon.pushGPSProcfileNotReady(string, 3);
@@ -543,7 +582,7 @@ public class RunMonitorTest
         runMon.join();
 
         // check alert counts from the second run
-        assertEquals("Did not receive monitoring data", 2, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 6, aq.getNumPushed());
         assertEquals("Run number should not be set", RunMonitor.NO_ACTIVE_RUN,
                      runMon.getRunNumber());
 
@@ -561,7 +600,7 @@ public class RunMonitorTest
         waitForRunSwitch(runMon, runNum, 100);
 
         // check alert counts from the second run
-        assertEquals("Did not receive monitoring data", 2, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 6, aq.getNumPushed());
 
         // push data for the third run
         runMon.pushGPSProcfileNotReady(string, 7);
@@ -572,7 +611,7 @@ public class RunMonitorTest
         runMon.join();
 
         // check alert counts from the third run
-        assertEquals("Did not receive monitoring data", 3, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 9, aq.getNumPushed());
     }
 
     @Test
@@ -607,7 +646,7 @@ public class RunMonitorTest
         runMon.stop();
         runMon.join();
 
-        assertEquals("Did not receive monitoring data", 1, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 2, aq.getNumPushed());
     }
 
     @Test
@@ -619,6 +658,15 @@ public class RunMonitorTest
         MockAlertQueue aq = new MockAlertQueue();
         RunMonitor runMon = new RunMonitor(string, aq);
         runMon.start();
+
+        final long DOM0 = 111111111L;
+        final long DOM1 = 123456789L;
+
+        List<DOMInfo> cfgDOMList = new ArrayList<DOMInfo>();
+        cfgDOMList.add(new DOMInfo(DOM0, string, 7));
+        cfgDOMList.add(new DOMInfo(DOM1, string, 62));
+
+        runMon.setConfiguredDOMs(cfgDOMList);
 
         final int CARD1 = 1;
         final int CARD5 = 5;
@@ -637,7 +685,7 @@ public class RunMonitorTest
         runMon.stop();
         runMon.join();
 
-        assertEquals("Did not receive monitoring data", 1, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 3, aq.getNumPushed());
 
         try {
             assertEquals("Bad number of log messages",
@@ -722,7 +770,7 @@ public class RunMonitorTest
         runMon.stop();
         runMon.join();
 
-        assertEquals("Did not receive monitoring data", 1, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 2, aq.getNumPushed());
 
         checkRapcalLogMsgs(expLog);
     }
@@ -768,7 +816,7 @@ public class RunMonitorTest
         runMon.stop();
         runMon.join();
 
-        assertEquals("Did not receive monitoring data", 1, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 2, aq.getNumPushed());
 
         checkRapcalLogMsgs(expLog);
     }
@@ -783,6 +831,15 @@ public class RunMonitorTest
         RunMonitor runMon = new RunMonitor(string, aq);
         runMon.start();
 
+
+        final long DOM0 = 111111111L;
+        final long DOM1 = 123456789L;
+
+        List<DOMInfo> cfgDOMList = new ArrayList<DOMInfo>();
+        cfgDOMList.add(new DOMInfo(DOM0, string, 7));
+        cfgDOMList.add(new DOMInfo(DOM1, string, 62));
+
+        runMon.setConfiguredDOMs(cfgDOMList);
         waitForThreadStart(runMon);
 
         GPSInfo fakeInfo = createGPSInfo(1, 2, 3, 4, GPSQuality.VERY_GOOD,
@@ -808,7 +865,7 @@ public class RunMonitorTest
         runMon.join();
 
         // check alert counts for the run
-        assertEquals("Did not receive monitoring data", 1, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 3, aq.getNumPushed());
     }
 
     @Test
@@ -857,7 +914,7 @@ public class RunMonitorTest
         runMon.join();
 
         // check alert counts for the run
-        assertEquals("Did not receive monitoring data", 1, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 3, aq.getNumPushed());
     }
 
     @Test
@@ -892,6 +949,6 @@ public class RunMonitorTest
         runMon.stop();
         runMon.join();
 
-        assertEquals("Did not receive monitoring data", 1, aq.getNumPushed());
+        assertEquals("Did not receive monitoring data", 3, aq.getNumPushed());
     }
 }
