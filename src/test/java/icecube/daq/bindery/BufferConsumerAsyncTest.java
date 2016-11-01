@@ -26,12 +26,14 @@ import static org.junit.Assert.*;
  */
 public class BufferConsumerAsyncTest
 {
-
     private static MockAppender appender;
     MockConsumer mockConsumer;
     BufferConsumerAsync subject;
     private final int NUM_TEST_BUFFERS = 500000;
     private final int MAX_BUFFERS = NUM_TEST_BUFFERS+1;
+
+    // Set huge to support automated testing on sluggish virtual machine.
+    public static final int NOMINAL_SYNC_MILLIS = 5000;
 
     @BeforeClass
     public static void setupLogging()
@@ -121,7 +123,7 @@ public class BufferConsumerAsyncTest
 
         try
         {
-            subject.sync(1000);
+            subject.sync(NOMINAL_SYNC_MILLIS);
             fail("Sync did not timeout");
         }
         catch (IOException ex)
@@ -131,7 +133,7 @@ public class BufferConsumerAsyncTest
 
         mockConsumer.consumptionLock.unlock();
 
-        subject.sync(1000);
+        subject.sync(NOMINAL_SYNC_MILLIS);
 
         assertTrue("Did not sync to marker", mockConsumer.lastBuffer == marker);
 
@@ -182,7 +184,7 @@ public class BufferConsumerAsyncTest
 
         mockConsumer.consumptionLock.unlock();
 
-        subject.sync(1000);
+        subject.sync(NOMINAL_SYNC_MILLIS);
 
         assertTrue("Marker should have been discarded",
                 mockConsumer.lastBuffer != marker);
@@ -252,7 +254,7 @@ public class BufferConsumerAsyncTest
         assertTrue("Should have blocked a second instead of " +
                 blockDelay.get(), blockDelay.get() > 1000000000);
 
-        subject.sync(1000);
+        subject.sync(NOMINAL_SYNC_MILLIS);
 
         assertTrue("Marker should have been delivered",
                 mockConsumer.lastBuffer == marker);
@@ -289,7 +291,7 @@ public class BufferConsumerAsyncTest
 
         ByteBuffer marker = ByteBuffer.allocate(128);
         subject.consume(marker);
-        subject.sync(1000);
+        subject.sync(NOMINAL_SYNC_MILLIS);
 
         mockConsumer.errorOnConsume = true;
 
