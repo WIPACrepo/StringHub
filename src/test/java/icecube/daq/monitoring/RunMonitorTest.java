@@ -192,7 +192,7 @@ public class RunMonitorTest
     private static Random random = new Random(12345678L);
 
     @Rule
-    public TestName name = new TestName();
+    public TestName testName = new TestName();
 
     @BeforeClass
     public static void setupClass()
@@ -207,7 +207,7 @@ public class RunMonitorTest
     {
         try {
             if (appender.getNumberOfMessages() > 0) {
-                System.err.println("Extra " + name.getMethodName() +
+                System.err.println("Extra " + testName.getMethodName() +
                                    " log messages");
                 for (int i = 0; i < appender.getNumberOfMessages(); i++) {
                     appender.dumpEvent(i);
