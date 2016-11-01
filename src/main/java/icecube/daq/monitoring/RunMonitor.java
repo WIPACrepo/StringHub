@@ -1326,6 +1326,10 @@ public class RunMonitor
      */
     public Iterable<DOMInfo> getConfiguredDOMs()
     {
+        if (mbidMap == null) {
+            throw new Error("List of configured DOMs has not been set");
+        }
+
         return mbidMap.values();
     }
 
@@ -1441,7 +1445,11 @@ public class RunMonitor
                 // if all queues are empty and there's a new run number...
                 if (empty && runNumber != nextNumber) {
                     if (hasRunNumber()) {
-                        finishRun();
+                        try {
+                            finishRun();
+                        } catch (Throwable thr) {
+                            LOG.error("Cannot finish run " + runNumber, thr);
+                        }
                     }
 
                     // ...switch to the new number
@@ -1476,20 +1484,33 @@ public class RunMonitor
                 // hold a value while we're inside the lock
                 held.clear();
                 for (QueueConsumer consumer : consumers) {
-                    if (consumer.holdValue()) {
-                        held.add(consumer);
+                    try {
+                        if (consumer.holdValue()) {
+                            held.add(consumer);
+                        }
+                    } catch (Throwable thr) {
+                        LOG.error("Cannot hold value for " + consumer, thr);
                     }
                 }
             }
 
             // now that we're outside the lock, process stashed values
             for (QueueConsumer consumer : held) {
-                consumer.processHeldValue();
+                try {
+                    consumer.processHeldValue();
+                } catch (Throwable thr) {
+                    LOG.error("Cannot process held value for " + consumer,
+                              thr);
+                }
             }
         }
 
         if (hasRunNumber()) {
-            finishRun();
+            try {
+                finishRun();
+            } catch (Throwable thr) {
+                LOG.error("Cannot finish run " + runNumber, thr);
+            }
             runNumber = NO_ACTIVE_RUN;
             stopTime = null;
         }
