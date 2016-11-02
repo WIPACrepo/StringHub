@@ -227,8 +227,8 @@ public class BufferConsumerAsyncTest
             {
                 try
                 {
-                    startLatch.countDown();
                     long start = System.nanoTime();
+                    startLatch.countDown();
                     subject.consume(marker);
                     long stop = System.nanoTime();
                     blockDelay.set(stop-start);
@@ -246,13 +246,16 @@ public class BufferConsumerAsyncTest
 
         // ensure submitter is good and blocked
         startLatch.await();
+        long before = System.nanoTime();
         try{ Thread.sleep(1000);} catch (InterruptedException e){}
+        long after = System.nanoTime();
 
         mockConsumer.consumptionLock.unlock();
 
+        long minDelay = after - before;
         submitThread.join();
-        assertTrue("Should have blocked a second instead of " +
-                blockDelay.get(), blockDelay.get() > 1000000000);
+        assertTrue("Should have blocked a " + minDelay + " instead of " +
+                blockDelay.get(), blockDelay.get() > minDelay);
 
         subject.sync(NOMINAL_SYNC_MILLIS);
 
