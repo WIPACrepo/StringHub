@@ -224,6 +224,9 @@ class MyMonitor
 public class DSBGPSServiceTest
 {
 
+    // Set huge to support automated testing on sluggish virtual machine.
+    public static final int NOMINAL_WAIT_MILLIS = 5000;
+
     // storage for possible live objects created during tests
     interface ByProduct
     {
@@ -296,7 +299,7 @@ public class DSBGPSServiceTest
         // use before starting
         try
         {
-            subject.waitForReady(5, 1000);
+            subject.waitForReady(5, NOMINAL_WAIT_MILLIS);
             fail("Expected Error");
         }
         catch (Throwable th)
@@ -336,7 +339,7 @@ public class DSBGPSServiceTest
 
         subject.startService(0);
 
-        assertTrue("Should be ready", subject.waitForReady(0, 1000));
+        assertTrue("Should be ready", subject.waitForReady(0, NOMINAL_WAIT_MILLIS));
 
         GPSInfo gps = subject.getGps(0);
         assertEquals("", 1235251125L, gps.getDorclk());
@@ -362,7 +365,7 @@ public class DSBGPSServiceTest
 
         subject.startService(0);
 
-        assertFalse("Should not be ready", subject.waitForReady(0, 1000));
+        assertFalse("Should not be ready", subject.waitForReady(0, NOMINAL_WAIT_MILLIS));
         try
         {
             subject.getGps(0);
@@ -378,7 +381,7 @@ public class DSBGPSServiceTest
         // recover
         driver.setValue(generateGPSInfo("222:11:22:33", 1251451451L));
         driver.setMode(MockGPSDriver.Mode.Value);
-        assertTrue("Should be ready", subject.waitForReady(0, 1000));
+        assertTrue("Should be ready", subject.waitForReady(0, NOMINAL_WAIT_MILLIS));
         GPSInfo gps = subject.getGps(0);
         assertEquals("", 1251451451L, gps.getDorclk());
         assertEquals("", 191352904274274500L, gps.getOffset().in_0_1ns());
@@ -389,7 +392,7 @@ public class DSBGPSServiceTest
         driver.setException(new GPSNotReady("test2"));
         try{ Thread.sleep(1000);} catch (InterruptedException e){}
 
-        assertTrue("Should be ready", subject.waitForReady(0, 1000));
+        assertTrue("Should be ready", subject.waitForReady(0, NOMINAL_WAIT_MILLIS));
         gps = subject.getGps(0);
         assertEquals("", 1251451451L, gps.getDorclk());
         assertEquals("", 191352904274274500L, gps.getOffset().in_0_1ns());
