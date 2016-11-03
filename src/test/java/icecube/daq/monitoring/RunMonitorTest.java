@@ -1,5 +1,6 @@
 package icecube.daq.monitoring;
 
+import icecube.daq.common.MockAppender;
 import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.TimeCalib;
@@ -10,7 +11,6 @@ import icecube.daq.payload.IUTCTime;
 import icecube.daq.rapcal.BadTCalException;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.Isochron;
-import icecube.daq.stringhub.test.MockAppender;
 import icecube.daq.util.DOMInfo;
 import icecube.daq.util.IDOMRegistry;
 

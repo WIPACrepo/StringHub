@@ -1,8 +1,8 @@
 package icecube.daq.configuration;
 
+import icecube.daq.common.MockAppender;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.juggler.component.DAQCompException;
-import icecube.daq.stringhub.test.MockAppender;
 import icecube.daq.util.DOMInfo;
 import icecube.daq.util.DOMRegistryException;
 import icecube.daq.util.DOMRegistryFactory;

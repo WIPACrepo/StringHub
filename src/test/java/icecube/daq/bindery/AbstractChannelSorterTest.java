@@ -1,6 +1,7 @@
 package icecube.daq.bindery;
 
-import icecube.daq.stringhub.test.MockAppender;
+import icecube.daq.common.MockAppender;
+
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;

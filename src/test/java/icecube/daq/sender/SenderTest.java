@@ -1,6 +1,7 @@
 package icecube.daq.sender;
 
 import icecube.daq.common.EventVersion;
+import icecube.daq.common.MockAppender;
 import icecube.daq.io.DAQOutputChannelManager;
 import icecube.daq.io.OutputChannel;
 import icecube.daq.payload.IDOMID;
@@ -13,7 +14,6 @@ import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.impl.DOMHit;
 import icecube.daq.payload.impl.DeltaHitRecord;
 import icecube.daq.payload.impl.EngineeringHitRecord;
-import icecube.daq.stringhub.test.MockAppender;
 import icecube.daq.stringhub.test.MockBufferCache;
 import icecube.daq.stringhub.test.MockReadoutRequest;
 import icecube.daq.stringhub.test.MockUTCTime;

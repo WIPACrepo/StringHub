@@ -1,7 +1,7 @@
 package icecube.daq.stringhub;
 
 import icecube.daq.bindery.BufferConsumer;
-import icecube.daq.stringhub.test.MockAppender;
+import icecube.daq.common.MockAppender;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -40,8 +40,7 @@ public class FilesHitSpoolTest
     @After
     public void tearDown() throws Exception
     {
-        assertEquals("Bad number of log messages",
-                     0, appender.getNumberOfMessages());
+        appender.assertNoLogMessages();
     }
 
     @Test
@@ -67,9 +66,7 @@ public class FilesHitSpoolTest
         new FilesHitSpool(null, badConfigDir, new File("/tmp"));
 
         // nothing logged if headers are not packed
-        assertEquals("Bad number of log messages",
-                     0, appender.getNumberOfMessages());
-        appender.clear();
+        appender.assertNoLogMessages();
     }
 
     @Test
@@ -132,13 +129,10 @@ public class FilesHitSpoolTest
                      numHits, cc.getNumberConsumed());
 
         // validate error message
-        assertEquals("Unexpected number of log messages",
-                     1, appender.getNumberOfMessages());
         final String expMsg =
             String.format("Skipping short buffer (%d bytes)", buf.limit());
-        assertEquals("Bad log message",
-                     expMsg, (String) appender.getMessage(0));
-        appender.clear();
+        appender.assertLogMessage(expMsg);
+        appender.assertNoLogMessages();
     }
 
     @Test

@@ -1,6 +1,6 @@
 package icecube.daq.monitoring;
 
-import icecube.daq.stringhub.test.MockAppender;
+import icecube.daq.common.MockAppender;
 
 import java.util.ArrayList;
 

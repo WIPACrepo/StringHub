@@ -2,12 +2,13 @@ package icecube.daq.bindery;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import cern.jet.random.Exponential;
 import cern.jet.random.engine.MersenneTwister;
 import cern.jet.random.engine.RandomEngine;
 
-import icecube.daq.stringhub.test.MockAppender;
+import icecube.daq.common.MockAppender;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -33,8 +34,7 @@ public class StreamBinderGeneratorTest {
 	@After
 	public void tearDown() throws Exception 
 	{
-		assertEquals("Bad number of log messages",
-			     0, appender.getNumberOfMessages());
+		appender.assertNoLogMessages();
 	}
 
 	/**

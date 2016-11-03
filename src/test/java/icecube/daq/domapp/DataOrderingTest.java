@@ -1,6 +1,7 @@
 package icecube.daq.domapp;
 
 import icecube.daq.bindery.BufferConsumer;
+import icecube.daq.common.MockAppender;
 import icecube.daq.domapp.dataprocessor.DataDispatcher;
 import icecube.daq.domapp.dataprocessor.DataProcessor;
 import icecube.daq.domapp.dataprocessor.DataProcessorError;
@@ -9,7 +10,6 @@ import icecube.daq.domapp.dataprocessor.MockBufferConsumer;
 import icecube.daq.domapp.dataprocessor.MockRapCal;
 import icecube.daq.domapp.dataprocessor.UTCDispatcher;
 import icecube.daq.rapcal.RAPCal;
-import icecube.daq.stringhub.test.MockAppender;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
