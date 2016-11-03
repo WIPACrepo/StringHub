@@ -183,11 +183,23 @@ public class PrioritySort
     }
 
     /**
-     * Wait for sorter thread to finish
+     * Are any sorter threads still active?
+     * @return <tt>true</tt> if one or more sorter threads are active
      */
-    public void join()
+    @Override
+    public boolean isRunning()
     {
-        sorter.waitForStop();
+        return sorter.isRunning();
+    }
+
+    /**
+     * Wait for sorter thread to finish
+     * @param millis milliseconds to wait
+     */
+    public void join(long millis)
+        throws SorterException
+    {
+        sorter.waitForStop(millis);
     }
 
     /**

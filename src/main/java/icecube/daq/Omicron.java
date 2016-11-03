@@ -263,12 +263,12 @@ public class Omicron {
             logger.warn("No DataCollectors left to start, aborting run");
         }
 
-        hitsSort.join();
+        hitsSort.join(Long.MAX_VALUE);
         asyncHitConsumer.join();
 
-        moniSort.join();
-        scalSort.join();
-        tcalSort.join();
+        moniSort.join(Long.MAX_VALUE);
+        scalSort.join(Long.MAX_VALUE);
+        tcalSort.join(Long.MAX_VALUE);
 
         // kill GPS services
         GPSService.getInstance().shutdownAll();

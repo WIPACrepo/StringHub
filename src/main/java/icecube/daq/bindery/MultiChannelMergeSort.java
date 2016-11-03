@@ -123,10 +123,20 @@ public class MultiChannelMergeSort
         this(nch, out, channelType, DEFAULT_INPUT_MAX, queueMeter, sortMeter);
     }
 
+    /**
+     * Are any sorter threads still active?
+     * @return <tt>true</tt> if one or more sorter threads are active
+     */
     @Override
-    public void join() throws InterruptedException
+    public boolean isRunning()
     {
-        thread.join();
+        return thread.isAlive();
+    }
+
+    @Override
+    public void join(long millis) throws InterruptedException
+    {
+        thread.join(millis);
     }
 
     @Override

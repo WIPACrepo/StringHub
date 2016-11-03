@@ -104,7 +104,12 @@ public abstract class AbstractChannelSorterTest
             }
         }
 
-        mms.join();
+        try {
+            mms.join(10000);
+        } catch (InterruptedException ie) {
+            // ignore interrupts
+        }
+        assertFalse(mms.toString() + " thread never finished", mms.isRunning());
 
         // XXX throw away all log messages
         appender.clear();
@@ -146,7 +151,8 @@ public abstract class AbstractChannelSorterTest
 
         for (int ch = 0; ch < nch; ch++) genArr[ch].signalStop();
         for (int ch = 0; ch < nch; ch++) genArr[ch].join();
-        mms.join();
+        mms.join(1000);
+        assertFalse(mms.toString() + " thread never finished", mms.isRunning());
 
         logger.info(
                 "MMS in: " + mms.getNumberOfInputs() +
@@ -202,7 +208,8 @@ public abstract class AbstractChannelSorterTest
             generators[ch].join();
         }
 
-        mms.join();
+        mms.join(1000);
+        assertFalse(mms.toString() + " thread never finished", mms.isRunning());
 
         assertTrue("Sorter Did not run in debug", mockConsumer.numBuffersSeen > 0);
     }
@@ -231,7 +238,8 @@ public abstract class AbstractChannelSorterTest
             mms.consume(MultiChannelMergeSort.eos(ch));
         }
 
-        mms.join();
+        mms.join(1000);
+        assertFalse(mms.toString() + " thread never finished", mms.isRunning());
 
         assertEquals("Missing Inputs", 3 * nch, mms.getNumberOfInputs());
         assertEquals("Wrong Outputs", 2 * nch, mms.getNumberOfOutputs());
@@ -300,7 +308,8 @@ public abstract class AbstractChannelSorterTest
             mms.consume(MultiChannelMergeSort.eos(ch));
         }
 
-        mms.join();
+        mms.join(1000);
+        assertFalse(mms.toString() + " thread never finished", mms.isRunning());
 
         assertEquals("Missing Inputs", 2 * nch, mms.getNumberOfInputs());
         assertEquals("Wrong Outputs", nch, mms.getNumberOfOutputs());
@@ -324,7 +333,8 @@ public abstract class AbstractChannelSorterTest
             mms.endOfStream(ch);
         }
 
-        mms.join();
+        mms.join(1000);
+        assertFalse(mms.toString() + " thread never finished", mms.isRunning());
 
         assertEquals("Missing Inputs", 2*nch, mms.getNumberOfInputs());
         assertEquals("Wrong Outputs", nch, mms.getNumberOfOutputs());
@@ -345,7 +355,8 @@ public abstract class AbstractChannelSorterTest
             mms.consume(BufferGenerator.generateBuffer(ch, Long.MAX_VALUE));
         }
 
-        mms.join();
+        mms.join(1000);
+        assertFalse(mms.toString() + " thread never finished", mms.isRunning());
 
         assertEquals("Missing Inputs", 2*nch, mms.getNumberOfInputs());
         assertEquals("Wrong Outputs", nch, mms.getNumberOfOutputs());
@@ -378,7 +389,8 @@ public abstract class AbstractChannelSorterTest
             mms.consume(BufferGenerator.generateBuffer(ch, 1500 + ch));
         }
 
-        mms.join();
+        mms.join(1000);
+        assertFalse(mms.toString() + " thread never finished", mms.isRunning());
 
         assertEquals("Missing Inputs", nch+1, mms.getNumberOfInputs());
         assertEquals("Wrong Outputs", 1, mms.getNumberOfOutputs());
