@@ -1,6 +1,7 @@
 /* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
 package icecube.daq.stringhub;
 
+import icecube.daq.io.BlockingOutputEngine;
 import icecube.daq.bindery.AsyncSorterOutput;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.PrioritySort;
@@ -77,11 +78,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javax.xml.parsers.ParserConfigurationException;
-
 import org.apache.log4j.Logger;
-
-import org.xml.sax.SAXException;
 
 public class StringHubComponent
 	extends DAQComponent
@@ -106,10 +103,10 @@ public class StringHubComponent
 	private IByteBufferCache moniBufMgr, tcalBufMgr, snBufMgr;
 	private PayloadReader reqIn;
 	private SimpleOutputEngine moniOut;
-	private SimpleOutputEngine tcalOut;
-	private SimpleOutputEngine supernovaOut;
-	private SimpleOutputEngine hitOut;
-	private SimpleOutputEngine dataOut;
+	private DAQComponentOutputProcess tcalOut;
+	private DAQComponentOutputProcess supernovaOut;
+	private DAQComponentOutputProcess hitOut;
+	private DAQComponentOutputProcess dataOut;
 	private DOMConnector conn;
 	private ChannelSorter hitsSort;
 	private ChannelSorter moniSort;
@@ -128,6 +125,19 @@ public class StringHubComponent
 	private ArrayList<PrioritySort> prioList = new ArrayList<PrioritySort>();
 
 	private boolean forceRandom;
+
+    /** Configurable factory for selecting the hit output engine type. */
+    private OutputProcessFactory hitOutImplementation =
+            OutputProcessFactory.valueOf(System.getProperty(
+                    "icecube.daq.stringhub.StringHubComponent.hitOutType",
+                    OutputProcessFactory.BLOCKING_128K.name()));
+
+    /** Configurable factory for selecting the data output engine type. */
+    private OutputProcessFactory dataOutImplementation =
+            OutputProcessFactory.valueOf(System.getProperty(
+                    "icecube.daq.stringhub.StringHubComponent.dataOutType",
+                    OutputProcessFactory.BLOCKING_8K.name()));
+
 
 	public StringHubComponent(int hubId)
 	{
@@ -208,8 +218,8 @@ public class StringHubComponent
 		if (minorHubId > 0) {
 			// all non-AMANDA hubs send hits to a trigger
 			if (includeHitOut) {
-				hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId,
-												"hitOut");
+                hitOut = hitOutImplementation.create(COMPONENT_NAME, hubId,
+                        "hitOut");
 			}
 			if (SourceIdRegistry.isIcetopHubSourceID(fullId)) {
 				if (hitOut != null) {
@@ -238,10 +248,10 @@ public class StringHubComponent
 		}
 
 		if (includeDataOut) {
-			dataOut =
-				new SimpleOutputEngine(COMPONENT_NAME, hubId, "dataOut");
+			dataOut = dataOutImplementation.create(COMPONENT_NAME, hubId,
+                    "dataOut");
 			addMonitoredEngine(DAQConnector.TYPE_READOUT_DATA, dataOut);
-			sender.setDataOutput(dataOut);
+            sender.setDataOutput(dataOut);
 		}
 
 		MonitoringData monData = new MonitoringData();
@@ -1143,7 +1153,7 @@ public class StringHubComponent
 			// throw new DAQCompException(e.getMessage());
 		}
 
-		SimpleOutputEngine[] eng = new SimpleOutputEngine[] {
+		DAQComponentOutputProcess[] eng = new DAQComponentOutputProcess[] {
 			moniOut, supernovaOut, tcalOut
 		};
 
@@ -1197,7 +1207,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16272 2016-10-25 21:25:18Z bendfelt $";
+		return "$Id: StringHubComponent.java 16318 2016-11-03 20:56:54Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1486,4 +1496,79 @@ public class StringHubComponent
             return narrow;
         }
     }
+
+
+    /**
+     * An enumerated factory for output engine selection.
+     */
+    private enum OutputProcessFactory
+    {
+        SIMPLE
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new SimpleOutputEngine(componentName,
+                                hubId, type);
+                    }
+                },
+        BLOCKING_1K
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new BlockingOutputEngine(1024);
+                    }
+                },
+        BLOCKING_8K
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new BlockingOutputEngine(8 * 1024);
+                    }
+                },
+        BLOCKING_32K
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new BlockingOutputEngine(32 * 1024);
+                    }
+                },
+        BLOCKING_64k
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new BlockingOutputEngine(64 * 1024);
+                    }
+                },
+        BLOCKING_128K
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new BlockingOutputEngine(128 * 1024);
+                    }
+                };
+
+        abstract DAQComponentOutputProcess create(String componentName,
+                                                      int hubId,
+                                                      String type);
+
+    }
+
 }
