@@ -293,7 +293,7 @@ public class DSBGPSService implements IGPSService
             {
                 // Probably not OK, but defer serious consequences until
                 // the next read(s).
-                logger.warn("Ignoring GPS exception " + gpsx.getMessage());
+                logger.warn("Ignoring GPS exception: ", gpsx);
             }
 
 
