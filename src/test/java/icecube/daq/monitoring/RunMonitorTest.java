@@ -205,19 +205,7 @@ public class RunMonitorTest
     @After
     public void teardown()
     {
-        try {
-            if (appender.getNumberOfMessages() > 0) {
-                System.err.println("Extra " + testName.getMethodName() +
-                                   " log messages");
-                for (int i = 0; i < appender.getNumberOfMessages(); i++) {
-                    appender.dumpEvent(i);
-                }
-                fail("Found " +  appender.getNumberOfMessages() +
-                     " unexpected log messages");
-            }
-        } finally {
-            appender.clear();
-        }
+        appender.assertNoLogMessages();
     }
 
     private void addRapcalLogMsg(List<String> expLog, List<DOMInfo> doms,
@@ -253,16 +241,10 @@ public class RunMonitorTest
     private void checkRapcalLogMsgs(List<String> expLogs)
     {
         try {
-            assertEquals("Bad number of log messages",
-                         expLogs.size(), appender.getNumberOfMessages());
-
             for (int i = 0; i < expLogs.size(); i++) {
-                if (!appender.getMessage(i).equals(expLogs.get(i))) {
-                    fail("Expected log message \"" + expLogs.get(i) +
-                         "\", not \"" + appender.getMessage(i) + "\"");
-                }
+                appender.assertLogMessage(expLogs.get(i));
             }
-
+            appender.assertNoLogMessages();
         } finally {
             appender.clear();
         }
@@ -688,9 +670,6 @@ public class RunMonitorTest
         assertEquals("Did not receive monitoring data", 3, aq.getNumPushed());
 
         try {
-            assertEquals("Bad number of log messages",
-                         4, appender.getNumberOfMessages());
-
             for (int i = 0; i < 4; i++) {
                 final String errmsg;
                 if (i == 0) {
@@ -716,11 +695,9 @@ public class RunMonitorTest
                                            tmpStr, card);
                 }
 
-                if (!appender.getMessage(i).equals(errmsg)) {
-                    fail("Unexpected log message #" + i + " \"" +
-                         appender.getMessage(i) + "\"");
-                }
+                appender.assertLogMessage(errmsg);
             }
+            appender.assertNoLogMessages();
         } finally {
             appender.clear();
         }

@@ -75,8 +75,6 @@ public abstract class AbstractChannelSorterTest
         BasicConfigurator.resetConfiguration();
         BasicConfigurator.configure(appender);
 
-        appender.clear();
-
         outOfOrderHitPolicy = getOutOfOrderHitPolicy();
         unknownMBIDPolicy = getUnknownMBIDPolicy();
         timestampTrackingPolicy = getTimestampTrackingPolicy();
@@ -107,6 +105,9 @@ public abstract class AbstractChannelSorterTest
         }
 
         mms.join();
+
+        // XXX throw away all log messages
+        appender.clear();
 
         BasicConfigurator.resetConfiguration();
     }

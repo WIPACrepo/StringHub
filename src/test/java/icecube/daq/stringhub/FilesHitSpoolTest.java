@@ -31,8 +31,6 @@ public class FilesHitSpoolTest
     @Before
     public void setUp() throws Exception
     {
-        appender.clear();
-
         BasicConfigurator.resetConfiguration();
         BasicConfigurator.configure(appender);
     }
