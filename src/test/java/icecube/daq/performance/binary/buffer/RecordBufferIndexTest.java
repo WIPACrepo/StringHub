@@ -201,7 +201,7 @@ public class RecordBufferIndexTest
         RecordBufferIndex.ArrayListIndex subject =
                 new RecordBufferIndex.ArrayListIndex();
 
-        int[] positions = randomIntProgression(1000);
+        int[] positions = randomIntProgression(1000, false);
         long[] values = randomLongProgression(1000);
 
         for (int i = 0; i < values.length; i++)
@@ -572,7 +572,7 @@ public class RecordBufferIndexTest
         }
     }
 
-    private static int[] randomIntProgression(int size)
+    private static int[] randomIntProgression(int size, boolean allowDuplicates)
     {
         int[] values = new int[size];
 
@@ -582,7 +582,15 @@ public class RecordBufferIndexTest
 
         for (int i = 1; i < values.length; i++)
         {
-            int step = (int) (Math.random() * MAX_STEP);
+            final int step;
+            if(allowDuplicates)
+            {
+                step = (int) (Math.random() * MAX_STEP);
+            }
+            else
+            {
+                step = (int) (Math.random() * (MAX_STEP-1)) + 1;
+            }
             values[i] = values[i-1] + step;
         }
 
