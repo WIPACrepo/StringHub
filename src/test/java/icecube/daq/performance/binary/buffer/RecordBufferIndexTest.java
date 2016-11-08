@@ -330,9 +330,11 @@ public class RecordBufferIndexTest
     public void testSparseBufferIndex2()
     {
         ///
-        /// Test a sparse buffer index dsampling values within the stride
+        /// Test a sparse buffer index sampling values within the stride
         ///
-        long STRIDE = (long) (Math.random() * 10000000000L);
+
+        //ensures non-zero
+        long STRIDE = (long) (Math.random() * 10000000000L) + 1;
         RecordBufferIndex.UpdatableIndex subject =
                 new RecordBufferIndex.SparseBufferIndex(STRIDE);
 
@@ -466,7 +468,7 @@ public class RecordBufferIndexTest
         ///
 
         long VALUES_STEP = Math.max(stride/10, 1);
-        int INDEX_STEP = (int) (Math.random() * 1000);
+        int INDEX_STEP = (int) (Math.random() * 1000) + 1; //ensures non-zero
 
         // no values
         assertEquals(-1, subject.lessThan(Long.MIN_VALUE));
