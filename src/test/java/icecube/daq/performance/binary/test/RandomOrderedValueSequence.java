@@ -38,24 +38,38 @@ public class RandomOrderedValueSequence
 
     public long next()
     {
-        long step = (long) (Math.random() * (maxStep+1));
+        return next(true);
+    }
 
+    public long next(boolean allowRepeatedValue)
+    {
+
+        if(lastValue == Long.MAX_VALUE)
+        {
+            throw new Error("Sequence Exhausted");
+        }
+
+        final long step;
+        if(allowRepeatedValue)
+        {
+            step = (long) (Math.random() * (maxStep));
+        }
+        else
+        {
+            step = (long) (Math.random() * (maxStep-1)) + 1;
+        }
         // arrange to always end at Long.MAX_VALUE
         if(Long.MAX_VALUE - step < lastValue)
         {
-            if(lastValue != Long.MAX_VALUE)
-            {
-                lastValue = Long.MAX_VALUE;
-                step = 0;
-            }
-            else
-            {
-                throw new Error("Sequence Exhausted");
-            }
+            lastValue = Long.MAX_VALUE;
+            return lastValue;
         }
-        lastValue += step;
+        else
+        {
+            lastValue += step;
 
-        return lastValue;
+            return lastValue;
+        }
     }
 
 
