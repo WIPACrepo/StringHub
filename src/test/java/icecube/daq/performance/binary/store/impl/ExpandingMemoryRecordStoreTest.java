@@ -76,7 +76,7 @@ public class ExpandingMemoryRecordStoreTest
         long[][] segmentBounds = new long[10][];
         for (int i = 0; i < segmentBounds.length; i++)
         {
-            long first = seq.next();
+            long first = seq.next(false);
             subject.store(generator.generate(first));
             subject.store(generator.generate(seq.next()));
             subject.store(generator.generate(seq.next()));
@@ -225,7 +225,7 @@ public class ExpandingMemoryRecordStoreTest
             long val = seq.next();
             ByteBuffer record = generator.generate(val);
             int size = record.remaining();
-            if( (bytesWritten + size) < SEGMENT_SIZE)
+            if( (bytesWritten + size) <= SEGMENT_SIZE)
             {
                 subject.store(record);
                 bytesWritten += size;
@@ -301,7 +301,7 @@ public class ExpandingMemoryRecordStoreTest
             long val = seq.next();
             ByteBuffer record = generator.generate(val);
             int size = record.remaining();
-            if( (bytesWritten + size) < SEGMENT_SIZE)
+            if( (bytesWritten + size) <= SEGMENT_SIZE)
             {
                 subject.store(record);
                 bytesWritten += size;
@@ -366,8 +366,7 @@ public class ExpandingMemoryRecordStoreTest
             val = seq.next();
             subject.store(generator.generate(val));
         }
-        while(val == seq.next()){} // eliminate random dupe
-        long repeat = seq.next();
+        long repeat = seq.next(false);// ensure not a repeat of last
         subject.store(generator.generate(repeat));
         subject.store(generator.generate(repeat));
         subject.store(generator.generate(repeat));
@@ -378,7 +377,7 @@ public class ExpandingMemoryRecordStoreTest
         subject.store(generator.generate(repeat));
         subject.store(generator.generate(repeat));
 
-        while(repeat == seq.next()){}// eliminate random dupe
+        repeat = seq.next(false);// ensure not a repeat of last
         subject.store(generator.generate(seq.next()));
         subject.store(generator.generate(seq.next()));
         subject.store(generator.generate(seq.next()));
