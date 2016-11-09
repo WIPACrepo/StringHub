@@ -1207,7 +1207,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16318 2016-11-03 20:56:54Z bendfelt $";
+		return "$Id: StringHubComponent.java 16337 2016-11-09 18:11:45Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1512,6 +1512,16 @@ public class StringHubComponent
                     {
                         return new SimpleOutputEngine(componentName,
                                 hubId, type);
+                    }
+                },
+        BLOCKING_0K
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new BlockingOutputEngine(0);
                     }
                 },
         BLOCKING_1K
