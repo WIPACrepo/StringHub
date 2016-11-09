@@ -628,8 +628,6 @@ public class DataAcquisition
         {
             String reportedMBID = null;
 
-            driver.resetComstat(card, pair, dom);
-
             boolean needSoftboot = true;
 
             // Test the condition the DOM. if it is running DOMApp,
