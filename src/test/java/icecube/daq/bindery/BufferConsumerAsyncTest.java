@@ -157,7 +157,6 @@ public class BufferConsumerAsyncTest
         subject = new BufferConsumerAsync(mockConsumer, MAX_BUFFERS,
                 BufferConsumerAsync.QueueFullPolicy.Reject,
                 "test-channel");
-        //
 
         mockConsumer.consumptionLock.lock();
 
@@ -183,6 +182,10 @@ public class BufferConsumerAsyncTest
         }
 
         mockConsumer.consumptionLock.unlock();
+
+        // we need time for the executor to process at least
+        // one buffer to make room for the sync command
+        try{ Thread.sleep(1000);} catch (InterruptedException e){}
 
         subject.sync(NOMINAL_SYNC_MILLIS);
 
