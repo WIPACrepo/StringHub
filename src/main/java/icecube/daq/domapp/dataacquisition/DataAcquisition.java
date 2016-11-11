@@ -51,17 +51,24 @@ public class DataAcquisition
     private final IDriver driver;
     private DOMApp app;
     private final File tcalFile;
-    private final ByteBuffer intervalBuffer;
 
 
     // Note: read intervals are only applicable to polling mode.
-    private long nextSupernovaRead = 0;
-    private long nextMoniRead = 0;
-    private long nextDataRead = 0;
+    private long nextSupernovaReadNanos = 0;
+    private long nextMoniReadNanos = 0;
+    private long nextDataReadNanos = 0;
 
-    private long    dataReadInterval      = 10;
-    private long    moniReadInterval      = 1000;
-    private long    supernovaReadInterval = 1000;
+
+    private long    dataReadIntervalNanos      = 10_000_000;    //10 millisec
+    private long    moniReadIntervalNanos      = 1_000_000_000; // 1 second
+    private long    supernovaReadIntervalNanos = 1_000_000_000; // 1 second
+
+    // System time of last successful tcal
+    private long lastTCalNanos;
+
+
+    // Note: interval data is only applicable to interval mode;
+    private IntervalData intervalData = new IntervalData();
 
 
     /** Wait time used when spinning on data reads. */
@@ -101,9 +108,9 @@ public class DataAcquisition
 
         tcalFile = this.driver.getTCALFile(card, pair, dom);
 
-        this.intervalBuffer = ByteBuffer.allocateDirect(4092);
-
         this.monitor = new AcquisitionMonitor(id);
+
+        this.lastTCalNanos = System.nanoTime();
     }
 
     /**
@@ -442,7 +449,8 @@ public class DataAcquisition
 
 
     /**
-     * Execute an interval acquisition.
+     * Execute an interval acquisition. This includes a tcal operation
+     * at the end of the interval.
      *
      * @param watchdog The watchdog.
      * @throws AcquisitionError
@@ -459,7 +467,7 @@ public class DataAcquisition
 
             while (!done) {
                 monitor.initiateMessageRead();
-                ByteBuffer msg = app.recvMessage(intervalBuffer);
+                ByteBuffer msg = app.recvMessage(ByteBuffer.allocate(4092));
                 monitor.reportDataMessageRcv(msg);
 
                 watchdog.ping();
@@ -472,19 +480,18 @@ public class DataAcquisition
                 // pass message payload to processor
                 if(MessageType.GET_DATA.equals(msg_type, msg_subtype)) {
                     if (msg.remaining()>0) {
+                        intervalData.accumulate(msg.slice(), DataProcessor.StreamType.HIT);
                         tired = false;
                     }
-
-                    dataProcessor.process(DataProcessor.StreamType.HIT, msg.slice());
                 } else if(MessageType.GET_SN_DATA.equals(msg_type, msg_subtype)) {
                     if (msg.remaining()>0) {
-                        dataProcessor.process(DataProcessor.StreamType.SUPERNOVA, msg.slice());
+                        intervalData.accumulate(msg.slice(), DataProcessor.StreamType.SUPERNOVA);
                         tired = false;
                     }
                     done = true;
                 } else if(MessageType.GET_MONI.equals(msg_type, msg_subtype)) {
                     if (msg.remaining()>0) {
-                        dataProcessor.process(DataProcessor.StreamType.MONI, msg.slice());
+                        intervalData.accumulate(msg.slice(), DataProcessor.StreamType.MONI);
                         tired = false;
                     }
                     // If we're not going to get a SN message, this marks the
@@ -504,6 +511,12 @@ public class DataAcquisition
                     watchdog.sleep(SPIN_WAIT_SLEEP_MILLIS);
                 }
             }
+
+            //Note: Before submitting the interval, run a tcal.  This
+            //      ensures that a bounding isochron will be available
+            //      for processing the data in the interval.
+            doTCAL(watchdog);
+            intervalData.submitAll(dataProcessor);
 
             return tired;
         }
@@ -525,7 +538,7 @@ public class DataAcquisition
     * @throws AcquisitionError
     */
     public boolean doPolling(final Watchdog watchdog,
-                             final long systemTimMillis)
+                             final long systemTimeNanos)
             throws AcquisitionError
     {
         boolean tired = true;
@@ -535,9 +548,9 @@ public class DataAcquisition
             monitor.initiateCycle();
 
             // Time to do a data collection?
-            if (systemTimMillis >= nextDataRead)
+            if (systemTimeNanos >= nextDataReadNanos)
             {
-                nextDataRead = systemTimMillis + dataReadInterval;
+                nextDataReadNanos = systemTimeNanos + dataReadIntervalNanos;
 
                 try
                 {
@@ -560,9 +573,9 @@ public class DataAcquisition
             }
 
             // What about monitoring?
-            if (systemTimMillis >= nextMoniRead)
+            if (systemTimeNanos >= nextMoniReadNanos)
             {
-                nextMoniRead = systemTimMillis + moniReadInterval;
+                nextMoniReadNanos = systemTimeNanos + moniReadIntervalNanos;
 
                 monitor.initiateMessageRead();
                 ByteBuffer moni = app.getMoni();
@@ -574,9 +587,9 @@ public class DataAcquisition
                 }
             }
 
-            if (systemTimMillis > nextSupernovaRead)
+            if (systemTimeNanos > nextSupernovaReadNanos)
             {
-                nextSupernovaRead = systemTimMillis + supernovaReadInterval;
+                nextSupernovaReadNanos = systemTimeNanos + supernovaReadIntervalNanos;
                 while (!supernova_disabled)
                 {
                     monitor.initiateMessageRead();
@@ -768,6 +781,8 @@ public class DataAcquisition
             //       is not propagated to the processor.
             dataStats.reportClockRelationship(tcal.getDomRxInDomUnits(),
                     dortxNano);
+
+            lastTCalNanos = after;
         }
         catch (InterruptedException e)
         {
@@ -780,6 +795,13 @@ public class DataAcquisition
         }
     }
 
+    /**
+     * @return The system time of the last successful tcal.
+     */
+    public long getLastTCalNanos()
+    {
+        return lastTCalNanos;
+    }
 
     /**
      * Access the Mainboard ID via the proc file.
@@ -896,4 +918,59 @@ public class DataAcquisition
         return "[" + id + "]";
     }
 
+    /**
+     * A storage class for messages collected in an interval. Used
+     * to accumulated interval data for batched submission to the
+     * processor.
+     *
+     * Implemented non-dynamically to reduce object churn.
+     */
+    private static class IntervalData
+    {
+        // A very generous limitation
+        private static int MAX_MESSAGES = 1000;
+
+        private final ByteBuffer[] batch = new ByteBuffer[MAX_MESSAGES];
+        private final DataProcessor.StreamType[] batchType =
+                new DataProcessor.StreamType[MAX_MESSAGES];
+        private int batchIdx = 0;
+
+
+
+        /**
+         * Accumulate a message for deferred submission.
+         */
+        void accumulate(ByteBuffer buffer, DataProcessor.StreamType type)
+        {
+            batch[batchIdx] = buffer;
+            batchType[batchIdx] = type;
+            batchIdx++;
+        }
+
+        /**
+         * Submit accumulated messages and clear the batch.
+         */
+        void submitAll(final DataProcessor processor) throws DataProcessorError
+        {
+            for (int i = 0; i < batchIdx; i++)
+            {
+                processor.process(batchType[i], batch[i]);
+            }
+
+            // todo implement a batch submission method on the processor
+//            ByteBuffer[] data = new ByteBuffer[batchIdx];
+//            DataProcessor.StreamType[] dataType = new DataProcessor.StreamType[batchIdx];
+//            System.arraycopy(batch, 0, data, 0, data.length);
+//            System.arraycopy(batchType, 0, dataType, 0, dataType.length);
+//            processor.process(dataType, data);
+
+            clear();
+        }
+
+        void clear()
+        {
+            batchIdx = 0;
+        }
+
+    }
 }
