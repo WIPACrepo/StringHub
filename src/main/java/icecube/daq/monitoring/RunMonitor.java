@@ -318,14 +318,14 @@ class HLCBinManager
  * Consume HLC hits and periodically report the counts
  */
 class HLCCountConsumer
-    extends BinnedQueueConsumer<HLCCountConsumer.DOMTime, Long, Counter>
+    extends BinnedQueueConsumer<HLCCountConsumer.DOMTimes, Long, Counter>
 {
-    class DOMTime
+    class DOMTimes
     {
-        long utc;
+        long utc[];
         long mbid;
 
-        DOMTime(long utc, long mbid)
+        DOMTimes(long utc[], long mbid)
         {
             this.utc = utc;
             this.mbid = mbid;
@@ -337,7 +337,19 @@ class HLCCountConsumer
          */
         public String toString()
         {
-            return String.format("%d@%012x", utc, mbid);
+            if(utc.length == 0)
+            {
+                return String.format("[]@%012x", mbid);
+            }
+            if(utc.length == 1)
+            {
+                return String.format("%d@%012x", utc[0], mbid);
+            }
+            else
+            {
+                return String.format("[%d, ..., %d]@%012x", utc[0],
+                        utc[utc.length-1], mbid);
+            }
         }
     }
 
@@ -414,24 +426,27 @@ class HLCCountConsumer
     /**
      * Process a single piece of data
      *
-     * @param domTime mainboard ID and UTC
+     * @param domTimes mainboard ID and UTC
      */
     @Override
-    void process(DOMTime domTime)
+    void process(DOMTimes domTimes)
     {
-        Counter cntr = getContainer(domTime.utc, Long.valueOf(domTime.mbid));
-        cntr.inc();
+        for (int i = 0; i < domTimes.utc.length; i++)
+        {
+            Counter cntr = getContainer(domTimes.utc[i], Long.valueOf(domTimes.mbid));
+            cntr.inc();
+        }
     }
 
     /**
      * Push the data onto this consumer's queue
      *
-     * @param mbid mainboard ID of DOM which saw this hit
-     * @param utc UTC time of hit
+     * @param mbid mainboard ID of DOM which saw these hits
+     * @param utc UTC time of zero or more hits.
      */
-    void pushData(long utc, long mbid)
+    void pushData(long[] utc, long mbid)
     {
-        push(new DOMTime(utc, mbid));
+        push(new DOMTimes(utc, mbid));
     }
 
     void sendData(long binStart, long binEnd)
@@ -1283,9 +1298,9 @@ public class RunMonitor
     /**
      * Increment the total number of HLC hits for this period.
      * @param mbid mainboard ID
-     * @param utc UTC time of hit
+     * @param utc UTC times for a number of hits.
      */
-    public void countHLCHit(long mbid, long utc)
+    public void countHLCHit(long mbid, long[] utc)
     {
         synchronized (queueLock) {
             if (hasRunNumber()) {

@@ -64,8 +64,6 @@ public class DataStats
     private RealTimeRateMeter rtHitRate = new RealTimeRateMeter(100000000000L);
     private RealTimeRateMeter rtLCRate  = new RealTimeRateMeter(100000000000L);
 
-    private IRunMonitor runMonitor;
-
     //consider eliminating not used
     private long lastTcalUT;
 
@@ -95,9 +93,66 @@ public class DataStats
     private final DOMToSystemTimer domToSystemTimer = new
             DOMToSystemTimer();
 
+    /**
+     * Accumulates HLC hit information for batched submission
+     * to a RunMonitor.
+     *
+     * Note: Not thread safe, for processor thread access only.
+     */
+    private static class BatchReporter
+    {
+        private final long mbid;
+        private final int batchSize;
+        private long[] batch;
+        private int idx;
+
+        // run monitor is set post-construction
+        private IRunMonitor runMonitor;
+
+
+        private BatchReporter(final long mbid,
+                              final int batchSize)
+        {
+            this.batchSize = batchSize;
+            this.mbid = mbid;
+            this.batch = new long[batchSize];
+        }
+
+        void reportHLCHit(final long utc)
+        {
+            batch[idx++] = utc;
+            if(idx == batchSize)
+            {
+                flush();
+            }
+        }
+
+        void flush()
+        {
+            if(runMonitor != null)
+            {
+                runMonitor.countHLCHit(mbid, batch);
+            }
+            batch = new long[batchSize];
+            idx = 0;
+        }
+
+        void setRunMonitor(final IRunMonitor runMonitor)
+        {
+            this.runMonitor = runMonitor;
+        }
+    }
+
+    // HLS hit reporting is propagated to an independent monitor.
+    // The reporting is batched to minimize inter-thread transfer overhead.
+    private final int HIT_MONITOR_BATCH_SIZE = 100;
+    private final BatchReporter hlcReporter;
+
+
     public DataStats(long mbid)
     {
         this.mbid = mbid;
+        this.hlcReporter = new BatchReporter(mbid, HIT_MONITOR_BATCH_SIZE);
     }
 
     protected  void reportProcessingStart(DataProcessor.StreamType streamType,
@@ -170,7 +225,7 @@ public class DataStats
         if(isLC)
         {
             rtLCRate.recordEvent(utc);
-            runMonitor.countHLCHit(mbid, utc);
+            hlcReporter.reportHLCHit(utc);
         }
         rtHitRate.recordEvent(utc);
 
@@ -187,6 +242,12 @@ public class DataStats
             avgHitAcquisitionLatencyMillis.add(latency/1000000);
             lastHitLatencySampleNanos = now;
         }
+    }
+
+    protected void reportHitStreamEOS()
+    {
+        // ensure accumulated hlc hits are reported
+        hlcReporter.flush();
     }
 
     protected void reportProcessorQueueDepth(final int depth)
@@ -323,7 +384,7 @@ public class DataStats
 
     public void setRunMonitor(final IRunMonitor runMonitor)
     {
-        this.runMonitor = runMonitor;
+        this.hlcReporter.setRunMonitor(runMonitor);
     }
 
 }

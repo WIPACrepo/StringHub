@@ -14,11 +14,11 @@ import java.util.Map;
 public interface IRunMonitor
 {
     /**
-     * Add one to the total number of HLC hits for this period.
+     * Add some hits the total number of HLC hits for this period.
      * @param domID mainboard ID
      * @param utc UTC time of hit
      */
-    void countHLCHit(long domID, long utc);
+    void countHLCHit(long domID, long[] utc);
 
     /**
      * Return the list of DOMs configured for this string

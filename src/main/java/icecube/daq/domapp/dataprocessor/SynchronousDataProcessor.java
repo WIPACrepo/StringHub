@@ -111,6 +111,7 @@ public class SynchronousDataProcessor implements DataProcessor
         {
             case HIT:
                 hitProcessor.eos();
+                dataStats.reportHitStreamEOS();
                 break;
             case SUPERNOVA:
                 snProcessor.eos();
@@ -131,6 +132,8 @@ public class SynchronousDataProcessor implements DataProcessor
     public void eos() throws DataProcessorError
     {
         hitProcessor.eos();
+        dataStats.reportHitStreamEOS();
+
         snProcessor.eos();
         moniProcessor.eos();
         tcalProcessor.eos();

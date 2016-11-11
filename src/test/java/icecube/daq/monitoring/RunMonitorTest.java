@@ -919,9 +919,9 @@ public class RunMonitorTest
         runMon.setRunNumber(runNum);
         waitForRunSwitch(runMon, runNum, 100);
 
-        runMon.countHLCHit(DOM0, 123456L);
-        runMon.countHLCHit(DOM1, 123499L);
-        runMon.countHLCHit(DOM0, 234567L);
+        runMon.countHLCHit(DOM0, new long[] {123456L,234567L});
+        runMon.countHLCHit(DOM1, new long[] {123499L});
+        //runMon.countHLCHit(DOM0, 234567L);
 
         runMon.stop();
         runMon.join();
