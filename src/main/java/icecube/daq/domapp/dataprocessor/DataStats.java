@@ -131,7 +131,18 @@ public class DataStats
         {
             if(runMonitor != null)
             {
-                runMonitor.countHLCHit(mbid, batch);
+                if(idx < batchSize)
+                {
+                    // a runt batch
+                    long[] runt = new long[idx];
+                    System.arraycopy(batch, 0, runt, 0, runt.length);
+                    runMonitor.countHLCHit(mbid, runt);
+                }
+                else
+                {
+                    // a full batch
+                    runMonitor.countHLCHit(mbid, batch);
+                }
             }
             batch = new long[batchSize];
             idx = 0;
