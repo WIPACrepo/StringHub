@@ -89,6 +89,15 @@ public interface DataProcessor
     void process(StreamType stream, ByteBuffer data) throws DataProcessorError;
 
 
+    default void process(StreamType[] stream, ByteBuffer[] data)
+            throws DataProcessorError
+    {
+        for (int i = 0; i < stream.length; i++)
+        {
+            process(stream[i], data[i]);
+
+        }
+    }
     /**
      * Send an EOS on a specified stream.
      * @param stream The stream to send eos to.

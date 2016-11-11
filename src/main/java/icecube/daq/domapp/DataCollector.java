@@ -112,10 +112,9 @@ public class DataCollector extends AbstractDataCollector
     private final DataStats dataStats;
 
 
-    private long    threadSleepInterval   = 50;
+    private long    threadSleepInterval        = 50;
+    private long    tcalReadIntervalNanos      = 1_000_000_000; // 1 second
 
-    private long nextTcalRead = 0;
-    private long    tcalReadInterval      = 1000;
 
 
 
@@ -325,7 +324,6 @@ public class DataCollector extends AbstractDataCollector
     private void execRapCal() throws DataProcessorError, AcquisitionError
     {
         dataAcquisition.doTCAL(watchdog);
-        nextTcalRead = System.currentTimeMillis() + tcalReadInterval;
     }
 
     /**
@@ -476,7 +474,7 @@ public class DataCollector extends AbstractDataCollector
 
         while (!stop_thread)
         {
-            long t = System.currentTimeMillis();
+            long now = System.nanoTime();
             boolean tired = true;
 
             // Ping the watchdog task
@@ -485,7 +483,7 @@ public class DataCollector extends AbstractDataCollector
             loopCounter++;
 
             /* Do TCAL and GPS -- this always runs regardless of the run state */
-            if (t >= nextTcalRead)
+            if (now >= (dataAcquisition.getLastTCalNanos() + tcalReadIntervalNanos))
             {
                 if (logger.isDebugEnabled())
                 {
@@ -499,15 +497,21 @@ public class DataCollector extends AbstractDataCollector
                 case RUNNING:
                     if(useIntervals)
                     {
+                        // Note: Interval includes a TCal execution. This
+                        //       is an optimization for priming RAPCal
+                        //       with a bounding isochron before processing
+                        //       the interval data.
+                        //       The fact of this tcal is revealed by
+                        //       dataAcquisition.getLastTCalNanos()
                         tired = dataAcquisition.doInterval(watchdog);
                     }
                     else
                     {
-                        tired = dataAcquisition.doPolling(watchdog, t);
+                        tired = dataAcquisition.doPolling(watchdog, now);
                     }
 
-                    //todo This is not an optimal way to track this data. For the
-                    //     time being, it avoids a callback interface.
+                    //todo This is not an optimal way to track this data.
+                    //     For the time being, it avoids a callback interface.
                     this.firstHitTime = dataStats.getFirstHitTime();
                     this.lastHitTime = dataStats.getLastHitTime();
 
