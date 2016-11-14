@@ -93,6 +93,9 @@ public abstract class AbstractRAPCal implements RAPCal
     /** List of Isochrons, ordered sequentially. */
     private final LinkedList<Isochron> hist;
 
+    /** A direct reference to the head element of the isochron list. */
+    private Isochron latestIsochron;
+
     /** The number of isochrons to maintain in the list. */
     private final int            maxHistory;
 
@@ -218,14 +221,15 @@ public abstract class AbstractRAPCal implements RAPCal
      */
     public boolean laterThan(long domclk)
     {
-        if (hist.isEmpty())
+        // This method is called per-hit so we optimize away the
+        // list lookup and use the head reference.
+        if(latestIsochron != null)
         {
-            return false;
+            return latestIsochron.laterThan(domclk, TimeUnits.DOM);
         }
         else
         {
-            Isochron iso = hist.getLast();
-            return iso.laterThan(domclk, TimeUnits.DOM);
+            return false;
         }
     }
 
@@ -288,9 +292,15 @@ public abstract class AbstractRAPCal implements RAPCal
      */
     Isochron lookupIsochron(long atclk, TimeUnits units)
     {
-        // Note: Search in reverse order to optimize for the
-        //       likely case that the dom time is withing the
-        //       most recent isochron
+        // Note: Optimized for the case that the most recent
+        //       (head of list) isochron bounds the time. Then
+        //       search backward.
+        if(latestIsochron != null &&
+                latestIsochron.containsDomClock(atclk, units))
+        {
+            return latestIsochron;
+        }
+
         Iterator<Isochron> reverse = hist.descendingIterator();
         while(reverse.hasNext())
         {
@@ -431,6 +441,7 @@ public abstract class AbstractRAPCal implements RAPCal
 
         }
         hist.add(isochron);
+        latestIsochron = isochron;
 
         lowerBound=hist.getLast().getLowerBound();
         upperBound=hist.getLast().getUpperBound();
