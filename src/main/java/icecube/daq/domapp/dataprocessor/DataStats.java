@@ -56,8 +56,9 @@ public class DataStats
     // moni polling period.
     private SimpleMovingAverage avgHitAcquisitionLatencyMillis =
             new SimpleMovingAverage(9);
-    private long windowNanos = 10000000000L;
-    private long lastHitLatencySampleNanos;
+    private long windowSeconds = 10;
+    private long windowDOMTicks = 40000000 * windowSeconds;
+    private long lastHitLatencySampleDOMTicks = -1 * windowDOMTicks;
 
 
     // Calculate 10-sec averages of the hit rate
@@ -246,12 +247,12 @@ public class DataStats
 
         // track the latency of the hit from DOM to here, sampling
         // once per 10 seconds
-        long now = now();
-        if( (numHits==1) || (now - lastHitLatencySampleNanos > windowNanos) )
+        if( (domclk - lastHitLatencySampleDOMTicks) > windowDOMTicks )
         {
+            long now = now();
             long latency = now - domToSystemTimer.translate(domclk);
             avgHitAcquisitionLatencyMillis.add(latency/1000000);
-            lastHitLatencySampleNanos = now;
+            lastHitLatencySampleDOMTicks = domclk;
         }
     }
 
