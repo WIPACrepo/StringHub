@@ -30,7 +30,7 @@ class UTCMonotonicDispatcher extends UTCDispatcher
      */
     static final int MAX_DEFFERED_RECORDS =
     Integer.getInteger("icecube.daq.domapp.dataprocessor.max-deferred-records",
-            10000);
+            5000);
 
     /**
      * Structure to hold deferred data.
