@@ -1021,6 +1021,10 @@ public class DataCollector extends AbstractDataCollector
                             logger.error(line);
                         }
                     }
+
+                    // report to the reactor
+                    DroppedDomReactor.singleton.reportDroppedDom(
+                            DataCollector.this);
                 }
                 else
                 {
