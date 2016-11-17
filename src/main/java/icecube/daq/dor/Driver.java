@@ -12,8 +12,10 @@ import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,6 +28,12 @@ public final class Driver implements IDriver {
     private static final Logger logger = Logger.getLogger(Driver.class);
 
     private Leapseconds leapsecondObj;
+
+    // Standard content of /proc/drivers/domhub/blocking
+    private final String BLOCKING_RESPONSE = "Default blocking mode is" +
+            " BLOCKING.  Write 0 to change.";
+    private final String NONBLOCKING_RESPONSE = "Default blocking mode is" +
+            " NONBLOCKING.  Write 1 to change.";
 
     /**
      * Drivers should be singletons - enforce through protected constructor.
@@ -115,6 +123,39 @@ public final class Driver implements IDriver {
 	    blockingFile.close();
 	}
     }
+
+
+    @Override
+    public boolean isBlocking() throws IOException
+    {
+        File file = makeProcfile("blocking");
+        List<String> lines = Files.readAllLines(file.toPath());
+        if(lines.size() == 1)
+        {
+            String content = lines.get(0);
+            if(content.equals(BLOCKING_RESPONSE))
+            {
+                return true;
+            }
+            else
+            {
+                if(content.equals(NONBLOCKING_RESPONSE))
+                {
+                    return false;
+                }
+                else
+                {
+                    throw new IOException("Unexpected proc file content:[" +
+                    content + "]");
+                }
+            }
+        }
+        else
+        {
+            throw new IOException("No proc file content");
+        }
+    }
+
 
     /**
      * Perform soft reset operation on DOM

@@ -21,6 +21,8 @@ public interface IDriver
 
     void setBlocking(boolean block) throws IOException;
 
+    boolean isBlocking() throws IOException;
+
     HashMap<String, Integer> getFPGARegisters(int card) throws IOException;
 
     void resetComstat(int card, int pair, char dom) throws IOException;
