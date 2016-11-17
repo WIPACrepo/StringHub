@@ -32,6 +32,8 @@ import java.util.List;
  * Caller is assumed to be the DataCollector thread. This is a requirement
  * for correct behavior.
  *
+ * This implementation requires that the dor driver be in blocking mode.
+ *
  * This class was initially implemented with code migrated from
  * icecube.daq.domapp.DataCollector revision 15482.
  */
@@ -639,6 +641,12 @@ public class DataAcquisition
 
         try
         {
+            // verify driver is in blocking mode
+            if(!driver.isBlocking())
+            {
+                throw new AcquisitionError("Driver must be in blocking mode");
+            }
+
             String reportedMBID = null;
 
             boolean needSoftboot = true;
