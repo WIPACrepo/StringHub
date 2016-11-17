@@ -870,7 +870,7 @@ public class DataCollector extends AbstractDataCollector
                     {
                         case INTERRUPT_ONLY:
                             interrupting = true;
-                            logger.error(mbid + "data collection thread has become " +
+                            logger.error("[ " + mbid +"] data collection thread has become " +
                                     "non-responsive for ["+(silentPeriodNano/1000000)+" " +
                                     "ms] - interrupting.");
                             dataAcquisition.doClose();
@@ -880,14 +880,14 @@ public class DataCollector extends AbstractDataCollector
                             aborting = true;
                             stop_thread = true;
 
-                            logger.error(mbid + "data collection thread has become " +
+                            logger.error("[ " + mbid + "] data collection thread has become " +
                                     "non-responsive for ["+(silentPeriodNano/1000000)+" " +
                                     "ms] - aborting.");
                             dataAcquisition.doClose();
                             DataCollector.this.interrupt();
                             break;
                         case MONITOR:
-                            logger.error(mbid + "data collection thread has become " +
+                            logger.error("[ " + mbid + "] data collection thread has become " +
                                     "non-responsive for ["+(silentPeriodNano/1000000)+" " +
                                     "ms] - monitoring.");
                             break;
