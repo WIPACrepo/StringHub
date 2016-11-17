@@ -75,9 +75,10 @@ class UTCMonotonicDispatcher extends UTCDispatcher
      */
     public UTCMonotonicDispatcher(final BufferConsumer target,
                                   final DataProcessor.StreamType type,
-                                  final RAPCal rapcal)
+                                  final RAPCal rapcal,
+                                  final long mbid)
     {
-        super(target, type, rapcal, 0);
+        super(target, type, rapcal, 0, mbid);
     }
 
 
@@ -127,8 +128,8 @@ class UTCMonotonicDispatcher extends UTCDispatcher
             long firstDOMClk = deferred.peekFirst().data.getLong(24);
             long lastDOMClk = deferred.peekLast().data.getLong(24);
             String msg = String.format("Over limit of %d records waiting for" +
-                    " rapcal DOM clock range [%d, %d]",
-                    deferred.size(), firstDOMClk, lastDOMClk);
+                    " rapcal DOM clock range [%d, %d], mbid: %12x",
+                    deferred.size(), firstDOMClk, lastDOMClk, mbid);
             throw new DataProcessorError(msg);
         }
 

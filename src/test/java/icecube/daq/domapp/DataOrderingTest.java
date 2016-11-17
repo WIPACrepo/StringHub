@@ -549,7 +549,7 @@ public class DataOrderingTest
 
                 return new UTCDispatcher(target,
                         DataProcessor.StreamType.MONI, rapcal,orderingEpsilon,
-                        maxDrops);
+                        maxDrops, 0xabcdef123456L);
 
     }
 

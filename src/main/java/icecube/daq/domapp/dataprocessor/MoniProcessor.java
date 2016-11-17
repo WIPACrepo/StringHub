@@ -51,7 +51,9 @@ class MoniProcessor implements DataProcessor.StreamProcessor
             {
                 String moniMsg = monitor.toString();
                 if (moniMsg.contains("LBM OVERFLOW")) {
-                    logger.error("LBM Overflow [" + moniMsg + "]");
+                    String msg = String.format("LBM Overflow ["
+                            + moniMsg + "] on %12x", mbid);
+                    logger.error(msg);
                     counters.reportLBMOverflow();
                 } else if (logger.isDebugEnabled()) {
                     logger.debug(moniMsg);

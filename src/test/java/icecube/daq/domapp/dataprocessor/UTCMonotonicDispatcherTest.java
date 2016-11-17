@@ -51,7 +51,7 @@ public class UTCMonotonicDispatcherTest
         MockBufferConsumer consumer = new MockBufferConsumer();
         UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
                 DataProcessor.StreamType.HIT,
-                rapcal);
+                rapcal, 0xabcdef123456L);
 
         // set upper bound to cover all times
         rapcal.setUpperBound(Long.MAX_VALUE);
@@ -86,7 +86,7 @@ public class UTCMonotonicDispatcherTest
         MockBufferConsumer consumer = new MockBufferConsumer();
         UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
                 DataProcessor.StreamType.HIT,
-                rapcal);
+                rapcal, 0xabcdef123456L);
 
 
         rapcal.setUpperBound(Long.MIN_VALUE);
@@ -193,7 +193,7 @@ public class UTCMonotonicDispatcherTest
         MockBufferConsumer consumer = new MockBufferConsumer();
         UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
                 DataProcessor.StreamType.HIT,
-                rapcal);
+                rapcal, 0xabcdef123456L);
 
         // set upper bound to cover no times
         rapcal.setUpperBound(Long.MIN_VALUE);
@@ -237,7 +237,7 @@ public class UTCMonotonicDispatcherTest
         MockBufferConsumer consumer = new MockBufferConsumer();
         UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
                 DataProcessor.StreamType.HIT,
-                rapcal);
+                rapcal, 0xabcdef123456L);
 
         // set upper bound to cover no times
         rapcal.setUpperBound(Long.MIN_VALUE);
@@ -293,7 +293,7 @@ public class UTCMonotonicDispatcherTest
         MockBufferConsumer consumer = new MockBufferConsumer();
         UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
                 DataProcessor.StreamType.HIT,
-                rapcal);
+                rapcal, 0xabcdef123456L);
 
         // set upper bound to cover no times
         rapcal.setUpperBound(Long.MIN_VALUE);
@@ -350,7 +350,7 @@ public class UTCMonotonicDispatcherTest
         MockBufferConsumer consumer = new MockBufferConsumer();
         UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
                 DataProcessor.StreamType.HIT,
-                rapcal);
+                rapcal, 0xabcdef123456L);
 
         int max = UTCMonotonicDispatcher.MAX_DEFFERED_RECORDS;
         for(int i=0; i<max-1; i++)
@@ -366,7 +366,8 @@ public class UTCMonotonicDispatcherTest
         catch (DataProcessorError dpe)
         {
             String expected = "Over limit of "+ max +" records waiting for" +
-                    " rapcal DOM clock range [" + 10000 + ", " + 9999999 +"]";
+                    " rapcal DOM clock range [" + 10000 + ", " + 9999999 +"]," +
+                    " mbid: abcdef123456";
             assertEquals("", expected, dpe.getMessage());
         }
 
@@ -390,7 +391,7 @@ public class UTCMonotonicDispatcherTest
         MockDispatchCallback callback = new MockDispatchCallback();
         UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
                 DataProcessor.StreamType.HIT,
-                rapcal);
+                rapcal, 0xabcdef123456L);
 
 
         long[] beforeMark =

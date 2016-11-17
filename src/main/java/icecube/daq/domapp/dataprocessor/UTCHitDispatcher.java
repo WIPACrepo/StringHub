@@ -26,10 +26,11 @@ public class UTCHitDispatcher extends UTCMonotonicDispatcher
 
 
     public UTCHitDispatcher(final BufferConsumer target,
-                            DOMConfiguration config,
-                            final RAPCal rapcal)
+                            final DOMConfiguration config,
+                            final RAPCal rapcal,
+                            final long mbid)
     {
-        super(target, DataProcessor.StreamType.HIT, rapcal);
+        super(target, DataProcessor.StreamType.HIT, rapcal, mbid);
         abBuffer = new HitBufferAB(config.getAtwdChipSelect());
     }
 

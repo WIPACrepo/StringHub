@@ -63,6 +63,8 @@ public class UTCDispatcher implements DataDispatcher
     private long lastDOMClock = 0;
     private long lastUTCClock = 0;
 
+    /** mbid of originating source DOM */
+    protected final long mbid;
 
     // if the clock jumps significantly, we will see many out-of-order
     // messages, so throttle logging.
@@ -93,28 +95,33 @@ public class UTCDispatcher implements DataDispatcher
 
     public UTCDispatcher(final BufferConsumer target,
                          final DataProcessor.StreamType type,
-                         final RAPCal rapcal)
+                         final RAPCal rapcal,
+                         final long mbid)
     {
-        this(target, type, rapcal, MESSAGE_ORDERING_EPSILON);
-    }
-
-    public UTCDispatcher(final BufferConsumer target,
-                         final DataProcessor.StreamType type,
-                         final RAPCal rapcal, final long orderingEpsilon)
-    {
-        this(target, type, rapcal, orderingEpsilon, MAX_OUT_OF_ORDER_DROPS);
+        this(target, type, rapcal, MESSAGE_ORDERING_EPSILON, mbid);
     }
 
     public UTCDispatcher(final BufferConsumer target,
                          final DataProcessor.StreamType type,
                          final RAPCal rapcal, final long orderingEpsilon,
-                         final long maxDroppedMessages)
+                         final long mbid)
+    {
+        this(target, type, rapcal, orderingEpsilon, MAX_OUT_OF_ORDER_DROPS,
+                mbid);
+    }
+
+    public UTCDispatcher(final BufferConsumer target,
+                         final DataProcessor.StreamType type,
+                         final RAPCal rapcal, final long orderingEpsilon,
+                         final long maxDroppedMessages,
+                         final long mbid)
     {
         this.target = target;
         this.type = type;
         this.rapcal = rapcal;
         this.orderingEpsilon = orderingEpsilon;
         this.maxDroppedMessages = maxDroppedMessages;
+        this.mbid = mbid;
     }
 
     @Override
@@ -163,7 +170,8 @@ public class UTCDispatcher implements DataDispatcher
             if(droppedDataCount > maxDroppedMessages)
             {
                 throw new DataProcessorError("Too many Out-of-order " + type +
-                        " drops [" + droppedDataCount + "]");
+                        " drops [" + droppedDataCount + "] from " +
+                        String.format("%012x", mbid) );
             }
         }
 
@@ -220,11 +228,13 @@ public class UTCDispatcher implements DataDispatcher
             final String reason;
             if(lastDOMClock > domclk)
             {
-                reason = "Non-Contiguous " + type + " stream from DOM";
+                reason = String.format("Non-Contiguous %s stream from" +
+                        " DOM %012x", type, mbid);
             }
             else
             {
-                reason = "Non-Contiguous rapcal for DOM";
+                reason = String.format("Non-Contiguous rapcal for DOM %012x",
+                        mbid);
             }
 
             if(num_logged < MAX_LOGGING)
@@ -242,7 +252,8 @@ public class UTCDispatcher implements DataDispatcher
 
                 if(num_logged == MAX_LOGGING)
                 {
-                    logger.error("Dampening Out-of-order logging.");
+                    logger.error(String.format("Dampening Out-of-order logging" +
+                            " from %12x.", mbid));
                 }
             }
 
