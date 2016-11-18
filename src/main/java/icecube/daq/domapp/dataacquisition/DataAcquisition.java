@@ -691,8 +691,10 @@ public class DataAcquisition
                     // inconsistently such as when the previous run exited
                     // mid-interval
                     //
-                    logger.warn("DOM is not responding to DOMApp query -" +
-                            " will attempt to softboot", ex);
+                    String msg = String.format("DOM %s is not responding" +
+                            " to DOMApp query -  will attempt to softboot",
+                            getMBID());
+                    logger.warn(msg, ex);
 
                     needSoftboot = true;
 
@@ -722,7 +724,10 @@ public class DataAcquisition
                     catch (Exception ex2)
                     {
                         if (iTry == 1) throw ex2;
-                        logger.error("Failure to softboot to DOMApp - will retry one time.", ex2);
+                        String msg = String.format("Failure to softboot %s to" +
+                                " DOMApp - will retry one time.",
+                                getMBID());
+                        logger.error(msg, ex2);
 
                         // The watchdog may have fired, reset the interrupt.
                         Thread.currentThread().interrupted();
@@ -879,7 +884,9 @@ public class DataAcquisition
             }
             catch (IOException iox)
             {
-                logger.warn("Softboot attempt failed - retrying after 5 sec");
+                String msg = String.format("Softboot attempt of %s failed" +
+                        " - retrying after 5 sec");
+                logger.warn(msg);
                 watchdog.sleep(5000L);
             }
             finally
