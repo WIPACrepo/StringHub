@@ -33,7 +33,7 @@ public final class Driver implements IDriver {
     private final String BLOCKING_RESPONSE = "Default blocking mode is" +
             " BLOCKING.  Write 0 to change.";
     private final String NONBLOCKING_RESPONSE = "Default blocking mode is" +
-            " NONBLOCKING.  Write 1 to change.";
+            " NONBLOCK.  Write 1 to change.";
 
     /**
      * Drivers should be singletons - enforce through protected constructor.
