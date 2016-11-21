@@ -456,10 +456,12 @@ class HLCCountConsumer
 
         map.put("counts", getCountMap(binStart, binEnd));
 
-        map.put("recordingStartTime", new UTCTime(binStart).toDateString());
-        map.put("recordingStopTime", new UTCTime(binEnd).toDateString());
+        final UTCTime utcEnd = new UTCTime(binEnd);
 
-        parent.sendMoni(NAME, PRIORITY, null, map, false);
+        map.put("recordingStartTime", UTCTime.toDateString(binStart));
+        map.put("recordingStopTime", utcEnd.toDateString());
+
+        parent.sendMoni(NAME, PRIORITY, utcEnd, map, false);
     }
 }
 
