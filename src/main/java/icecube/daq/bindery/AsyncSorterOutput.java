@@ -135,7 +135,7 @@ public class AsyncSorterOutput implements BufferConsumer, Runnable
                 meter.reportOut(buf.remaining());
 
                 // todo use record reader
-                if(buf.getLong(24) == Integer.MAX_VALUE)
+                if(buf.getLong(24) == Long.MAX_VALUE)
                 {
                     running = false;
                 }
