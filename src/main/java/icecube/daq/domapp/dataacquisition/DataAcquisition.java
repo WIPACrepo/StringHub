@@ -691,9 +691,9 @@ public class DataAcquisition
                     // inconsistently such as when the previous run exited
                     // mid-interval
                     //
-                    String msg = String.format("DOM %s is not responding" +
+                    String msg = String.format("DOM [%s] %s is not responding" +
                             " to DOMApp query -  will attempt to softboot",
-                            getMBID());
+                            id, getMBID());
                     logger.warn(msg, ex);
 
                     needSoftboot = true;
@@ -724,9 +724,9 @@ public class DataAcquisition
                     catch (Exception ex2)
                     {
                         if (iTry == 1) throw ex2;
-                        String msg = String.format("Failure to softboot %s to" +
-                                " DOMApp - will retry one time.",
-                                getMBID());
+                        String msg = String.format("Failure to softboot [%s] %s" +
+                                " to DOMApp - will retry one time.",
+                                id, getMBID());
                         logger.error(msg, ex2);
 
                         // The watchdog may have fired, reset the interrupt.
@@ -866,7 +866,7 @@ public class DataAcquisition
      * Wrap up softboot -> domapp behavior
      */
     private void softbootToDomapp(final Watchdog watchdog) throws IOException,
-            InterruptedException
+            InterruptedException, AcquisitionError
     {
         // Based on discussion /w/ JEJ in Utrecht café, going for multiple
         // retries here
@@ -884,8 +884,8 @@ public class DataAcquisition
             }
             catch (IOException iox)
             {
-                String msg = String.format("Softboot attempt of %s failed" +
-                        " - retrying after 5 sec");
+                String msg = String.format("Softboot attempt of [%s] %s" +
+                        " failed - retrying after 5 sec", id, getMBID());
                 logger.warn(msg);
                 watchdog.sleep(5000L);
             }
