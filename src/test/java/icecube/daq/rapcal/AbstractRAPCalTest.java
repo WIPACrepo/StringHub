@@ -5,6 +5,7 @@ import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.monitoring.IRunMonitor;
+import icecube.daq.payload.IUTCTime;
 import icecube.daq.util.DOMInfo;
 import icecube.daq.util.TimeUnits;
 import icecube.daq.util.UTC;
@@ -234,11 +235,13 @@ class MyMonitor
      *
      * @param varname quantity name
      * @param priority message priority
+     * @param utc pDAQ UTC timestamp
      * @param map field->value map
      * @param addString if <tt>true</tt>, add "string" entry to map
      */
     public void sendMoni(String varname, Alerter.Priority priority,
-                         Map<String, Object> map, boolean addString)
+                         IUTCTime utc, Map<String, Object> map,
+                         boolean addString)
     {
         throw new Error("Unimplemented");
     }

@@ -42,7 +42,7 @@ class MockAlertQueue
 {
     private volatile int numPushed;
 
-    public void push(Object obj)
+    public void push(Map<String, Object> map)
         throws AlertException
     {
         throw new Error("Don't use this method");

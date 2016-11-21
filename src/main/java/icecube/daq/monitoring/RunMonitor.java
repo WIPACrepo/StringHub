@@ -6,6 +6,7 @@ import icecube.daq.dor.TimeCalib;
 import icecube.daq.juggler.alert.AlertException;
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.juggler.alert.IAlertQueue;
+import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.impl.UTCTime;
 import icecube.daq.rapcal.BadTCalException;
 import icecube.daq.rapcal.Isochron;
@@ -84,7 +85,7 @@ abstract class CountingConsumer<K, T>
 
         map.put("counts", getCountMap());
 
-        parent.sendMoni(name, priority, map);
+        parent.sendMoni(name, priority, null, map, true);
     }
 
     /**
@@ -431,10 +432,9 @@ class HLCCountConsumer
     @Override
     void process(DOMTimes domTimes)
     {
-        for (int i = 0; i < domTimes.utc.length; i++)
-        {
-            Counter cntr = getContainer(domTimes.utc[i], Long.valueOf(domTimes.mbid));
-            cntr.inc();
+        Long mbid = Long.valueOf(domTimes.mbid);
+        for (long time : domTimes.utc) {
+            getContainer(time, mbid).inc();
         }
     }
 
@@ -459,7 +459,7 @@ class HLCCountConsumer
         map.put("recordingStartTime", new UTCTime(binStart).toDateString());
         map.put("recordingStopTime", new UTCTime(binEnd).toDateString());
 
-        parent.sendMoni(NAME, PRIORITY, map, false);
+        parent.sendMoni(NAME, PRIORITY, null, map, false);
     }
 }
 
@@ -816,7 +816,7 @@ class IsoConsumer
             map.put("recordingStartTime", parent.getStartTimeString());
             map.put("recordingStopTime", parent.getStopTimeString());
 
-            parent.sendMoni(NAME, PRIORITY, map);
+            parent.sendMoni(NAME, PRIORITY, null, map, true);
         }
     }
 }
@@ -1679,24 +1679,13 @@ public class RunMonitor
      *
      * @param varname quantity name
      * @param priority message priority
-     * @param map field-&gt;value map
-     */
-    public void sendMoni(String varname, Alerter.Priority priority,
-                         Map<String, Object> map)
-    {
-        sendMoni(varname, priority, map, true);
-    }
-
-    /**
-     * Send monitoring message to Live
-     *
-     * @param varname quantity name
-     * @param priority message priority
+     * @param utc pDAQ UTC timestamp
      * @param map field-&gt;value map
      * @param addString if <tt>true</tt>, add "string" entry to map
      */
     public void sendMoni(String varname, Alerter.Priority priority,
-                         Map<String, Object> map, boolean addString)
+                         IUTCTime utc, Map<String, Object> map,
+                         boolean addString)
     {
         // fill in standard values
         map.put("runNumber", runNumber);
@@ -1705,7 +1694,7 @@ public class RunMonitor
         }
 
         try {
-            alertQueue.push(varname, priority, map);
+            alertQueue.push(varname, priority, utc, map);
         } catch (AlertException ae) {
             LOG.error("Cannot push " + varname, ae);
         }
