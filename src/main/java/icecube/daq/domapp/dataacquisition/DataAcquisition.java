@@ -967,17 +967,12 @@ public class DataAcquisition
          */
         void submitAll(final DataProcessor processor) throws DataProcessorError
         {
-            for (int i = 0; i < batchIdx; i++)
-            {
-                processor.process(batchType[i], batch[i]);
-            }
-
-            // todo implement a batch submission method on the processor
-//            ByteBuffer[] data = new ByteBuffer[batchIdx];
-//            DataProcessor.StreamType[] dataType = new DataProcessor.StreamType[batchIdx];
-//            System.arraycopy(batch, 0, data, 0, data.length);
-//            System.arraycopy(batchType, 0, dataType, 0, dataType.length);
-//            processor.process(dataType, data);
+            ByteBuffer[] data = new ByteBuffer[batchIdx];
+            DataProcessor.StreamType[] dataType =
+                    new DataProcessor.StreamType[batchIdx];
+            System.arraycopy(batch, 0, data, 0, data.length);
+            System.arraycopy(batchType, 0, dataType, 0, dataType.length);
+            processor.process(dataType, data);
 
             clear();
         }

@@ -89,6 +89,14 @@ public interface DataProcessor
     void process(StreamType stream, ByteBuffer data) throws DataProcessorError;
 
 
+    /**
+     * Send data for processing on a specified stream. This method
+     * supports bulk-submission.
+     *
+     * @param stream Identifies the type of data.
+     * @param data The data in domapp payload format.
+     * @throws DataProcessorError
+     */
     default void process(StreamType[] stream, ByteBuffer[] data)
             throws DataProcessorError
     {
