@@ -1,6 +1,7 @@
 package icecube.daq.sender;
 
 import icecube.daq.bindery.BufferConsumer;
+import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.common.EventVersion;
 import icecube.daq.io.DAQOutputChannelManager;
@@ -22,7 +23,7 @@ import icecube.daq.payload.impl.DOMHitReadoutData;
 import icecube.daq.payload.impl.DOMID;
 import icecube.daq.payload.impl.HitRecordList;
 import icecube.daq.reqFiller.RequestFiller;
-import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.IDOMRegistry;
 import icecube.daq.util.DeployedDOM;
 
 import java.io.IOException;
@@ -150,10 +151,6 @@ public class Sender
     private OutputChannel hitChan;
     private IByteBufferCache hitCache;
 
-    private DAQOutputChannelManager teOut;
-    private OutputChannel teChan;
-    private IByteBufferCache teCache;
-
     private DAQOutputChannelManager dataOut;
     private OutputChannel dataChan;
     private IByteBufferCache dataCache;
@@ -183,7 +180,7 @@ public class Sender
     private boolean forwardLC0Hits;
 
     /** DOM information from default-dom-geometry.xml */
-    private DOMRegistry domRegistry;
+    private IDOMRegistry domRegistry;
 
     // per-run monitoring counter
     private long numTEHits;
@@ -268,17 +265,6 @@ public class Sender
                 }
             }
 
-            if (teChan != null) {
-                try {
-                    teChan.sendLastAndStop();
-                } catch (Exception ex) {
-                    if (log.isErrorEnabled()) {
-                        log.error("Couldn't stop track engine destinations",
-                                  ex);
-                    }
-                }
-            }
-
             try {
                 addDataStop();
             } catch (IOException ioe) {
@@ -322,17 +308,6 @@ public class Sender
                         }
                     }
 
-                    if (teChan != null) {
-                        if (domRegistry == null) {
-                            throw new Error("DOM registry has not been set");
-                        }
-
-                        String domStr = DOMID.toString(tinyHit.getDomId());
-                        DeployedDOM domData = domRegistry.getDom(domStr);
-
-                        writeTrackEngineHit(tinyHit, domData);
-                    }
-
                     // send some hits to local trigger component
                     if (hitChan != null &&
                         (forwardLC0Hits ||
@@ -342,7 +317,8 @@ public class Sender
                         // extract hit's ByteBuffer
                         ByteBuffer payBuf;
                         try {
-                            payBuf = tinyHit.getHitBuffer(hitCache);
+                            payBuf = tinyHit.getHitBuffer(hitCache,
+                                                          domRegistry);
                         } catch (PayloadException pe) {
                             log.error("Couldn't get buffer for hit " +
                                       tinyHit, pe);
@@ -388,6 +364,14 @@ public class Sender
                           obj.getClass().getName() + ")");
             }
         }
+    }
+
+    /**
+     * There will be no more data.
+     */
+    public void endOfStream(long mbid)
+    {
+        consume(MultiChannelMergeSort.eos(mbid));
     }
 
     /**
@@ -615,16 +599,6 @@ public class Sender
     public long getNumRecycled()
     {
         return numRecycled;
-    }
-
-    /**
-     * Get number of hits sent to the track engine.
-     *
-     * @return number of track engine hits
-     */
-    public long getNumTEHitsSent()
-    {
-        return numTEHits;
     }
 
     /**
@@ -927,7 +901,7 @@ public class Sender
      *
      * @param payloadList list of payloads
      */
-    public void recycleAll(Collection payloadList)
+    private void recycleAll(Collection payloadList)
     {
         Iterator iter = payloadList.iterator();
         while (iter.hasNext()) {
@@ -999,7 +973,7 @@ public class Sender
      *
      * @param reg DOM registry
      */
-    public void setDOMRegistry(DOMRegistry reg)
+    public void setDOMRegistry(IDOMRegistry reg)
     {
         domRegistry = reg;
     }
@@ -1033,27 +1007,6 @@ public class Sender
     public void setHitOutput(DAQOutputChannelManager dest)
     {
         hitOut = dest;
-        hitChan = null;
-    }
-
-    /**
-     * Set the buffer cache where track engine hit payloads are tracked.
-     *
-     * @param cache track engine buffer cache
-     */
-    public void setTrackEngineCache(IByteBufferCache cache)
-    {
-        teCache = cache;
-    }
-
-    /**
-     * Set the output engine where track engine hits payloads are sent.
-     *
-     * @param dest output destination
-     */
-    public void setTrackEngineOutput(DAQOutputChannelManager dest)
-    {
-        teOut = dest;
         hitChan = null;
     }
 
@@ -1105,11 +1058,6 @@ public class Sender
             }
         }
 
-        if (teOut != null) {
-            teChan = teOut.getChannel();
-            // teChan can be null if track engine is not part of the run
-        }
-
         if (dataOut == null) {
             if (log.isErrorEnabled()) {
                 log.error("Data destination has not been set");
@@ -1122,43 +1070,6 @@ public class Sender
         }
 
         super.startThread();
-    }
-
-    /**
-     * Send subset of hit data to the track engine.
-     *
-     * @param tinyHit original hit data
-     * @param domData data for the DOM which observed this hit
-     */
-    private void writeTrackEngineHit(DOMHit tinyHit, DeployedDOM domData)
-    {
-        if (teCache == null) {
-            if (!warnedTE) {
-                log.error("Cannot write hit to Track Engine:" +
-                          " missing buffer cache");
-                warnedTE = true;
-            }
-        } else if (teChan == null) {
-            if (!warnedTE) {
-                log.error("Cannot write hit to Track Engine:" +
-                          " missing output channel");
-                warnedTE = true;
-            }
-        } else {
-            ByteBuffer teHit = teCache.acquireBuffer(11);
-            teHit.clear();
-
-            teHit.put((byte) (domData.getStringMajor() % Byte.MAX_VALUE));
-            teHit.put((byte) (domData.getStringMinor() % Byte.MAX_VALUE));
-            teHit.putLong(tinyHit.getTimestamp());
-            teHit.put((byte) (tinyHit.getLocalCoincidenceMode() % 0xff));
-
-            teHit.flip();
-
-            teChan.receiveByteBuffer(teHit);
-
-            numTEHits++;
-        }
     }
 
     public String toString()

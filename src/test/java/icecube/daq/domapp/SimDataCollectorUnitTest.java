@@ -3,15 +3,15 @@ package icecube.daq.domapp;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.io.*;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.DOMChannelInfo;
-import icecube.daq.util.UTC;
 import icecube.daq.bindery.BufferConsumer;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.log4j.varia.NullAppender;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -25,19 +25,27 @@ public class SimDataCollectorUnitTest implements BufferConsumer
     private IDriver driver;
     AbstractDataCollector dc;
     LinkedBlockingQueue<ByteBuffer> q;
-    
+
     public SimDataCollectorUnitTest()
     {
         q = new LinkedBlockingQueue<ByteBuffer>(1000);
     }
-    
+
     @BeforeClass
     public static void setupLogging()
     {
-        BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.INFO);
+        // exercise logging calls, but output to nowhere
+        BasicConfigurator.resetConfiguration();
+        BasicConfigurator.configure(new NullAppender());
+        Logger.getRootLogger().setLevel(Level.ALL);
     }
-    
+
+    @AfterClass
+    public static void tearDownLogging()
+    {
+        BasicConfigurator.resetConfiguration();
+    }
+
     @Before
     public void setUp() throws InterruptedException
     {
@@ -65,10 +73,15 @@ public class SimDataCollectorUnitTest implements BufferConsumer
         }
         catch (InterruptedException intx)
         {
-        
+            // ignore interrupts
         }
     }
-    
+
+    public void endOfStream(long mbid)
+    {
+        throw new Error("Only used by PrioritySort");
+    }
+
     @Test
     public void testLCSim() throws Exception
     {
@@ -84,5 +97,5 @@ public class SimDataCollectorUnitTest implements BufferConsumer
         assertTrue(sawHLC);
         assertTrue(sawSLC);
     }
-    
+
 }

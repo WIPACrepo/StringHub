@@ -5,7 +5,6 @@ import icecube.daq.juggler.alert.AlertQueue;
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.impl.UTCTime;
-import icecube.daq.util.Leapseconds;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -19,11 +18,11 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
+import org.apache.log4j.varia.NullAppender;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 class MockAlerter
     implements Alerter
@@ -221,9 +220,18 @@ public class StringHubAlertTest
     @BeforeClass
     public static void setupLogging()
     {
-        BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.INFO);
+        // exercise logging calls, but output to nowhere
+        BasicConfigurator.resetConfiguration();
+        BasicConfigurator.configure(new NullAppender());
+        Logger.getRootLogger().setLevel(Level.ALL);
     }
+
+    @AfterClass
+    public static void tearDownLogging()
+    {
+        BasicConfigurator.resetConfiguration();
+    }
+
 
     @Before
     public void setUp()
@@ -298,6 +306,42 @@ public class StringHubAlertTest
         vars.put("position", position);
         vars.put("runNumber", runNumber);
         vars.put("exact-time", UTCTime.toDateString(utcTime));
+
+        MockAlerter alerter = new MockAlerter();
+        alerter.setExpected(Alerter.Priority.SCP, condition, vars);
+
+        AlertQueue aq = new AlertQueue(alerter);
+        StringHubAlert.sendDOMAlert(aq, StringHubAlert.DEFAULT_PRIORITY,
+                                    condition, card, pair, dom, mbid, name,
+                                    string, position, runNumber,
+                                    utcTime);
+        aq.stopAndWait();
+    }
+
+    @Test
+    public void testAlertNegativeTime()
+        throws Exception
+    {
+        final String condition = "Test DOM alert";
+        final int card = 1;
+        final int pair = 23;
+        final char dom = 'A';
+        final String mbid = "123456789ABC";
+        final String name = "TestDOM";
+        final int string = 12;
+        final int position = 34;
+        final int runNumber = 123456;
+        final long utcTime = -1;
+
+        HashMap<String, Object> vars = new HashMap<String, Object>();
+        vars.put("card", Integer.valueOf(card));
+        vars.put("pair", Integer.valueOf(pair));
+        vars.put("dom", dom);
+        vars.put("mbid", mbid);
+        vars.put("name", name);
+        vars.put("string", string);
+        vars.put("position", position);
+        vars.put("runNumber", runNumber);
 
         MockAlerter alerter = new MockAlerter();
         alerter.setExpected(Alerter.Priority.SCP, condition, vars);

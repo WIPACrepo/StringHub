@@ -132,8 +132,6 @@ public class DOMConnector
 
 	/**
 	 * Start background threads.
-	 *
-	 * @throws Exception if there is a problem
 	 */
 	public void start()
 	{

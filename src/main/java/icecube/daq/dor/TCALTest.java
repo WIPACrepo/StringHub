@@ -35,8 +35,7 @@ public final class TCALTest
             TimeCalib tcal = driver.readTCAL(tcalFile);
             rapcal.update(tcal, u0);
             System.out.println(
-                    rapcal.cableLength() + " " +
-                    rapcal.clockRatio());
+                    rapcal.cableLength());
             cableLengthList.add(rapcal.cableLength());
             Thread.sleep(500L);
         }

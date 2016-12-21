@@ -1,3 +1,4 @@
+/* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
 package icecube.daq.configuration;
 
 import icecube.daq.domapp.AtwdChipSelect;
@@ -46,7 +47,7 @@ public class XMLConfig extends DefaultHandler
 		"ledBrightness", "frontEndAmpLowerClamp", "flasherDelay", "muxBias", "flasherRef"
 	};
 	private static final int[] dacChannels = {
-	    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 14
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 14
 	};
 
 	public XMLConfig()
@@ -93,20 +94,20 @@ public class XMLConfig extends DefaultHandler
 		}
 		else if (localName.equals("atwdChipSelect"))
 		{
-		    if (text.equals("A"))
-		        currentConfig.setAtwdChipSelect(AtwdChipSelect.ATWD_A);
-		    else if (text.equals("B"))
-		        currentConfig.setAtwdChipSelect(AtwdChipSelect.ATWD_B);
-		    else
-		        currentConfig.setAtwdChipSelect(AtwdChipSelect.PING_PONG);
+			if (text.equals("A"))
+				currentConfig.setAtwdChipSelect(AtwdChipSelect.ATWD_A);
+			else if (text.equals("B"))
+				currentConfig.setAtwdChipSelect(AtwdChipSelect.ATWD_B);
+			else
+				currentConfig.setAtwdChipSelect(AtwdChipSelect.PING_PONG);
 		}
 		else if (localName.equals("enableIceTopMinBias"))
 		{
-		    currentConfig.enableMinBias();
+			currentConfig.enableMinBias();
 		}
 		else if (localName.equals("disableIceTopMinBias"))
 		{
-		    currentConfig.disableMinBias();
+			currentConfig.disableMinBias();
 		}
 		else if (localName.equals("analogMux"))
 		{
@@ -160,7 +161,7 @@ public class XMLConfig extends DefaultHandler
 		}
 		else if (localName.equals("averagePedestal"))
 		{
-		    currentConfig.setAveragePedestal(atwdChannel, Integer.parseInt(text));
+			currentConfig.setAveragePedestal(atwdChannel, Integer.parseInt(text));
 		}
 		else if (localName.equals("pulserMode"))
 		{
@@ -175,32 +176,32 @@ public class XMLConfig extends DefaultHandler
 		}
 		else if (internalState == ParserState.CHARGE_HISTOGRAM)
 		{
-		    if (localName.equals("source"))
-		    {
-		        if (text.equals("atwd"))
-		            currentConfig.useAtwdChargeStamp();
-		        else if (text.equals("fadc"))
-		            currentConfig.useFadcChargeStamp();
-		    }
-		    else if (localName.equals("prescale"))
-		    {
-		        currentConfig.setHistoPrescale(Short.parseShort(text));
-		    }
-		    else if (localName.equals("interval"))
-		    {
-		        currentConfig.setHistoInterval(Integer.parseInt(text));
-		    }
-		    else if (localName.equals("channel"))
-		    {
-		        if (text.equals("auto"))
-		            currentConfig.setChargeStampAutoRange();
-		        else
-		            currentConfig.setChargeStampAtwdChannel(Byte.parseByte(text));
-		    }
-		    else if (localName.equals("chargeHistogram"))
-		    {
-		        internalState = ParserState.DOM_CONFIG;
-		    }
+			if (localName.equals("source"))
+			{
+				if (text.equals("atwd"))
+					currentConfig.useAtwdChargeStamp();
+				else if (text.equals("fadc"))
+					currentConfig.useFadcChargeStamp();
+			}
+			else if (localName.equals("prescale"))
+			{
+				currentConfig.setHistoPrescale(Short.parseShort(text));
+			}
+			else if (localName.equals("interval"))
+			{
+				currentConfig.setHistoInterval(Integer.parseInt(text));
+			}
+			else if (localName.equals("channel"))
+			{
+				if (text.equals("auto"))
+					currentConfig.setChargeStampAutoRange();
+				else
+					currentConfig.setChargeStampAtwdChannel(Byte.parseByte(text));
+			}
+			else if (localName.equals("chargeHistogram"))
+			{
+				internalState = ParserState.DOM_CONFIG;
+			}
 		}
 		else if (internalState == ParserState.LOCAL_COINCIDENCE)
 		{
@@ -222,9 +223,9 @@ public class XMLConfig extends DefaultHandler
 				else if (text.equals("down"))
 					currentConfig.getLC().setRxMode(LocalCoincidenceConfiguration.RxMode.RXDOWN);
 				else if (text.equals("up-and-down"))
-				    currentConfig.getLC().setRxMode(LocalCoincidenceConfiguration.RxMode.RXBOTH);
+					currentConfig.getLC().setRxMode(LocalCoincidenceConfiguration.RxMode.RXBOTH);
 				else if (text.equals("headers-only"))
-				    currentConfig.getLC().setRxMode(LocalCoincidenceConfiguration.RxMode.RXHDRS);
+					currentConfig.getLC().setRxMode(LocalCoincidenceConfiguration.RxMode.RXHDRS);
 			}
 			else if (localName.equals("txMode"))
 			{
@@ -239,12 +240,12 @@ public class XMLConfig extends DefaultHandler
 			}
 			else if (localName.equals("source"))
 			{
-			    if (text.equals("spe"))
-			        currentConfig.getLC().setSource(LocalCoincidenceConfiguration.Source.SPE);
-			    else if (text.equals("mpe"))
-			        currentConfig.getLC().setSource(LocalCoincidenceConfiguration.Source.MPE);
-			    else
-			        throw new IllegalArgumentException("LC source specifier " + text + " invalid.");
+				if (text.equals("spe"))
+					currentConfig.getLC().setSource(LocalCoincidenceConfiguration.Source.SPE);
+				else if (text.equals("mpe"))
+					currentConfig.getLC().setSource(LocalCoincidenceConfiguration.Source.MPE);
+				else
+					throw new IllegalArgumentException("LC source specifier " + text + " invalid.");
 			}
 			else if (localName.equals("span"))
 			{
@@ -267,37 +268,37 @@ public class XMLConfig extends DefaultHandler
 			}
 			else if (localName.equals("localCoincidence"))
 			{
-			    internalState = ParserState.DOM_CONFIG;
+				internalState = ParserState.DOM_CONFIG;
 			}
-        }
+		}
 		else if (localName.equals("deadtime"))
 		{
-		    currentConfig.setSupernovaDeadtime(Integer.parseInt(text));
+			currentConfig.setSupernovaDeadtime(Integer.parseInt(text));
 		}
 		else if (localName.equals("disc"))
 		{
-		    boolean spe;
-		    if (text.equals("spe"))
-		        spe = true;
-		    else
-		        spe = false;
+			boolean spe;
+			if (text.equals("spe"))
+				spe = true;
+			else
+				spe = false;
 			currentConfig.setSupernovaSpe(spe);
 		}
-        else if (localName.equals("hardwareMonitorInterval"))
-        {
-            currentConfig.setHardwareMonitorInterval((int) (40000000 * Double.parseDouble(text)));
-        }
-        else if (localName.equals("fastMonitorInterval"))
-        {
-            currentConfig.setFastMonitorInterval((int) (40000000 * Double.parseDouble(text)));
-        }
+		else if (localName.equals("hardwareMonitorInterval"))
+		{
+			currentConfig.setHardwareMonitorInterval((int) (40000000 * Double.parseDouble(text)));
+		}
+		else if (localName.equals("fastMonitorInterval"))
+		{
+			currentConfig.setFastMonitorInterval((int) (40000000 * Double.parseDouble(text)));
+		}
 		else if (localName.equals("noiseRate"))
 		{
 			currentConfig.setSimNoiseRate(Double.parseDouble(text));
 		}
 		else if (localName.equals("hlcFraction"))
 		{
-		    currentConfig.setSimHLCFrac(Double.parseDouble(text));
+			currentConfig.setSimHLCFrac(Double.parseDouble(text));
 		}
 		else if (internalState == ParserState.DOM_CONFIG)
 		{
@@ -330,8 +331,8 @@ public class XMLConfig extends DefaultHandler
 		}
 		else if (localName.equals("supernovaMode"))
 		{
-            int index = attributes.getIndex("enabled");
-            if (index >= 0 && attributes.getValue(index).equals("true"))
+			int index = attributes.getIndex("enabled");
+			if (index >= 0 && attributes.getValue(index).equals("true"))
 				currentConfig.enableSupernova();
 			else
 				currentConfig.disableSupernova();
@@ -351,19 +352,19 @@ public class XMLConfig extends DefaultHandler
 		}
 		else if (localName.equals("chargeHistogram"))
 		{
-		    internalState = ParserState.CHARGE_HISTOGRAM;
+			internalState = ParserState.CHARGE_HISTOGRAM;
 		}
 		else if (localName.equals("chargeStamp"))
 		{
-		    if (attributes.getValue("type").equals("atwd"))
-		        currentConfig.setAtwdChargeStamp(true);
-		    else
-		        currentConfig.setAtwdChargeStamp(false);
-		    String channel = attributes.getValue("channel");
-		    if (channel == null || channel.equals("auto"))
-		        currentConfig.setChargeStampAtwdChannel((byte) -2);
-		    else
-		        currentConfig.setChargeStampAtwdChannel(Byte.parseByte(channel));
+			if (attributes.getValue("type").equals("atwd"))
+				currentConfig.setAtwdChargeStamp(true);
+			else
+				currentConfig.setAtwdChargeStamp(false);
+			String channel = attributes.getValue("channel");
+			if (channel == null || channel.equals("auto"))
+				currentConfig.setChargeStampAtwdChannel((byte) -2);
+			else
+				currentConfig.setChargeStampAtwdChannel(Byte.parseByte(channel));
 		}
 		else if (localName.equals("cableLength"))
 		{
@@ -376,18 +377,18 @@ public class XMLConfig extends DefaultHandler
 		else if (localName.equals("domConfig"))
 		{
 			currentConfig = new DOMConfiguration();
-			String mbid = attributes.getValue("mbid");
-			definedDOMConfigs.put(mbid, currentConfig);
+			final String mbid = attributes.getValue("mbid");
+			addDOMConfig(mbid, currentConfig);
 			internalState = ParserState.DOM_CONFIG;
 		}
 		else if (localName.equals("averagePedestal"))
 		{
-		    String atwdChip = attributes.getValue("atwd");
-		    int channel = Integer.parseInt(attributes.getValue("ch"));
-		    if (atwdChip.equalsIgnoreCase("A")) 
-	            atwdChannel = channel;
-		    else if (atwdChip.equalsIgnoreCase("B"))
-		        atwdChannel = channel + 3;
+			String atwdChip = attributes.getValue("atwd");
+			int channel = Integer.parseInt(attributes.getValue("ch"));
+			if (atwdChip.equalsIgnoreCase("A"))
+				atwdChannel = channel;
+			else if (atwdChip.equalsIgnoreCase("B"))
+				atwdChannel = channel + 3;
 		}
 	}
 
@@ -405,12 +406,12 @@ public class XMLConfig extends DefaultHandler
 		SAXParser parser = saxFactory.newSAXParser();
 		try
 		{
-		    long t0 = System.currentTimeMillis();
+			long t0 = System.currentTimeMillis();
 			parser.parse(xmlIn, this);
 			if (logger.isDebugEnabled()) {
 				logger.debug("XML parsing completed - took " +
-                                             (System.currentTimeMillis() - t0) +
-                                             " milliseconds.");
+							 (System.currentTimeMillis() - t0) +
+							 " milliseconds.");
 			}
 		}
 		catch (Exception except)
@@ -418,6 +419,16 @@ public class XMLConfig extends DefaultHandler
 			except.printStackTrace();
 			throw except;
 		}
+	}
+
+	public void addDOMConfig(String mbid, DOMConfiguration domCfg)
+	{
+		if (definedDOMConfigs.containsKey(mbid)) {
+			logger.error("Warning, overwriting DOM " + mbid +
+						 " configuration");
+		}
+
+		definedDOMConfigs.put(mbid, domCfg);
 	}
 
 	public DOMConfiguration getDOMConfig(String mbid)

@@ -38,7 +38,7 @@ public class LeadingEdgeRAPCal extends AbstractRAPCal
         txt.append("Past the end of TCAL vector:");
         for (int i = 0; i < 48; i++) txt.append(" ").append(w[i]);
         logger.warn(txt);
-        throw new RAPCalException(getClass().getName(), w);
+        throw new BadTCalException(getClass().getName(), w);
     }
 
 }

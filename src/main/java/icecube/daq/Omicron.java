@@ -1,14 +1,16 @@
 package icecube.daq;
 
+import icecube.daq.bindery.BufferConsumerAsync;
 import icecube.daq.bindery.BufferConsumerBuffered;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.configuration.XMLConfig;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.DataCollector;
+import icecube.daq.domapp.DataCollectorFactory;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
-import icecube.daq.dor.GPSService;
+import icecube.daq.time.gps.GPSService;
 
 import java.io.BufferedOutputStream;
 import java.io.FileInputStream;
@@ -34,6 +36,9 @@ public class Omicron {
 
 	public static void main(String[] args) throws Exception
 	{
+        // needs to be done soon as possible.
+        setGPSConfiguration();
+
 		int index = 0;
 		float runLength = 30.0f;
 		String pathToProps = ".omicron.properties";
@@ -103,7 +108,9 @@ public class Omicron {
 		BufferConsumerBuffered tcalChan = new BufferConsumerBuffered(fOutTcal);
 		BufferConsumerBuffered scalChan = new BufferConsumerBuffered(fOutScal);
 
-		MultiChannelMergeSort hitsSort = new MultiChannelMergeSort(nDOM, hitsChan, "hits");
+        // consume hits on a dedicated thread
+        BufferConsumerAsync asyncHitConsumer = new BufferConsumerAsync(hitsChan, 500000, "hit-consumer");
+        MultiChannelMergeSort hitsSort = new MultiChannelMergeSort(nDOM, asyncHitConsumer, "hits");
 		MultiChannelMergeSort moniSort = new MultiChannelMergeSort(nDOM, moniChan, "moni");
 		MultiChannelMergeSort tcalSort = new MultiChannelMergeSort(nDOM, tcalChan, "tcal");
 		MultiChannelMergeSort scalSort = new MultiChannelMergeSort(nDOM, scalChan, "supernova");
@@ -118,11 +125,12 @@ public class Omicron {
 			scalSort.register(chInfo.getMainboardIdAsLong());
 
 			// Associate a GPS service to this card, if not already done
-			GPSService.getInstance().startService(chInfo.card, null);
+			GPSService.getInstance().startService(chInfo.card);
 
-			DataCollector dc = new DataCollector(
-					chInfo.card, chInfo.pair, chInfo.dom, config,
-					hitsSort, moniSort, scalSort, tcalSort,
+			DataCollector dc =
+                    DataCollectorFactory.buildDataCollector(
+					chInfo.card, chInfo.pair, chInfo.dom, chInfo.mbid, config,
+                    hitsSort, moniSort, scalSort, tcalSort,
 					!DISABLE_INTERVAL);
 			collectors.add(dc);
 			if (logger.isDebugEnabled()) logger.debug("Starting new DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ").");
@@ -189,7 +197,7 @@ public class Omicron {
 			}
 			else
 			{
-				while (!dc.getRunLevel().equals(RunLevel.CONFIGURED) && System.currentTimeMillis() - t0 < 15000L)
+                while (!dc.getRunLevel().equals(RunLevel.CONFIGURED) && System.currentTimeMillis() - t0 < 30000L)
 				{
 					if (logger.isDebugEnabled()) logger.debug("Waiting of DC " + dc.getName() + " to configure.");
 					Thread.sleep(500);
@@ -197,7 +205,7 @@ public class Omicron {
 				if (!dc.getRunLevel().equals(RunLevel.CONFIGURED))
 				{
 					logger.warn("Collector " + dc.getName() + " stuck configuring: coup de grace.");
-					dc.interrupt();
+                    dc.signalShutdown();
 					reaper.add(dc);
 				}
 			}
@@ -208,40 +216,71 @@ public class Omicron {
 
 		logger.info("Starting run...");
 
-		// Quickly fire off a run start now that all are ready
-		for (DataCollector dc : collectors)
-			if (dc.isAlive()) dc.signalStartRun();
 
-		t0 = System.currentTimeMillis() + runLengthMsec;
 
-		while (true)
-		{
-			long time = System.currentTimeMillis();
-			if (time > t0)
-			{
-				for (DataCollector dc : collectors) if (dc.isAlive()) dc.signalStopRun();
-				break;
-			}
-			Thread.sleep(1000);
-		}
+        if(collectors.size() > 0)
+        {
 
-		for (DataCollector dc : collectors) {
-			while (dc.isAlive() && !dc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(100);
-			dc.signalShutdown();
-		}
+            // Quickly fire off a run start now that all are ready
+            for (DataCollector dc : collectors)
+                if (dc.isAlive()) dc.signalStartRun();
 
-		hitsSort.join();
-		moniSort.join();
-		scalSort.join();
-		tcalSort.join();
+            t0 = System.currentTimeMillis() + runLengthMsec;
 
-		// kill GPS services
-		GPSService.getInstance().shutdownAll();
+            while (true)
+            {
+                long time = System.currentTimeMillis();
+                if (time > t0)
+                {
+                    for (DataCollector dc : collectors) if (dc.isAlive()) dc.signalStopRun();
+                    break;
+                }
+                Thread.sleep(1000);
+            }
 
-		// not sure if this is needed, but close the output file
-		fOutHits.close();
-		fOutMoni.close();
-		fOutTcal.close();
-		fOutScal.close();
-	}
+            for (DataCollector dc : collectors) {
+                while (dc.isAlive() && !dc.getRunLevel().equals(RunLevel.CONFIGURED)) Thread.sleep(100);
+                dc.signalShutdown();
+            }
+        }
+        else
+        {
+            logger.warn("No DataCollectors left to start, aborting run");
+        }
+
+        hitsSort.join();
+        asyncHitConsumer.join();
+
+        moniSort.join();
+        scalSort.join();
+        tcalSort.join();
+
+        // kill GPS services
+        GPSService.getInstance().shutdownAll();
+
+        // not sure if this is needed, but close the output file
+        fOutHits.close();
+        fOutMoni.close();
+        fOutTcal.close();
+        fOutScal.close();
+    }
+
+    /**
+     * Replace the default GPS configuration (which requires GPS) with a
+     * more forgiving setting that falls back to a works-all-the-time
+     * configuration, unless the user configured the mode explicitly.
+     *
+     * Note: This needs to be called before the GPSService class
+     *       is instantiated.
+     */
+    private static void setGPSConfiguration()
+    {
+        String userSetting =
+                System.getProperty("icecube.daq.time.gps.gps-mode");
+
+        if(userSetting == null)
+        {
+            System.setProperty("icecube.daq.time.gps.gps-mode", "discover");
+        }
+    }
 }

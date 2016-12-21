@@ -50,7 +50,7 @@
               <classifier>replay</classifier>
               <archive>
                 <manifest>
-                  <mainClass>icecube.daq.stringhub.ReplayHubComponent</mainClass>
+                  <mainClass>icecube.daq.replay.ReplayHubComponent</mainClass>
                   <addClasspath>true</addClasspath>
                   <classpathPrefix>../lib</classpathPrefix>
                 </manifest>
@@ -73,22 +73,6 @@
               </archive>
             </configuration>
           </execution>
-          <execution>
-            <id>StringHub-te</id>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-            <configuration>
-              <classifier>te</classifier>
-              <archive>
-                <manifest>
-                  <mainClass>icecube.daq.stringhub.TEHub</mainClass>
-                  <addClasspath>true</addClasspath>
-                  <classpathPrefix>../lib</classpathPrefix>
-                </manifest>
-              </archive>
-            </configuration>
-          </execution>
         </executions>
       </plugin>
      <plugin>
@@ -96,6 +80,10 @@
        <artifactId>maven-surefire-plugin</artifactId>
        <configuration>
          <argLine>-Xms1024m -Xmx1024m</argLine>
+         <!-- PriortySortTest is broken pending issue 7701 -->
+         <excludes>
+           <exclude>**/PrioritySortTest.java</exclude>
+         </excludes>
        </configuration>
      </plugin>
     </plugins>
@@ -149,6 +137,16 @@
     <dependency>
       <groupId>javax.xml.parsers</groupId>
       <artifactId>jaxp-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>commons-net</groupId>
+      <artifactId>commons-net</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.xerial</groupId>
+      <artifactId>sqlite-jdbc</artifactId>
     </dependency>
   </dependencies>
 

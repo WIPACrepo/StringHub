@@ -1,19 +1,23 @@
 /* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
 package icecube.daq.stringhub;
 
+import icecube.daq.bindery.BufferConsumerAsync;
 import icecube.daq.bindery.MultiChannelMergeSort;
+import icecube.daq.bindery.PrioritySort;
 import icecube.daq.bindery.SecondaryStreamConsumer;
 import icecube.daq.common.DAQCmdInterface;
-import icecube.daq.configuration.XMLConfig;
+import icecube.daq.configuration.ConfigData;
 import icecube.daq.domapp.AbstractDataCollector;
+import icecube.daq.bindery.BufferConsumer;
+import icecube.daq.bindery.ChannelSorter;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.DataCollector;
+import icecube.daq.domapp.DataCollectorFactory;
 import icecube.daq.domapp.MessageException;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
-import icecube.daq.dor.GPSService;
 import icecube.daq.io.DAQComponentOutputProcess;
 import icecube.daq.io.OutputChannel;
 import icecube.daq.io.PayloadReader;
@@ -26,24 +30,29 @@ import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.DOMClockRolloverAlerter;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.monitoring.MonitoringData;
+import icecube.daq.monitoring.RunMonitor;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.impl.ReadoutRequestFactory;
 import icecube.daq.payload.impl.VitreousBufferCache;
+import icecube.daq.priority.AdjustmentTask;
+import icecube.daq.priority.SorterException;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
+import icecube.daq.time.gps.IGPSService;
+import icecube.daq.time.gps.GPSService;
+import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
 import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.IDOMRegistry;
 import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
-import icecube.daq.util.JAXPUtil;
 import icecube.daq.util.JAXPUtilException;
 import icecube.daq.util.StringHubAlert;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -52,16 +61,12 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.log4j.Logger;
-
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
 import org.xml.sax.SAXException;
 
@@ -75,58 +80,56 @@ public class StringHubComponent
 	private static final String COMPONENT_NAME =
 		DAQCmdInterface.DAQ_STRING_HUB;
 
+	/** Default interval for each hitspool file (in seconds) */
+	private static final double DEFAULT_HITSPOOL_INTERVAL = 15.0;
+	/** Maximum number of hitspool files */
+	private static final int DEFAULT_HITSPOOL_MAXFILES = 18000;
+
 	private int hubId;
-	private boolean isSim;
 	private Driver driver = Driver.getInstance();
 	private IByteBufferCache cache;
 	private Sender sender;
-	private DOMRegistry domRegistry;
+	private IDOMRegistry domRegistry;
 	private IByteBufferCache moniBufMgr, tcalBufMgr, snBufMgr;
 	private PayloadReader reqIn;
 	private SimpleOutputEngine moniOut;
 	private SimpleOutputEngine tcalOut;
 	private SimpleOutputEngine supernovaOut;
 	private SimpleOutputEngine hitOut;
-	private SimpleOutputEngine teOut;
 	private SimpleOutputEngine dataOut;
 	private DOMConnector conn;
-	private MultiChannelMergeSort hitsSort;
-	private MultiChannelMergeSort moniSort;
-	private MultiChannelMergeSort tcalSort;
-	private MultiChannelMergeSort scalSort;
+	private ChannelSorter hitsSort;
+	private ChannelSorter moniSort;
+	private ChannelSorter tcalSort;
+	private ChannelSorter scalSort;
 	private File configurationPath;
+	private int numConfigured;
+	private IRunMonitor runMonitor;
 
-	private int runNumber;
-
-	private boolean hitSpooling;
-	private String hitSpoolDir;
-	private long hitSpoolIval;
-
-	private int hitSpoolNumFiles = 100;
+	private FilesHitSpool hitSpooler;
 
 	/** list of configured DOMs filled during configuring() */
-	private ArrayList<DeployedDOM> configuredDOMs =
-		new ArrayList<DeployedDOM>();
+	private List<DeployedDOM> configuredDOMs;
+
+	private ArrayList<PrioritySort> prioList = new ArrayList<PrioritySort>();
+
+	private boolean forceRandom;
 
 	public StringHubComponent(int hubId)
-	{
-		this(hubId, (hubId >= 1000 && hubId < 2000));
-	}
-
-	public StringHubComponent(int hubId, boolean isSim)
-	{
-		this(hubId, isSim, true, true, true, true, true, true, true);
-	}
-
-	public StringHubComponent(int hubId, boolean isSim, boolean includeHitOut,
-							  boolean includeTEOut, boolean includeReqIn,
-							  boolean includeDataOut, boolean includeMoniOut,
-							  boolean includeTCalOut, boolean includeSNOut)
 	{
 		super(COMPONENT_NAME, hubId);
 
 		this.hubId = hubId;
-		this.isSim = isSim;
+	}
+
+	public void initialize()
+	{
+		final boolean includeHitOut = true;
+		final boolean includeReqIn = true;
+		final boolean includeDataOut = true;
+		final boolean includeMoniOut = true;
+		final boolean includeTCalOut = true;
+		final boolean includeSNOut = true;
 
 		addMBean("jvm", new MemoryStatistics());
 		addMBean("system", new SystemStatistics());
@@ -178,23 +181,21 @@ public class StringHubComponent
 		}
 
 		sender = new Sender(hubId, rdoutDataCache);
+		if (domRegistry != null) {
+			sender.setDOMRegistry(domRegistry);
+		}
 
 		if (logger.isInfoEnabled()) {
 			logger.info("starting up StringHub component " + hubId);
 		}
 
 		hitOut = null;
-		teOut = null;
 
 		if (minorHubId > 0) {
 			// all non-AMANDA hubs send hits to a trigger
 			if (includeHitOut) {
 				hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId,
 												"hitOut");
-			}
-			if (includeTEOut) {
-				teOut = new SimpleOutputEngine(COMPONENT_NAME, hubId, "teOut",
-											   true);
 			}
 			if (SourceIdRegistry.isIcetopHubSourceID(fullId)) {
 				if (hitOut != null) {
@@ -204,17 +205,10 @@ public class StringHubComponent
 				if (hitOut != null) {
 					addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
 				}
-				if (teOut != null) {
-					addOptionalEngine(DAQConnector.TYPE_TRACKENG_HIT, teOut);
-				}
 			}
 			if (hitOut != null) {
 				sender.setHitOutput(hitOut);
 				sender.setHitCache(cache);
-			}
-			if (teOut != null) {
-				sender.setTrackEngineOutput(teOut);
-				sender.setTrackEngineCache(cache);
 			}
 		}
 
@@ -265,8 +259,83 @@ public class StringHubComponent
 			addMonitoredEngine(DAQConnector.TYPE_SN_DATA, supernovaOut);
 		}
 
-		// Default 10s hit spool interval
-		hitSpoolIval = 100000000000L;
+		if (runMonitor != null) {
+			if (runMonitor.isRunning()) {
+				logger.error("Previous RunMonitor is still running!");
+				runMonitor.stop();
+			}
+			try {
+				runMonitor.join();
+			} catch (InterruptedException ie) {
+				logger.error("While joining with RunMonitor thread", ie);
+			}
+		}
+		runMonitor = new RunMonitor(hubId % 1000, getAlertQueue());
+		runMonitor.start();
+	}
+
+	List<DeployedDOM> applyConfigToDOMs(ConfigData cfgData,
+										Collection<DeployedDOM> deployedDOMs,
+										List<DOMChannelInfo> activeDOMs)
+		throws DAQCompException
+	{
+		// Dropped DOM detection logic - WARN if channel on string AND in
+		// config BUT NOT in the list of active DOMs.  Oh, and count the
+		// number of channels that are active AND requested in the config
+		// while we're looping
+
+		Set<String> activeDomSet = new HashSet<String>();
+		for (DOMChannelInfo chanInfo : activeDOMs)
+		{
+			activeDomSet.add(chanInfo.mbid);
+			if (cfgData.isDOMIncluded(chanInfo.mbid)) {
+				numConfigured++;
+			}
+		}
+
+		if (numConfigured == 0) {
+			throw new DAQCompException("No Active DOMs on Hub " + hubId +
+									   " selected in configuration.");
+		}
+
+		// check all the DOMs which are known to be on this hub
+		ArrayList<DeployedDOM> doms = new ArrayList<DeployedDOM>();
+		for (DeployedDOM deployedDOM : deployedDOMs) {
+			String mbid = deployedDOM.getMainboardId();
+
+			// if this DOM is in the run configuration...
+			if (cfgData.isDOMIncluded(mbid)) {
+
+				// complain about DOMs which are in the config
+				// but are not active
+				if (!activeDomSet.contains(mbid)) {
+					logger.warn("DOM " + deployedDOM +
+								" requested in configuration for hub " +
+								hubId + " but not found.");
+
+					StringHubAlert.
+						sendDOMAlert(getAlertQueue(),
+									 Alerter.Priority.EMAIL,
+									 "Dropped DOM",
+									 StringHubAlert.NO_CARD,
+									 StringHubAlert.NO_PAIR,
+									 StringHubAlert.NO_SPECIFIER,
+									 deployedDOM.getMainboardId(),
+									 deployedDOM.getName(),
+									 deployedDOM.getStringMajor(),
+									 deployedDOM.getStringMinor(),
+									 StringHubAlert.NO_RUNNUMBER,
+									 StringHubAlert.NO_UTCTIME);
+				}
+
+				// add to the list of configured DOMs
+				doms.add(deployedDOM);
+			}
+		}
+
+		new DOMSorter().sort(doms);
+
+		return doms;
 	}
 
 	@Override
@@ -293,8 +362,42 @@ public class StringHubComponent
 			logger.error("Could not load DOMRegistry", e);
 		}
 
-		sender.setDOMRegistry(domRegistry);
+		if (sender != null) {
+			sender.setDOMRegistry(domRegistry);
+		}
 	}
+
+    @Override
+    /**
+     * Extends startup to include the clock monitoring
+     */
+    public void start() throws DAQCompException
+    {
+        super.start();
+
+        //start up the clock monitoring subsystem
+        final Object mbean =
+                ClockMonitoringSubsystem.Factory.subsystem().startup(getAlertQueue());
+        if (mbean != null) {
+            addMBean("ClockMonitor", mbean);
+        }
+    }
+
+    /**
+     * Terminate string hub services.
+     *
+     * todo: In the current implementation, StringHub components are not
+     *       terminated gracefully by the controller. Non-Daemon threads
+     *       do not prevent component/jvm shutdown.  If this changes, this
+     *       method should be wired into the shutdown. Until then, this
+     *       method serves as reference code for non-run-related resources
+     *       that should be cleaned up.
+     */
+    private void terminate()
+    {
+        GPSService.getInstance().shutdownAll();
+        ClockMonitoringSubsystem.Factory.subsystem().shutdown();
+    }
 
 	/**
 	 * Close all open files, sockets, etc.
@@ -308,7 +411,6 @@ public class StringHubComponent
 		tcalOut.destroyProcessor();
 		supernovaOut.destroyProcessor();
 		hitOut.destroyProcessor();
-		teOut.destroyProcessor();
 		reqIn.destroyProcessor();
 		dataOut.destroyProcessor();
 
@@ -316,21 +418,35 @@ public class StringHubComponent
 	}
 
 	/**
-	 * This method will force the string hub to query the driver for a list of
-	 * DOMs. For a DOM to be detected its cardX/pairY/domZ/id procfile must
-	 * report a valid non-zero DOM mainboard ID.
-	 * @throws IOException
+	 * Query the driver for a list of DOMs. For a DOM to be detected its
+	 * cardX/pairY/domZ/id procfile must report a valid non-zero DOM
+	 * mainboard ID.
+	 *
+	 * @return list of DOMChannelInfo entries
 	 */
-	private List<DOMChannelInfo> discover()
-		throws IOException
+	private List<DOMChannelInfo> discoverRealDOMs()
+		throws DAQCompException
 	{
-		if (!isSim) {
+		try {
 			driver.setBlocking(true);
 			return driver.discoverActiveDOMs();
+		} catch (IOException io) {
+			logger.error("Cannot discover DOMs on hub " + hubId, io);
+			throw new DAQCompException("Cannot discover hub " + hubId, io);
+		} catch (Throwable t) {
+			throw new DAQCompException("Unexpected hub " + hubId +
+									   " exception", t);
 		}
+	}
 
-		Collection<DeployedDOM> attachedDOMs =
-			domRegistry.getDomsOnHub(getNumber());
+	/**
+	 * Build a list of all possible DOMs for the string
+	 *
+	 * @return list of DOMChannelInfo entries
+	 */
+	private List<DOMChannelInfo> discoverSimDOMs(Collection<DeployedDOM>
+												 attachedDOMs)
+	{
 		List<DOMChannelInfo> activeDOMs =
 			new ArrayList<DOMChannelInfo>(attachedDOMs.size());
 		for (DeployedDOM dom : attachedDOMs) {
@@ -342,8 +458,9 @@ public class StringHubComponent
 			// positive integers, but that test would fail for negative
 			// numbers.
 			if (dom.getStringMinor() % 2 != 0) aorb = 'B';
-			activeDOMs.add(new DOMChannelInfo(dom.getMainboardId(), card,
-											  pair, aorb));
+			activeDOMs.add(new DOMChannelInfo(dom.getMainboardId(),
+											  dom.getNumericMainboardId(),
+											  card, pair, aorb));
 		}
 		return activeDOMs;
 	}
@@ -365,36 +482,71 @@ public class StringHubComponent
 									   " has not been set");
 		}
 
+		Collection<DeployedDOM> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+
+		ConfigData cfgData;
+		try {
+			cfgData = new ConfigData(configurationPath, configName, hubId,
+									 deployedDOMs);
+		} catch (JAXPUtilException jux) {
+			throw new DAQCompException(jux);
+		}
+
+		final boolean isSim = cfgData.isRandom || forceRandom ||
+			(hubId >= 1000 && hubId < 2000);
+
 		// Lookup the connected DOMs
 		List<DOMChannelInfo> activeDOMs;
-		try {
-			activeDOMs = discover();
-		} catch (IOException iox) {
-			logger.error("Cannot discover DOMs on hub " + hubId, iox);
-			throw new DAQCompException("Cannot discover hub " + hubId, iox);
-		} catch (Throwable t) {
-			throw new DAQCompException("Unexpected hub " + hubId +
-									   " exception", t);
+		if (isSim) {
+			activeDOMs = discoverSimDOMs(deployedDOMs);
+		} else {
+			activeDOMs = discoverRealDOMs();
+
+			// GPS service needs string number for monitoring messages
+			IGPSService inst = GPSService.getInstance();
+			inst.setStringNumber(hubId % 1000);
 		}
 
 		if (activeDOMs.size() == 0) {
 			throw new DAQCompException("No Active DOMs on hub " + hubId);
 		}
 
-		if (logger.isDebugEnabled()) {
-			logger.debug("Found " + activeDOMs.size() + " active DOMs.");
+		if (cfgData.forwardIsolatedHits) {
+			sender.forwardIsolatedHitsToTrigger();
 		}
 
-		ConfigData cfgData;
-		try {
-			cfgData = new ConfigData(configName, activeDOMs);
-		} catch (JAXPUtilException jux) {
-			throw new DAQCompException(jux);
-		}
+		configuredDOMs = applyConfigToDOMs(cfgData, deployedDOMs, activeDOMs);
+		runMonitor.setConfiguredDOMs(configuredDOMs);
 
 		logger.debug("Configuration successfully loaded -" +
-					 " Intersection(DISC, CONFIG).size() = " + cfgData.nch);
+					 " Intersection(DISC, CONFIG).size() = " + numConfigured);
 
+		configOutput(cfgData, openSecondary);
+
+		createDataCollectors(cfgData, activeDOMs, isSim);
+
+		// Still need to get the data collectors to pick up
+		// and do something with the config
+		try {
+			conn.configure();
+		} catch (InterruptedException ie) {
+			throw new DAQCompException("Interrupted while waiting for DOMs" +
+									   " to finish configuring");
+		}
+	}
+
+	/**
+	 * Set up the output objects for physics, monitoring, supernova and
+	 * time calibration streams
+	 *
+	 * @param cfgData configuration data
+	 * @param openSecondary if <tt>true</tt> open the secondary streams
+	 *
+	 * @throws DAQCompException if there is a problem
+	 */
+	private void configOutput(ConfigData cfgData, boolean openSecondary)
+		throws DAQCompException
+	{
 		// Must make sure to release file resources associated with the
 		// previous runs since we are throwing away the collectors and
 		// starting from scratch
@@ -407,7 +559,7 @@ public class StringHubComponent
 			}
 		}
 
-		conn = new DOMConnector(cfgData.nch);
+		conn = new DOMConnector(numConfigured);
 
 		SecondaryStreamConsumer monitorConsumer;
 		SecondaryStreamConsumer supernovaConsumer;
@@ -427,125 +579,92 @@ public class StringHubComponent
 				new SecondaryStreamConsumer(hubId, tcalBufMgr,
 											tcalOut.getChannel(),
 											cfgData.tcalPrescale);
+
+            // Support tcal capture, a non-standard diagnostic
+            TimeCalibrationCaptureSubsystem.activate(tcalConsumer);
 		}
 
-		if (!hitSpooling) {
-			// Start the hit merger-sorter
-			hitsSort = new MultiChannelMergeSort(cfgData.nch, sender);
+		// the hit buffer consumer is either the sender or a hitspool
+		// object which passes all hits onto the sender
+		BufferConsumer consumer;
+		try {
+			consumer = createHitspooler(sender);
+		} catch (IOException ioe) {
+			logger.error("Cannot create hitspooler", ioe);
+			consumer = sender;
+		}
+
+		final boolean usePriority =
+			System.getProperty("usePrioritySort") != null;
+
+		// Start the hit merger-sorter
+		if (!usePriority) {
+			hitsSort = new MultiChannelMergeSort(numConfigured, consumer);
 		} else {
-			// send hits to hit spooler which forwards them to the sorter
-
-			// Rotate hit spooling directories : current <==> last
-			File hitSpoolCurrent = new File(hitSpoolDir, "currentRun");
-			File hitSpoolLast = new File(hitSpoolDir, "lastRun");
-			File hitSpoolTemp = new File(hitSpoolDir, "HitSpool" +
-										 runNumber + ".tmp");
-
-			// Note that renameTo and mkdir return false on failure
-			if (hitSpoolLast.exists()) {
-				if (!hitSpoolLast.renameTo(hitSpoolTemp)) {
-					logger.debug("hitSpoolLast renameTo failed");
-				}
-			}
-			if (hitSpoolCurrent.exists()) {
-				if (!hitSpoolCurrent.renameTo(hitSpoolLast)) {
-					logger.debug("hitSpoolCurrent renameTo failed!");
-				}
-			}
-			if (hitSpoolTemp.exists()) {
-				if(!hitSpoolTemp.renameTo(hitSpoolCurrent)) {
-					logger.debug("hitSpoolTemp renameTo failed!");
-				}
-			}
-			if (!hitSpoolCurrent.exists()) {
-				if(!hitSpoolCurrent.mkdir()) {
-					logger.debug("hitSpoolCurrent mkdir failed!");
-				}
+			PrioritySort tmp;
+			try {
+				tmp = new PrioritySort("HitsSort", numConfigured, consumer);
+			} catch (SorterException se) {
+				throw new DAQCompException("Cannot create hit sorter", se);
 			}
 
-			FilesHitSpool hitSpooler =
-				new FilesHitSpool(sender, configurationPath, hitSpoolCurrent,
-								  hitSpoolIval, hitSpoolNumFiles);
-			hitsSort = new MultiChannelMergeSort(cfgData.nch, hitSpooler);
+			prioList.add(tmp);
+			hitsSort = tmp;
 		}
 
 		// start remaining merger-sorter objects
-		moniSort = new MultiChannelMergeSort(cfgData.nch, monitorConsumer);
-		scalSort = new MultiChannelMergeSort(cfgData.nch, supernovaConsumer);
-		tcalSort = new MultiChannelMergeSort(cfgData.nch, tcalConsumer);
+		if (usePriority) {
+			PrioritySort tmp;
 
-		for (DOMChannelInfo chanInfo : activeDOMs)
-		{
-			DOMConfiguration config = cfgData.getDOMConfig(chanInfo.mbid);
-			if (config == null) continue;
-
-			String cwd = chanInfo.card + "" + chanInfo.pair + chanInfo.dom;
-
-			AbstractDataCollector dc;
 			try {
-				dc = createDataCollector(isSim, chanInfo, config, hitsSort,
-										 moniSort, tcalSort, scalSort,
-										 cfgData.enable_intervals,
-										 cfgData.snDistance);
-			} catch (Throwable t) {
-				throw new DAQCompException("Cannot create " + hubId +
-										   " data collector", t);
+				tmp = new PrioritySort("MoniSort", numConfigured,
+									   monitorConsumer);
+				prioList.add(tmp);
+				moniSort = tmp;
+
+				tmp = new PrioritySort("SNSort", numConfigured,
+									   supernovaConsumer);
+				prioList.add(tmp);
+				scalSort = tmp;
+
+				tmp = new PrioritySort("TCalSort", numConfigured, tcalConsumer);
+				prioList.add(tmp);
+				tcalSort = tmp;
+			} catch (SorterException se) {
+				throw new DAQCompException("Cannot create sorter", se);
 			}
-
-			DeployedDOM domInfo = domRegistry.getDom(chanInfo.mbid);
-
-			LiveTCalMoni moni = new LiveTCalMoni(getAlertQueue(), domInfo);
-
-			// Associate a GPS service to this card, if not already done
-			if (!isSim) {
-				GPSService inst = GPSService.getInstance();
-				inst.startService(chanInfo.card, moni);
-			}
-
-			dc.setDomInfo(domInfo);
-
-			dc.setSoftbootBehavior(cfgData.dcSoftboot);
-			hitsSort.register(chanInfo.mbid_numerique);
-			moniSort.register(chanInfo.mbid_numerique);
-			scalSort.register(chanInfo.mbid_numerique);
-			tcalSort.register(chanInfo.mbid_numerique);
-			dc.setAlertQueue(getAlertQueue());
-			dc.setLiveMoni(moni);
-			conn.add(dc);
-			if (logger.isDebugEnabled()) {
-				logger.debug("Starting new DataCollector thread on (" + cwd +
-							 ").");
-			}
+		} else {
+			moniSort = new MultiChannelMergeSort(numConfigured, monitorConsumer);
+			scalSort = new MultiChannelMergeSort(numConfigured,
+												 supernovaConsumer);
+			tcalSort = new MultiChannelMergeSort(numConfigured, tcalConsumer);
 		}
 
-		logger.debug("Starting up HKN1 sorting trees...");
-
-		// Still need to get the data collectors to pick up
-		// and do something with the config
-		try {
-			conn.configure();
-		} catch (InterruptedException ie) {
-			throw new DAQCompException("Interrupted while waiting for DOMs" +
-									   " to finish configuring");
+		if (prioList.size() > 0) {
+			// monitor all PrioritySort objects
+			for (PrioritySort ps : prioList) {
+				addMBean(ps.getName(), ps);
+			}
 		}
 	}
 
 	private AbstractDataCollector
 		createDataCollector(boolean isSim, DOMChannelInfo chanInfo,
 							DOMConfiguration config,
-							MultiChannelMergeSort hitsSort,
-							MultiChannelMergeSort moniSort,
-							MultiChannelMergeSort tcalSort,
-							MultiChannelMergeSort scalSort,
+							ChannelSorter hitsSort,
+							ChannelSorter moniSort,
+							ChannelSorter tcalSort,
+							ChannelSorter scalSort,
 							boolean enable_intervals, double snDistance)
 		throws IOException, MessageException
 	{
 		if (!isSim) {
-			DataCollector dc =
-				new DataCollector(chanInfo.card, chanInfo.pair, chanInfo.dom,
-								  config, hitsSort, moniSort, scalSort,
-								  tcalSort, enable_intervals);
+            DataCollector dc =
+                    DataCollectorFactory.buildDataCollector(chanInfo.card, chanInfo.pair, chanInfo.dom,
+								  chanInfo.mbid, config, hitsSort, moniSort,
+								  scalSort, tcalSort, enable_intervals);
 			addMBean("DataCollectorMonitor-" + chanInfo, dc);
+			dc.setRunMonitor(runMonitor);
 			return dc;
 		}
 
@@ -558,6 +677,107 @@ public class StringHubComponent
 		final boolean isAmanda = (getNumber() % 1000) == 0;
 		return new SimDataCollector(chanInfo, config, hitsSort, moniSort,
 									scalSort, tcalSort, isAmanda);
+	}
+
+	private void createDataCollectors(ConfigData cfgData,
+									  List<DOMChannelInfo> activeDOMs,
+									  boolean isSim)
+		throws DAQCompException
+	{
+		for (DOMChannelInfo chanInfo : activeDOMs) {
+			DOMConfiguration config = cfgData.getDOMConfig(chanInfo.mbid);
+			if (config == null) continue;
+
+			String cwd = chanInfo.card + "" + chanInfo.pair + chanInfo.dom;
+
+			DeployedDOM domInfo = domRegistry.getDom(chanInfo.mbid_numerique);
+
+			// Associate a GPS service to this card, if not already done
+			if (!isSim) {
+				IGPSService inst = GPSService.getInstance();
+				inst.setRunMonitor(runMonitor);
+				inst.startService(chanInfo.card);
+			}
+
+			AbstractDataCollector dc;
+			try {
+				dc = createDataCollector(isSim, chanInfo, config, hitsSort,
+										 moniSort, tcalSort, scalSort,
+										 cfgData.enable_intervals,
+										 cfgData.snDistance);
+			} catch (Throwable t) {
+				throw new DAQCompException("Cannot create " + hubId +
+										   " data collector", t);
+			}
+
+			dc.setDomInfo(domInfo);
+
+			dc.setSoftbootBehavior(cfgData.dcSoftboot);
+			hitsSort.register(chanInfo.mbid_numerique);
+			moniSort.register(chanInfo.mbid_numerique);
+			scalSort.register(chanInfo.mbid_numerique);
+			tcalSort.register(chanInfo.mbid_numerique);
+			dc.setAlertQueue(getAlertQueue());
+			dc.setRunMonitor(runMonitor);
+			conn.add(dc);
+			if (logger.isDebugEnabled()) {
+				logger.debug("Starting new DataCollector thread on (" + cwd +
+							 ").");
+			}
+		}
+	}
+
+	private BufferConsumer createHitspooler(BufferConsumer consumer)
+		throws IOException
+	{
+		final String directory = System.getProperty("hitspool.directory");
+		if (directory == null) {
+			return consumer;
+		}
+
+		double interval = DEFAULT_HITSPOOL_INTERVAL;
+
+		final String ivalStr = System.getProperty("hitspool.interval");
+		if (ivalStr != null) {
+			try {
+				double tmpIval = Double.parseDouble(ivalStr);
+				interval = tmpIval;
+			} catch (NumberFormatException nfe) {
+				logger.error("Bad hitspool interval \"" + ivalStr +
+							 "\"; falling back to default " + interval);
+			}
+		}
+
+		int numFiles = DEFAULT_HITSPOOL_MAXFILES;
+
+		final String numStr = System.getProperty("hitspool.maxfiles");
+		if (numStr != null) {
+			try {
+				int tmpVal = Integer.parseInt(numStr);
+				numFiles = tmpVal;
+			} catch (NumberFormatException nfe) {
+				logger.error("Bad number of hitspool files \"" + numStr +
+							 "\"; falling back to default " + numFiles);
+			}
+		}
+
+		// send hits to hit spooler which forwards them to the sorter
+		hitSpooler = new FilesHitSpool(consumer, configurationPath,
+									   new File(directory),
+									   (long) (interval * 1E10), numFiles);
+
+		// use a dedicated thread for consumption from the sorter
+		// to separate the hitspool IO load from sorting load.
+		return new BufferConsumerAsync(hitSpooler, 20000000,
+			BufferConsumerAsync.QueueFullPolicy.Block, "hit-consumer");
+	}
+
+	/**
+	 * Used for testing StringHub without real DOMs
+	 */
+	public void forceRandomMode()
+	{
+		forceRandom = true;
 	}
 
 	/**
@@ -574,6 +794,10 @@ public class StringHubComponent
 		if (alertQueue.isStopped()) {
 			throw new DAQCompException("AlertQueue " + alertQueue +
 									   " is stopped");
+		}
+
+		if (configuredDOMs == null || configuredDOMs.size() == 0) {
+			throw new DAQCompException("No DOMs have been configured");
 		}
 
 		if (getNumber() % 1000 < SourceIdRegistry.ICETOP_ID_OFFSET) {
@@ -680,6 +904,40 @@ public class StringHubComponent
 		}
 	}
 
+    /**
+     * Collect DOM clock values and examine for rollover conditions.
+     */
+    private void checkDOMClocks()
+    {
+        Map<DOMChannelInfo, Long> records = new HashMap<DOMChannelInfo, Long>();
+        for (AbstractDataCollector dc : conn.getCollectors())
+        {
+            if(dc instanceof DataCollector)
+            {
+                DataCollector narrow = (DataCollector)dc;
+                DOMChannelInfo details =
+                        new DOMChannelInfo(dc.getMainboardId(),
+                                           dc.getCard(),
+                                           dc.getPair(),
+                                           dc.getDom());
+                narrow.getFirstDOMTime();
+                records.put(details, narrow.getFirstDOMTime());
+            }
+        }
+
+        DOMClockRolloverAlerter checker = new DOMClockRolloverAlerter();
+
+        try
+        {
+            checker.monitorDOMClocks(getAlertQueue(), records);
+        }
+        catch (AlertException e)
+        {
+            logger.error("Unable to check DOM clocks for pending rollover", e);
+        }
+
+    }
+
 	/**
      * Set the run number inside this component.
      *
@@ -687,8 +945,6 @@ public class StringHubComponent
      */
 	public void setRunNumber(int runNumber)
 	{
-		this.runNumber = runNumber;
-
 		logger.info("Set run number");
 		if (conn == null) {
 			logger.error("DOMConnector has not been initialized!");
@@ -696,6 +952,11 @@ public class StringHubComponent
 			for (AbstractDataCollector adc : conn.getCollectors()) {
 				adc.setRunNumber(runNumber);
 			}
+		}
+		if (runMonitor == null) {
+			logger.error("RunMonitor has not been initialized!");
+		} else {
+			runMonitor.setRunNumber(runNumber);
 		}
 	}
 
@@ -707,6 +968,13 @@ public class StringHubComponent
 		throws DAQCompException
 	{
 		setRunNumber(runNumber);
+		if (hitSpooler != null) {
+			try {
+				hitSpooler.startRun(runNumber);
+			} catch (IOException ioe) {
+				throw new DAQCompException("Cannot switch hitspool", ioe);
+			}
+		}
 
 		logger.info("StringHub is starting the run.");
 
@@ -717,6 +985,15 @@ public class StringHubComponent
 		scalSort.start();
 		tcalSort.start();
 
+		if (prioList.size() > 0) {
+			// start adjustment thread for priority sorters
+			AdjustmentTask task = new AdjustmentTask();
+			for (PrioritySort ps : prioList) {
+				ps.registerSorter(task);
+			}
+			task.start();
+		}
+
 		try
 		{
 			conn.startProcessing();
@@ -726,8 +1003,16 @@ public class StringHubComponent
 			throw new DAQCompException("Couldn't start DOMs", e);
 		}
 
+		AlertQueue alertQueue = getAlertQueue();
+		if (alertQueue.isStopped()) {
+			alertQueue.start();
+		}
+
 		// resend the list of this hub's DOMs which are in the run config
 		sendConfiguredDOMs(runNumber);
+
+        // check DOM clocks for pending rollovers
+        checkDOMClocks();
 	}
 
 	public long startSubrun(List<FlasherboardConfiguration> flasherConfigs)
@@ -848,7 +1133,9 @@ public class StringHubComponent
 			}
 		}
 
-		GPSService.getInstance().shutdownAll();
+		if (runMonitor != null) {
+			runMonitor.stop();
+		}
 		logger.info("Returning from stop.");
 	}
 
@@ -868,6 +1155,15 @@ public class StringHubComponent
 
 		// resend the list of this hub's DOMs which are in the run config
 		sendConfiguredDOMs(runNumber);
+
+		if (hitSpooler != null) {
+			// switch to a new run
+			try {
+				hitSpooler.switchRun(runNumber);
+			} catch (IOException ioe) {
+				throw new DAQCompException("Cannot switch hitspool", ioe);
+			}
+		}
 	}
 
 	/**
@@ -877,7 +1173,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 15407 2015-02-11 15:06:54Z dglo $";
+		return "$Id: StringHubComponent.java 16216 2016-09-06 22:03:33Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
@@ -979,11 +1275,6 @@ public class StringHubComponent
 		return hitsSort.getLastOutputTime();
 	}
 
-	public DAQComponentOutputProcess getTrackEngineWriter()
-	{
-		return teOut;
-	}
-
 	public int getNumberOfNonZombies()
 	{
 		int num = 0;
@@ -997,353 +1288,14 @@ public class StringHubComponent
 
 	public long getLatestFirstChannelHitTime()
 	{
-		long latestFirst = 0L;
-		boolean found = true;
-
-		for (AbstractDataCollector adc : conn.getCollectors()) {
-			if (!adc.isZombie()) {
-				long val = adc.getFirstHitTime();
-				if (val < 0L) {
-					found = false;
-					break;
-				} else if (val > latestFirst) {
-					latestFirst = val;
-				}
-			}
-		}
-
-		if (!found) {
-			return 0L;
-		}
-
-		return latestFirst;
+		GoodTimeCalculator gtc = new GoodTimeCalculator(conn, true);
+		return gtc.getTime();
 	}
 
 	public long getEarliestLastChannelHitTime()
 	{
-		long earliestLast = Long.MAX_VALUE;
-		boolean found = true;
-
-		for (AbstractDataCollector adc : conn.getCollectors()) {
-			if (!adc.isZombie()) {
-				long val = adc.getLastHitTime();
-				if (val < 0L) {
-					found = false;
-					break;
-				} else if (val < earliestLast) {
-					earliestLast = val;
-				}
-			}
-		}
-
-		if (!found) {
-			return 0L;
-		}
-
-		return earliestLast;
-	}
-
-	class ConfigData
-	{
-		int nch;
-		int tcalPrescale = 10;
-		boolean dcSoftboot;
-		boolean enable_intervals;
-		double snDistance = Double.NaN;
-
-		private XMLConfig xmlConfig;
-
-		ConfigData(String configName, List<DOMChannelInfo> activeDOMs)
-			throws DAQCompException, JAXPUtilException
-		{
-			// Parse out tags from 'master configuration' file
-			Document doc = JAXPUtil.loadXMLDocument(configurationPath,
-													configName);
-
-			xmlConfig = new XMLConfig();
-
-			Node intvlNode =
-				JAXPUtil.extractNode(doc, "runConfig/intervals/enabled");
-			enable_intervals = parseIntervals(intvlNode, true);
-
-			File domConfigsDir = new File(configurationPath, "domconfigs");
-
-			// Lookup <stringHub hubId='x'> node - if any - and process
-			// configuration directives.
-			final String hnPath = "runConfig/stringHub[@hubId='" + hubId +
-				"']";
-			Node hubNode = JAXPUtil.extractNode(doc, hnPath);
-			if (hubNode == null) {
-				// handle older runconfig files which don't specify hubId
-				NodeList dcList =
-					JAXPUtil.extractNodeList(doc, "runConfig/domConfigList");
-
-				if (dcList.getLength() > 0) {
-					readAllDOMConfigs(domConfigsDir, dcList, true);
-				} else {
-					// handle really ancient runconfig files
-					NodeList shList =
-						JAXPUtil.extractNodeList(doc, "runConfig/stringhub");
-					if (shList.getLength() > 0) {
-						readAllDOMConfigs(domConfigsDir, shList, false);
-					}
-				}
-			} else {
-				// normal case
-				if (!readDOMConfig(domConfigsDir, hubNode, false)) {
-					final String path = "runConfig/domConfigList[@hub='" +
-						hubId + "']";
-					Node dclNode = JAXPUtil.extractNode(doc, path);
-
-					if (dclNode == null ||
-						!readDOMConfig(domConfigsDir, dclNode, true))
-					{
-						throw new DAQCompException("Cannot read DOM config" +
-												   " file for hub " + hubId);
-					}
-				}
-
-				if (JAXPUtil.extractText(hubNode, "trigger/enabled").
-					equalsIgnoreCase("true"))
-				{
-					logger.error("String triggering not implemented");
-				}
-
-
-				intvlNode = JAXPUtil.extractNode(hubNode, "intervals/enabled");
-				enable_intervals = parseIntervals(intvlNode, enable_intervals);
-
-				final String fwdProp = "sender/forwardIsolatedHitsToTrigger";
-				final String fwdText = JAXPUtil.extractText(hubNode, fwdProp);
-				if (fwdText.equalsIgnoreCase("true")) {
-					sender.forwardIsolatedHitsToTrigger();
-				}
-
-				final String softProp = "dataCollector/softboot";
-				final String softText =
-					JAXPUtil.extractText(hubNode, softProp);
-				if (softText.equalsIgnoreCase("true")) {
-					dcSoftboot = true;
-				}
-
-				String tcalPStxt =
-					JAXPUtil.extractText(hubNode, "tcalPrescale");
-				if (tcalPStxt.length() != 0) {
-					tcalPrescale = Integer.parseInt(tcalPStxt);
-				}
-
-				Node hsNode = JAXPUtil.extractNode(hubNode, "hitspool");
-				if (hsNode == null) {
-					// if there is no hitspool child of the stringHub tag
-					// look for a default node
-					hsNode = JAXPUtil.extractNode(doc, "runConfig/hitspool");
-				}
-
-				hitSpooling=false;
-				if (hsNode != null) {
-					final String enabled =
-						JAXPUtil.extractText(hsNode, "enabled");
-					if (enabled.equalsIgnoreCase("true")) {
-						hitSpooling = true;
-					}
-
-					hitSpoolDir = JAXPUtil.extractText(hsNode, "directory");
-					if (hitSpoolDir.length() == 0) {
-						hitSpoolDir = "/mnt/data/pdaqlocal";
-					}
-
-					final String hsIvalText =
-						JAXPUtil.extractText(hsNode, "interval");
-					if (hsIvalText.length() > 0) {
-						final double interval = Double.parseDouble(hsIvalText);
-						hitSpoolIval = (long) (1E10 * interval);
-					}
-
-					final String hsNFText =
-						JAXPUtil.extractText(hsNode, "numFiles");
-					if (hsNFText.length() > 0) {
-						hitSpoolNumFiles  = Integer.parseInt(hsNFText);
-					}
-				}
-			}
-
-			final String snDistText =
-				JAXPUtil.extractText(doc, "runConfig/setSnDistance");
-			if (snDistText.length() > 0) {
-				snDistance = Double.parseDouble(snDistText);
-			}
-
-			// Dropped DOM detection logic - WARN if channel on string AND in
-			// config BUT NOT in the list of active DOMs.  Oh, and count the
-			// number of channels that are active AND requested in the config
-			// while we're looping
-
-			Set<String> activeDomSet = new HashSet<String>();
-			for (DOMChannelInfo chanInfo : activeDOMs)
-			{
-				activeDomSet.add(chanInfo.mbid);
-				if (xmlConfig.getDOMConfig(chanInfo.mbid) != null) {
-					nch++;
-				}
-			}
-
-			if (nch == 0) {
-				throw new DAQCompException("No Active DOMs on Hub " + hubId +
-										   " selected in configuration.");
-			}
-
-			// clear configured DOMs cache
-			configuredDOMs.clear();
-
-			// check all the DOMs which are known to be on this hub
-			for (DeployedDOM deployedDOM :
-					 domRegistry.getDomsOnHub(getNumber()))
-			{
-				String mbid = deployedDOM.getMainboardId();
-
-				// if this DOM is in the run configuration...
-				if (xmlConfig.getDOMConfig(mbid) != null) {
-
-					// complain about DOMs which are in the config
-					// but are not active
-					if (!activeDomSet.contains(mbid)) {
-					logger.warn("DOM " + deployedDOM +
-								" requested in configuration for hub " +
-								hubId + " but not found.");
-
-						StringHubAlert.
-							sendDOMAlert(getAlertQueue(),
-										 Alerter.Priority.EMAIL,
-										 "Dropped DOM",
-										 StringHubAlert.NO_CARD,
-										 StringHubAlert.NO_PAIR,
-										 StringHubAlert.NO_SPECIFIER,
-										 deployedDOM.getMainboardId(),
-										 deployedDOM.getName(),
-										 deployedDOM.getStringMajor(),
-										 deployedDOM.getStringMinor(),
-										 StringHubAlert.NO_RUNNUMBER,
-										 StringHubAlert.NO_UTCTIME);
-				}
-
-					// add to the list of configured DOMs
-					configuredDOMs.add(deployedDOM);
-				}
-			}
-
-			new DOMSorter().sort(configuredDOMs);
-		}
-
-		DOMConfiguration getDOMConfig(String mbid)
-		{
-			return xmlConfig.getDOMConfig(mbid);
-		}
-
-		/**
-		 * Parse the XML node to enable intervals.
-		 *
-		 * @param node 'interval' node (may be null)
-		 * @param prevValue previous value
-		 *
-		 * @return new value
-		 */
-		private boolean parseIntervals(Node node, boolean prevValue)
-		{
-			boolean val;
-			if (node == null) {
-				val = prevValue;
-			} else {
-				val = node.getTextContent().equalsIgnoreCase("true");
-			}
-
-			return val;
-		}
-
-
-		/**
-		 * Read in DOM config info from run configuration file
-		 *
-		 * @param dir location of DOM configuration directory
-		 * @param nodeList list of DOM configuration nodes
-		 * @param oldFormat <tt>true</tt> if nodes are in old format
-		 *
-		 * @throws DAQCompException if a file cannot be read
-		 */
-		private void readAllDOMConfigs(File dir, NodeList nodeList,
-									   boolean oldFormat)
-			throws DAQCompException
-		{
-			for (int i = 0; i < nodeList.getLength(); i++) {
-				readDOMConfig(dir, nodeList.item(i), oldFormat);
-			}
-		}
-
-		/**
-		 * Read in DOM config info from run configuration file
-		 *
-		 * @param dir location of DOM configuration directory
-		 * @param nodeList list of DOM configuration nodes
-		 * @param oldFormat <tt>true</tt> if nodes are in old format
-		 *
-		 * @return <tt>true</tt> if the config file was read
-		 *
-		 * @throws DAQCompException if the file cannot be read
-		 */
-		private boolean readDOMConfig(File dir, Node node, boolean oldFormat)
-			throws DAQCompException
-		{
-			String tag;
-			if (oldFormat) {
-				tag = node.getTextContent();
-			} else {
-				tag = ((Element) node).getAttribute("domConfig");
-				if (tag.equals("")) {
-					return false;
-				}
-			}
-
-			// add ".xml" if it's missing
-			if (!tag.endsWith(".xml")) {
-				tag = tag + ".xml";
-			}
-
-			// load DOM config
-			File configFile = new File(dir, tag);
-			if (logger.isDebugEnabled()) {
-				String realism;
-				if (isSim)
-					realism = "SIMULATION";
-				else
-					realism = "REAL DOMS";
-
-				logger.debug("Configuring " + realism
-							 + " - loading config from "
-							 + configFile.getAbsolutePath());
-			}
-
-			FileInputStream in;
-			try {
-				in = new FileInputStream(configFile);
-			} catch (FileNotFoundException fnfe) {
-				throw new DAQCompException("Cannot open DOM config file " +
-										   configFile, fnfe);
-			}
-
-			try {
-				xmlConfig.parseXMLConfig(in);
-			} catch (Exception ex) {
-				throw new DAQCompException("Cannot parse DOM config file " +
-										   configFile, ex);
-			} finally {
-				try {
-					in.close();
-				} catch (IOException ioe) {
-					// ignore errors on close
-				}
-			}
-
-			return true;
-		}
+		GoodTimeCalculator gtc = new GoodTimeCalculator(conn, false);
+		return gtc.getTime();
 	}
 
 	class DOMSorter

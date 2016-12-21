@@ -64,8 +64,10 @@ public class StringHubAlert
         if (runNumber != NO_RUNNUMBER) {
             vars.put("runNumber", runNumber);
         }
-        if (utcTime != NO_UTCTIME) {
+        if (utcTime > 0) {
             vars.put("exact-time", UTCTime.toDateString(utcTime));
+        } else if (utcTime != -1 && utcTime != NO_UTCTIME) {
+            LOG.warn("Ignoring unexpected negative UTC time " + utcTime);
         }
 
         HashMap values = new HashMap();

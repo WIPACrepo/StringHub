@@ -13,6 +13,7 @@ public class ZeroCrossingRAPCal extends AbstractRAPCal
     @Override
     double getFineTimeCorrection(short[] w) throws RAPCalException
     {
+
         double mean = getBaseline(w);
         for (int i = 46; i > 30; i--)
         {
@@ -20,7 +21,7 @@ public class ZeroCrossingRAPCal extends AbstractRAPCal
             double b = w[i+1] - mean;
             if (a > threshold && b <= threshold) return 50.0E-09 * (i+(threshold-a)/(b-a) - 48.0);
         }
-        throw new RAPCalException(getClass().getName(), w);
+        throw new BadTCalException(getClass().getName(), w);
     }
 
 }

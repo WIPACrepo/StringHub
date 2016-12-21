@@ -22,7 +22,7 @@ import org.apache.log4j.Logger;
  * 4096 .. xxxx Raw 1 record
  * xxxx .. 8191 Compressed 1 record,
  * and so on.  Invocation goes like:
- *   java ic3.daq.domapp.test.MultiDeltaTest <lbm-dump>
+ *   java ic3.daq.domapp.test.MultiDeltaTest <i>lbm-dump</i>
  * @author krokodil
  *
  */

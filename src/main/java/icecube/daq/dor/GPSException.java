@@ -1,27 +1,27 @@
 package icecube.daq.dor;
 
+/**
+ * Indicates a problem reading from the gpssync file.
+ */
 public class GPSException extends Exception {
 
-	private static final long serialVersionUID = 1L;
-	protected String procfile;
-	private Exception wrappedException;
+    public GPSException()
+    {
+        super();
+    }
 
-	public GPSException(String procfile) {
-		this.procfile = procfile;
-		wrappedException = null;
-	}
+    public GPSException(final String message)
+    {
+        super(message);
+    }
 
-	public GPSException(String procfile, Exception wrapped) {
-		this.procfile = procfile;
-		this.wrappedException = wrapped;
-	}
+    public GPSException(final String message, final Throwable cause)
+    {
+        super(message, cause);
+    }
 
-	public String toString() {
-		String txt = "GPS exception on procfile " + procfile;
-		if (wrappedException != null)
-			return  txt + " wrapped exception is " + wrappedException;
-		else
-			return txt;
-	}
-
+    public GPSException(final Throwable cause)
+    {
+        super(cause);
+    }
 }

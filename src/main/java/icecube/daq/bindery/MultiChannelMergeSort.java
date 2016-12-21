@@ -44,13 +44,13 @@ import org.apache.log4j.Logger;
  * @see #register
  * @see BufferConsumer
  * @see Thread
- * @see DataCollector
  *
  *
  * @author kael
  *
  */
-public class MultiChannelMergeSort extends Thread implements BufferConsumer
+public class MultiChannelMergeSort
+    implements BufferConsumer, ChannelSorter, Runnable
 {
     private LinkedBlockingQueue<ByteBuffer> q;
     private BufferConsumer out;
@@ -58,20 +58,23 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
     private Node<DAQBuffer> terminalNode;
     private final DAQBufferComparator bufferCmp = new DAQBufferComparator();
     private boolean running;
-    private static final Logger logger = Logger.getLogger(MultiChannelMergeSort.class);
+    private static final Logger logger =
+        Logger.getLogger(MultiChannelMergeSort.class);
     private volatile long lastInputUT;
     private volatile long lastUT;
     private int inputCounter;
     private int outputCounter;
+
+    private Thread thread;
 
     public MultiChannelMergeSort(int nch, BufferConsumer out)
     {
         this(nch, out, "g");
     }
 
-    public MultiChannelMergeSort(int nch, BufferConsumer out, String channelType, int maxQueue)
+    public MultiChannelMergeSort(int nch, BufferConsumer out,
+                                 String channelType, int maxQueue)
     {
-        super("MultiChannelMergeSort-" + channelType);
         this.out = out;
         terminalNode = null;
         running = false;
@@ -80,18 +83,33 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
         q = new LinkedBlockingQueue<ByteBuffer>(maxQueue);
         inputCounter = 0;
         outputCounter = 0;
+
+        this.thread = new Thread(this, "MultiChannelMergeSort-" + channelType);
     }
 
-    public MultiChannelMergeSort(int nch, BufferConsumer out, String channelType)
+    public MultiChannelMergeSort(int nch, BufferConsumer out,
+                                 String channelType)
     {
         this(nch, out, channelType, 100000);
+    }
+
+    @Override
+    public void join() throws InterruptedException
+    {
+        thread.join();
+    }
+
+    @Override
+    public void start()
+    {
+        thread.start();
     }
 
     /**
      * This method will take the ByteBuffer supplied as argument
      * and insert into the queue of buffers to process.
      *
-     * @throws InterruptedException
+     * @throws IOException
      *
      */
     public void consume(ByteBuffer buf) throws IOException
@@ -100,14 +118,20 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
         {
             q.put(buf);
         }
-        catch (Exception ex)
+        catch (Throwable th)
         {
-            logger.error("Skipped buffer", ex);
+           throw new IOException("Error queueing buffer", th);
         }
     }
 
-    public synchronized int getNumberOfInputs() { return inputCounter; }
-    public synchronized int getNumberOfOutputs() { return outputCounter; }
+    public void endOfStream(long mbid)
+        throws IOException
+    {
+        consume(eos(mbid));
+    }
+
+    public synchronized long getNumberOfInputs() { return inputCounter; }
+    public synchronized long getNumberOfOutputs() { return outputCounter; }
     public synchronized int getQueueSize() { return q.size(); }
 
     /**
@@ -139,7 +163,14 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
                             )
                         );
                 }
-                if (inputMap.containsKey(daqBuffer.mbid))
+                if (!inputMap.containsKey(daqBuffer.mbid))
+                {
+                    final String errmsg =
+                        String.format("Dropping hit from unknown MBID %012x",
+                                      daqBuffer.mbid);
+                    logger.error(errmsg);
+                }
+                else
                 {
                     inputCounter++;
                     if (logger.isDebugEnabled() && inputCounter % 1000 == 0)
@@ -149,7 +180,6 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
                     inputMap.get(daqBuffer.mbid).push(daqBuffer);
                     while (!terminalNode.isEmpty())
                     {
-                        outputCounter++;
                         DAQBuffer sorted = terminalNode.pop();
                         if (lastUT > sorted.timestamp) {
                             final String errmsg =
@@ -164,14 +194,19 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
                         {
                             running = false;
                             logger.info("Found STOP symbol in stream - shutting down.");
+                            out.endOfStream(sorted.mbid);
                         }
-                        out.consume(sorted.buf);
+                        else
+                        {
+                            out.consume(sorted.buf);
+                            outputCounter++;
+                        }
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Throwable th)
             {
-                logger.error("Aborting sort thread", ex);
+                logger.error("Aborting sort thread", th);
                 running = false;
             }
         }
@@ -187,34 +222,5 @@ public class MultiChannelMergeSort extends Thread implements BufferConsumer
 
     public long getLastInputTime() { return lastInputUT; }
     public long getLastOutputTime() { return lastUT; }
-
-}
-
-class DAQBuffer
-{
-    ByteBuffer buf;
-    long mbid;
-    long timestamp;
-
-    DAQBuffer(ByteBuffer buf)
-    {
-        this.buf = buf;
-        mbid = buf.getLong(8);
-        timestamp = buf.getLong(24);
-    }
-}
-
-class DAQBufferComparator implements Comparator<DAQBuffer>
-{
-
-    public int compare(DAQBuffer left, DAQBuffer right)
-    {
-        if (left.timestamp < right.timestamp)
-            return -1;
-        else if (left.timestamp > right.timestamp)
-            return 1;
-        else
-            return 0;
-    }
 
 }

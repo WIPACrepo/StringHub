@@ -215,25 +215,30 @@ public final class Driver implements IDriver {
 	RandomAccessFile tcalib = new RandomAccessFile(tcalFile, "rw");
 	FileChannel ch = tcalib.getChannel();
 
-	if (logger.isDebugEnabled()) logger.debug("Initiating TCAL sequence");
-	tcalib.writeBytes("single\n");
-	for (int iTry = 0; iTry < 5; iTry++)
-	    {
-		Thread.sleep(20);
-		ByteBuffer buf = ByteBuffer.allocate(292);
-		int nr = ch.read(buf);
-		if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + tcalFile.getAbsolutePath());
-		if (nr == 292)
-		    {
-			ch.close();
-			tcalib.close();
-			buf.flip();
-			return new TimeCalib(buf);
-		    }
-	    }
-	ch.close();
-	tcalib.close();
-	throw new IOException("TCAL read failed.");
+        if (logger.isDebugEnabled()) logger.debug("Initiating TCAL sequence");
+        tcalib.writeBytes("single\n");
+
+        // Arbitrary moment to establish the correlation between the
+        // DOR TCAL TX and the system monotonic clock
+        final long txNano = System.nanoTime();
+
+        for (int iTry = 0; iTry < 5; iTry++)
+        {
+            Thread.sleep(20);
+            ByteBuffer buf = ByteBuffer.allocate(292);
+            int nr = ch.read(buf);
+            if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + tcalFile.getAbsolutePath());
+            if (nr == 292)
+            {
+                ch.close();
+                tcalib.close();
+                buf.flip();
+                return new TimeCalib(buf, txNano);
+            }
+        }
+        ch.close();
+        tcalib.close();
+        throw new IOException("TCAL read failed.");
     }
 
     public File getGPSFile(int card) {
@@ -246,8 +251,7 @@ public final class Driver implements IDriver {
         try {
             syncgps = new RandomAccessFile(gpsFile, "r");
         } catch (FileNotFoundException fnfe) {
-            throw new GPSException("Cannot open \"" +
-                                   gpsFile.getAbsolutePath() + "\"", fnfe);
+            throw new GPSException("Cannot open " + quotedPath(gpsFile), fnfe);
         }
 
         FileChannel ch = syncgps.getChannel();
@@ -257,29 +261,41 @@ public final class Driver implements IDriver {
         try {
             nr = ch.read(buf);
         } catch (IOException ioe) {
-            throw new GPSException("Cannot read \"" +
-                                   gpsFile.getAbsolutePath() + "\"", ioe);
+            throw new GPSException("Cannot read " + quotedPath(gpsFile), ioe);
+        } finally {
+            try {
+                syncgps.close();
+            } catch (IOException ioe) {
+                // ignore errors on close
+            }
         }
 
-        try {
-            syncgps.close();
-        } catch (IOException ioe) {
-            // ignore errors on close
+        if (logger.isDebugEnabled()) {
+            logger.debug("Read " + nr + " bytes from " +
+                    gpsFile.getAbsolutePath());
         }
-
-        if (logger.isDebugEnabled()) logger.debug("Read " + nr + " bytes from " + gpsFile.getAbsolutePath());
-        if (nr != 22)
-        {
-            throw new GPSNotReady(gpsFile.getAbsolutePath(), 0);
+        if (nr != 22) {
+            throw new GPSNotReady("Read from " + quotedPath(gpsFile) +
+                    " returned " + nr + " bytes" );
         }
 
         buf.flip();
-        GPSInfo gpsinfo = new GPSInfo(buf, leapsecondObj);
-        if (logger.isDebugEnabled()) {
-            logger.debug("GPS read on " + gpsFile.getAbsolutePath() + " - " +
-                         gpsinfo);
+
+        try {
+            GPSInfo gpsinfo = new GPSInfo(buf, leapsecondObj);
+            if (logger.isDebugEnabled()) {
+                logger.debug("GPS read on " + gpsFile.getAbsolutePath() +
+                        " - " + gpsinfo);
+            }
+            return gpsinfo;
+        } catch (NumberFormatException nfe) {
+            throw new GPSException("Malformed record from " +
+                    quotedPath(gpsFile), nfe);
+        } catch (IllegalArgumentException iae) {
+            throw new GPSException("Malformed record from " +
+                    quotedPath(gpsFile), iae);
         }
-        return gpsinfo;
+
     }
 
     private String getProcfileText(File file) throws IOException {
@@ -364,8 +380,8 @@ public final class Driver implements IDriver {
 
 	/**
 	 * This makes a 'top-level' procfile File
-	 * @param cwd
-	 * @return
+	 * @param filename
+	 * @return top-level /proc file
 	 */
 	public File makeProcfile(String filename)
 	{
@@ -381,4 +397,14 @@ public final class Driver implements IDriver {
 	{
 		return makeProcfile(cwd, null);
 	}
+
+    /**
+     * Format a file as a quoted path for exception messages.
+     * @param file The File to format;
+     * @return The file path as a quoted string.
+     */
+    private static String quotedPath(File file)
+    {
+        return "\"" + file.getAbsolutePath() + "\"";
+    }
 }

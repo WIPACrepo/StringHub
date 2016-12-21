@@ -1,4 +1,4 @@
-/* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
+/* -*- mode: java; indent-tabs-mode:f; tab-width:4 -*- */
 package icecube.daq.bindery;
 
 import icecube.daq.io.OutputChannel;
@@ -6,6 +6,7 @@ import icecube.daq.payload.IByteBufferCache;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
 import java.util.HashMap;
 
@@ -23,7 +24,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
     private IByteBufferCache cacheMgr           = null;
     private static final Logger logger          = Logger.getLogger(SecondaryStreamConsumer.class);
     private WritableByteChannel dbgChan = null;
-    /** 
+    /**
      * Set a prescale of N on the output
      */
     private int prescale;
@@ -33,7 +34,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
     {
         this(hubId, cacheMgr, outputChannel, 1);
     }
-    
+
 	public SecondaryStreamConsumer(int hubId, IByteBufferCache cacheMgr, OutputChannel outputChannel, int prescale)
     {
         this.outputChannel = outputChannel;
@@ -52,11 +53,12 @@ public class SecondaryStreamConsumer implements BufferConsumer
 	 */
 	public void consume(ByteBuffer buf) throws IOException
 	{
-		int recl  = buf.getInt();
-		int	fmtid = buf.getInt();
-		long mbid = buf.getLong();
-		buf.position(buf.position() + 8);
-		long utc  = buf.getLong();
+        buf.order(ByteOrder.BIG_ENDIAN);
+        int recl  = buf.getInt();
+        int fmtid = buf.getInt();
+        long mbid = buf.getLong();
+        buf.position(buf.position() + 8);
+        long utc  = buf.getLong();
 
         if (recl == 32 && utc == Long.MAX_VALUE)
         {
@@ -65,9 +67,17 @@ public class SecondaryStreamConsumer implements BufferConsumer
         }
         else
         {
-    		ByteBuffer payloadBuffer = cacheMgr.acquireBuffer(recl-8);
+            int id;
+            if (idMap.containsKey(fmtid)) {
+                id = idMap.get(fmtid);
+            } else {
+                logger.error("Unknown format ID " + fmtid);
+                id = -1;
+            }
+
+            ByteBuffer payloadBuffer = cacheMgr.acquireBuffer(recl-8);
             payloadBuffer.putInt(recl-8);
-            payloadBuffer.putInt(idMap.get(fmtid));
+            payloadBuffer.putInt(id);
             payloadBuffer.putLong(utc);
             payloadBuffer.putLong(mbid);
             payloadBuffer.put(buf);
@@ -84,5 +94,13 @@ public class SecondaryStreamConsumer implements BufferConsumer
             }
         }
     }
-}
 
+    /**
+     * There will be no more data.
+     */
+    public void endOfStream(long mbid)
+        throws IOException
+    {
+        consume(MultiChannelMergeSort.eos(mbid));
+    }
+}

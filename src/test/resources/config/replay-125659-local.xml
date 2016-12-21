@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ReplayHub configuration using hitspool files on local disk -->
+<runConfig>
+    <replayFiles dir="/mnt/data/pdaq/testdata/hitspool/125659">
+<!--
+        <hits hub="1" host="daq09"/>
+-->
+        <hits hub="2" host="daq02"/>
+        <hits hub="3" host="daq08"/>
+<!--
+        <hits hub="4" host="daq09"/>
+        <hits hub="5" host="daq06"/>
+        <hits hub="6" host="daq07"/>
+        <hits hub="7" host="daq07"/>
+        <hits hub="8" host="daq07"/>
+        <hits hub="9" host="daq04"/>
+        <hits hub="10" host="daq08"/>
+        <hits hub="11" host="daq03"/>
+        <hits hub="12" host="daq07"/>
+        <hits hub="13" host="daq06"/>
+        <hits hub="14" host="daq09"/>
+        <hits hub="15" host="daq07"/>
+        <hits hub="16" host="daq03"/>
+        <hits hub="17" host="daq05"/>
+        <hits hub="18" host="daq08"/>
+        <hits hub="19" host="daq04"/>
+        <hits hub="20" host="daq04"/>
+        <hits hub="21" host="daq04"/>
+        <hits hub="22" host="daq01"/>
+        <hits hub="23" host="daq05"/>
+        <hits hub="24" host="daq03"/>
+        <hits hub="25" host="daq09"/>
+        <hits hub="26" host="daq09"/>
+        <hits hub="27" host="daq08"/>
+        <hits hub="28" host="daq07"/>
+        <hits hub="29" host="daq09"/>
+        <hits hub="30" host="daq08"/>
+        <hits hub="31" host="daq03"/>
+        <hits hub="32" host="daq08"/>
+        <hits hub="33" host="daq07"/>
+        <hits hub="34" host="daq09"/>
+        <hits hub="35" host="daq02"/>
+        <hits hub="36" host="daq09"/>
+        <hits hub="37" host="daq05"/>
+        <hits hub="38" host="daq03"/>
+        <hits hub="39" host="daq03"/>
+        <hits hub="40" host="daq05"/>
+        <hits hub="41" host="daq05"/>
+        <hits hub="42" host="daq06"/>
+        <hits hub="43" host="daq05"/>
+        <hits hub="44" host="daq09"/>
+        <hits hub="45" host="daq05"/>
+        <hits hub="46" host="daq03"/>
+        <hits hub="47" host="daq04"/>
+        <hits hub="48" host="daq04"/>
+        <hits hub="49" host="daq05"/>
+        <hits hub="50" host="daq04"/>
+        <hits hub="51" host="daq09"/>
+        <hits hub="52" host="daq06"/>
+        <hits hub="53" host="daq09"/>
+        <hits hub="54" host="daq07"/>
+        <hits hub="55" host="daq07"/>
+        <hits hub="56" host="daq06"/>
+        <hits hub="57" host="daq03"/>
+        <hits hub="58" host="daq06"/>
+        <hits hub="59" host="daq02"/>
+        <hits hub="60" host="daq06"/>
+-->
+        <!-- there is no data for ichub61 -->
+<!--
+        <hits hub="62" host="daq08"/>
+        <hits hub="63" host="daq02"/>
+        <hits hub="64" host="daq02"/>
+        <hits hub="65" host="daq02"/>
+        <hits hub="66" host="daq02"/>
+        <hits hub="67" host="daq04"/>
+        <hits hub="68" host="daq02"/>
+        <hits hub="69" host="daq06"/>
+        <hits hub="70" host="daq03"/>
+        <hits hub="71" host="daq06"/>
+        <hits hub="72" host="daq05"/>
+        <hits hub="73" host="daq08"/>
+        <hits hub="74" host="daq05"/>
+        <hits hub="75" host="daq03"/>
+        <hits hub="76" host="daq04"/>
+        <hits hub="77" host="daq02"/>
+        <hits hub="78" host="daq08"/>
+        <hits hub="79" host="daq03"/>
+        <hits hub="80" host="daq01"/>
+        <hits hub="81" host="daq06"/>
+        <hits hub="82" host="daq02"/>
+        <hits hub="83" host="daq05"/>
+        <hits hub="84" host="daq07"/>
+        <hits hub="85" host="daq04"/>
+        <hits hub="86" host="daq08"/>
+        <hits hub="201" host="daq08"/>
+-->
+        <!-- there is no data for ithub02 -->
+<!--
+        <hits hub="203" host="daq07"/>
+        <hits hub="204" host="daq08"/>
+        <hits hub="205" host="daq04"/>
+        <hits hub="206" host="daq09"/>
+-->
+        <hits hub="207" host="daq06"/>
+        <hits hub="208" host="daq05"/>
+<!--
+        <hits hub="209" host="daq07"/>
+        <hits hub="210" host="daq06"/>
+        <hits hub="211" host="daq02"/>
+-->
+    </replayFiles>
+    <triggerConfig>sps-2013-no-physminbias-001</triggerConfig>
+    <runComponent name="inIceTrigger"/>
+    <runComponent name="iceTopTrigger"/>
+    <runComponent name="globalTrigger"/>
+    <runComponent name="eventBuilder"/>
+</runConfig>

@@ -28,7 +28,7 @@ public class RequestReader
     /**
      * Read requests from global trigger.
      *
-     * @param server MBean server
+     * @param name stream name (for error messages)
      * @param sender readout request filler
      * @param factory payload factory
      */

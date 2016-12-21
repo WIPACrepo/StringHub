@@ -122,8 +122,8 @@ public class MockReadoutRequestElement
     /**
      * Write this record to the bute buffer.
      *
-     * @param offset the offset at which to start writing the object.
-     * @param buffer the ByteBuffer into which to write this payload-record
+     * @param iOffset the offset at which to start writing the object.
+     * @param tBuffer the ByteBuffer into which to write this payload-record
 .
      * @return the number of bytes written to this byte buffer.
      */

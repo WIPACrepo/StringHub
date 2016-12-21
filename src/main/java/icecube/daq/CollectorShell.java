@@ -4,7 +4,7 @@ import icecube.daq.bindery.BufferConsumerChannel;
 import icecube.daq.domapp.AbstractDataCollector;
 import icecube.daq.domapp.BadEngineeringFormat;
 import icecube.daq.domapp.DOMConfiguration;
-import icecube.daq.domapp.DataCollector;
+import icecube.daq.domapp.DataCollectorFactory;
 import icecube.daq.domapp.EngineeringRecordFormat;
 import icecube.daq.domapp.LocalCoincidenceConfiguration.RxMode;
 import icecube.daq.domapp.LocalCoincidenceConfiguration.Type;
@@ -13,6 +13,7 @@ import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.domapp.TriggerMode;
 import icecube.daq.dor.DOMChannelInfo;
+import icecube.daq.dor.Driver;
 import icecube.daq.util.FlasherboardConfiguration;
 
 import java.io.FileInputStream;
@@ -335,8 +336,11 @@ public class CollectorShell
         }
         else
         {
-    		csh.collector = new DataCollector(card, pair, dom, csh.config,
-    		        hitsConsumer, moniConsumer, scalConsumer, tcalConsumer);
+            Driver driver = Driver.getInstance();
+            String mbid = driver.getProcfileID(card, pair, dom);
+
+    		csh.collector = DataCollectorFactory.buildDataCollector(card, pair, dom, mbid, csh.config,
+    		        hitsConsumer, moniConsumer, scalConsumer, tcalConsumer, true);
         }
 
 		csh.collector.signalConfigure();

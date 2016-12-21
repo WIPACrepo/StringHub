@@ -30,6 +30,8 @@ public class TestShell
 		}
 
 		StringHubComponent comp = new StringHubComponent(hubId);
+		comp.initialize();
+
 		int iarg = 0;
 
 		comp.setGlobalConfigurationDir(args[iarg++]);

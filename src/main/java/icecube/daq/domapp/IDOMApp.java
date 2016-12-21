@@ -54,7 +54,7 @@ public interface IDOMApp {
 	 * @param nAtwd0 number of pedestal waveforms to collect for atwd chip 0.
 	 * @param nAtwd1 number of pedestal waveforms to collect for atwd chip 0.
 	 * @param nFadc number of pedestal waveforms to collect for the fADC.
-	 * @param 0 or 6 average pedestals to program into the DOM
+	 * @param avgPedestals 0 or 6 average pedestals to program into the DOM
 	 */
 	void collectPedestals(int nAtwd0, int nAtwd1, int nFadc, Integer... avgPedestals) throws MessageException;
 	
@@ -111,7 +111,7 @@ public interface IDOMApp {
 
        /**
         * receive one domapp message from the dom
-        * @param  ByteBuffer buffer to contain the domapp message
+        * @param  recvBuf ByteBuffer buffer to contain the domapp message
         * @return ByteBuffer ByteBuffer containing a domapp message
         * @throws MessageException
         */

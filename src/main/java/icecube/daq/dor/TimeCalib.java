@@ -18,9 +18,24 @@ public class TimeCalib {
 	private long domRx, domTx;
 	private short[] domWaveform;
 
-	private static final Logger logger = Logger.getLogger(TimeCalib.class);
+    /**
+     * Transient field that provides a best-effort system
+     * monotonic clock reading at the point that the tcal
+     * was initiated. Used to correlate the system clock
+     * to the DOR clock.
+     */
+    private long tx_nanos;
 
-	public TimeCalib(ByteBuffer buf) {
+
+    private static final Logger logger = Logger.getLogger(TimeCalib.class);
+
+    public TimeCalib(ByteBuffer buf, long tx_nanos)
+    {
+        this(buf);
+        this.tx_nanos = tx_nanos;
+    }
+
+        public TimeCalib(ByteBuffer buf) {
 		buf.order(ByteOrder.LITTLE_ENDIAN);
 		bytes = buf.getShort();
 		flags = buf.getShort();
@@ -83,6 +98,51 @@ public class TimeCalib {
 		return domWaveform;
 	}
 
+    /**
+     * Get the DOR TX in DOR clock units.
+     * @return the DOR TX.
+     */
+    public long getDorTxInDorUnits()
+    {
+        return dorTx;
+    }
+
+    /**
+     * Get the DOR TX in DOR clock units.
+     * @return the DOR RX.
+     */
+    public long getDorRxInDorUnits()
+    {
+        return dorRx;
+    }
+
+    /**
+     * Get the DOM TX in DOR clock units.
+     * @return the DOR TX.
+     */
+    public long getDomTxInDomUnits()
+    {
+        return domTx;
+    }
+
+    /**
+     * Get the DOM TX in DOR clock units.
+     * @return the DOR RX.
+     */
+    public long getDomRxInDomUnits()
+    {
+        return domRx;
+    }
+
+    /**
+     * Get the monotonic clock point-in-time correlated with the DOR TX time.
+     * @return The local monotonic point-in-time of the DOR TX.
+     */
+    public long getDorTXPointInTimeNano()
+    {
+        return tx_nanos;
+    }
+
 	/**
 	 * Write POTC (plain-ol' TCAL) record
 	 * to supplier buffer.  Returns length of record
@@ -130,4 +190,10 @@ public class TimeCalib {
 		return buf.position() - pos;
 	}
 
+    public String toString()
+    {
+        return String.format("TimeCalib[dor %d(tx %d -> rx %d)" +
+                             " dom %d(rx %d -> tx %d)", dorRx - dorTx, dorTx,
+                             dorRx, domTx - domRx, domRx, domTx);
+    }
 }

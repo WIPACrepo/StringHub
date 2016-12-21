@@ -1,17 +1,27 @@
 package icecube.daq.rapcal;
 
+/**
+ * Thrown when RAPCal encounters an error.
+ */
 public class RAPCalException extends Exception {
 
-	private static final long serialVersionUID = 1L;
-	private final String source;
-	private final short[] waveform;
+    public RAPCalException()
+    {
+        super();
+    }
 
-	public RAPCalException(String source, short[] waveform) {
-		this.source = source;
-		this.waveform = waveform;
-	}
+    public RAPCalException(final String message)
+    {
+        super(message);
+    }
 
-	public String getSource() { return source; }
-	public short[] getWaveform() { return waveform; }
+    public RAPCalException(final String message, final Throwable cause)
+    {
+        super(message, cause);
+    }
 
+    public RAPCalException(final Throwable cause)
+    {
+        super(cause);
+    }
 }

@@ -10,6 +10,7 @@ import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.PayloadRegistry;
 import icecube.daq.payload.SourceIdRegistry;
+import icecube.daq.payload.impl.DOMHit;
 import icecube.daq.payload.impl.DeltaHitRecord;
 import icecube.daq.payload.impl.EngineeringHitRecord;
 import icecube.daq.stringhub.test.MockAppender;
@@ -18,6 +19,7 @@ import icecube.daq.stringhub.test.MockReadoutRequest;
 import icecube.daq.stringhub.test.MockUTCTime;
 import icecube.daq.util.DOMRegistry;
 import icecube.daq.util.DeployedDOM;
+import icecube.daq.util.IDOMRegistry;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
@@ -44,6 +46,17 @@ abstract class ExpectedData
         if (lval < 0L) {
             return -1;
         } else if (lval > 0L) {
+            return 1;
+        }
+
+        return 0;
+    }
+    int compareShort(short s0, short s1)
+    {
+        int val = s0 - s1;
+        if (val < 0) {
+            return -1;
+        } else if (val > 0) {
             return 1;
         }
 
@@ -108,7 +121,7 @@ abstract class MockOutputChannel
     }
 }
 
-class ExpectedHit
+class ExpectedOldHit
     extends ExpectedData
 {
     private long domId;
@@ -118,8 +131,8 @@ class ExpectedHit
     private int srcId;
     private short trigMode;
 
-    ExpectedHit(long domId, long utcTime, int trigType, int cfgId, int srcId,
-                short trigMode)
+    ExpectedOldHit(long domId, long utcTime, int trigType, int cfgId,
+                   int srcId, short trigMode)
     {
         this.domId = domId;
         this.utcTime = utcTime;
@@ -129,7 +142,7 @@ class ExpectedHit
         this.trigMode = trigMode;
     }
 
-    ExpectedHit(ByteBuffer buf)
+    ExpectedOldHit(ByteBuffer buf)
     {
         if (buf.getInt(0) != 38) {
             throw new Error("Expected hit payload length of 38, not " +
@@ -149,14 +162,14 @@ class ExpectedHit
 
     public int compareTo(Object obj)
     {
-        if (!(obj instanceof ExpectedHit)) {
+        if (!(obj instanceof ExpectedOldHit)) {
             return getClass().getName().compareTo(obj.getClass().getName());
         }
 
-        return compareTo((ExpectedHit) obj);
+        return compareTo((ExpectedOldHit) obj);
     }
 
-    public int compareTo(ExpectedHit hit)
+    public int compareTo(ExpectedOldHit hit)
     {
         int val = compareLong(domId, hit.domId);
         if (val == 0) {
@@ -180,6 +193,74 @@ class ExpectedHit
 
     public boolean equals(Object obj)
     {
+        if (!(obj instanceof ExpectedOldHit)) {
+            return getClass().getName().equals(obj.getClass().getName());
+        }
+
+        return compareTo((ExpectedOldHit) obj) == 0;
+    }
+
+    public String toString()
+    {
+        return "ExpOldHit@" + String.format("%012x", domId) +
+            "[time " + utcTime + " type " + trigType + " cfg " + cfgId +
+            " src " + srcId + " mode " + trigMode + "]";
+    }
+}
+
+class ExpectedHit
+    extends ExpectedData
+{
+    private long utcTime;
+    private short chanId;
+    private short trigMode;
+
+    ExpectedHit(long utcTime, short chanId, short trigMode)
+    {
+        this.utcTime = utcTime;
+        this.chanId = chanId;
+        this.trigMode = trigMode;
+    }
+
+    ExpectedHit(ByteBuffer buf)
+    {
+        if (buf.getInt(0) != 20) {
+            throw new Error("Expected hit payload length of 20, not " +
+                            buf.getInt(0));
+        }
+        if (buf.getInt(4) != PayloadRegistry.PAYLOAD_ID_SIMPLER_HIT) {
+            throw new Error("Bad hit payload type " + buf.getInt(4));
+        }
+
+        utcTime = buf.getLong(8);
+        chanId = buf.getShort(16);
+        trigMode = buf.getShort(18);
+    }
+
+    public int compareTo(Object obj)
+    {
+        if (!(obj instanceof ExpectedHit)) {
+            return getClass().getName().compareTo(obj.getClass().getName());
+        }
+
+        return compareTo((ExpectedHit) obj);
+    }
+
+    public int compareTo(ExpectedHit hit)
+    {
+        int val = compareShort(chanId, hit.chanId);
+        if (val == 0) {
+            val = compareLong(utcTime, hit.utcTime);
+            if (val == 0) {
+                val = trigMode - hit.trigMode;
+            }
+        }
+
+        return val;
+    }
+
+    public boolean equals(Object obj)
+    {
         if (!(obj instanceof ExpectedHit)) {
             return getClass().getName().equals(obj.getClass().getName());
         }
@@ -189,79 +270,8 @@ class ExpectedHit
 
     public String toString()
     {
-        return "ExpHit@" + String.format("%012x", domId) + "[time " + utcTime +
-            " type " + trigType + " cfg " + cfgId + " src " + srcId +
+        return "ExpHit@" + utcTime + "[chan " + chanId +
             " mode " + trigMode + "]";
-    }
-}
-
-class ExpectedTEHit
-    extends ExpectedData
-{
-    private int major;
-    private int minor;
-    private long utcTime;
-    private int lcMode;
-
-    ExpectedTEHit(int major, int minor, long utcTime, int lcMode)
-    {
-        this.major = (byte) (major % Byte.MAX_VALUE);
-        this.minor = (byte) (minor % Byte.MAX_VALUE);
-        this.utcTime = utcTime;
-        this.lcMode = (byte) (lcMode % 0xff);
-    }
-
-    ExpectedTEHit(ByteBuffer buf)
-    {
-        if (buf.limit() != 11) {
-            throw new Error("Expected TE hit payload length of 11, not " +
-                            buf.limit());
-        }
-
-        major = buf.get(0);
-        minor = buf.get(1);
-        utcTime = buf.getLong(2);
-        lcMode = buf.get(10);
-    }
-
-    public int compareTo(Object obj)
-    {
-        if (!(obj instanceof ExpectedTEHit)) {
-            return getClass().getName().compareTo(obj.getClass().getName());
-        }
-
-        return compareTo((ExpectedTEHit) obj);
-    }
-
-    public int compareTo(ExpectedTEHit hit)
-    {
-        int val = major - hit.major;
-        if (val == 0) {
-            val = minor - hit.minor;
-            if (val == 0) {
-                val = compareLong(utcTime, hit.utcTime);
-                if (val == 0) {
-                    val = lcMode - hit.lcMode;
-                }
-            }
-        }
-
-        return val;
-    }
-
-    public boolean equals(Object obj)
-    {
-        if (!(obj instanceof ExpectedTEHit)) {
-            return getClass().getName().equals(obj.getClass().getName());
-        }
-
-        return compareTo((ExpectedTEHit) obj) == 0;
-    }
-
-    public String toString()
-    {
-        return "ExpTEHit@" + String.format("%02d-%02d", major, minor) +
-            "[time " + utcTime + " lc " + lcMode + "]";
     }
 }
 
@@ -273,47 +283,29 @@ class MockHitChannel
         super("hit");
     }
 
+    void addExpectedHit(long utcTime, short chanId, short trigMode)
+    {
+        addExpectedData(new ExpectedHit(utcTime, chanId, trigMode));
+    }
+
     void addExpectedHit(long domId, long utcTime, int trigType, int cfgId,
                         int srcId, short trigMode)
     {
-        addExpectedData(new ExpectedHit(domId, utcTime, trigType, cfgId, srcId,
-                                        trigMode));
+        addExpectedData(new ExpectedOldHit(domId, utcTime, trigType, cfgId,
+                                           srcId, trigMode));
     }
 
     ExpectedData getBufferData(ByteBuffer buf)
     {
-        return new ExpectedHit(buf);
-    }
-}
-
-class MockTrackEngineChannel
-    extends MockOutputChannel
-{
-    MockTrackEngineChannel()
-    {
-        super("trackEngine");
-    }
-
-    void addExpectedTEHit(DOMRegistry registry, long domId, long utcTime,
-                          int trigMode)
-    {
-        String domStr = String.format("%012x", domId);
-
-        // find the registry entry for this DOM
-        DeployedDOM dom = registry.getDom(domStr);
-        if (dom == null) {
-            throw new Error("Cannot find registry entry for DOM " + domStr);
+        if (buf.limit() < 4) {
+            throw new Error("Buffer is too short (limit=" + buf.limit());
         }
 
-        addExpectedData(new ExpectedTEHit(dom.getStringMajor(),
-                                          dom.getStringMinor(),
-                                          utcTime,
-                                          trigMode));
-    }
+        if (buf.getInt(0) == 20) {
+            return new ExpectedHit(buf);
+        }
 
-    ExpectedData getBufferData(ByteBuffer buf)
-    {
-        return new ExpectedTEHit(buf);
+        return new ExpectedOldHit(buf);
     }
 }
 
@@ -1570,10 +1562,10 @@ public class SenderTest
     private static final int TYPE_DELTA_HIT = 17;
 
     private static final MockAppender appender =
-        //new MockAppender(org.apache.log4j.Level.ALL).setVerbose(true);
+        //new MockAppender(Level.ALL).setVerbose(true);
         new MockAppender();
 
-    private static DOMRegistry domRegistry;
+    private static IDOMRegistry domRegistry;
 
     public SenderTest()
     {
@@ -1832,7 +1824,13 @@ public class SenderTest
                 !msg.startsWith("Found Stop data in ") &&
                 !msg.startsWith("Adding data stop while thread "))
             {
-                fail("Bad log message#" + i + ": " + appender.getMessage(i));
+                if (appender.getLevel().isGreaterOrEqual(Level.DEBUG) &&
+                    !msg.startsWith("Filling readout#") &&
+                    !msg.startsWith("Closing hit record list "))
+                {
+                    fail("Bad log message#" + i + ": " +
+                         appender.getMessage(i));
+                }
             }
         }
     }
@@ -1883,74 +1881,10 @@ public class SenderTest
     {
         MockBufferCache cache = new MockBufferCache("foo");
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
-        //sender.setDOMRegistry(domRegistry);
-
-        MockHitChannel hitChan = new MockHitChannel();
-        sender.setHitOutput(new MockOutputChannelManager(hitChan));
-
-        MockReadoutChannel rdoutChan = new MockReadoutChannel();
-        sender.setDataOutput(new MockOutputChannelManager(rdoutChan));
-
-        sender.startThread();
-
-        long domId = 0xfedcba987654L;
-        long utcTime = 123456789L;
-        int atwdChip = 1;
-        short trigMode = 4;
-        long domClock = utcTime / 234L;
-        short[] fadcSamples = new short[] { 1, 2, 3 };
-        Object atwd0Data = new short[32];
-        Object atwd1Data = null;
-        Object atwd2Data = new byte[128];
-        Object atwd3Data = new byte[16];
-
-        ByteBuffer buf = createEngHit(domId, utcTime, atwdChip, trigMode,
-                                      domClock, fadcSamples, atwd0Data,
-                                      atwd1Data, atwd2Data, atwd3Data);
-
-        hitChan.addExpectedHit(domId, utcTime, trigMode, 0, HUB_SRCID,
-                               trigMode);
-
-        sender.consume(buf);
-
-        sender.stopThread();
-
-        waitForSenderStop(sender);
-
-        assertEquals("Did not receive hit",
-                     1L, sender.getNumHitsReceived());
-        assertEquals("Bad hit time",
-                     utcTime, sender.getLatestHitTime());
-
-        assertEquals("Did not receive data stop",
-                     1L, sender.getTotalDataStopsReceived());
-        assertEquals("Did not receive request stop",
-                     1L, sender.getTotalRequestStopsReceived());
-        assertEquals("Did not send stop",
-                     1L, sender.getTotalStopsSent());
-
-        assertEquals("Not all expected hits were received",
-                     0, hitChan.getNumExpected());
-        assertEquals("Not all expected readouts were received",
-                     0, rdoutChan.getNumExpected());
-    }
-
-    @Test
-    public void testConsumeEngHitWithTE()
-        throws IOException
-    {
-        MockBufferCache cache = new MockBufferCache("foo");
-        Sender sender = new Sender(HUB_SRCID % 1000, cache);
         sender.setDOMRegistry(domRegistry);
 
-        MockBufferCache teCache = new MockBufferCache("foo");
-        sender.setTrackEngineCache(teCache);
-
         MockHitChannel hitChan = new MockHitChannel();
         sender.setHitOutput(new MockOutputChannelManager(hitChan));
-
-        MockTrackEngineChannel teChan = new MockTrackEngineChannel();
-        sender.setTrackEngineOutput(new MockOutputChannelManager(teChan));
 
         MockReadoutChannel rdoutChan = new MockReadoutChannel();
         sender.setDataOutput(new MockOutputChannelManager(rdoutChan));
@@ -1972,22 +1906,15 @@ public class SenderTest
                                       domClock, fadcSamples, atwd0Data,
                                       atwd1Data, atwd2Data, atwd3Data);
 
-        hitChan.addExpectedHit(domId, utcTime, trigMode, 0, HUB_SRCID,
-                               trigMode);
-
-        teChan.addExpectedTEHit(domRegistry, domId, utcTime, -1);
+        if (DOMHit.USE_SIMPLER_HITS) {
+            hitChan.addExpectedHit(utcTime, domRegistry.getChannelId(domId),
+                                   trigMode);
+        } else {
+            hitChan.addExpectedHit(domId, utcTime, trigMode, 0, HUB_SRCID,
+                                   trigMode);
+        }
 
         sender.consume(buf);
-
-        for (int i = 0; i < 100; i++) {
-            if (sender.getNumTEHitsSent() == 0) {
-                try {
-                    Thread.sleep(1);
-                } catch (Exception ex) {
-                    // ignore interrupts
-                }
-            }
-        }
 
         sender.stopThread();
 
@@ -1998,9 +1925,6 @@ public class SenderTest
         assertEquals("Bad hit time",
                      utcTime, sender.getLatestHitTime());
 
-        assertEquals("Did not send TE hit",
-                     1L, sender.getNumTEHitsSent());
-
         assertEquals("Did not receive data stop",
                      1L, sender.getTotalDataStopsReceived());
         assertEquals("Did not receive request stop",
@@ -2008,8 +1932,6 @@ public class SenderTest
         assertEquals("Did not send stop",
                      1L, sender.getTotalStopsSent());
 
-        assertEquals("Not all expected TE hits were received",
-                     0, teChan.getNumExpected());
         assertEquals("Not all expected hits were received",
                      0, hitChan.getNumExpected());
         assertEquals("Not all expected readouts were received",
@@ -2022,7 +1944,7 @@ public class SenderTest
     {
         MockBufferCache cache = new MockBufferCache("foo");
         Sender sender = new Sender(HUB_SRCID % 1000, cache);
-        //sender.setDOMRegistry(domRegistry);
+        sender.setDOMRegistry(domRegistry);
 
         MockHitChannel hitChan = new MockHitChannel();
         sender.setHitOutput(new MockOutputChannelManager(hitChan));
@@ -2051,8 +1973,13 @@ public class SenderTest
                                         domClock, lcMode, trigMode,
                                         waveformFlags, peakInfo, data);
 
-        hitChan.addExpectedHit(domId, utcTime, trigMode, 0, HUB_SRCID,
-                               trigMode);
+        if (DOMHit.USE_SIMPLER_HITS) {
+            hitChan.addExpectedHit(utcTime, domRegistry.getChannelId(domId),
+                                   trigMode);
+        } else {
+            hitChan.addExpectedHit(domId, utcTime, trigMode, 0, HUB_SRCID,
+                                   trigMode);
+        }
 
         sender.consume(buf);
 
@@ -2103,7 +2030,6 @@ public class SenderTest
         short trigMode = 3;
 
         long engDomId = 0xfedcba987654L;
-        short engChanId = 123;
         long engTime = baseTime + 100L;
         byte atwdChip = 1;
         long engClock = engTime / 234L;
@@ -2138,8 +2064,14 @@ public class SenderTest
                                atwd3Data);
         }
 
-        hitChan.addExpectedHit(engDomId, engTime, trigMode, 0, HUB_SRCID,
-                               trigMode);
+        short engChanId = domRegistry.getChannelId(engDomId);
+
+        if (DOMHit.USE_SIMPLER_HITS) {
+            hitChan.addExpectedHit(engTime, engChanId, trigMode);
+        } else {
+            hitChan.addExpectedHit(engDomId, engTime, trigMode, 0,
+                                   HUB_SRCID, trigMode);
+        }
 
         sender.consume(buf);
 
@@ -2147,7 +2079,6 @@ public class SenderTest
         lastHitTime = engTime;
 
         long deltaDomId = 0xedcba9876543L;
-        short deltaChanId = 124;
         long deltaTime = baseTime + 200L;
         short version = 1;
         short pedestal = 34;
@@ -2174,8 +2105,14 @@ public class SenderTest
                                  peakInfo, data);
         }
 
-        hitChan.addExpectedHit(deltaDomId, deltaTime, trigMode, 0, HUB_SRCID,
-                               trigMode);
+        short deltaChanId = domRegistry.getChannelId(deltaDomId);
+
+        if (DOMHit.USE_SIMPLER_HITS) {
+            hitChan.addExpectedHit(deltaTime, deltaChanId, trigMode);
+        } else {
+            hitChan.addExpectedHit(deltaDomId, deltaTime, trigMode, 0,
+                                   HUB_SRCID, trigMode);
+        }
 
         sender.consume(buf);
 
@@ -2227,8 +2164,14 @@ public class SenderTest
                                atwd2Data, atwd3Data);
         }
 
-        hitChan.addExpectedHit(flushDomId, flushTime, trigMode, 0, HUB_SRCID,
-                               trigMode);
+        if (DOMHit.USE_SIMPLER_HITS) {
+            hitChan.addExpectedHit(flushTime,
+                                   domRegistry.getChannelId(flushDomId),
+                                   trigMode);
+        } else {
+            hitChan.addExpectedHit(flushDomId, flushTime, trigMode, 0,
+                                   HUB_SRCID, trigMode);
+        }
 
         sender.consume(buf);
 

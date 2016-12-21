@@ -5,7 +5,8 @@ package icecube.daq.domapp;
  * the StringHub and the DOMApp running on a DOM under its control.
  * The DOMApp messages have a <b>TYPE</b> and <b>SUBTYPE</b>
  * which are identified in the enum constructor.
- * @see John Jacobsen's <a href="http://www.npxdesigns.com/domapp/api.html">DOMApp API</a>
+ *
+ * John Jacobsen's <a href="http://www.npxdesigns.com/domapp/api.html">DOMApp API</a> is no longer available but may be found in DocuShare?
  * @author kael dylan hanson
  *
  */

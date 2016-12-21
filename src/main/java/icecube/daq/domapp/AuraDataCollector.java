@@ -6,7 +6,7 @@ import icecube.daq.dor.Driver;
 import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.TimeCalib;
-import icecube.daq.livemoni.LiveTCalMoni;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.rapcal.RAPCal;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.rapcal.ZeroCrossingRAPCal;
@@ -89,6 +89,7 @@ public class AuraDataCollector extends AbstractDataCollector
             drm = new AuraDRM(card, pair, dom);
             mbid = drm.getMainboardId();
             mbid_numerique = Long.parseLong(mbid, 16);
+            rapcal.setMainboardID(mbid_numerique);
 
             if (useDOMApp) drm.loadDOMAppSBI();
 
@@ -268,9 +269,9 @@ public class AuraDataCollector extends AbstractDataCollector
         this.radioDACs = dacs;
     }
 
-    public void setLiveMoni(LiveTCalMoni moni)
+    public void setRunMonitor(IRunMonitor runMonitor)
     {
-        rapcal.setMoni(moni);
+        rapcal.setRunMonitor(runMonitor);
     }
 
     @Override

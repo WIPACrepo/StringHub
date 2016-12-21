@@ -1,18 +1,28 @@
 package icecube.daq.dor;
 
+/**
+ * Thrown when a read from the gpssync file returns less than
+ * 22 bytes which indicates that there are no buffered snaps available.
+ */
 public class GPSNotReady extends GPSException
 {
-    private static final long serialVersionUID = 1L;
-    private int bytesRead;
-    
-    public GPSNotReady(String procfile, int n)
+    public GPSNotReady()
     {
-        super(procfile);
-        bytesRead = n;
+        super();
     }
-    
-    public String toString()
+
+    public GPSNotReady(final String message)
     {
-        return "GPS procfile " + procfile + " not ready (" + bytesRead + " read).";
+        super(message);
+    }
+
+    public GPSNotReady(final String message, final Throwable cause)
+    {
+        super(message, cause);
+    }
+
+    public GPSNotReady(final Throwable cause)
+    {
+        super(cause);
     }
 }
