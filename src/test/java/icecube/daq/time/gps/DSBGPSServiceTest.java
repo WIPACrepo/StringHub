@@ -12,6 +12,7 @@ import icecube.daq.rapcal.Isochron;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.time.gps.test.MockGPSDriver;
 import icecube.daq.util.DeployedDOM;
+import icecube.daq.util.Leapseconds;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -21,6 +22,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -419,5 +421,230 @@ public class DSBGPSServiceTest
 
     }
 
+    @Test
+    public void testMisTic() throws Exception
+    {
+        //
+        // Test that the service fails when an offset
+        // mis-alignment occurs
+        //
+        MockGPSDriver driver = new MockGPSDriver();
+        DSBGPSService subject = constructSubject(driver);
 
+        long DOR_SEC = 10000000000L/500;
+        final GPSInfo[] snaps = new GPSInfo[]
+                {
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+
+                        generateGPSInfo("005:12:33:09", 1234L),
+                        generateGPSInfo("005:12:33:10", 1234L + DOR_SEC),
+                        generateGPSInfo("005:12:33:11", 1234L + (2*DOR_SEC)),
+                        generateGPSInfo("005:12:33:12", 1234L + (3*DOR_SEC)),
+                        generateGPSInfo("005:12:33:13", 1234L + (4*DOR_SEC)),
+                        generateGPSInfo("005:12:33:14", 1234L + (5*DOR_SEC)),
+                        generateGPSInfo("005:12:33:15", 1234L + (6*DOR_SEC) + 1721), // mistic
+                        generateGPSInfo("005:12:33:16", 1234L + (7*DOR_SEC)),
+                        generateGPSInfo("005:12:33:17", 1234L + (8*DOR_SEC)),
+                        generateGPSInfo("005:12:33:18", 1234L + (9*DOR_SEC)),
+
+                };
+
+        driver.setProducer(new MockGPSDriver.Producer()
+        {
+            int count=0;
+            @Override
+            public GPSInfo readGPS(final File gpsFile) throws GPSException
+            {
+                if(count < snaps.length)
+                {
+                    return snaps[count++];
+                }
+                else
+                {
+                    // end of snaps... reuse last
+                    return snaps[snaps.length-1];
+                }
+            }
+        });
+        driver.setMode(MockGPSDriver.Mode.Producer);
+
+
+
+        subject.startService(0);
+
+        try{ Thread.sleep(15000);} catch (InterruptedException e){}
+
+        assertTrue("Should be ready", subject.waitForReady(0, 1000));
+
+        // the mis-tic should have put the service in error mode
+        GPSInfo gps = null;
+        try
+        {
+            gps = subject.getGps(0);
+            fail("Service should fail after mistic");
+        }
+        catch (GPSServiceError gpsServiceError)
+        {
+            //desired
+            assertEquals("GPS offset mis-alignment detected - old GPS: 005:12:33:14 : Quality = 32 DOR clk: 100001234 GPS offset: 3907889999383000 new GPS: 005:12:33:15 : Quality = 32 DOR clk: 120002955 GPS offset: 3907889998522500", gpsServiceError.getMessage());
+        }
+    }
+
+    @Test
+    public void test2016LeapSecond() throws Exception
+    {
+        // Test is only valid in 2016
+        assertEquals(2016, Leapseconds.getInstance().defaultYear);
+
+        //
+        // Test that the fake leap second is managed
+        //
+        MockGPSDriver driver = new MockGPSDriver();
+        DSBGPSService subject = constructSubject(driver);
+
+        long DOR_SEC = 10000000000L/500;
+        final GPSInfo[] snaps = new GPSInfo[]
+                {
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+
+                        generateGPSInfo("365:23:59:55", 1234L),
+                        generateGPSInfo("365:23:59:56", 1234L + DOR_SEC),
+                        generateGPSInfo("365:23:59:57", 1234L + (2*DOR_SEC)),
+                        generateGPSInfo("365:23:59:58", 1234L + (3*DOR_SEC)),
+                        generateGPSInfo("365:23:59:59", 1234L + (4*DOR_SEC)),
+                        generateGPSInfo("365:23:59:60", 1234L + (5*DOR_SEC)), // Fake ET6000
+                                                                              // leap
+                        generateGPSInfo("366:00:00:00", 1234L + (6*DOR_SEC)), //2016 is a leap year
+                        generateGPSInfo("366:00:00:01", 1234L + (7*DOR_SEC)),
+                        generateGPSInfo("366:00:00:02", 1234L + (8*DOR_SEC)),
+                        generateGPSInfo("366:00:00:03", 1234L + (9*DOR_SEC)),
+                };
+
+        driver.setProducer(new MockGPSDriver.Producer()
+        {
+            int count=0;
+            @Override
+            public GPSInfo readGPS(final File gpsFile) throws GPSException
+            {
+                if(count < snaps.length)
+                {
+                    return snaps[count++];
+                }
+                else
+                {
+                    // end of snaps... reuse last
+                    return snaps[snaps.length-1];
+                }
+            }
+        });
+        driver.setMode(MockGPSDriver.Mode.Producer);
+
+
+
+        subject.startService(0);
+
+        try{ Thread.sleep(15000);} catch (InterruptedException e){}
+
+        assertTrue("Should be ready", subject.waitForReady(0, 1000));
+
+        // last snap should be from 364:23:59:60
+        GPSInfo gps = subject.getGps(0);
+        assertEquals("", (1234L + (5*DOR_SEC)), gps.getDorclk());
+        assertEquals("", 315359949999383000L, gps.getOffset().in_0_1ns());
+        assertEquals("", "365:23:59:60", gps.getTimestring());
+    }
+
+    @Test
+    public void test2016EndOfYear() throws Exception
+    {
+        // Test is only valid in 2016
+        assertEquals(2016, Leapseconds.getInstance().defaultYear);
+
+        //
+        // Test that the year rollover is managed
+        //
+        MockGPSDriver driver = new MockGPSDriver();
+        DSBGPSService subject = constructSubject(driver);
+
+        long DOR_SEC = 10000000000L/500;
+        final GPSInfo[] snaps = new GPSInfo[]
+                {
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+                        generateGPSInfo("123:45:55:12", 999L), // discarded
+
+                        generateGPSInfo("366:23:59:55", 1234L), //2016 is a leap year
+                        generateGPSInfo("366:23:59:56", 1234L + DOR_SEC),
+                        generateGPSInfo("366:23:59:57", 1234L + (2*DOR_SEC)),
+                        generateGPSInfo("366:23:59:58", 1234L + (3*DOR_SEC)),
+                        generateGPSInfo("366:23:59:59", 1234L + (4*DOR_SEC)),
+                        generateGPSInfo("366:23:59:60", 1234L + (5*DOR_SEC)), // Real 2016 leap
+
+                        generateGPSInfo("001:00:00:00", 1234L + (6*DOR_SEC)),
+                        generateGPSInfo("001:00:00:01", 1234L + (7*DOR_SEC)),
+                        generateGPSInfo("001:00:00:02", 1234L + (8*DOR_SEC)),
+                        generateGPSInfo("001:00:00:03", 1234L + (9*DOR_SEC)),
+                };
+
+        driver.setProducer(new MockGPSDriver.Producer()
+        {
+            int count=0;
+            @Override
+            public GPSInfo readGPS(final File gpsFile) throws GPSException
+            {
+                if(count < snaps.length)
+                {
+                    return snaps[count++];
+                }
+                else
+                {
+                    // end of snaps... reuse last
+                    return snaps[snaps.length-1];
+                }
+            }
+        });
+        driver.setMode(MockGPSDriver.Mode.Producer);
+
+
+
+        subject.startService(0);
+
+        try{ Thread.sleep(15000);} catch (InterruptedException e){}
+
+        assertTrue("Should be ready", subject.waitForReady(0, 1000));
+
+        // last snap should be from 366:23:59:60
+        GPSInfo gps = subject.getGps(0);
+        assertEquals("", (1234L + (5*DOR_SEC)), gps.getDorclk());
+        assertEquals("", 316223949999383000L, gps.getOffset().in_0_1ns());
+        assertEquals("", "366:23:59:60", gps.getTimestring());
+    }
 }
