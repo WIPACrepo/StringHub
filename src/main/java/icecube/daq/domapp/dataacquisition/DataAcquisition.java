@@ -515,9 +515,10 @@ public class DataAcquisition
             }
 
             //Note: Before submitting the interval, run a tcal.  This
-            //      ensures that a bounding isochron will be available
-            //      for processing the data in the interval.
-            doTCAL(watchdog);
+            //      (almost always) ensures that a bounding isochron
+            //      will be available while processing the data in the
+            //      interval.
+            attemptTCAL(watchdog);
             intervalData.submitAll(dataProcessor);
 
             return tired;
@@ -755,10 +756,39 @@ public class DataAcquisition
 
     }
 
+    /**
+     * Attempt a TCAL.
+     *
+     * The contract for this method is intentionally soft.  Errors encountered
+     * on the acquisition side are logged, but suppressed.  This helps ride
+     * out some temporary bad conditions.
+     *
+     * Errors encountered on the processing side are propagated.  A processing
+     * error is generally fatal to the channel.
+     *
+     * @param watchdog The watchdog.
+     * @exception DataProcessorError An error occurred while passing the
+     *            time calibration to the data processor.  This indicates
+     *            a serious problem.
+     */
+    public void attemptTCAL(final Watchdog watchdog) throws DataProcessorError
+    {
+        try
+        {
+            doTCAL(watchdog);
+        }
+        catch (AcquisitionError acquisitionError)
+        {
+            logger.error("Ignoring tcal error", acquisitionError);
+        }
+    }
 
     /**
-     * Execute a TCAL operation.
+     * Execute a rapcal and queue the time calibration to the data processor.
      *
+     * All errors, including potentially transient acquisition errors are
+     * propagated. Most calling methods should be using attemptRapCal()
+     * which silently ignores acquisition errors.
      * @param watchdog The watchdog.
      * @throws AcquisitionError Error occurred running TCAL.
      * @throws DataProcessorError Error occurred processing TCAL.
