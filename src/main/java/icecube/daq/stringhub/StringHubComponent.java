@@ -130,13 +130,13 @@ public class StringHubComponent
     private OutputProcessFactory hitOutImplementation =
             OutputProcessFactory.valueOf(System.getProperty(
                     "icecube.daq.stringhub.StringHubComponent.hitOutType",
-                    OutputProcessFactory.BLOCKING_128K.name()));
+                    OutputProcessFactory.BLOCKING_1K.name()));
 
     /** Configurable factory for selecting the data output engine type. */
     private OutputProcessFactory dataOutImplementation =
             OutputProcessFactory.valueOf(System.getProperty(
                     "icecube.daq.stringhub.StringHubComponent.dataOutType",
-                    OutputProcessFactory.BLOCKING_8K.name()));
+                    OutputProcessFactory.BLOCKING_1K.name()));
 
 
 	public StringHubComponent(int hubId)
@@ -1207,7 +1207,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16337 2016-11-09 18:11:45Z bendfelt $";
+		return "$Id: StringHubComponent.java 16417 2017-01-03 17:47:10Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1534,6 +1534,26 @@ public class StringHubComponent
                         return new BlockingOutputEngine(1024);
                     }
                 },
+        BLOCKING_2K
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new BlockingOutputEngine(2 * 1024);
+                    }
+                },
+        BLOCKING_4K
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new BlockingOutputEngine(4 * 1024);
+                    }
+                },
         BLOCKING_8K
                 {
                     @Override
@@ -1554,7 +1574,7 @@ public class StringHubComponent
                         return new BlockingOutputEngine(32 * 1024);
                     }
                 },
-        BLOCKING_64k
+        BLOCKING_64k /** NOTE: likely cause watchdog starvation.*/
                 {
                     @Override
                     DAQComponentOutputProcess create(final String componentName,
@@ -1564,7 +1584,7 @@ public class StringHubComponent
                         return new BlockingOutputEngine(64 * 1024);
                     }
                 },
-        BLOCKING_128K
+        BLOCKING_128K /** NOTE: likely cause watchdog starvation.*/
                 {
                     @Override
                     DAQComponentOutputProcess create(final String componentName,
