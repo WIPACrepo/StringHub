@@ -282,51 +282,6 @@ public class DataCollector extends AbstractDataCollector
     }
 
     /**
-     * Attempt a TCAL.
-     *
-     * The contract for this method is intentionally soft.  Errors encountered
-     * on the acquisition side are logged, but suppressed.  This helps ride
-     * out some temporary bad conditions.
-     *
-     * Errors encountered on the processing side are propagated.  A processing
-     * error is generally fatal to the channel.
-     *
-     * @exception DataProcessorError An error occurred while passing the
-     *            time calibration to the data processor.  This indicates
-     *            a serious problem.
-     */
-    private void attemptRapCal() throws DataProcessorError
-    {
-        try
-        {
-            execRapCal();
-        }
-        catch (AcquisitionError acquisitionError)
-        {
-            logger.error("Ignoring tcal error", acquisitionError);
-        }
-    }
-
-    /**
-     * Execute a rapcal and queue the time calibration to the data processor.
-     *
-     * All errors, including potentially transient acquisition errors are
-     * propagated. Most calling methods should be using attemptRapCal()
-     * which silently ignors acquisition errors.
-     *
-     * @exception AcquisitionError An error occurred while acquiring the
-     *            time calibration.  Often this is a transient condition.
-     *
-     * @exception DataProcessorError An error occurred while passing the
-     *            time calibration to the data processor.  This indicates
-     *            a serious problem.
-     */
-    private void execRapCal() throws DataProcessorError, AcquisitionError
-    {
-        dataAcquisition.doTCAL(watchdog);
-    }
-
-    /**
      * The process is controlled by the runLevel state flag ...
      * <dl>
      * <dt>CONFIGURING (1)</dt>
@@ -414,7 +369,7 @@ public class DataCollector extends AbstractDataCollector
              nTry < 10 && dataStats.getValidRAPCalCount() < 2; nTry++)
         {
             watchdog.sleep(100);
-            attemptRapCal();
+            dataAcquisition.attemptTCAL(watchdog);
         }
 
         runcore(!disable_intervals);
@@ -489,7 +444,7 @@ public class DataCollector extends AbstractDataCollector
                 {
                     logger.debug("Doing TCAL - runLevel is " + getRunLevel());
                 }
-                attemptRapCal();
+               dataAcquisition.attemptTCAL(watchdog);
             }
 
             switch (getRunLevel())
@@ -597,7 +552,7 @@ public class DataCollector extends AbstractDataCollector
                     //      data. if this tcal fails, the contract of the
                     //      CONFIGURED state will be violated. A poorly
                     //      timed wild tcal dooms us here.
-                    execRapCal();
+                    dataAcquisition.doTCAL(watchdog);
 
                     callProcessorSync(PROCESSOR_SYNC_TIMEOUT_MILLIS);
                     setRunLevelInternal(RunLevel.CONFIGURED);
