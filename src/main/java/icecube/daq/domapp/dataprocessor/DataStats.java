@@ -100,19 +100,19 @@ public class DataStats
      *
      * Note: Not thread safe, for processor thread access only.
      */
-    private static class BatchReporter
+    static class BatchReporter
     {
         private final long mbid;
         private final int batchSize;
-        private long[] batch;
-        private int idx;
+        protected long[] batch;
+        protected int idx;
 
         // run monitor is set post-construction
         private IRunMonitor runMonitor;
 
 
-        private BatchReporter(final long mbid,
-                              final int batchSize)
+        BatchReporter(final long mbid,
+                      final int batchSize)
         {
             this.batchSize = batchSize;
             this.mbid = mbid;
@@ -155,16 +155,52 @@ public class DataStats
         }
     }
 
+    /**
+     * Decorates BatchReporter with a time-based automatic flush.
+     *
+     * This behavior is required by the hlc hit consumer in the
+     * run monitor that desires a limited time differential between
+     * hit count channels.
+     */
+    static class TimedAutoFlush extends BatchReporter
+    {
+        private final long autoFlushInterval;
+
+        TimedAutoFlush(final long mbid, final int batchSize,
+                       final long autoFlushInterval)
+        {
+            super(mbid, batchSize);
+            this.autoFlushInterval = autoFlushInterval;
+        }
+
+        @Override
+        void reportHLCHit(final long utc)
+        {
+            super.reportHLCHit(utc);
+            if(idx > 1)
+            {
+                long interval = batch[idx-1] - batch[0];
+                if(interval >= autoFlushInterval)
+                {
+                    flush();
+                }
+            }
+        }
+    }
+
     // HLS hit reporting is propagated to an independent monitor.
-    // The reporting is batched to minimize inter-thread transfer overhead.
+    // The reporting is batched to minimize inter-thread transfer overhead,
+    // and also regulated to ensure a release one a minute;
     private final int HIT_MONITOR_BATCH_SIZE = 100;
+    private final long MAX_BATCH_LATENCY_TICKS = 60 * 10000000000L;
     private final BatchReporter hlcReporter;
 
 
     public DataStats(long mbid)
     {
         this.mbid = mbid;
-        this.hlcReporter = new BatchReporter(mbid, HIT_MONITOR_BATCH_SIZE);
+        this.hlcReporter = new TimedAutoFlush(mbid, HIT_MONITOR_BATCH_SIZE,
+                MAX_BATCH_LATENCY_TICKS);
     }
 
     protected  void reportProcessingStart(DataProcessor.StreamType streamType,
