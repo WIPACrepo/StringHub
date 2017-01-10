@@ -434,7 +434,16 @@ class HLCCountConsumer
     {
         Long mbid = Long.valueOf(domTimes.mbid);
         for (long time : domTimes.utc) {
-            getContainer(time, mbid).inc();
+            try
+            {
+                getContainer(time, mbid).inc();
+            }
+            catch (ExpiredRange e)
+            {
+                String msg = String.format("Late HLC hit report from %012x " +
+                        "not counted by monitor.", domTimes.mbid);
+                LOG.error(msg, e);
+            }
         }
     }
 

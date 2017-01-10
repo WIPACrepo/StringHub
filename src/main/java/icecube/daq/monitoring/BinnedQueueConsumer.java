@@ -34,6 +34,22 @@ abstract class BinnedQueueConsumer<T, K, C>
     private HashMap<K, BinManager<C>> map =
         new HashMap<K, BinManager<C>>();
 
+    /**
+     * The max value that has already been reported.
+     * Incoming values (from delayed producers) less than or equal this
+     * value will be rejected as they can no longer be reported and contravene
+     * bin management.
+     */
+    private long lastReportedBinEnd = Long.MIN_VALUE;
+
+    static class ExpiredRange extends Exception
+    {
+        public ExpiredRange(final String message)
+        {
+            super(message);
+        }
+    }
+
     BinnedQueueConsumer(IRunMonitor parent, long binWidth)
     {
         super(parent);
@@ -46,6 +62,7 @@ abstract class BinnedQueueConsumer<T, K, C>
         for (BinManager<C> mgr : map.values()) {
             mgr.clearBin(binStart, binEnd);
         }
+        lastReportedBinEnd = binEnd;
     }
 
     boolean containsKey(K key)
@@ -101,7 +118,15 @@ abstract class BinnedQueueConsumer<T, K, C>
     }
 
     public synchronized C getContainer(long binIndex, K key)
+            throws ExpiredRange
     {
+        if(binIndex <= lastReportedBinEnd)
+        {
+            String msg = String.format("Index %d is earlier than the end" +
+                    " of the last reported bin range %d",
+                    binIndex, lastReportedBinEnd);
+            throw new ExpiredRange(msg);
+        }
         if (!map.containsKey(key)) {
             map.put(key, createBinManager(key, binIndex, binWidth));
         }

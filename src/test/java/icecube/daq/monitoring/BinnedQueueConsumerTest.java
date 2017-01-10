@@ -8,7 +8,6 @@ import java.util.Map;
 
 import org.apache.log4j.BasicConfigurator;
 
-import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -75,6 +74,8 @@ public class BinnedQueueConsumerTest
 
         private ArrayList<MyReport> reports = new ArrayList<MyReport>();
 
+        private ArrayList<ExpiredRange> rejections = new ArrayList<>();
+
         MyConsumer(IRunMonitor parent, long binWidth)
         {
             super(parent, binWidth);
@@ -95,8 +96,15 @@ public class BinnedQueueConsumerTest
                 names.add(nv.name);
             }
 
-            MyCounter ctr = getContainer(nv.val, nv.name);
-            ctr.inc();
+            try
+            {
+                MyCounter ctr = getContainer(nv.val, nv.name);
+                ctr.inc();
+            }
+            catch (ExpiredRange e)
+            {
+                rejections.add(e);
+            }
         }
 
         void pushData(String name, long value)
@@ -117,6 +125,16 @@ public class BinnedQueueConsumerTest
             }
             MyReport myReport = new MyReport(binStart, binEnd, counts);
             reports.add(myReport);
+        }
+
+        void clearReports()
+        {
+            reports = new ArrayList<>();
+        }
+
+        void clearRejections()
+        {
+            rejections = new ArrayList<>();
         }
     }
 
@@ -175,6 +193,28 @@ public class BinnedQueueConsumerTest
                 }
             }
         }
+
+        assertEquals(0, con.rejections.size());
+        assertEquals(2, con.reports.size());
+        assertEquals("BIN-> [10 to 19] counts {abc: 2, def: 2}",
+                con.reports.get(0).toString());
+        assertEquals("BIN-> [20 to 29] counts {abc: 2, def: 2}",
+                con.reports.get(1).toString());
+
+        con.clearReports();
+        con.clearRejections();
+        con.sendRunData();
+
+        assertEquals(0, con.rejections.size());
+        assertEquals(2, con.reports.size());
+        assertEquals("BIN-> [30 to 39] counts {abc: 2, def: 2}",
+                con.reports.get(0).toString());
+        assertEquals("BIN-> [40 to 49] counts {abc: 2, def: 2}",
+                con.reports.get(1).toString());
+
+        if (appender.getNumberOfMessages() > 0) {
+            fail("Saw log message(s)");
+        }
     }
 
     @Test
@@ -198,6 +238,28 @@ public class BinnedQueueConsumerTest
                     fail("Saw log message(s)");
                 }
             }
+        }
+
+        assertEquals(0, con.rejections.size());
+        assertEquals(2, con.reports.size());
+        assertEquals("BIN-> [10 to 19] counts {abc: 2, def: 2, ghi: 2}",
+                con.reports.get(0).toString());
+        assertEquals("BIN-> [20 to 29] counts {abc: 2, ghi: 2}",
+                con.reports.get(1).toString());
+
+        con.clearReports();
+        con.clearRejections();
+        con.sendRunData();
+
+        assertEquals(0, con.rejections.size());
+        assertEquals(2, con.reports.size());
+        assertEquals("BIN-> [30 to 39] counts {abc: 2, ghi: 2}",
+                con.reports.get(0).toString());
+        assertEquals("BIN-> [40 to 49] counts {abc: 2, def: 1, ghi: 2}",
+                con.reports.get(1).toString());
+
+        if (appender.getNumberOfMessages() > 0) {
+            fail("Saw log message(s)");
         }
     }
 
@@ -241,10 +303,31 @@ public class BinnedQueueConsumerTest
             binEnd= binStart+9;
         }
 
+        assertEquals(0, con.rejections.size());
+        assertEquals(2, con.reports.size());
+        assertEquals("BIN-> [1 to 9] counts {aaa: 3, ccc: 3, bbb: 3}",
+                con.reports.get(0).toString());
+        assertEquals("BIN-> [10 to 19] counts {aaa: 3, ccc: 3, bbb: 3}",
+                con.reports.get(1).toString());
+
         if (appender.getNumberOfMessages() > 0) {
             fail("Saw log message(s)");
         }
 
+        con.clearReports();
+        con.clearRejections();
+        con.sendRunData();
+
+        assertEquals(0, con.rejections.size());
+        assertEquals(2, con.reports.size());
+        assertEquals("BIN-> [20 to 29] counts {aaa: 3, ccc: 3, bbb: 3}",
+                con.reports.get(0).toString());
+        assertEquals("BIN-> [30 to 39] counts {aaa: 3, ccc: 3, bbb: 3}",
+                con.reports.get(1).toString());
+
+        if (appender.getNumberOfMessages() > 0) {
+            fail("Saw log message(s)");
+        }
     }
 
 
@@ -287,10 +370,31 @@ public class BinnedQueueConsumerTest
             binEnd= binStart+9;
         }
 
+        assertEquals(0, con.rejections.size());
+        assertEquals(2, con.reports.size());
+        assertEquals("BIN-> [1 to 9] counts {aaa: 3, ccc: 3, bbb: 3}",
+                con.reports.get(0).toString());
+        assertEquals("BIN-> [10 to 19] counts {aaa: 3, ccc: 3, bbb: 3}",
+                con.reports.get(1).toString());
+
         if (appender.getNumberOfMessages() > 0) {
             fail("Saw log message(s)");
         }
 
+        con.clearReports();
+        con.clearRejections();
+        con.sendRunData();
+
+        assertEquals(0, con.rejections.size());
+        assertEquals(2, con.reports.size());
+        assertEquals("BIN-> [20 to 29] counts {aaa: 3, ccc: 3, bbb: 3}",
+                con.reports.get(0).toString());
+        assertEquals("BIN-> [30 to 39] counts {aaa: 3, ccc: 3, bbb: 3}",
+                con.reports.get(1).toString());
+
+        if (appender.getNumberOfMessages() > 0) {
+            fail("Saw log message(s)");
+        }
     }
 
     @Test
@@ -332,10 +436,37 @@ public class BinnedQueueConsumerTest
             binEnd= binStart+9;
         }
 
+        assertEquals(3, con.rejections.size());
+        assertEquals("Index 10 is earlier than the end of the last reported bin range 19",
+                con.rejections.get(0).getMessage());
+        assertEquals("Index 11 is earlier than the end of the last reported bin range 19"
+                , con.rejections.get(1).getMessage());
+        assertEquals("Index 18 is earlier than the end of the last reported bin range 19",
+                con.rejections.get(2).getMessage());
+        assertEquals(2, con.reports.size());
+        assertEquals("BIN-> [1 to 9] counts {aaa: 3, ccc: 3, bbb: 3}",
+                con.reports.get(0).toString());
+        assertEquals("BIN-> [10 to 19] counts {aaa: 3, bbb: 3}",
+                con.reports.get(1).toString());
+
         if (appender.getNumberOfMessages() > 0) {
             fail("Saw log message(s)");
         }
 
+        con.clearReports();
+        con.clearRejections();
+        con.sendRunData();
+
+        assertEquals(0, con.rejections.size());
+        assertEquals(2, con.reports.size());
+        assertEquals("BIN-> [20 to 29] counts {aaa: 3, ccc: 3, bbb: 3}",
+                con.reports.get(0).toString());
+        assertEquals("BIN-> [30 to 39] counts {aaa: 3, ccc: 3, bbb: 3}",
+                con.reports.get(1).toString());
+
+        if (appender.getNumberOfMessages() > 0) {
+            fail("Saw log message(s)");
+        }
     }
 
     @Test
@@ -367,20 +498,54 @@ public class BinnedQueueConsumerTest
 
         con.processAll();
 
-        int binStart = 1;
-        int binEnd = 9;
-        for(MyReport report: con.reports)
-        {
-            assertEquals(report.toString(), binStart, report.binStart);
-            assertEquals(report.toString(), binEnd, report.binEnd);
-            binStart= binEnd+1;
-            binEnd= binStart+9;
-        }
+
+        assertEquals(9, con.rejections.size());
+        assertEquals("Index 1 is earlier than the end of the last reported bin range 9",
+                con.rejections.get(0).getMessage());
+        assertEquals("Index 3 is earlier than the end of the last reported bin range 9"
+                , con.rejections.get(1).getMessage());
+        assertEquals("Index 5 is earlier than the end of the last reported bin range 9",
+                con.rejections.get(2).getMessage());
+        assertEquals("Index 10 is earlier than the end of the last reported bin range 19",
+                con.rejections.get(3).getMessage());
+        assertEquals("Index 11 is earlier than the end of the last reported bin range 19",
+                con.rejections.get(4).getMessage());
+        assertEquals("Index 18 is earlier than the end of the last reported bin range 19",
+                con.rejections.get(5).getMessage());
+        assertEquals("Index 21 is earlier than the end of the last reported bin range 29",
+                con.rejections.get(6).getMessage());
+        assertEquals("Index 23 is earlier than the end of the last reported bin range 29",
+                con.rejections.get(7).getMessage());
+        assertEquals("Index 28 is earlier than the end of the last reported bin range 29",
+                con.rejections.get(8).getMessage());
+
+        assertEquals(3, con.reports.size());
+        assertEquals("BIN-> [1 to 9] counts {aaa: 3, bbb: 3}",
+                con.reports.get(0).toString());
+        assertEquals("BIN-> [10 to 19] counts {aaa: 3, bbb: 3}",
+                con.reports.get(1).toString());
+        assertEquals("BIN-> [20 to 29] counts {aaa: 3, bbb: 3}",
+                con.reports.get(2).toString());
 
         if (appender.getNumberOfMessages() > 0) {
             fail("Saw log message(s)");
         }
 
+        con.clearReports();
+        con.clearRejections();
+        con.sendRunData();
+
+        assertEquals(0, con.rejections.size());
+        assertEquals(2, con.reports.size());
+        assertEquals("BIN-> [30 to 39] counts {aaa: 3, ccc: 3, bbb: 3}",
+                con.reports.get(0).toString());
+        assertEquals("BIN-> [40 to 49] counts {aaa: 3, ccc: 3, bbb: 3}",
+                con.reports.get(1).toString());
+
+        if (appender.getNumberOfMessages() > 0) {
+            fail("Saw log message(s)");
+        }
     }
+
 
 }
