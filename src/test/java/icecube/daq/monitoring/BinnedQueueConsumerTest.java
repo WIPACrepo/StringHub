@@ -263,6 +263,79 @@ public class BinnedQueueConsumerTest
         }
     }
 
+    @Test
+    public void testReset()
+    {
+        String[] names = new String[] { "abc", "def" };
+        MyConsumer con = new MyConsumer(null, 10L);
+        for (int i = 10; i < 50; i += 5) {
+            for (String name : names) {
+                con.pushData(name, (long) i);
+                if (con.holdValue()) {
+                    con.processHeldValue();
+                }
+            }
+        }
+
+        assertEquals(0, con.rejections.size());
+        assertEquals(2, con.reports.size());
+        assertEquals("BIN-> [10 to 19] counts {abc: 2, def: 2}",
+                con.reports.get(0).toString());
+        assertEquals("BIN-> [20 to 29] counts {abc: 2, def: 2}",
+                con.reports.get(1).toString());
+
+        con.clearReports();
+        con.clearRejections();
+        con.sendRunData();
+
+        assertEquals(0, con.rejections.size());
+        assertEquals(2, con.reports.size());
+        assertEquals("BIN-> [30 to 39] counts {abc: 2, def: 2}",
+                con.reports.get(0).toString());
+        assertEquals("BIN-> [40 to 49] counts {abc: 2, def: 2}",
+                con.reports.get(1).toString());
+
+        if (appender.getNumberOfMessages() > 0) {
+            fail("Saw log message(s)");
+        }
+
+
+        // This is a switch-run phenomenon,
+        // since we forced a report at end-of-run, hits from the
+        // following soft-started run are likely to ovelap the last
+        // bin of the following run
+        con.clearRejections();
+        con.clearReports();
+
+        con.reset();
+        con.pushData("abc", 48);
+        con.pushData("def", 48);
+        con.pushData("abc", 49);
+        con.pushData("abc", 50);
+        con.pushData("abc", 51);
+        con.pushData("abc", 52);
+        con.pushData("def", 55);
+        con.pushData("def", 55);
+        con.pushData("def", 55);
+        con.pushData("def", 56);
+        con.processAll();
+        con.sendRunData();
+
+        assertEquals(0, con.rejections.size());
+        assertEquals(2, con.reports.size());
+        assertEquals("BIN-> [48 to 49] counts {abc: 2, def: 1}",
+                con.reports.get(0).toString());
+        assertEquals("BIN-> [50 to 59] counts {abc: 3, def: 4}",
+                con.reports.get(1).toString());
+
+        if (appender.getNumberOfMessages() > 0) {
+            fail("Saw log message(s)");
+        }
+
+
+
+
+    }
 
     @Test
     public void testDelayedChannel_0()

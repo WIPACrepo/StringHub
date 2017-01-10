@@ -182,6 +182,7 @@ abstract class BinnedQueueConsumer<T, K, C>
     public void reset()
     {
         map.clear();
+        lastReportedBinEnd = Long.MIN_VALUE;
     }
 
     /**
