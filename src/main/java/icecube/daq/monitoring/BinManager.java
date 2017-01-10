@@ -98,6 +98,8 @@ abstract class BinManager<C>
      */
     BinManager(String name, long binStart, long binWidth)
     {
+        this.name = name;
+
         this.binWidth = binWidth;
 
         long partial = binStart % binWidth;
@@ -147,7 +149,7 @@ abstract class BinManager<C>
                 if (active != null) {
                     newStart = active.getEnd();
                 } else {
-                    newStart = lastBinEnd + binWidth;
+                    newStart = lastBinEnd;
                 }
                 if (binIndex > newStart) {
                     while (binIndex > newStart) {
