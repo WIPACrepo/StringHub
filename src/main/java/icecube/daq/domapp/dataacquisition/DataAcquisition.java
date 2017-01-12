@@ -13,7 +13,6 @@ import icecube.daq.domapp.dataprocessor.DataStats;
 import icecube.daq.dor.Driver;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
-import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
 import icecube.daq.time.monitoring.ClockProcessor;
 import icecube.daq.util.FlasherboardConfiguration;
@@ -93,8 +92,6 @@ public class DataAcquisition
     /** Monitoring consumer of tcals. */
     private ClockProcessor tcalConsumer =
             ClockMonitoringSubsystem.Factory.processor();
-
-    private IRunMonitor runMonitor;
 
     public DataAcquisition(final int card, final int pair, final char dom,
                            final DataProcessor dataProcessor)
@@ -883,12 +880,6 @@ public class DataAcquisition
     public long getRunStartSystemTime()
     {
         return monitor.runStartTime;
-    }
-
-
-    public void setRunMonitor(IRunMonitor runMoni)
-    {
-        runMonitor = runMoni;
     }
 
 
