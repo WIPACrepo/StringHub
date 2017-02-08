@@ -436,7 +436,7 @@ class HLCCountConsumer
         for (long time : domTimes.utc) {
             try
             {
-                getContainer(time, mbid).inc();
+                reportEvent(time, mbid).inc();
             }
             catch (ExpiredRange e)
             {

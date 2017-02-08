@@ -91,6 +91,9 @@ abstract class BinnedQueueConsumer<T, K, C>
         }
 
         for (BinManager<C> mgr : map.values()) {
+
+            // Previous bins are considered to span from
+            // start to end.
             if (isPrevious) {
                 if (mgr.hasPrevious()) {
                     if (mgr.getPreviousStart() < binStart) {
@@ -100,12 +103,14 @@ abstract class BinnedQueueConsumer<T, K, C>
                         binEnd = mgr.getPreviousEnd() - 1;
                     }
                 }
+            // Active bins are considered to span from
+            // start to latest reported event.
             } else if (mgr.hasActive()) {
                 if (mgr.getActiveStart() < binStart) {
                     binStart = mgr.getActiveStart();
                 }
-                if (mgr.getActiveEnd() > binEnd) {
-                    binEnd = mgr.getActiveEnd() - 1;
+                if (mgr.getActiveLatest() > binEnd) {
+                    binEnd = mgr.getActiveLatest();
                 }
             }
         }
@@ -117,7 +122,18 @@ abstract class BinnedQueueConsumer<T, K, C>
         return new BinRange(binStart, binEnd, isPrevious);
     }
 
-    public synchronized C getContainer(long binIndex, K key)
+    /**
+     * Access a bin container for an index. Calling this method is implicit
+     * notification that there is a sample or event activity at the bin index,
+     * i.e. a new bin may be created, previous bins may be reported
+     * and/or the supplied bin index may be recorded as the last seen value.
+     *
+     * @param binIndex The bin index value of the current sample or event
+     * @param key Identifies category of the sample or event.
+     * @return
+     * @throws ExpiredRange The bin for the index has already been reported.
+     */
+    public synchronized C reportEvent(long binIndex, K key)
             throws ExpiredRange
     {
         if(binIndex <= lastReportedBinEnd)
@@ -157,7 +173,7 @@ abstract class BinnedQueueConsumer<T, K, C>
             }
         }
 
-        return mgr.get(binIndex);
+        return mgr.reportEvent(binIndex);
     }
 
     /**
@@ -182,7 +198,6 @@ abstract class BinnedQueueConsumer<T, K, C>
     public void reset()
     {
         map.clear();
-        lastReportedBinEnd = Long.MIN_VALUE;
     }
 
     /**
