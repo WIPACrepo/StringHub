@@ -6,6 +6,8 @@ import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.common.EventVersion;
 import icecube.daq.io.DAQOutputChannelManager;
 import icecube.daq.io.OutputChannel;
+import icecube.daq.monitoring.BatchHLCReporter;
+import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.monitoring.SenderMonitor;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.ILoadablePayload;
@@ -193,6 +195,17 @@ public class Sender
     private long prevHitTime;
 
     /**
+     * HLS hit reporting is propagated to an independent monitor, the
+     * reporting is batched to minimize inter-thread transfer overhead.
+     *
+     * Hubs vary from 200-1200 HLC hits per second so batch up to 150
+     * and the reporting latency to 1 second.
+     */
+    long ONE_SECOND = 10000000000L;
+    BatchHLCReporter hlcReporter =
+            new BatchHLCReporter.TimedAutoFlush(150, ONE_SECOND);
+
+    /**
      * Create a readout request filler.
      *
      * @param stringHubId this stringHub's ID
@@ -271,6 +284,10 @@ public class Sender
                     log.error("Couldn't add data stop to queue", ioe);
                 }
             }
+
+            // ensure accumulated hlc hits are reported
+            hlcReporter.flush();
+
         } else {
             // process hit
             DOMHit tinyHit;
@@ -307,11 +324,19 @@ public class Sender
                         }
                     }
 
+
+                    // report HLC hits to external monitor
+                    final boolean isHLC = tinyHit.getLocalCoincidenceMode() != 0;
+                    if(isHLC)
+                    {
+                        hlcReporter.reportHLCHit(tinyHit.getDomId(),
+                                tinyHit.getTimestamp());
+                    }
+
                     // send some hits to local trigger component
                     if (hitChan != null &&
-                        (forwardLC0Hits ||
-                         tinyHit.getLocalCoincidenceMode() != 0 ||
-                         tinyHit.getTriggerMode() == 4))
+                            (forwardLC0Hits || isHLC ||
+                                    tinyHit.getTriggerMode() == 4))
                     {
                         // extract hit's ByteBuffer
                         ByteBuffer payBuf;
@@ -1079,4 +1104,10 @@ public class Sender
 
         return sourceId.toString();
     }
+
+    public void setRunMonitor(IRunMonitor runMonitor)
+    {
+        hlcReporter.setRunMonitor(runMonitor);
+    }
+
 }

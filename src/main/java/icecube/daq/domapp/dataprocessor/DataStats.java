@@ -1,7 +1,6 @@
 package icecube.daq.domapp.dataprocessor;
 
 import icecube.daq.dor.TimeCalib;
-import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.util.RealTimeRateMeter;
 import icecube.daq.util.SimpleMovingAverage;
 
@@ -94,113 +93,10 @@ public class DataStats
     private final DOMToSystemTimer domToSystemTimer = new
             DOMToSystemTimer();
 
-    /**
-     * Accumulates HLC hit information for batched submission
-     * to a RunMonitor.
-     *
-     * Note: Not thread safe, for processor thread access only.
-     */
-    static class BatchReporter
-    {
-        private final long mbid;
-        private final int batchSize;
-        protected long[] batch;
-        protected int idx;
-
-        // run monitor is set post-construction
-        private IRunMonitor runMonitor;
-
-
-        BatchReporter(final long mbid,
-                      final int batchSize)
-        {
-            this.batchSize = batchSize;
-            this.mbid = mbid;
-            this.batch = new long[batchSize];
-        }
-
-        void reportHLCHit(final long utc)
-        {
-            batch[idx++] = utc;
-            if(idx == batchSize)
-            {
-                flush();
-            }
-        }
-
-        void flush()
-        {
-            if(runMonitor != null)
-            {
-                if(idx < batchSize)
-                {
-                    // a runt batch
-                    long[] runt = new long[idx];
-                    System.arraycopy(batch, 0, runt, 0, runt.length);
-                    runMonitor.countHLCHit(mbid, runt);
-                }
-                else
-                {
-                    // a full batch
-                    runMonitor.countHLCHit(mbid, batch);
-                }
-            }
-            batch = new long[batchSize];
-            idx = 0;
-        }
-
-        void setRunMonitor(final IRunMonitor runMonitor)
-        {
-            this.runMonitor = runMonitor;
-        }
-    }
-
-    /**
-     * Decorates BatchReporter with a time-based automatic flush.
-     *
-     * This behavior is required by the hlc hit consumer in the
-     * run monitor that desires a limited time differential between
-     * hit count channels.
-     */
-    static class TimedAutoFlush extends BatchReporter
-    {
-        private final long autoFlushInterval;
-
-        TimedAutoFlush(final long mbid, final int batchSize,
-                       final long autoFlushInterval)
-        {
-            super(mbid, batchSize);
-            this.autoFlushInterval = autoFlushInterval;
-        }
-
-        @Override
-        void reportHLCHit(final long utc)
-        {
-            super.reportHLCHit(utc);
-            if(idx > 1)
-            {
-                long interval = batch[idx-1] - batch[0];
-                if(interval >= autoFlushInterval)
-                {
-                    flush();
-                }
-            }
-        }
-    }
-
-    // HLS hit reporting is propagated to an independent monitor.
-    // The reporting is batched to minimize inter-thread transfer overhead,
-    // and also regulated to ensure a release one a minute;
-    private final int HIT_MONITOR_BATCH_SIZE = 100;
-    private final long MAX_BATCH_LATENCY_TICKS = 60 * 10000000000L;
-    private final BatchReporter hlcReporter;
-
 
     public DataStats(long mbid)
     {
         this.mbid = mbid;
-        this.hlcReporter = new TimedAutoFlush(mbid, HIT_MONITOR_BATCH_SIZE,
-                MAX_BATCH_LATENCY_TICKS);
     }
 
     protected  void reportProcessingStart(DataProcessor.StreamType streamType,
@@ -273,7 +169,6 @@ public class DataStats
         if(isLC)
         {
             rtLCRate.recordEvent(utc);
-            hlcReporter.reportHLCHit(utc);
         }
         rtHitRate.recordEvent(utc);
 
@@ -290,12 +185,6 @@ public class DataStats
             avgHitAcquisitionLatencyMillis.add(latency/1000000);
             lastHitLatencySampleDOMTicks = domclk;
         }
-    }
-
-    protected void reportHitStreamEOS()
-    {
-        // ensure accumulated hlc hits are reported
-        hlcReporter.flush();
     }
 
     protected void reportProcessorQueueDepth(final int depth)
@@ -430,9 +319,5 @@ public class DataStats
         return avgHitAcquisitionLatencyMillis.getAverage();
     }
 
-    public void setRunMonitor(final IRunMonitor runMonitor)
-    {
-        this.hlcReporter.setRunMonitor(runMonitor);
-    }
 
 }

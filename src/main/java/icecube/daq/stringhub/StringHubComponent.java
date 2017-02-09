@@ -297,6 +297,8 @@ public class StringHubComponent
 		runMonitor = new RunMonitor(hubId % 1000, getAlertQueue());
 		runMonitor.start();
 
+        sender.setRunMonitor(runMonitor);
+
         trace = new DiagnosticTraceConfig();
 	}
 
@@ -1207,7 +1209,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16417 2017-01-03 17:47:10Z bendfelt $";
+		return "$Id: StringHubComponent.java 16443 2017-02-09 21:39:58Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
