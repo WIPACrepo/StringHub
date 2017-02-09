@@ -24,7 +24,7 @@ import java.util.TimeZone;
 import org.apache.log4j.Logger;
 
 /**
- * Consumer which counts the number of occurences of the key and sends
+ * Consumer which counts the number of occurrences of the key and sends
  * totals at the end of the run
  */
 abstract class CountingConsumer<K, T>
@@ -316,40 +316,47 @@ class HLCBinManager
 }
 
 /**
- * Consume HLC hits and periodically report the counts
+ * Consume HLC hits and periodically report the counts.
  */
 class HLCCountConsumer
     extends BinnedQueueConsumer<HLCCountConsumer.DOMTimes, Long, Counter>
 {
-    class DOMTimes
+    static class DOMTimes
     {
+        long mbid[];
         long utc[];
-        long mbid;
 
-        DOMTimes(long utc[], long mbid)
+        DOMTimes(long mbid[], long utc[])
         {
-            this.utc = utc;
+            if(mbid.length != utc.length)
+            {
+                final String msg = String.format("mbid[%d] != utc[%d",
+                        mbid.length, utc.length);
+                throw new IllegalArgumentException(msg);
+            }
             this.mbid = mbid;
+            this.utc = utc;
         }
 
         /**
-         * Return a debugging representation of the counter
+         * Return a debugging representation of the sample.
          * @return debugging string
          */
         public String toString()
         {
             if(utc.length == 0)
             {
-                return String.format("[]@%012x", mbid);
+                return "mbid[], utc[]";
             }
             if(utc.length == 1)
             {
-                return String.format("%d@%012x", utc[0], mbid);
+                return String.format("mbid[%012x], utc[%d]", utc[0], mbid[0]);
             }
             else
             {
-                return String.format("[%d, ..., %d]@%012x", utc[0],
-                        utc[utc.length-1], mbid);
+                return String.format("mbid[%012x, ..., %012x]," +
+                        " utc[%d, ..., %d]", utc[0], utc[utc.length-1],
+                        mbid[0], mbid[mbid.length - 1]);
             }
         }
     }
@@ -432,16 +439,17 @@ class HLCCountConsumer
     @Override
     void process(DOMTimes domTimes)
     {
-        Long mbid = Long.valueOf(domTimes.mbid);
-        for (long time : domTimes.utc) {
+        int numSamples = domTimes.utc.length;
+        for(int i = 0; i < numSamples; i++)
+        {
             try
             {
-                reportEvent(time, mbid).inc();
+                reportEvent(domTimes.utc[i], domTimes.mbid[i]).inc();
             }
             catch (ExpiredRange e)
             {
                 String msg = String.format("Late HLC hit report from %012x " +
-                        "not counted by monitor.", domTimes.mbid);
+                        "not counted by monitor.", domTimes.mbid[i]);
                 LOG.error(msg, e);
             }
         }
@@ -450,12 +458,13 @@ class HLCCountConsumer
     /**
      * Push the data onto this consumer's queue
      *
-     * @param mbid mainboard ID of DOM which saw these hits
-     * @param utc UTC time of zero or more hits.
+     * @param mbid An array of mainboard IDs
+     * @param utc An array of utc times at which an hlc hit occurred for
+     *            the dom in the corresponding slot of the domID array.
      */
-    void pushData(long[] utc, long mbid)
+    void pushData(long mbid[], long[] utc)
     {
-        push(new DOMTimes(utc, mbid));
+        push(new DOMTimes(mbid, utc));
     }
 
     void sendData(long binStart, long binEnd)
@@ -617,8 +626,6 @@ class IsoConsumer
 
         /**
          * Get the count of entries too large for the histogram
-         *
-         * @param count of extra-large entries
          */
         int getOverflow()
         {
@@ -637,8 +644,6 @@ class IsoConsumer
 
         /**
          * Get the count of entries too small for the histogram
-         *
-         * @param count of extra-small entries
          */
         int getUnderflow()
         {
@@ -859,7 +864,7 @@ class ProcfileConsumer
     /**
      * Process a single piece of data
      *
-     * @param data data being processed
+     * @param key data being processed
      */
     @Override
     void process(Integer key)
@@ -962,7 +967,7 @@ class RAPCalProblemConsumer
     /**
      * Process a single piece of data
      *
-     * @param data data being processed
+     * @param mbid data being processed
      */
     @Override
     void process(Long mbid)
@@ -1306,12 +1311,8 @@ public class RunMonitor
         consumers.add(rapexcConsumer);
     }
 
-    /**
-     * Increment the total number of HLC hits for this period.
-     * @param mbid mainboard ID
-     * @param utc UTC times for a number of hits.
-     */
-    public void countHLCHit(long mbid, long[] utc)
+    @Override
+    public void countHLCHit(long[] mbid, long[] utc)
     {
         synchronized (queueLock) {
             if (hasRunNumber()) {
@@ -1319,7 +1320,7 @@ public class RunMonitor
                     hlcCountConsumer = new HLCCountConsumer(this);
                     consumers.add(hlcCountConsumer);
                 }
-                hlcCountConsumer.pushData(utc, mbid);
+                hlcCountConsumer.pushData(mbid, utc);
                 queueLock.notify();
             }
         }

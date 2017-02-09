@@ -16,10 +16,11 @@ public interface IRunMonitor
 {
     /**
      * Add some hits the total number of HLC hits for this period.
-     * @param domID mainboard ID
-     * @param utc UTC time of hit
+     * @param domID An array of mainboard IDs
+     * @param utc An array of utc times at which an hlc hit occurred for
+     *            the dom in the corresponding slot of the domID array.
      */
-    void countHLCHit(long domID, long[] utc);
+    void countHLCHit(long[] domID, long[] utc);
 
     /**
      * Return the list of DOMs configured for this string

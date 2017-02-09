@@ -38,7 +38,7 @@ class MyMonitor
     private boolean expectNotReady;
 
     @Override
-    public void countHLCHit(long mbid, long[] utc)
+    public void countHLCHit(long mbid[], long[] utc)
     {
         throw new Error("Unimplemented");
     }

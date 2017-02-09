@@ -66,7 +66,7 @@ class MyMonitor
     private int wildCount;
 
     @Override
-    public void countHLCHit(long mbid, long[] utc)
+    public void countHLCHit(long mbid[], long[] utc)
     {
         throw new Error("Unimplemented");
     }
