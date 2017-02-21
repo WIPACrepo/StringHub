@@ -141,7 +141,7 @@ public class QueueProvider
                     public <T> QueueStrategy<T> createQueue(final PowersOfTwo size)
                     {
                         MpscArrayQueue<T> base = new MpscArrayQueue<>(size.value());
-                        return new QueueStrategy.NonBlockingPollBackoff<T>(base, 10);
+                        return new QueueStrategy.NonBlockingPollBackoff<T>(base, 10, 250);
                     }
                 },
 
@@ -178,7 +178,7 @@ public class QueueProvider
                     public <T> QueueStrategy<T> createQueue(final PowersOfTwo size)
                     {
                         MpscArrayQueue<T> base = new MpscArrayQueue<>(size.value());
-                        return new QueueStrategy.RelaxedPollBackoff<T>(base, 10);
+                        return new QueueStrategy.RelaxedPollBackoff<T>(base, 10, 250);
                     }
                 };
 
@@ -237,7 +237,7 @@ public class QueueProvider
                     public <T> QueueStrategy<T> createQueue(final PowersOfTwo size)
                     {
                         SpscArrayQueue<T> base = new SpscArrayQueue<>(size.value());
-                        return new QueueStrategy.NonBlockingPollBackoff<T>(base, 10);
+                        return new QueueStrategy.NonBlockingPollBackoff<T>(base, 10, 250);
                     }
                 },
 
@@ -274,7 +274,7 @@ public class QueueProvider
                     public <T> QueueStrategy<T> createQueue(final PowersOfTwo size)
                     {
                         SpscArrayQueue<T> base = new SpscArrayQueue<>(size.value());
-                        return new QueueStrategy.RelaxedPollBackoff<T>(base, 10);
+                        return new QueueStrategy.RelaxedPollBackoff<T>(base, 10, 250);
                     }
                 };
 

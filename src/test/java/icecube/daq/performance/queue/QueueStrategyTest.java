@@ -34,12 +34,12 @@ public class QueueStrategyTest
         cases.add(new Object[]{new QueueStrategy.NonBlockingSpin<Integer>(new LinkedBlockingQueue<>(BOUND))});
         cases.add(new Object[]{new QueueStrategy.NonBlockingYield<Integer>(new LinkedBlockingQueue<>(BOUND))});
         cases.add(new Object[]{new QueueStrategy.NonBlockingPoll<Integer>(new LinkedBlockingQueue<>(BOUND), 100)});
-        cases.add(new Object[]{new QueueStrategy.NonBlockingPollBackoff<Integer>(new LinkedBlockingQueue<>(BOUND), 100)});
+        cases.add(new Object[]{new QueueStrategy.NonBlockingPollBackoff<Integer>(new LinkedBlockingQueue<>(BOUND), 100, 500)});
 
         cases.add(new Object[]{new QueueStrategy.RelaxedSpin<Integer>(new SpmcArrayQueue<>(BOUND))});
         cases.add(new Object[]{new QueueStrategy.RelaxedYield<Integer>(new SpmcArrayQueue<>(BOUND))});
         cases.add(new Object[]{new QueueStrategy.RelaxedPoll<Integer>(new SpmcArrayQueue<>(BOUND), 100)});
-        cases.add(new Object[]{new QueueStrategy.RelaxedPollBackoff<Integer>(new SpmcArrayQueue<>(BOUND), 100)});
+        cases.add(new Object[]{new QueueStrategy.RelaxedPollBackoff<Integer>(new SpmcArrayQueue<>(BOUND), 100, 500)});
 
         return cases;
     }

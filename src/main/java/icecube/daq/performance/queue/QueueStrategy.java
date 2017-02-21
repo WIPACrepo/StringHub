@@ -127,21 +127,23 @@ public interface QueueStrategy<T>
 
 
     /**
-     * A polling idle strategy with increasing sleep/
+     * A polling idle strategy with increasing sleep.
      */
     class Backoff implements IdleStrategy
     {
         final long pollMillis;
+        final long maxSleep;
 
-        public Backoff(final long pollMillis)
+        public Backoff(final long pollMillis, final long maxSleep)
         {
             this.pollMillis = pollMillis;
+            this.maxSleep = maxSleep;
         }
 
         @Override
         public final void idle(final int count) throws InterruptedException
         {
-            Thread.sleep(pollMillis * count);
+            Thread.sleep( Math.min((pollMillis * count), maxSleep) );
         }
 
     }
@@ -331,9 +333,11 @@ public interface QueueStrategy<T>
     public class NonBlockingPollBackoff<T> extends NonBlocking<T>
     {
 
-        public NonBlockingPollBackoff(final Queue<T> queue, final int pollInterval)
+        public NonBlockingPollBackoff(final Queue<T> queue,
+                                      final int pollInterval,
+                                      final long maxSleep)
         {
-            super(queue, new Backoff(pollInterval));
+            super(queue, new Backoff(pollInterval, maxSleep));
         }
 
     }
@@ -391,9 +395,11 @@ public interface QueueStrategy<T>
     public class RelaxedPollBackoff<T> extends Relaxed<T>
     {
 
-        public RelaxedPollBackoff(final MessagePassingQueue<T> queue, final int pollInterval)
+        public RelaxedPollBackoff(final MessagePassingQueue<T> queue,
+                                  final int pollInterval,
+                                  final int maxSleep)
         {
-            super(queue, new Backoff(pollInterval));
+            super(queue, new Backoff(pollInterval, maxSleep));
         }
 
     }
