@@ -96,7 +96,7 @@ class HitSorter
         if (cmp == 0) {
             if (h1.getDomId() < h2.getDomId()) {
                 return -1;
-            } else if (h1.getDomId() < h2.getDomId()) {
+            } else if (h1.getDomId() > h2.getDomId()) {
                 return 1;
             }
         }
