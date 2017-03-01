@@ -46,25 +46,13 @@ public class FilesHitSpoolTest
         throws IOException
     {
         try {
-            new FilesHitSpool(null, null, null);
+            new FilesHitSpool(null, null);
             fail("This should fail");
         } catch (IOException ioe) {
             final String errMsg = "Top directory cannot be null";
             assertEquals("Unexpected exception",
                          errMsg, ioe.getMessage());
         }
-    }
-
-    @Test
-    public void testBadConfigDir()
-        throws IOException
-    {
-        final File badConfigDir = new File("/does/not/compute");
-
-        new FilesHitSpool(null, badConfigDir, new File("/tmp"));
-
-        // nothing logged if headers are not packed
-        appender.assertNoLogMessages();
     }
 
     @Test
@@ -116,7 +104,7 @@ public class FilesHitSpoolTest
         throws IOException
     {
         CountingConsumer cc = new CountingConsumer();
-        FilesHitSpool hitspool = new FilesHitSpool(cc, null, new File("/tmp"));
+        FilesHitSpool hitspool = new FilesHitSpool(cc, new File("/tmp"));
 
         ByteBuffer buf = ByteBuffer.allocate(30);
         hitspool.consume(buf);
@@ -138,7 +126,7 @@ public class FilesHitSpoolTest
         throws IOException
     {
         CountingConsumer cc = new CountingConsumer();
-        FilesHitSpool hitspool = new FilesHitSpool(cc, null, new File("/tmp"));
+        FilesHitSpool hitspool = new FilesHitSpool(cc, new File("/tmp"));
 
         ByteBuffer buf = ByteBuffer.allocate(38);
         buf.limit(0);
@@ -435,11 +423,9 @@ class Runner
     private long fileInterval = 10000000000L;
     private int maxNumberOfFiles = 5;
 
-    private File configDir;
     private File topDir;
 
     private CountingConsumer cc = new CountingConsumer();
-    private int runNumber = 123456;
 
     private FilesHitSpool hitspool;
 
@@ -454,7 +440,6 @@ class Runner
         this.fileInterval = fileInterval;
         this.maxNumberOfFiles = maxNumberOfFiles;
 
-        configDir = new File(getClass().getResource("/config").getPath());
         topDir = createTempDirectory();
     }
 
@@ -474,7 +459,7 @@ class Runner
             throw new Error("Hitspool has already been created!");
         }
 
-        hitspool = new FilesHitSpool(cc, configDir, topDir, fileInterval,
+        hitspool = new FilesHitSpool(cc, topDir, fileInterval,
                                      maxNumberOfFiles);
 
     }
@@ -512,7 +497,6 @@ class Runner
     void startRun()
         throws IOException
     {
-        hitspool.startRun(runNumber++);
 
         // check spool directories
         checkTopDir(currentWriter != null);
@@ -528,8 +512,6 @@ class Runner
     void switchRun()
         throws IOException
     {
-        // write another chunk of data
-        hitspool.switchRun(runNumber++);
 
         // make sure both 'currentRun' and 'lastRun' exist
         checkTopDir(true);

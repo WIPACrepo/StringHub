@@ -45,15 +45,14 @@ public class FilesHitSpool
      *
      * @param out BufferConsumer object that will receive forwarded hits.
      *            Can be null.
-     * @param configDir directory holding configuration files
      * @param topDir top-level directory which holds hitspool directories
      *
      * @throws IOException if the target directory is null
      */
-    public FilesHitSpool(BufferConsumer out, File configDir, File topDir)
+    public FilesHitSpool(BufferConsumer out, File topDir)
         throws IOException
     {
-        this(out, configDir, topDir, 100000L);
+        this(out, topDir, 100000L);
     }
 
     /**
@@ -61,17 +60,16 @@ public class FilesHitSpool
      *
      * @param out BufferConsumer object that will receive forwarded hits.
      *            Can be null.
-     * @param configDir directory holding configuration files
      * @param topDir top-level directory which holds hitspool directories
      * @param fileInterval number of DAQ ticks of objects in each file
      *
      * @throws IOException if the target directory is null
      */
-    public FilesHitSpool(BufferConsumer out, File configDir, File topDir,
+    public FilesHitSpool(BufferConsumer out, File topDir,
                          long fileInterval)
         throws IOException
     {
-        this(out, configDir, topDir, fileInterval, 100);
+        this(out, topDir, fileInterval, 100);
     }
 
     /**
@@ -79,27 +77,28 @@ public class FilesHitSpool
      *
      * @param out BufferConsumer object that will receive forwarded hits.
      *            Can be null.
-     * @param configDir directory holding configuration files
      * @param topDir top-level directory which holds hitspool directories
      * @param fileInterval number of DAQ ticks of objects in each file
      * @param maxNumberOfFiles number of files in the spooling ensemble
      *
      * @throws IOException if the target directory is null
      */
-    public FilesHitSpool(BufferConsumer out, File configDir, File topDir,
+    public FilesHitSpool(BufferConsumer out, File topDir,
                          long fileInterval, int maxNumberOfFiles)
         throws IOException
     {
         this.out = out;
         this.topDir = topDir;
 
-        // make sure hitspool directory exists
+        // make sure hitspool directories exists
         if (topDir == null) {
             throw new IOException("Top directory cannot be null");
         }
+        targetDirectory = new File(topDir, "hitspool");
         createDirectory(topDir);
+        createDirectory(targetDirectory);
 
-        files = new FileBundle(configDir, fileInterval, maxNumberOfFiles);
+        files = new FileBundle(fileInterval, maxNumberOfFiles);
     }
 
     public void consume(ByteBuffer buf) throws IOException
@@ -174,107 +173,6 @@ public class FilesHitSpool
         return String.format("HitSpool-%d.dat", num);
     }
 
-    /**
-     * Reset internal counters
-     */
-    private void reset()
-        throws IOException
-    {
-        File newDir = new File(topDir, "hitspool");
-        try {
-            createDirectory(newDir);
-            targetDirectory = newDir;
-        } catch (IOException ioe) {
-            logger.error("Cannot create " + newDir, ioe);
-        }
-    }
-
-    /**
-     * Swap current and last directories.
-     * TODO remove from New_Glarus
-     *
-     * @throws IOException if a file/directory cannot be created
-     */
-    private void rotateDirectories()
-        throws IOException
-    {
-        // create and delete a temporary file in the hitspool directory
-        File hitSpoolTemp = File.createTempFile("HitSpool", ".tmp",
-                                                topDir);
-        if (!hitSpoolTemp.delete()) {
-            throw new IOException("Could not delete temporary file " +
-                                  hitSpoolTemp);
-        }
-
-        // create and remove a temporary directory
-        if (!hitSpoolTemp.exists()) {
-            if (!hitSpoolTemp.mkdirs()) {
-                throw new IOException("Could not create temporary directory " +
-                                      hitSpoolTemp);
-            }
-        }
-        if (!hitSpoolTemp.delete()) {
-            throw new IOException("Could not delete temporary directory " +
-                                  hitSpoolTemp);
-        }
-
-        // Note that renameTo and mkdir return false on failure
-
-        // Rename lastRun to temporary directory name
-        File hitSpoolLast = new File(topDir, "lastRun");
-        if (hitSpoolLast.exists() && !hitSpoolLast.renameTo(hitSpoolTemp)) {
-            logger.error("hitSpoolLast renameTo failed");
-        }
-
-        // Rename currentRun to lastRun
-        File hitSpoolCurrent = new File(topDir, "currentRun");
-        if (hitSpoolCurrent.exists() &&
-            !hitSpoolCurrent.renameTo(hitSpoolLast))
-        {
-            logger.error("hitSpoolCurrent renameTo failed!");
-        }
-
-        // Rename lastRun to currentRun
-        if (hitSpoolTemp.exists() && !hitSpoolTemp.renameTo(hitSpoolCurrent)) {
-            logger.debug("hitSpoolTemp renameTo failed!");
-        }
-
-        // if currentRun doesn't exist yet, create it now
-        if (!hitSpoolCurrent.exists() && !hitSpoolCurrent.mkdir()) {
-            logger.error("hitSpoolCurrent mkdir failed!");
-        }
-
-        // finally set target directory to currentRun
-        targetDirectory = hitSpoolCurrent;
-    }
-
-    /**
-     * Start a new run
-     *
-     * @param runNumber run number
-     *
-     * @throws IOException if hitspool directories cannot be created
-     */
-    public void startRun(int runNumber)
-        throws IOException
-    {
-        files.close();
-
-        reset();
-    }
-
-    /**
-     * Switch to a new run
-     *
-     * @param runNumber run number
-     *
-     * @throws IOException if hitspool directories cannot be created
-     */
-    public void switchRun(int runNumber)
-        throws IOException
-    {
-        reset();
-    }
 }
 
 /**
@@ -284,8 +182,6 @@ class FileBundle
 {
     private static final Logger logger =
         Logger.getLogger(FileBundle.class);
-
-    private IDOMRegistry registry;
 
     private long fileInterval;
     private int maxNumberOfFiles;
@@ -299,12 +195,10 @@ class FileBundle
     private long prevT;
     private boolean isHosed;
 
-    FileBundle(File configDir, long fileInterval, int maxNumberOfFiles)
+    FileBundle(long fileInterval, int maxNumberOfFiles)
     {
         this.fileInterval = fileInterval;
         this.maxNumberOfFiles = maxNumberOfFiles;
-
-        loadRegistry(configDir);
     }
 
     /**
@@ -359,24 +253,6 @@ class FileBundle
     boolean isHosed()
     {
         return isHosed;
-    }
-
-    private void loadRegistry(File configDir)
-    {
-/*
-        if (packHeaders && configDir != null) {
-            try {
-                registry = DOMRegistryFactory.load(configDir);
-            } catch (Exception x) {
-                logger.error("Failed to load registry from " + configDir +
-                             "; headers will not be packed", x);
-                registry = null;
-            }
-        }
-*/
-
-        logger.info("DOM registry " + (registry != null ? "" : "NOT") +
-                    " found.");
     }
 
     /**

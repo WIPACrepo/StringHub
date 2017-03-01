@@ -117,8 +117,6 @@ public class StringHubComponent
 	private IRunMonitor runMonitor;
     private DiagnosticTraceConfig trace;
 
-	private FilesHitSpool hitSpooler;
-
 	/** list of configured DOMs filled during configuring() */
 	private List<DOMInfo> configuredDOMs;
 
@@ -792,9 +790,9 @@ public class StringHubComponent
 		}
 
 		// send hits to hit spooler which forwards them to the sorter
-		hitSpooler = new FilesHitSpool(consumer, configurationPath,
-									   new File(directory),
-									   (long) (interval * 1E10), numFiles);
+        FilesHitSpool hitSpooler =
+                new FilesHitSpool(consumer, new File(directory),
+							      (long) (interval * 1E10), numFiles);
 
 		// use a dedicated thread for consumption from the sorter
 		// to separate the hitspool IO load from sorting load.
@@ -1001,13 +999,6 @@ public class StringHubComponent
                          sender);
 
         setRunNumber(runNumber);
-		if (hitSpooler != null) {
-			try {
-				hitSpooler.startRun(runNumber);
-			} catch (IOException ioe) {
-				throw new DAQCompException("Cannot switch hitspool", ioe);
-			}
-		}
 
 		logger.info("StringHub is starting the run.");
 
@@ -1191,15 +1182,6 @@ public class StringHubComponent
 
 		// resend the list of this hub's DOMs which are in the run config
 		sendConfiguredDOMs(runNumber);
-
-		if (hitSpooler != null) {
-			// switch to a new run
-			try {
-				hitSpooler.switchRun(runNumber);
-			} catch (IOException ioe) {
-				throw new DAQCompException("Cannot switch hitspool", ioe);
-			}
-		}
 	}
 
 	/**
@@ -1209,7 +1191,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16443 2017-02-09 21:39:58Z bendfelt $";
+		return "$Id: StringHubComponent.java 16472 2017-03-01 21:16:12Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
