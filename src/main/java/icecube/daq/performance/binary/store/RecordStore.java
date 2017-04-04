@@ -62,6 +62,30 @@ public interface RecordStore
                 throws IOException;
 
         /**
+         * Extract a range of records bounded by an interval.
+         *
+         * This form of extraction permits an implementer to satisfy the
+         * request using a shared view of the backing store.
+         *
+         * Note: The buffer provided in the callback is a shared,
+         *       volatile view into the data. Clients must not access
+         *       the buffer outside of the scope of callback.
+         *
+         * @param target The recipient of the extracted data. The recipient
+         *               must not access the buffer outside the scope of
+         *               the callback.
+         * @param from The start of the interval.
+         * @param to The end of the interval.
+         * @throws IOException
+         */
+        default public void extractRange(Consumer<RecordBuffer> target,
+                                         long from, long to)
+                throws IOException
+        {
+            target.accept(extractRange(from, to));
+        }
+
+        /**
          * Perform an operation on each record within interval.
          *
          * Note: The buffer provided in the callback is a shared,
@@ -105,7 +129,7 @@ public interface RecordStore
     /**
      * Composite for stores that are ordered and writable.
      */
-    public interface OrderedWritable extends Ordered, Writable{};
+    public interface OrderedWritable extends Ordered, Writable{}
 
 
     /**
