@@ -131,6 +131,11 @@ public class Mock
             return 0;
         }
 
+        @Override
+        public void closeWrite() throws IOException
+        {
+            methodCalls.add("closeWrite()");
+        }
     }
 
 
