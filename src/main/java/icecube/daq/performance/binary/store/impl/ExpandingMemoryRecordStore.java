@@ -74,6 +74,12 @@ public class ExpandingMemoryRecordStore implements RecordStore.Prunable
     }
 
     @Override
+    public void closeWrite() throws IOException
+    {
+        //noop
+    }
+
+    @Override
     public RecordBuffer extractRange(final long from, final long to)
             throws IOException
     {

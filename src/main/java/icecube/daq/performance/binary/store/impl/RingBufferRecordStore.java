@@ -103,6 +103,12 @@ public class RingBufferRecordStore
     }
 
     @Override
+    public void closeWrite() throws IOException
+    {
+        //noop
+    }
+
+    @Override
     public void prune(final long boundaryValue)
     {
         int prunedIndex = 0;

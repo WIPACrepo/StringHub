@@ -158,5 +158,11 @@ public class RingBufferRecordStoreTest
 
     }
 
+    public void testCloseWrite() throws IOException
+    {
+        subject.closeWrite();
+    }
+
+
 
 }

@@ -124,6 +124,12 @@ public interface RecordStore
          */
         public int available();
 
+        /**
+         * Close the store for writing. If this is a bi-directional
+         * store, it may remain open for reading.
+         */
+        public void closeWrite() throws IOException;
+
     }
 
     /**
@@ -201,6 +207,15 @@ public interface RecordStore
                 return delegate.available();
             }
         }
+
+        @Override
+        public void closeWrite() throws IOException
+        {
+            synchronized (this)
+            {
+                delegate.closeWrite();
+            }
+        }
     }
 
     /**
@@ -254,6 +269,14 @@ public interface RecordStore
             }
         }
 
+        @Override
+        public void closeWrite() throws IOException
+        {
+            synchronized (this)
+            {
+                delegate.closeWrite();
+            }
+        }
 
         @Override
         public void prune(final long boundaryValue)

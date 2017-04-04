@@ -57,12 +57,14 @@ public class RecordValidatorTest
         subject.store(record);
         subject.extractRange(88, -72);
         subject.forEach(null, 123, 999);
+        subject.closeWrite();
         String[] expected = new String[]
                 {
                         "available()",
                         "store("+recordStr+")",
                         "extractRange(" + 88 + ", " + -72 + ")",
                         "forEach(null, " + 123 + ", " + 999 + ")",
+                        "clseWrite()"
                 };
         mock.assertCalls(expected);
 
@@ -125,12 +127,14 @@ public class RecordValidatorTest
         subject.store(record);
         subject.extractRange(88, -72);
         subject.forEach(null, 123, 999);
+        subject.closeWrite();
         String[] expected = new String[]
                 {
                         "available()",
                         "store("+recordStr+")",
                         "extractRange(" + 88 + ", " + -72 + ")",
                         "forEach(null, " + 123 + ", " + 999 + ")",
+                        "clseWrite()"
                 };
         mock.assertCalls(expected);
 

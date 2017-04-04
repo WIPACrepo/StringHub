@@ -136,6 +136,8 @@ public class RecordStoreTest
                     target.store(null);
 
                     target.available();
+
+                    target.closeWrite();
                 }
             }
             catch (IOException e)
@@ -173,6 +175,8 @@ public class RecordStoreTest
                     target.available();
 
                     target.prune(-1);
+
+                    target.closeWrite();
                 }
             }
             catch (IOException e)
@@ -279,6 +283,12 @@ public class RecordStoreTest
         {
             checkSync();
             return 0;
+        }
+
+        @Override
+        public void closeWrite() throws IOException
+        {
+            checkSync();
         }
     }
 }

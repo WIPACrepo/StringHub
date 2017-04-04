@@ -25,6 +25,11 @@ public class NullRecordStore implements RecordStore.OrderedWritable
     }
 
     @Override
+    public void closeWrite() throws IOException
+    {
+    }
+
+    @Override
     public RecordBuffer extractRange(final long from, final long to)
             throws IOException
     {

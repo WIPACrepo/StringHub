@@ -61,6 +61,19 @@ public class ExpandingMemoryRecordStoreTest
     }
 
     @Test
+    public void testCloseWrite() throws IOException
+    {
+        RecordGenerator.DAQRecordProvider generator =
+                new RecordGenerator.DAQRecordProvider(123);
+        ExpandingMemoryRecordStore subject =
+                new ExpandingMemoryRecordStore(generator.recordReader(),
+                        generator.orderingField(), 1024, IndexFactory.NO_INDEX);
+
+        subject.closeWrite();
+    }
+
+
+    @Test
     public void testPrune() throws IOException
     {
         RecordGenerator generator =

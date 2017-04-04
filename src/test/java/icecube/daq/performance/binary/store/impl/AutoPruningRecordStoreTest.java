@@ -27,11 +27,13 @@ public class AutoPruningRecordStoreTest
 
         subject.store(ByteBuffer.allocate(123));
         subject.available();
+        subject.closeWrite();
 
         String[] expected = new String[]
                 {
                         "store(java.nio.HeapByteBuffer[pos=0 lim=123 cap=123])",
-                        "available()"
+                        "available()",
+                        "closeWrite()"
                 };
         mock.assertCalls(expected);
     }

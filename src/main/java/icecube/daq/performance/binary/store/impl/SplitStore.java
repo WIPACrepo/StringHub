@@ -107,6 +107,13 @@ public class SplitStore implements RecordStore.OrderedWritable
     }
 
     @Override
+    public void closeWrite() throws IOException
+    {
+        memory.closeWrite();
+        spool.closeWrite();
+    }
+
+    @Override
     /**
      * Execute a range query against the full cache.  Data may be read from
      * memory, disk or a combination as required.

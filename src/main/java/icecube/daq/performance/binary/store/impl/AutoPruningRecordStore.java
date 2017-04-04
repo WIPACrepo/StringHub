@@ -39,6 +39,12 @@ public class AutoPruningRecordStore implements RecordStore.OrderedWritable
     }
 
     @Override
+    public void closeWrite() throws IOException
+    {
+        delegate.closeWrite();
+    }
+
+    @Override
     public RecordBuffer extractRange(final long from, final long to)
             throws IOException
     {

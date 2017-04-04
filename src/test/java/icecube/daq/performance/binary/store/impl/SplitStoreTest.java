@@ -74,9 +74,22 @@ public class SplitStoreTest
         ///
         subject.available();
 
-        primary.assertCalls();
+        primary.assertCalls("available()");
         secondary.assertCalls("available()");
     }
+
+    @Test
+    public void testCloseWrite() throws IOException
+    {
+        ///
+        /// Tests method delegation
+        ///
+        subject.closeWrite();
+
+        primary.assertCalls("closeWrite()");
+        secondary.assertCalls("closeWrite()");
+    }
+
 
     @Test
     public void testStore() throws IOException

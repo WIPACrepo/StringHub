@@ -74,6 +74,12 @@ public interface RecordValidator
         }
 
         @Override
+        public void closeWrite() throws IOException
+        {
+            delegate.closeWrite();
+        }
+
+        @Override
         public RecordBuffer extractRange(final long from, final long to)
                 throws IOException
         {
@@ -129,6 +135,12 @@ public interface RecordValidator
         public int available()
         {
             return delegate.available();
+        }
+
+        @Override
+        public void closeWrite() throws IOException
+        {
+            delegate.closeWrite();
         }
 
         @Override

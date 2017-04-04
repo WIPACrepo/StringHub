@@ -33,6 +33,8 @@ public class NullRecordStoreTest
 
         subject.forEach(null, 88, 999);
 
+        subject.closeWrite();
+
     }
 
 
