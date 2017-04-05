@@ -52,6 +52,7 @@ import icecube.daq.priority.AdjustmentTask;
 import icecube.daq.priority.SorterException;
 import icecube.daq.sender.RequestReader;
 import icecube.daq.sender.Sender;
+import icecube.daq.spool.FilesHitSpool;
 import icecube.daq.time.gps.IGPSService;
 import icecube.daq.time.gps.GPSService;
 import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
@@ -1191,7 +1192,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16472 2017-03-01 21:16:12Z bendfelt $";
+		return "$Id: StringHubComponent.java 16498 2017-04-05 16:34:07Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()

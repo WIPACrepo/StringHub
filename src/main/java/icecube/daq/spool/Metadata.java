@@ -1,4 +1,4 @@
-package icecube.daq.stringhub;
+package icecube.daq.spool;
 
 import java.io.File;
 import java.sql.Connection;

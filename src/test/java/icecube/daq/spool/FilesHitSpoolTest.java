@@ -1,4 +1,4 @@
-package icecube.daq.stringhub;
+package icecube.daq.spool;
 
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.common.MockAppender;
