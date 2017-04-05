@@ -242,7 +242,7 @@ public class BatchHLCReporterTest
         long reportedHitCount;
 
         @Override
-        public void countHLCHit(final long domID[], final long[] utc)
+        public void countHLCHit(final long[] domID, final long[] utc)
         {
             assertTrue(domID.length == utc.length);
 
