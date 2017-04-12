@@ -63,7 +63,7 @@ public class IndexingRecordStoreTest
         ///
         subject.available();
         subject.closeWrite();
-        mockBuffer.assertCalls("available()", "closeWrite()");
+        mockBuffer.assertCalls("available()");
     }
 
     @Test

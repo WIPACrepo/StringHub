@@ -73,8 +73,6 @@ public class SplitStoreTest
         /// Tests method delegation
         ///
         subject.available();
-
-        primary.assertCalls("available()");
         secondary.assertCalls("available()");
     }
 

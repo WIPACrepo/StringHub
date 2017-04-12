@@ -64,7 +64,7 @@ public class RecordValidatorTest
                         "store("+recordStr+")",
                         "extractRange(" + 88 + ", " + -72 + ")",
                         "forEach(null, " + 123 + ", " + 999 + ")",
-                        "clseWrite()"
+                        "closeWrite()"
                 };
         mock.assertCalls(expected);
 
@@ -134,7 +134,7 @@ public class RecordValidatorTest
                         "store("+recordStr+")",
                         "extractRange(" + 88 + ", " + -72 + ")",
                         "forEach(null, " + 123 + ", " + 999 + ")",
-                        "clseWrite()"
+                        "closeWrite()"
                 };
         mock.assertCalls(expected);
 
