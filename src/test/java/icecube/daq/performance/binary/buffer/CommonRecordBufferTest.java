@@ -35,10 +35,10 @@ public abstract class CommonRecordBufferTest
     // subclasses choose the buffer size, often parameterized for many
     // sizes. Since the copy/view test iterations are O(n^2) the
     // size is checked and tests skipped if size >256 bytes;
-    abstract int subjectSize();
-    abstract RecordBuffer createSubject(short pattern, int alignment);
-    abstract RecordBuffer createSubject(int pattern, int alignment);
-    abstract RecordBuffer createSubject(long pattern, int alignment);
+    public abstract int subjectSize();
+    public abstract RecordBuffer createSubject(short pattern, int alignment);
+    public abstract RecordBuffer createSubject(int pattern, int alignment);
+    public abstract RecordBuffer createSubject(long pattern, int alignment);
 
     // data primitives to test.
     private long LONG_PATTERN   =         0xABCDEF0102030405L;
@@ -1303,25 +1303,25 @@ public abstract class CommonRecordBufferTest
     public static class EmptyBufferTest extends CommonRecordBufferTest
     {
         @Override
-        int subjectSize()
+        public int subjectSize()
         {
             return 0;
         }
 
         @Override
-        RecordBuffer createSubject(final short pattern, final int alignment)
+        public RecordBuffer createSubject(final short pattern, final int alignment)
         {
             return new RecordBuffers.EmptyBuffer();
         }
 
         @Override
-        RecordBuffer createSubject(final int pattern, final int alignment)
+        public RecordBuffer createSubject(final int pattern, final int alignment)
         {
             return new RecordBuffers.EmptyBuffer();
         }
 
         @Override
-        RecordBuffer createSubject(final long pattern, final int alignment)
+        public RecordBuffer createSubject(final long pattern, final int alignment)
         {
             return new RecordBuffers.EmptyBuffer();
         }

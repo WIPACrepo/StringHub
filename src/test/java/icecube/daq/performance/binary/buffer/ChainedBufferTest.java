@@ -60,13 +60,13 @@ public class ChainedBufferTest extends CommonRecordBufferTest
 
 
     @Override
-    int subjectSize()
+    public int subjectSize()
     {
         return sum(spans);
     }
 
     @Override
-    RecordBuffer createSubject(final short pattern, final int alignment)
+    public RecordBuffer createSubject(final short pattern, final int alignment)
     {
         ByteBuffer[] buffers = makeSpans(spans);
         int startByte=2-alignment;
@@ -80,7 +80,7 @@ public class ChainedBufferTest extends CommonRecordBufferTest
     }
 
     @Override
-    RecordBuffer createSubject(final int pattern, final int alignment)
+    public RecordBuffer createSubject(final int pattern, final int alignment)
     {
         ByteBuffer[] buffers = makeSpans(spans);
         int startByte=4-alignment;
@@ -94,7 +94,7 @@ public class ChainedBufferTest extends CommonRecordBufferTest
     }
 
     @Override
-    RecordBuffer createSubject(final long pattern, final int alignment)
+    public RecordBuffer createSubject(final long pattern, final int alignment)
     {
         ByteBuffer[] buffers = makeSpans(spans);
         int startByte=8-alignment;

@@ -262,7 +262,7 @@ public abstract class RingBuffersTest extends CommonWritableRecordBufferTest
         }
 
         @Override
-        int subjectSize()
+        public int subjectSize()
         {
             return size.value();
         }
@@ -312,7 +312,7 @@ public abstract class RingBuffersTest extends CommonWritableRecordBufferTest
         }
 
         @Override
-        int subjectSize()
+        public int subjectSize()
         {
             return size;
         }

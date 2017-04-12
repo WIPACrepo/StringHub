@@ -41,13 +41,13 @@ public class ByteBufferWrapperTest extends CommonRecordBufferTest
     }
 
     @Override
-    int subjectSize()
+    public int subjectSize()
     {
         return size;
     }
 
     @Override
-    RecordBuffer createSubject(final short pattern, final int alignment)
+    public RecordBuffer createSubject(final short pattern, final int alignment)
     {
         ByteBuffer bb = ByteBuffer.allocate(size);
         fill(bb, pattern, 2-alignment);
@@ -55,7 +55,7 @@ public class ByteBufferWrapperTest extends CommonRecordBufferTest
     }
 
     @Override
-    RecordBuffer createSubject(final int pattern, final int alignment)
+    public RecordBuffer createSubject(final int pattern, final int alignment)
     {
         ByteBuffer bb = ByteBuffer.allocate(size);
         fill(bb, pattern, 4-alignment);
@@ -63,7 +63,7 @@ public class ByteBufferWrapperTest extends CommonRecordBufferTest
     }
 
     @Override
-    RecordBuffer createSubject(final long pattern, final int alignment)
+    public RecordBuffer createSubject(final long pattern, final int alignment)
     {
         ByteBuffer bb = ByteBuffer.allocate(size);
         fill(bb, pattern, 8-alignment);

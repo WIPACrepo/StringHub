@@ -28,7 +28,7 @@ public abstract class CommonWritableRecordBufferTest
 
 
     @Override
-    RecordBuffer createSubject(final short pattern, final int alignment)
+    public RecordBuffer createSubject(final short pattern, final int alignment)
     {
         WritableRecordBuffer rb  = createSubject();
 
@@ -37,7 +37,7 @@ public abstract class CommonWritableRecordBufferTest
     }
 
     @Override
-    RecordBuffer createSubject(final int pattern, final int alignment)
+    public RecordBuffer createSubject(final int pattern, final int alignment)
     {
         WritableRecordBuffer rb  = createSubject();
 
@@ -46,7 +46,7 @@ public abstract class CommonWritableRecordBufferTest
     }
 
     @Override
-    RecordBuffer createSubject(final long pattern, final int alignment)
+    public RecordBuffer createSubject(final long pattern, final int alignment)
     {
         WritableRecordBuffer rb  = createSubject();
 
@@ -249,7 +249,7 @@ public abstract class CommonWritableRecordBufferTest
         }
 
         @Override
-        int subjectSize()
+        public int subjectSize()
         {
             return size;
         }
