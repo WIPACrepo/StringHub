@@ -46,6 +46,17 @@ public interface IndexFactory
                     }
                 },
         /**
+         * A sparse index at 1/1000 second granularity.
+         */
+        SPARSE_ONE_THOUSANDTHS_SECOND(10000000L)
+                {
+                    @Override
+                    public RecordBufferIndex.UpdatableIndex newIndex()
+                    {
+                        return new RecordBufferIndex.SparseBufferIndex(indexStride);
+                    }
+                },
+        /**
          * A sparse index at 1/100 second granularity.
          */
         SPARSE_ONE_HUNDREDTHS_SECOND(100000000L)

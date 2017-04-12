@@ -67,5 +67,17 @@ public class IndexFactoryTest
 
     }
 
+    @Test
+    public void testSparseUTCIndex_SPARSE_ONE_THOUSANDSTHS_SECOND()
+    {
+        ///
+        /// Tests ArrayListIndex
+        ///
+        RecordBufferIndex.UpdatableIndex subject =
+                IndexFactory.UTCIndexMode.SPARSE_ONE_THOUSANDTHS_SECOND.newIndex();
+        RecordBufferIndexTest.checkSparseBufferIndex(subject, 10000000L);
+
+    }
+
 
 }
