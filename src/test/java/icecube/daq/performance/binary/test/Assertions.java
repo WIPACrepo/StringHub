@@ -20,14 +20,15 @@ public class Assertions
 
     public static void assertSame(String msg, RecordBuffer expected, RecordBuffer actual)
     {
-        assertEquals(msg, expected.getLength(), actual.getLength());
+        assertEquals(msg + ":length", expected.getLength(), actual.getLength());
         for (int i = 0; i<expected.getLength(); i++)
         {
-            assertEquals(msg, expected.getByte(i), actual.getByte(i));
+            assertEquals(msg +":element[" + i + "]",
+                        expected.getByte(i), actual.getByte(i));
         }
 
         // belt + suspenders
-        assertArrayEquals(msg, expected.getBytes(0, expected.getLength()),
+        assertArrayEquals(msg + ":bytes", expected.getBytes(0, expected.getLength()),
                 actual.getBytes(0, actual.getLength()));
     }
 

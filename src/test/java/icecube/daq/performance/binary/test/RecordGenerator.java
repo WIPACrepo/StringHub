@@ -327,4 +327,82 @@ public interface RecordGenerator
         }
 
     }
+
+
+    /**
+     * A record with an embedded sequence number.
+     * Useful for debugging searches.
+     * int length
+     * long value
+     * long sequence
+     */
+    class SequenceRecordProvider implements RecordGenerator
+    {
+        long currentValue;
+
+        public SequenceRecordProvider(final int startingValue)
+        {
+            this.currentValue = startingValue;
+        }
+
+        @Override
+        public RecordReader recordReader()
+        {
+            return new RecordReader()
+            {
+                @Override
+                public int getLength(final ByteBuffer buffer)
+                {
+                    return buffer.getInt(0);
+                }
+
+                @Override
+                public int getLength(final ByteBuffer buffer,
+                                     final int offset)
+                {
+                    return buffer.getInt(offset);
+                }
+
+                @Override
+                public int getLength(final RecordBuffer buffer,
+                                     final int offset)
+                {
+                    return buffer.getInt(offset);
+                }
+            };
+        }
+
+        @Override
+        public RecordReader.LongField orderingField()
+        {
+            return new RecordReader.LongField()
+            {
+                @Override
+                public long value(final ByteBuffer buffer, final int offset)
+                {
+                    return buffer.getLong(offset + 4);
+                }
+
+                @Override
+                public long value(final RecordBuffer buffer, final int offset)
+                {
+                    return buffer.getLong(offset + 4);
+
+                }
+            };
+        }
+
+        public ByteBuffer generate(long utc)
+        {
+            ByteBuffer res = ByteBuffer.allocate(20);
+            res.putInt(20);              // length
+            res.putLong(utc);            // value
+            res.putLong(currentValue);   // sequence
+            currentValue++;
+
+            res.flip();
+            return res;
+        }
+    }
+
 }
