@@ -41,7 +41,7 @@ public class MemoryMappedSpoolFileTest
         public static List<Object[]> sizes()
         {
             List<Object[]> cases = new ArrayList<Object[]>(5);
-            cases.add(new Object[]{0,0});
+            cases.add(new Object[]{0,1});
             cases.add(new Object[]{0,128});
             cases.add(new Object[]{1,5});
             cases.add(new Object[]{2,1024});
