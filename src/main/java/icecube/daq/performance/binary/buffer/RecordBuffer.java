@@ -76,6 +76,7 @@ public interface RecordBuffer
      * @param dest The destination for the copied data.
      * @param offset The position in the destination that the copied data will
      *               start.
+     * @param start The starting position in the source buffer.
      * @param length The number of bytes to copy.
      * @throws  IndexOutOfBoundsException
      */
@@ -438,7 +439,8 @@ public interface RecordBuffer
             }
             else
             {
-                throw new Error("Zero-length record at index: " + idx);
+                throw new Error("Zero-length record at index: " + idx
+                        + " of " + buffer.getLength());
             }
         }
     }
