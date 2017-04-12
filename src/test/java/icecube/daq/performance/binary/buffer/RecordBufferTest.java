@@ -210,7 +210,7 @@ public class RecordBufferTest
         catch (Throwable e)
         {
             String expected = "Zero-length record at index: " +
-                    recordBuffer.getLength();
+                    recordBuffer.getLength() + " of " + corrupted.getLength();
             assertEquals(expected, e.getMessage());
         }
     }
