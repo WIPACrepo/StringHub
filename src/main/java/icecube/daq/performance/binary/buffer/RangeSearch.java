@@ -250,7 +250,8 @@ public interface RangeSearch
                 if(recordLength < 1)
                 {
                     //todo consider checked exception?
-                    throw new Error("Invalid record length at index: " + idx);
+                    throw new Error("Invalid record length " + recordLength +
+                            " at index: " + idx + " of " + buffer.getLength());
                 }
                 idx += recordLength;
             }

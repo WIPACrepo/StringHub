@@ -249,8 +249,8 @@ public class RangeSearchTest
         catch (Error e)
         {
             String message = e.getMessage();
-            assertTrue(message.matches("Invalid record length" +
-                    " at index: [0-9]+"));
+            assertTrue(message, message.matches("Invalid record length [0-9+]" +
+                    " at index: [0-9]+ of [0-9]+"));
         }
 
     }
