@@ -3,7 +3,6 @@ package icecube.daq.sender;
 import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.common.DAQCmdInterface;
-import icecube.daq.common.EventVersion;
 import icecube.daq.io.DAQOutputChannelManager;
 import icecube.daq.io.OutputChannel;
 import icecube.daq.monitoring.BatchHLCReporter;
@@ -21,9 +20,6 @@ import icecube.daq.payload.PayloadException;
 import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.impl.DOMHit;
 import icecube.daq.payload.impl.DOMHitFactory;
-import icecube.daq.payload.impl.DOMHitReadoutData;
-import icecube.daq.payload.impl.DOMID;
-import icecube.daq.payload.impl.HitRecordList;
 import icecube.daq.reqFiller.RequestFiller;
 import icecube.daq.util.IDOMRegistry;
 
@@ -31,103 +27,12 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-class HitSorter
-    implements Comparator
-{
-    /**
-     * Basic constructor.
-     */
-    HitSorter()
-    {
-    }
-
-    /**
-     * Compare two hits by source ID and timestamp.
-     */
-    public int compare(Object o1, Object o2)
-    {
-        if (o1 == null) {
-            if (o2 == null) {
-                return 0;
-            }
-
-            return 1;
-        } else if (o2 == null) {
-            return -1;
-        } else if (!(o1 instanceof DOMHit)) {
-            if (!(o2 instanceof DOMHit)) {
-                final String name1 = o1.getClass().getName();
-                return name1.compareTo(o2.getClass().getName());
-            }
-
-            return 1;
-        } else if (!(o2 instanceof DOMHit)) {
-            return -1;
-        } else {
-            return compare((DOMHit) o1, (DOMHit) o2);
-        }
-    }
-
-    /**
-     * Compare two DOM hits.
-     *
-     * @param h1 first hit
-     * @param h2 second hit
-     *
-     * @return standard comparison results
-     */
-    private int compare(DOMHit h1, DOMHit h2)
-    {
-        if (h1.getTimestamp() < h2.getTimestamp()) {
-            return -1;
-        } else if (h1.getTimestamp() > h2.getTimestamp()) {
-            return 1;
-        }
-
-        int cmp = h1.getSourceID().getSourceID() - h2.getSourceID().getSourceID();
-        if (cmp == 0) {
-            if (h1.getDomId() < h2.getDomId()) {
-                return -1;
-            } else if (h1.getDomId() > h2.getDomId()) {
-                return 1;
-            }
-        }
-
-        return cmp;
-    }
-
-    /**
-     * Is the specified object a member of the same class?
-     *
-     * @return <tt>true</tt> if specified object matches this class
-     */
-    public boolean equals(Object obj)
-    {
-        if (obj == null) {
-            return false;
-        }
-
-        return getClass().equals(obj.getClass());
-    }
-
-    /**
-     * Get sorter hash code.
-     *
-     * @return hash code for this class.
-     */
-    public int hashCode()
-    {
-        return getClass().hashCode();
-    }
-}
 
 /**
  * Consume DOM hits from stringHub and readout requests
@@ -137,14 +42,10 @@ public class Sender
     extends RequestFiller
     implements BufferConsumer, SenderMonitor
 {
-    protected static final int DEFAULT_TRIGGER_MODE = 2;
 
     private static final long DAY_TICKS = 10000000000L * 60L * 60L * 24L;
 
     private static Log log = LogFactory.getLog(Sender.class);
-
-    /** Used to sort hits before building readout data payloads. */
-    private static final HitSorter HIT_SORTER = new HitSorter();
 
     private ISourceID sourceId;
 
@@ -182,14 +83,6 @@ public class Sender
 
     /** DOM information from default-dom-geometry.xml */
     private IDOMRegistry domRegistry;
-
-    // per-run monitoring counter
-    private long numTEHits;
-
-    /**
-     * 'true' if we've logged an error about missing TE output engine or cache
-     */
-    private boolean warnedTE;
 
     // previous hit time (used to detect hits with impossibly huge times)
     private long prevHitTime;
@@ -740,78 +633,7 @@ public class Sender
         DOMHit curData = (DOMHit) dataPayload;
         IReadoutRequest curReq = (IReadoutRequest) reqPayload;
 
-        // get time from current hit
-        final long timestamp = curData.getTimestamp();
-
-        final int srcId = sourceId.getSourceID();
-
-        Iterator iter =
-            curReq.getReadoutRequestElements().iterator();
-        while (iter.hasNext()) {
-            IReadoutRequestElement elem =
-                (IReadoutRequestElement) iter.next();
-
-            final long elemFirstUTC = elem.getFirstTimeUTC().longValue();
-            final long elemLastUTC = elem.getLastTimeUTC().longValue();
-
-            if (timestamp < elemFirstUTC || timestamp > elemLastUTC) {
-                continue;
-            }
-
-            final String daqName;
-            if (elem.getSourceID().getSourceID() < 0) {
-                daqName = null;
-            } else {
-                daqName =
-                    SourceIdRegistry.getDAQNameFromISourceID(elem.getSourceID());
-            }
-
-            switch (elem.getReadoutType()) {
-            case IReadoutRequestElement.READOUT_TYPE_GLOBAL:
-                return true;
-            case IReadoutRequestElement.READOUT_TYPE_II_GLOBAL:
-                if (daqName.equals(DAQCmdInterface.DAQ_STRINGPROCESSOR) ||
-                    daqName.equals(DAQCmdInterface.DAQ_PAYLOAD_INVALID_SOURCE_ID))
-                {
-                    return true;
-                }
-                break;
-            case IReadoutRequestElement.READOUT_TYPE_IT_GLOBAL:
-                if (daqName.equals(DAQCmdInterface.DAQ_ICETOP_DATA_HANDLER) ||
-                    daqName.equals(DAQCmdInterface.DAQ_PAYLOAD_INVALID_SOURCE_ID))
-                {
-                    return true;
-                }
-                break;
-            case IReadoutRequestElement.READOUT_TYPE_II_STRING:
-                if (srcId == elem.getSourceID().getSourceID()) {
-                    return true;
-                }
-                break;
-            case IReadoutRequestElement.READOUT_TYPE_II_MODULE:
-                if (daqName.equals(DAQCmdInterface.DAQ_STRINGPROCESSOR) &&
-                    curData.getDomId() == elem.getDomID().longValue())
-                {
-                    return true;
-                }
-                break;
-            case IReadoutRequestElement.READOUT_TYPE_IT_MODULE:
-                if (daqName.equals(DAQCmdInterface.DAQ_ICETOP_DATA_HANDLER) &&
-                    curData.getDomId() == elem.getDomID().longValue())
-                {
-                    return true;
-                }
-                break;
-            default:
-                if (log.isErrorEnabled()) {
-                    log.error("Unknown request type #" +
-                              elem.getReadoutType());
-                }
-                break;
-            }
-        }
-
-        return false;
+        return SenderMethods.isRequested(sourceId, curReq, curData);
     }
 
     /**
@@ -825,13 +647,10 @@ public class Sender
     public ILoadablePayload makeDataPayload(IPayload reqPayload,
                                             List dataList)
     {
-        if (reqPayload == null) {
-            try {
-                throw new NullPointerException("No request");
-            } catch (Exception ex) {
-                log.error("No current request; cannot send data", ex);
-            }
 
+        if (reqPayload == null) {
+            log.error("No current request; cannot send data",
+                    new NullPointerException("No request"));
             return null;
         }
 
@@ -887,28 +706,22 @@ public class Sender
             hitDataList.add((DOMHit) obj);
         }
 
-        // sort by timestamp/source ID
-        Collections.sort(hitDataList, HIT_SORTER);
-
         if (domRegistry == null) {
             throw new Error("DOM registry has not been set");
         }
 
-        // build readout data
-        ILoadablePayload readout;
-        if (EventVersion.VERSION < 5) {
-            readout = new DOMHitReadoutData(uid, sourceId, startTime, endTime,
-                                            hitDataList);
-        } else {
-            try {
-                readout =
-                    new HitRecordList(domRegistry, startTime.longValue(), uid,
-                                      sourceId, hitDataList);
-            } catch (PayloadException pe) {
-                log.error("Cannot build list of hit records", pe);
-                return null;
-            }
+        try {
+            IWriteablePayload readout =
+                    SenderMethods.makeDataPayload(uid, startTime.longValue(),
+                                                  endTime.longValue(), dataList,
+                                                  sourceId, domRegistry);
+            return (ILoadablePayload) readout;
+        } catch (PayloadException pe) {
+            log.error("Cannot build list of hit records", pe);
+            return null;
         }
+
+
 /*
         Iterator hitIter = hitDataList.iterator();
         while (hitIter.hasNext()) {
@@ -917,7 +730,6 @@ public class Sender
         }
 */
 
-        return readout;
     }
 
     /**
@@ -953,7 +765,6 @@ public class Sender
      */
     public void reset()
     {
-        numTEHits = 0;
         prevHitTime = 0;
 
         super.reset();
@@ -1042,26 +853,10 @@ public class Sender
     public void setRequestTimes(IPayload payload)
     {
         IReadoutRequest req = (IReadoutRequest) payload;
+        SenderMethods.TimeRange range = SenderMethods.extractTimeRange(req);
 
-        reqStartTime = Long.MAX_VALUE;
-        reqEndTime = Long.MIN_VALUE;
-
-        Iterator iter =
-            req.getReadoutRequestElements().iterator();
-        while (iter.hasNext()) {
-            IReadoutRequestElement elem =
-                (IReadoutRequestElement) iter.next();
-
-            long startTime = elem.getFirstTimeUTC().longValue();
-            if (startTime < reqStartTime) {
-                reqStartTime = startTime;
-            }
-
-            long endTime = elem.getLastTimeUTC().longValue();
-            if (endTime > reqEndTime) {
-                reqEndTime = endTime;
-            }
-        }
+        reqStartTime = range.startUTC;
+        reqEndTime = range.endUTC;
 
         if (log.isDebugEnabled()) {
             log.debug("Filling readout#" + req.getUID() +
