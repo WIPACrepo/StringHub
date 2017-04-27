@@ -1155,7 +1155,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16520 2017-04-27 20:56:53Z bendfelt $";
+		return "$Id: StringHubComponent.java 16521 2017-04-27 21:10:21Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1187,6 +1187,11 @@ public class StringHubComponent
 	{
 		return sender.getMonitor();
 	}
+
+    public SenderSubsystem getSender()
+    {
+        return sender;
+    }
 
 	public int getNumberOfActiveChannels()
 	{
