@@ -3,7 +3,7 @@ package icecube.daq.monitoring;
 /**
  * MBean interface for StringHub back-end data.
  */
-public interface MonitoringDataMBean
+public interface MonitoringDataMBean extends SenderMXBean
 {
     /**
      * Get average number of hits per readout.
@@ -83,20 +83,6 @@ public interface MonitoringDataMBean
     //long getNumHitsDropped();
 
     /**
-     * Get number of hits queued for processing.
-     *
-     * @return num hits queued
-     */
-    int getNumHitsQueued();
-
-    /**
-     * Get number of hits received.
-     *
-     * @return num hits received
-     */
-    long getNumHitsReceived();
-
-    /**
      * Get number of null hits received.
      *
      * @return num null hits
@@ -118,20 +104,6 @@ public interface MonitoringDataMBean
     //long getNumReadoutRequestsDropped();
 
     /**
-     * Number of readout requests currectly queued for processing.
-     *
-     * @return num readout requests queued
-     */
-    long getNumReadoutRequestsQueued();
-
-    /**
-     * Number of readout requests received for this run.
-     *
-     * @return num readout requests received
-     */
-    long getNumReadoutRequestsReceived();
-
-    /**
      * Get number of readouts which could not be sent.
      *
      * @return num readouts failed
@@ -144,13 +116,6 @@ public interface MonitoringDataMBean
      * @return num readouts ignored
      */
     //long getNumReadoutsIgnored();
-
-    /**
-     * Get number of readouts sent.
-     *
-     * @return num readouts sent
-     */
-    long getNumReadoutsSent();
 
     /**
      * Get number of recycled payloads.
