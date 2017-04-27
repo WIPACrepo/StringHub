@@ -34,8 +34,8 @@ import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
 import icecube.daq.monitoring.DOMClockRolloverAlerter;
 import icecube.daq.monitoring.IRunMonitor;
-import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.monitoring.RunMonitor;
+import icecube.daq.monitoring.SenderMXBean;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.impl.ReadoutRequestFactory;
@@ -51,8 +51,7 @@ import icecube.daq.performance.diagnostic.cpu.CPUUtilizationContent;
 import icecube.daq.priority.AdjustmentTask;
 import icecube.daq.priority.SorterException;
 import icecube.daq.sender.RequestReader;
-import icecube.daq.sender.Sender;
-import icecube.daq.spool.FilesHitSpool;
+import icecube.daq.sender.SenderSubsystem;
 import icecube.daq.time.gps.IGPSService;
 import icecube.daq.time.gps.GPSService;
 import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
@@ -91,15 +90,11 @@ public class StringHubComponent
 	private static final String COMPONENT_NAME =
 		DAQCmdInterface.DAQ_STRING_HUB;
 
-	/** Default interval for each hitspool file (in seconds) */
-	private static final double DEFAULT_HITSPOOL_INTERVAL = 15.0;
-	/** Maximum number of hitspool files */
-	private static final int DEFAULT_HITSPOOL_MAXFILES = 18000;
 
 	private int hubId;
 	private Driver driver = Driver.getInstance();
 	private IByteBufferCache cache;
-	private Sender sender;
+    private SenderSubsystem sender;
 	private IDOMRegistry domRegistry;
 	private IByteBufferCache moniBufMgr, tcalBufMgr, snBufMgr;
 	private PayloadReader reqIn;
@@ -137,6 +132,14 @@ public class StringHubComponent
                     "icecube.daq.stringhub.StringHubComponent.dataOutType",
                     OutputProcessFactory.BLOCKING_1K.name()));
 
+
+    //todo: Remove after rhinelander release
+    /**
+     * Configuration directive to fall back to the legacy HitSpool/Sender
+     * implementations;
+     */
+    public static final boolean USE_LEGACY_SENDER = true;
+//    Boolean.getBoolean("icecube.daq.sender.SenderSubsystem.use-legacy-sender");
 
 	public StringHubComponent(int hubId)
 	{
@@ -203,10 +206,23 @@ public class StringHubComponent
 			addCache(DAQConnector.TYPE_READOUT_DATA, rdoutDataCache);
 		}
 
-		sender = new Sender(hubId, rdoutDataCache);
-		if (domRegistry != null) {
-			sender.setDOMRegistry(domRegistry);
-		}
+        try
+        {
+            if(USE_LEGACY_SENDER)
+            {
+                sender = SenderSubsystem.Factory.STRING_HUB_COMPONENT.createLegacy(hubId,
+                        cache, rdoutDataCache, domRegistry);
+            }
+            else
+            {
+                sender = SenderSubsystem.Factory.STRING_HUB_COMPONENT.create(hubId,
+                        cache, rdoutDataCache, domRegistry);
+            }
+        }
+        catch (IOException ioe)
+        {
+            throw new Error("Couldn't create Sender", ioe);
+        }
 
 		if (logger.isInfoEnabled()) {
 			logger.info("starting up StringHub component " + hubId);
@@ -239,7 +255,7 @@ public class StringHubComponent
 			ReadoutRequestFactory factory =
 				new ReadoutRequestFactory(cache);
 			try {
-				reqIn = new RequestReader(COMPONENT_NAME, sender, factory);
+				reqIn = new RequestReader(COMPONENT_NAME, sender.getReadoutRequestHandler(), factory);
 			} catch (IOException ioe) {
 				throw new Error("Couldn't create RequestReader", ioe);
 			}
@@ -253,9 +269,7 @@ public class StringHubComponent
             sender.setDataOutput(dataOut);
 		}
 
-		MonitoringData monData = new MonitoringData();
-		monData.setSenderMonitor(sender);
-		addMBean("sender", monData);
+        addMBean("sender", sender.getMonitor());
 
 		// Following are the payload output engines for the secondary streams
 		if (includeMoniOut) {
@@ -384,11 +398,7 @@ public class StringHubComponent
 		} catch (DOMRegistryException dre) {
 			logger.error("Could not load DOMRegistry", dre);
 		}
-
-		if (sender != null) {
-			sender.setDOMRegistry(domRegistry);
-		}
-	}
+    }
 
     @Override
     /**
@@ -614,13 +624,9 @@ public class StringHubComponent
 
 		// the hit buffer consumer is either the sender or a hitspool
 		// object which passes all hits onto the sender
-		BufferConsumer consumer;
-		try {
-			consumer = createHitspooler(sender);
-		} catch (IOException ioe) {
-			logger.error("Cannot create hitspooler", ioe);
-			consumer = sender;
-		}
+        BufferConsumer consumer = new AsyncSorterOutput(sender.getHitInput(),
+                PowersOfTwo._2097152, "hit-consumer",
+                trace.getAsyncHitConsumerMeter());
 
 		final boolean usePriority =
 			System.getProperty("usePrioritySort") != null;
@@ -756,50 +762,7 @@ public class StringHubComponent
 		}
     }
 
-	private BufferConsumer createHitspooler(BufferConsumer consumer)
-		throws IOException
-	{
-		final String directory = System.getProperty("hitspool.directory");
-		if (directory == null) {
-			return consumer;
-		}
 
-		double interval = DEFAULT_HITSPOOL_INTERVAL;
-
-		final String ivalStr = System.getProperty("hitspool.interval");
-		if (ivalStr != null) {
-			try {
-				double tmpIval = Double.parseDouble(ivalStr);
-				interval = tmpIval;
-			} catch (NumberFormatException nfe) {
-				logger.error("Bad hitspool interval \"" + ivalStr +
-							 "\"; falling back to default " + interval);
-			}
-		}
-
-		int numFiles = DEFAULT_HITSPOOL_MAXFILES;
-
-		final String numStr = System.getProperty("hitspool.maxfiles");
-		if (numStr != null) {
-			try {
-				int tmpVal = Integer.parseInt(numStr);
-				numFiles = tmpVal;
-			} catch (NumberFormatException nfe) {
-				logger.error("Bad number of hitspool files \"" + numStr +
-							 "\"; falling back to default " + numFiles);
-			}
-		}
-
-		// send hits to hit spooler which forwards them to the sorter
-        FilesHitSpool hitSpooler =
-                new FilesHitSpool(consumer, new File(directory),
-							      (long) (interval * 1E10), numFiles);
-
-		// use a dedicated thread for consumption from the sorter
-		// to separate the hitspool IO load from sorting load.
-        return new AsyncSorterOutput(hitSpooler, PowersOfTwo._2097152,
-                "hit-consumer", trace.getAsyncHitConsumerMeter());
-    }
 
 	/**
 	 * Used for testing StringHub without real DOMs
@@ -997,13 +960,13 @@ public class StringHubComponent
 		throws DAQCompException
 	{
         trace.startTrace(trace.narrowCollectors(conn.getCollectors()),
-                         sender);
+                sender.getMonitor());
 
         setRunNumber(runNumber);
 
 		logger.info("StringHub is starting the run.");
 
-		sender.reset();
+		sender.startup();
 
 		hitsSort.start();
 		moniSort.start();
@@ -1192,7 +1155,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16498 2017-04-05 16:34:07Z bendfelt $";
+		return "$Id: StringHubComponent.java 16520 2017-04-27 20:56:53Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1220,9 +1183,9 @@ public class StringHubComponent
 		return reqIn;
 	}
 
-	public Sender getSender()
+	public SenderMXBean getSenderMonitor()
 	{
-		return sender;
+		return sender.getMonitor();
 	}
 
 	public int getNumberOfActiveChannels()
@@ -1348,9 +1311,9 @@ public class StringHubComponent
 		}
 
 		/**
-		 * Sort the list of files.
+		 * Sort the list of doms.
 		 *
-		 * @param files list of files
+		 * @param doms list of doms
 		 */
 		public void sort(List<DOMInfo> doms)
 		{
@@ -1414,7 +1377,7 @@ public class StringHubComponent
         }
 
         private void startTrace(final List<DataCollectorMBean> collectors,
-                                final Sender sender)
+                                final SenderMXBean sender)
         {
             try
             {

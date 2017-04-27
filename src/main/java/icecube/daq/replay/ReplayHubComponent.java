@@ -1,5 +1,6 @@
 package icecube.daq.replay;
 
+import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.io.HitSpoolReader;
 import icecube.daq.io.PayloadByteReader;
 import icecube.daq.io.SimpleOutputEngine;
@@ -9,12 +10,11 @@ import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
-import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.impl.ReadoutRequestFactory;
 import icecube.daq.payload.impl.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
-import icecube.daq.sender.Sender;
+import icecube.daq.sender.SenderSubsystem;
 import icecube.daq.util.DOMRegistryException;
 import icecube.daq.util.DOMRegistryFactory;
 import icecube.daq.util.IDOMRegistry;
@@ -114,7 +114,7 @@ public class ReplayHubComponent
     /** Cache used to allocate new hit payloads */
     private IByteBufferCache cache;
     /** Hit sender */
-    private Sender sender;
+    private SenderSubsystem sender;
     /** DOM database */
     private IDOMRegistry domRegistry;
 
@@ -131,6 +131,15 @@ public class ReplayHubComponent
         new HandlerOutputProcessor[4];
     /** List of data stream handlers */
     private FileHandler[] handlers = new FileHandler[4];
+
+    //todo: Remove after rhinelander release
+    /**
+     * Configuration directive to fall back to the legacy HitSpool/Sender
+     * implementations;
+     */
+    public static final boolean USE_LEGACY_SENDER = true;
+//    Boolean.getBoolean("icecube.daq.sender.SenderSubsystem.use-legacy-sender");
+
 
     /**
      * Create a replay component
@@ -160,9 +169,25 @@ public class ReplayHubComponent
         IByteBufferCache rdoutDataCache  =
             new VitreousBufferCache("SHRdOut#" + hubId);
         addCache(DAQConnector.TYPE_READOUT_DATA, rdoutDataCache);
-        sender = new Sender(hubId, rdoutDataCache);
-        if (domRegistry != null) {
-            sender.setDOMRegistry(domRegistry);
+
+        try
+        {
+            if(USE_LEGACY_SENDER)
+            {
+                sender =
+                   SenderSubsystem.Factory.REPLAY_COMPONENT.createLegacy(hubId,
+                        cache, rdoutDataCache, domRegistry);
+            }
+            else
+            {
+                sender = SenderSubsystem.Factory.REPLAY_COMPONENT.create(hubId,
+                        cache, rdoutDataCache, domRegistry);
+            }
+        }
+        catch (IOException ioe)
+        {
+            throw new Error("Couldn't create hub#" + hubId + " Sender",
+                    ioe);
         }
 
         if (LOG.isInfoEnabled()) {
@@ -203,7 +228,8 @@ public class ReplayHubComponent
 
         RequestReader reqIn;
         try {
-            reqIn = new RequestReader(COMPONENT_NAME, sender, rdoutReqFactory);
+            reqIn = new RequestReader(COMPONENT_NAME,
+                    sender.getReadoutRequestHandler(), rdoutReqFactory);
         } catch (IOException ioe) {
             throw new Error("Couldn't create hub#" + hubId + " RequestReader",
                             ioe);
@@ -216,9 +242,7 @@ public class ReplayHubComponent
 
         sender.setDataOutput(dataOut);
 
-        MonitoringData monData = new MonitoringData();
-        monData.setSenderMonitor(sender);
-        addMBean("sender", monData);
+        addMBean("sender", sender.getMonitor());
 
         // monitoring output stream
         SimpleOutputEngine moniOut =
@@ -240,7 +264,8 @@ public class ReplayHubComponent
             HandlerOutputProcessor hout;
             switch (dst) {
             case HIT:
-                outputProc[dst.index()] = new HitOutputProcessor(sender);
+                outputProc[dst.index()] =
+                        new HitOutputProcessor(sender.getHitInput());
                 break;
             case MONI:
                 outputProc[dst.index()] = new StreamOutputProcessor(moniOut);
@@ -582,16 +607,6 @@ public class ReplayHubComponent
     }
 
     /**
-     * Get the sender object
-     *
-     * @return sender
-     */
-    public Sender getSender()
-    {
-        return sender;
-    }
-
-    /**
      * Report time of the most recent hit object pushed into the HKN1
      * @return 0
      */
@@ -695,12 +710,9 @@ public class ReplayHubComponent
                      configurationPath);
         }
 
-        // load DOM registry and pass it to the sender
+        // load DOM registry
         try {
             domRegistry = DOMRegistryFactory.load(configurationPath);
-            if (sender != null) {
-                sender.setDOMRegistry(domRegistry);
-            }
         } catch (DOMRegistryException dre) {
             LOG.error("Cannot load hub#" + hubId + " DOM registry", dre);
         }
@@ -729,7 +741,7 @@ public class ReplayHubComponent
     public void starting(int runNumber)
         throws DAQCompException
     {
-        sender.reset();
+        sender.startup();
 
         for (int i = 0; i < outputProc.length; i++) {
             if (handlers[i] != null) {
@@ -891,9 +903,9 @@ class CachingPayloadReader
 class HitOutputProcessor
     implements HandlerOutputProcessor
 {
-    private Sender sender;
+    private BufferConsumer sender;
 
-    HitOutputProcessor(Sender sender)
+    HitOutputProcessor(BufferConsumer sender)
     {
         this.sender = sender;
     }
@@ -919,12 +931,26 @@ class HitOutputProcessor
 
     public void send(ByteBuffer buf)
     {
-        sender.consume(buf);
+        try
+        {
+            sender.consume(buf);
+        }
+        catch (IOException e)
+        {
+           throw new Error(e);
+        }
     }
 
     public void stop()
     {
-        sender.consume(buildStopMessage());
+        try
+        {
+            sender.consume(buildStopMessage());
+        }
+        catch (IOException e)
+        {
+            throw new Error(e);
+        }
     }
 }
 

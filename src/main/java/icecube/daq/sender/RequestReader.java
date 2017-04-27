@@ -2,7 +2,6 @@ package icecube.daq.sender;
 
 import icecube.daq.io.PushPayloadReader;
 import icecube.daq.payload.ILoadablePayload;
-import icecube.daq.payload.IPayload;
 import icecube.daq.payload.IReadoutRequest;
 import icecube.daq.payload.impl.ReadoutRequestFactory;
 
@@ -21,7 +20,7 @@ public class RequestReader
         LogFactory.getLog(RequestReader.class);
 
     /** back-end processor which digests readout requests. */
-    private Sender sender;
+    private RequestHandler sender;
 
     private ReadoutRequestFactory factory;
 
@@ -32,7 +31,7 @@ public class RequestReader
      * @param sender readout request filler
      * @param factory payload factory
      */
-    public RequestReader(String name, Sender sender,
+    public RequestReader(String name, RequestHandler sender,
                          ReadoutRequestFactory factory)
         throws IOException
     {
@@ -67,7 +66,7 @@ public class RequestReader
         }
 
         //try putting the payload into the list.
-        sender.addRequest((IPayload) pay);
+        sender.addRequest(pay);
     }
 
     public void sendStop()
