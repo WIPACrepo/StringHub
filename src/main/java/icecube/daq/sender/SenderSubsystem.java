@@ -74,6 +74,12 @@ public interface SenderSubsystem
     public void setRunMonitor(IRunMonitor runMonitor);
 
     /**
+     * Sets the DOM registry.
+     * @param registry The DOM registry
+     */
+    public void setDOMRegistry(IDOMRegistry registry);
+
+    /**
      * Request te send SLC hits to trigger.
      */
     public void forwardIsolatedHitsToTrigger();
@@ -139,8 +145,7 @@ public interface SenderSubsystem
                     @Override
                     public SenderSubsystem create(final int hubId,
                                            final IByteBufferCache hitCache,
-                                           final IByteBufferCache readoutCache,
-                                           final IDOMRegistry domRegistry)
+                                           final IByteBufferCache readoutCache)
                             throws IOException
                     {
                         //todo insert new sender initialization
@@ -150,8 +155,7 @@ public interface SenderSubsystem
                     @Override
                     public SenderSubsystem createLegacy(final int hubId,
                                            final IByteBufferCache hitCache,
-                                           final IByteBufferCache readoutCache,
-                                           final IDOMRegistry domRegistry)
+                                           final IByteBufferCache readoutCache)
                             throws IOException
                     {
 
@@ -159,7 +163,7 @@ public interface SenderSubsystem
                                 HitSpoolConfig.loadHitSpoolConfig();
 
                         return new LegacySender(hubId, hitCache, readoutCache,
-                                domRegistry, hitSpoolConfig);
+                                                hitSpoolConfig);
                     }
                 },
         /**
@@ -172,8 +176,7 @@ public interface SenderSubsystem
                     @Override
                     public SenderSubsystem create(final int hubId,
                                            final IByteBufferCache hitCache,
-                                           final IByteBufferCache readoutCache,
-                                           final IDOMRegistry domRegistry)
+                                           final IByteBufferCache readoutCache)
                             throws IOException
                     {
                       //todo insert new sender initialization
@@ -183,12 +186,11 @@ public interface SenderSubsystem
                     @Override
                     public SenderSubsystem createLegacy(final int hubId,
                                           final IByteBufferCache hitCache,
-                                          final IByteBufferCache readoutCache,
-                                          final IDOMRegistry domRegistry)
+                                          final IByteBufferCache readoutCache)
                             throws IOException
                     {
                         return new LegacySender(hubId, hitCache, readoutCache,
-                                domRegistry, null);
+                                                null);
                     }
                 };
 
@@ -199,14 +201,12 @@ public interface SenderSubsystem
          * @param hitCache Manages buffer accounting related to the hit stream.
          * @param readoutCache Manages buffer accounting related to the data
          *                     readout stream.
-         * @param domRegistry Provides details of the DOM deployment.
          * @return The SenderSubsystem.
          * @throws IOException An error creating the subsystem.
          */
         public abstract SenderSubsystem create(final int hubId,
                                         final IByteBufferCache hitCache,
-                                        final IByteBufferCache readoutCache,
-                                        final IDOMRegistry domRegistry)
+                                        final IByteBufferCache readoutCache)
                 throws IOException;
 
         /**
@@ -219,14 +219,12 @@ public interface SenderSubsystem
          * @param hitCache Manages buffer accounting related to the hit stream.
          * @param readoutCache Manages buffer accounting related to the data
          *                     readout stream.
-         * @param domRegistry Provides details of the DOM deployment.
          * @return The SenderSubsystem.
          * @throws IOException An error creating the subsystem.
          */
         public abstract SenderSubsystem createLegacy(final int hubId,
                                            final IByteBufferCache hitCache,
-                                           final IByteBufferCache readoutCache,
-                                           final IDOMRegistry domRegistry)
+                                           final IByteBufferCache readoutCache)
                 throws IOException;
 
     }
@@ -339,12 +337,10 @@ public interface SenderSubsystem
         public LegacySender(final int hubId,
                             final IByteBufferCache hitCache,
                              final IByteBufferCache readoutCache,
-                             final IDOMRegistry domRegistry,
                              final HitSpoolConfig hitspool)
         {
             sender = new Sender(hubId, readoutCache);
             sender.setHitCache(hitCache);
-            sender.setDOMRegistry(domRegistry);
 
             if(hitspool != null)
             {
@@ -374,6 +370,12 @@ public interface SenderSubsystem
         public void setRunMonitor(final IRunMonitor runMonitor)
         {
             sender.setRunMonitor(runMonitor);
+        }
+
+        @Override
+        public void setDOMRegistry(final IDOMRegistry registry)
+        {
+            sender.setDOMRegistry(registry);
         }
 
         @Override
