@@ -211,17 +211,12 @@ public class StringHubComponent
             if(USE_LEGACY_SENDER)
             {
                 sender = SenderSubsystem.Factory.STRING_HUB_COMPONENT.createLegacy(hubId,
-                        cache, rdoutDataCache);
+                        cache, rdoutDataCache, domRegistry);
             }
             else
             {
                 sender = SenderSubsystem.Factory.STRING_HUB_COMPONENT.create(hubId,
-                        cache, rdoutDataCache);
-            }
-
-            if(domRegistry != null)
-            {
-                sender.setDOMRegistry(domRegistry);
+                        cache, rdoutDataCache, domRegistry);
             }
         }
         catch (IOException ioe)
@@ -403,11 +398,7 @@ public class StringHubComponent
 		} catch (DOMRegistryException dre) {
 			logger.error("Could not load DOMRegistry", dre);
 		}
-
-		if (sender != null) {
-			sender.setDOMRegistry(domRegistry);
-		}
-	}
+    }
 
     @Override
     /**
@@ -1164,7 +1155,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16551 2017-05-05 17:15:25Z bendfelt $";
+		return "$Id: StringHubComponent.java 16557 2017-05-08 21:28:03Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()

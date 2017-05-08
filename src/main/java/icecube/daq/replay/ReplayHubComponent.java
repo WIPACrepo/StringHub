@@ -176,16 +176,12 @@ public class ReplayHubComponent
             {
                 sender =
                    SenderSubsystem.Factory.REPLAY_COMPONENT.createLegacy(hubId,
-                        cache, rdoutDataCache);
+                        cache, rdoutDataCache, domRegistry);
             }
             else
             {
                 sender = SenderSubsystem.Factory.REPLAY_COMPONENT.create(hubId,
-                        cache, rdoutDataCache);
-            }
-            if(domRegistry != null)
-            {
-                sender.setDOMRegistry(domRegistry);
+                        cache, rdoutDataCache, domRegistry);
             }
         }
         catch (IOException ioe)
@@ -714,12 +710,9 @@ public class ReplayHubComponent
                      configurationPath);
         }
 
-        // load DOM registry and pass it to the sender
+        // load DOM registry
         try {
             domRegistry = DOMRegistryFactory.load(configurationPath);
-            if (sender != null) {
-                sender.setDOMRegistry(domRegistry);
-            }
         } catch (DOMRegistryException dre) {
             LOG.error("Cannot load hub#" + hubId + " DOM registry", dre);
         }
