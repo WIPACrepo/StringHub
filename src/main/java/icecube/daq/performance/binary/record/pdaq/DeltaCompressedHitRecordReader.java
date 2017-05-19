@@ -25,7 +25,7 @@ import java.nio.ByteBuffer;
  * word1:
  * word3:
  */
-public class DeltaCompressedHitRecordReader extends DaqBufferRecordReader
+public class DeltaCompressedHitRecordReader extends DomHitRecordReader
 {
 
     public static final DeltaCompressedHitRecordReader instance =
@@ -177,20 +177,23 @@ public class DeltaCompressedHitRecordReader extends DaqBufferRecordReader
         }
     }
 
-    public int getLCMode(final ByteBuffer buffer)
+    public short getLCMode(final ByteBuffer buffer)
     {
         return getLCMode(getWord1(buffer));
     }
-    public int getLCMode(final ByteBuffer buffer, final int offset)
+    public short getLCMode(final ByteBuffer buffer, final int offset)
     {
         return getLCMode(getWord1(buffer, offset));
     }
-    public int getLCMode(final RecordBuffer buffer, final int offset)
+    public short getLCMode(final RecordBuffer buffer, final int offset)
     {
         return getLCMode(getWord1(buffer, offset));
     }
-    public int getLCMode(final int word0)
+    public short getLCMode(final int word1)
     {
-        return (word0 >> 16) & 0x3;
+        return (short) ((word1 >> 16) & 0x3);
     }
+
+
+
 }

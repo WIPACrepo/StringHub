@@ -14,6 +14,8 @@ import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.impl.DOMHit;
 import icecube.daq.payload.impl.DeltaHitRecord;
 import icecube.daq.payload.impl.EngineeringHitRecord;
+import icecube.daq.reqFiller.RequestFiller;
+import icecube.daq.sender.test.MockOutputChannelManager;
 import icecube.daq.stringhub.test.MockBufferCache;
 import icecube.daq.stringhub.test.MockReadoutRequest;
 import icecube.daq.stringhub.test.MockUTCTime;
@@ -1531,22 +1533,6 @@ class MockReadoutChannel
         } else {
             return new ExpectedHitList(buf);
         }
-    }
-}
-
-class MockOutputChannelManager
-    implements DAQOutputChannelManager
-{
-    private OutputChannel chan;
-
-    MockOutputChannelManager(OutputChannel chan)
-    {
-        this.chan = chan;
-    }
-
-    public OutputChannel getChannel()
-    {
-        return chan;
     }
 }
 

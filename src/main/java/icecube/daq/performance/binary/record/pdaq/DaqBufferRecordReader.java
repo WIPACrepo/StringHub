@@ -16,7 +16,7 @@ import java.nio.ByteBuffer;
  * |              ...                                                   |
  * ----------------------------------------------------------------------
  *
- * @see EngineeringHitRecord, DeltaCompressedHitRecordReader
+ *
  *
  */
 public class DaqBufferRecordReader extends TypeCodeRecordReader
@@ -73,4 +73,10 @@ public class DaqBufferRecordReader extends TypeCodeRecordReader
     {
         return buffer.getLong(offset + UTC_OFFSET);
     }
+
+    public boolean isEOS(ByteBuffer buffer)
+    {
+        return (getLength(buffer) == 32 && getUTC(buffer) == Long.MAX_VALUE);
+    }
+
 }
