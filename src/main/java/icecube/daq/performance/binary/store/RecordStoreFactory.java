@@ -1,6 +1,5 @@
 package icecube.daq.performance.binary.store;
 
-import icecube.daq.omicrond.prototype.sender.cache.spool.RecordSpool;
 import icecube.daq.performance.binary.buffer.IndexFactory;
 import icecube.daq.performance.binary.record.RecordReader;
 import icecube.daq.performance.binary.record.UTCRecordReader;
@@ -10,6 +9,7 @@ import icecube.daq.performance.binary.store.impl.RecordValidator;
 import icecube.daq.performance.binary.store.impl.RingBufferRecordStore;
 import icecube.daq.performance.binary.store.impl.SplitStore;
 import icecube.daq.performance.common.PowersOfTwo;
+import icecube.daq.spool.RecordSpool;
 
 import java.io.File;
 import java.io.IOException;
