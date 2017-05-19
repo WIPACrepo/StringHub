@@ -8,6 +8,10 @@ import icecube.daq.monitoring.SenderMXBean;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.IPayload;
 import icecube.daq.payload.IReadoutRequest;
+import icecube.daq.performance.binary.buffer.IndexFactory;
+import icecube.daq.performance.binary.record.pdaq.DaqBufferRecordReader;
+import icecube.daq.performance.binary.store.RecordStore;
+import icecube.daq.performance.common.PowersOfTwo;
 import icecube.daq.spool.FilesHitSpool;
 import icecube.daq.util.IDOMRegistry;
 import org.apache.log4j.Logger;
@@ -15,6 +19,7 @@ import org.apache.log4j.Logger;
 import java.io.File;
 import java.io.IOException;
 
+import static icecube.daq.performance.binary.store.RecordStoreFactory.*;
 
 /**
  * A facade into the Sender subsystem.
@@ -74,15 +79,10 @@ public interface SenderSubsystem
     public void setRunMonitor(IRunMonitor runMonitor);
 
     /**
-     * Request te send SLC hits to trigger.
+     * Request to send SLC hits to trigger.
      */
     public void forwardIsolatedHitsToTrigger();
 
-    /**
-     * Set the buffer cache for the hit stream
-     * @param cache The buufer cache.
-     */
-    void setHitCache(IByteBufferCache cache);
 
     /**
      * Sets the hit output channel.
@@ -95,7 +95,6 @@ public interface SenderSubsystem
      * @param dataOut The readout output channel.
      */
     public void setDataOutput(DAQOutputChannelManager dataOut);
-
 
     /**
      * Access the hit consumer interface. This will be connected
@@ -136,6 +135,21 @@ public interface SenderSubsystem
          */
         STRING_HUB_COMPONENT
                 {
+                    /** The size of the in-memory data store. */
+                    public final PowersOfTwo RING_SIZE = PowersOfTwo._536870912;
+                    /** The min interval of data that will be held in memory.*/
+                    public final long MIN_MEMORY_SPAN = 600000000000L;
+                    /** The max interval of data that will be held in memory.*/
+                    public final long MAX_MEMORY_SPAN = 900000000000L;
+                    /** The increment for allocating the in-memory store. */
+                    public final int MEMORY_SEGMENT_SIZE = (20 * 1024 * 1024);
+                    /** The indexing strategy.*/
+                    public final IndexFactory INDEX_MODE =
+                       IndexFactory.UTCIndexMode.SPARSE_ONE_THOUSANDTHS_SECOND;
+                    /** The data type. */
+                    public final DaqBufferRecordReader DATA_TYPE =
+                            DaqBufferRecordReader.instance;
+
                     @Override
                     public SenderSubsystem create(final int hubId,
                                            final IByteBufferCache hitCache,
@@ -143,8 +157,56 @@ public interface SenderSubsystem
                                            final IDOMRegistry domRegistry)
                             throws IOException
                     {
-                        //todo insert new sender initialization
-                        throw new Error("Not Implemented");
+
+                        final RecordStore.OrderedWritable storage;
+                        final HitSpoolConfig hitSpoolConfig =
+                                HitSpoolConfig.loadHitSpoolConfig();
+                        if(hitSpoolConfig != null)
+                        {
+                            final long fileIntervalUTC =
+                                    (long) (hitSpoolConfig.fileInterval * 1e10);
+
+                            // file spool, un-syncronized
+                            final RecordStore.OrderedWritable fileSpool =
+                                    FILE.createFileSpool(
+                                            DATA_TYPE,
+                                            INDEX_MODE,
+                                            hitSpoolConfig.directory,
+                                            fileIntervalUTC,
+                                            hitSpoolConfig.numFiles,
+                                            false);
+                            // ring memory, un-synchronized
+                            final RecordStore.Prunable memorySpool =
+                                    MEMORY.createRing(
+                                            DATA_TYPE,
+                                            INDEX_MODE,
+                                            RING_SIZE,
+                                            false);
+                            //  read-through, synchronized
+                            storage =
+                                    READ_THROUGH.createReadThrough(
+                                            DATA_TYPE,
+                                            memorySpool,
+                                            fileSpool,
+                                            MIN_MEMORY_SPAN,
+                                            MAX_MEMORY_SPAN,
+                                            true);
+                        }
+                        else
+                        {
+                            // expanding memory, un-sychronized
+                            final RecordStore.Prunable expandingArray =
+                                    MEMORY.createExpandingArray(
+                                            DATA_TYPE,
+                                            INDEX_MODE,
+                                            MEMORY_SEGMENT_SIZE,
+                                            false);
+                            // auto-pruned by query, synchronized
+                            storage = QUERY_PRUNED.wrap(expandingArray, true);
+                        }
+
+                        return new NewSender(hubId, hitCache,
+                                readoutCache, domRegistry, storage);
                     }
 
                     @Override
@@ -168,6 +230,14 @@ public interface SenderSubsystem
          */
         REPLAY_COMPONENT
                 {
+                    /** The increment for allocating the in-memory store. */
+                    public final int MEMORY_SEGMENT_SIZE = (20 * 1024 * 1024);
+                    /** The indexing strategy.*/
+                    public final IndexFactory INDEX_MODE =
+                       IndexFactory.UTCIndexMode.SPARSE_ONE_THOUSANDTHS_SECOND;
+                    /** The data type. */
+                    public final DaqBufferRecordReader DATA_TYPE =
+                            DaqBufferRecordReader.instance;
 
                     @Override
                     public SenderSubsystem create(final int hubId,
@@ -176,8 +246,18 @@ public interface SenderSubsystem
                                            final IDOMRegistry domRegistry)
                             throws IOException
                     {
-                      //todo insert new sender initialization
-                        throw new Error("Not Implemented");
+                        // expanding memory, un-synchronized
+                        final RecordStore.Prunable expandingArray =
+                                MEMORY.createExpandingArray(DATA_TYPE,
+                                        INDEX_MODE,
+                                        MEMORY_SEGMENT_SIZE,
+                                        false);
+                        // auto-pruned by query, synchronized
+                        final RecordStore.OrderedWritable storage =
+                                QUERY_PRUNED.wrap(expandingArray, true);
+
+                        return new NewSender(hubId, hitCache, readoutCache,
+                                domRegistry, storage);
                     }
 
                     @Override
@@ -380,12 +460,6 @@ public interface SenderSubsystem
         public void forwardIsolatedHitsToTrigger()
         {
             sender.forwardIsolatedHitsToTrigger();
-        }
-
-        @Override
-        public void setHitCache(final IByteBufferCache cache)
-        {
-            sender.setHitCache(cache);
         }
 
         @Override

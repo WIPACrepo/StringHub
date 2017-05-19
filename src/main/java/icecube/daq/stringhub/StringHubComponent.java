@@ -204,7 +204,9 @@ public class StringHubComponent
 			rdoutDataCache =
 				new VitreousBufferCache(cacheName + "RdOut" + cacheNum);
 			addCache(DAQConnector.TYPE_READOUT_DATA, rdoutDataCache);
-		}
+            addMBean("readout", rdoutDataCache);
+
+        }
 
         try
         {
@@ -247,7 +249,6 @@ public class StringHubComponent
 			}
 			if (hitOut != null) {
 				sender.setHitOutput(hitOut);
-				sender.setHitCache(cache);
 			}
 		}
 
@@ -255,7 +256,8 @@ public class StringHubComponent
 			ReadoutRequestFactory factory =
 				new ReadoutRequestFactory(cache);
 			try {
-				reqIn = new RequestReader(COMPONENT_NAME, sender.getReadoutRequestHandler(), factory);
+				reqIn = new RequestReader(COMPONENT_NAME,
+                        sender.getReadoutRequestHandler(), factory);
 			} catch (IOException ioe) {
 				throw new Error("Couldn't create RequestReader", ioe);
 			}
@@ -1155,7 +1157,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16557 2017-05-08 21:28:03Z bendfelt $";
+		return "$Id: StringHubComponent.java 16564 2017-05-19 22:11:09Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()

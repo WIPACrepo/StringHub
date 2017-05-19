@@ -217,7 +217,6 @@ public class ReplayHubComponent
                 addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
             }
             sender.setHitOutput(hitOut);
-            sender.setHitCache(cache);
         }
 
         IByteBufferCache rdoutReqCache  =
