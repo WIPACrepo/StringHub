@@ -3,8 +3,6 @@ package icecube.daq.performance.binary.store.impl;
 import icecube.daq.performance.binary.buffer.RecordBuffer;
 import icecube.daq.performance.binary.store.RecordStore;
 import icecube.daq.performance.binary.store.impl.test.Mock;
-import icecube.daq.performance.binary.test.Assertions;
-import icecube.daq.performance.binary.test.RandomOrderedValueSequence;
 import icecube.daq.performance.binary.test.RecordGenerator;
 import org.junit.Before;
 import org.junit.Test;
@@ -32,8 +30,8 @@ public class SplitStoreTest
     Mock.MockIndex mockIndex = new Mock.MockIndex();
     Mock.MockSearch mockSearch = new Mock.MockSearch();
 
-    Mock.MockStore primary = new Mock.MockStore();
-    Mock.MockStore secondary = new Mock.MockStore();
+    Mock.MockStore primary = new Mock.MockStore(true);
+    Mock.MockStore secondary = new Mock.MockStore(true);
     RecordStore.OrderedWritable subject =
            new SplitStore(generator.recordReader(), generator.orderingField(),
                    primary, secondary, MIN_SPAN, MAX_SPAN);

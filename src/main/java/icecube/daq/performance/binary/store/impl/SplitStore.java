@@ -4,6 +4,7 @@ import icecube.daq.performance.binary.buffer.RecordBuffer;
 import icecube.daq.performance.binary.buffer.RecordBuffers;
 import icecube.daq.performance.binary.record.RecordReader;
 import icecube.daq.performance.binary.store.RecordStore;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -22,6 +23,8 @@ import java.util.function.Consumer;
  */
 public class SplitStore implements RecordStore.OrderedWritable
 {
+    Logger logger = Logger.getLogger(SplitStore.class);
+
     private final RecordReader recordReader;
     private final RecordReader.LongField orderingField;
 
@@ -88,6 +91,8 @@ public class SplitStore implements RecordStore.OrderedWritable
         // to file
         spool.store(buffer);
 
+        buffer.rewind();
+
         // to memory
         memory.store(buffer);
 
@@ -136,19 +141,28 @@ public class SplitStore implements RecordStore.OrderedWritable
         // segment the query
         if(from >= queryBoundary)
         {
-            return recallPrimary(from, to);
+            RecordBuffer recordBuffer = recallPrimary(from, to);
+            logger.warn("query memory [" + from + ", " + to + "] queryBoundary:" + queryBoundary);
+           logger.warn("got " + recordBuffer);
+            return recordBuffer;
         }
         else if (to < queryBoundary)
         {
-            return recallSecondary(from, to);
+            logger.warn("query spool [" + from + ", " + to + "] queryBoundary:" + queryBoundary);
+            RecordBuffer recordBuffer = recallSecondary(from, to);
+            logger.warn("got " + recordBuffer);
+            return recordBuffer;
         }
         else
         {
+            logger.warn("query both [" + from + ", " + to + "] queryBoundary:" + queryBoundary);
             // a mixed read
             RecordBuffer spool = recallSecondary(from, queryBoundary - 1);
             RecordBuffer memory = recallPrimary(queryBoundary, to);
 
-            return RecordBuffers.chain(new RecordBuffer[] {spool, memory});
+            RecordBuffer chain = RecordBuffers.chain(new RecordBuffer[]{spool, memory});
+            logger.warn("got " + chain);
+            return chain;
         }
     }
 
