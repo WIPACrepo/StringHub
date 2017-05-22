@@ -99,6 +99,18 @@ public class Mock
             implements RecordStore.Prunable
     {
 
+        final boolean advanceBufferOnStore;
+
+        public MockStore()
+        {
+            this(false);
+        }
+
+        public MockStore(final boolean advanceBufferOnStore)
+        {
+            this.advanceBufferOnStore = advanceBufferOnStore;
+        }
+
         @Override
         public void prune(final long boundaryValue)
         {
@@ -122,6 +134,12 @@ public class Mock
         public void store(final ByteBuffer buffer) throws IOException
         {
             methodCalls.add("store(" + buffer.toString() + ")");
+
+            // simulate consuming the buffer
+            if(advanceBufferOnStore)
+            {
+                buffer.position(buffer.limit());
+            }
         }
 
         @Override
