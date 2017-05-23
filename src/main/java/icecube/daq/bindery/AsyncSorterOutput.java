@@ -57,8 +57,8 @@ public class AsyncSorterOutput implements BufferConsumer, Runnable
 
         executor = new Thread(this);
         executor.setName(threadName);
-        executor.start();
         running = true;
+        executor.start();
 
         this.meter = meter;
     }
