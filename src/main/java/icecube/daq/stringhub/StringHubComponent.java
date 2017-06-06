@@ -138,8 +138,8 @@ public class StringHubComponent
      * Configuration directive to fall back to the legacy HitSpool/Sender
      * implementations;
      */
-    public static final boolean USE_LEGACY_SENDER = true;
-//    Boolean.getBoolean("icecube.daq.sender.SenderSubsystem.use-legacy-sender");
+    public static final boolean USE_LEGACY_SENDER =
+    Boolean.getBoolean("icecube.daq.sender.SenderSubsystem.use-legacy-sender");
 
 	public StringHubComponent(int hubId)
 	{
@@ -1157,7 +1157,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16564 2017-05-19 22:11:09Z bendfelt $";
+		return "$Id: StringHubComponent.java 16583 2017-06-06 17:24:19Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
