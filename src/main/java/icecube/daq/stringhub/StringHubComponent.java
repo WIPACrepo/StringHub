@@ -124,13 +124,13 @@ public class StringHubComponent
     private OutputProcessFactory hitOutImplementation =
             OutputProcessFactory.valueOf(System.getProperty(
                     "icecube.daq.stringhub.StringHubComponent.hitOutType",
-                    OutputProcessFactory.BLOCKING_1K.name()));
+                    OutputProcessFactory.BLOCKING_8K.name()));
 
     /** Configurable factory for selecting the data output engine type. */
     private OutputProcessFactory dataOutImplementation =
             OutputProcessFactory.valueOf(System.getProperty(
                     "icecube.daq.stringhub.StringHubComponent.dataOutType",
-                    OutputProcessFactory.BLOCKING_1K.name()));
+                    OutputProcessFactory.BLOCKING_8K.name()));
 
 
     //todo: Remove after rhinelander release
@@ -1157,7 +1157,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16583 2017-06-06 17:24:19Z bendfelt $";
+		return "$Id: StringHubComponent.java 16585 2017-06-06 17:38:25Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1486,7 +1486,8 @@ public class StringHubComponent
                                                      final int hubId,
                                                      final String type)
                     {
-                        return new BlockingOutputEngine(1024);
+                        return new BlockingOutputEngine(1024, true,
+                                AUTOFLUSH_PERIOD);
                     }
                 },
         BLOCKING_2K
@@ -1496,7 +1497,8 @@ public class StringHubComponent
                                                      final int hubId,
                                                      final String type)
                     {
-                        return new BlockingOutputEngine(2 * 1024);
+                        return new BlockingOutputEngine(2 * 1024, true,
+                                AUTOFLUSH_PERIOD);
                     }
                 },
         BLOCKING_4K
@@ -1506,7 +1508,8 @@ public class StringHubComponent
                                                      final int hubId,
                                                      final String type)
                     {
-                        return new BlockingOutputEngine(4 * 1024);
+                        return new BlockingOutputEngine(4 * 1024, true,
+                                AUTOFLUSH_PERIOD);
                     }
                 },
         BLOCKING_8K
@@ -1516,7 +1519,8 @@ public class StringHubComponent
                                                      final int hubId,
                                                      final String type)
                     {
-                        return new BlockingOutputEngine(8 * 1024);
+                        return new BlockingOutputEngine(8 * 1024, true,
+                                AUTOFLUSH_PERIOD);
                     }
                 },
         BLOCKING_32K
@@ -1526,7 +1530,8 @@ public class StringHubComponent
                                                      final int hubId,
                                                      final String type)
                     {
-                        return new BlockingOutputEngine(32 * 1024);
+                        return new BlockingOutputEngine(32 * 1024, true,
+                                AUTOFLUSH_PERIOD);
                     }
                 },
         BLOCKING_64k /** NOTE: likely cause watchdog starvation.*/
@@ -1536,7 +1541,8 @@ public class StringHubComponent
                                                      final int hubId,
                                                      final String type)
                     {
-                        return new BlockingOutputEngine(64 * 1024);
+                        return new BlockingOutputEngine(64 * 1024, true,
+                                AUTOFLUSH_PERIOD);
                     }
                 },
         BLOCKING_128K /** NOTE: likely cause watchdog starvation.*/
@@ -1546,13 +1552,24 @@ public class StringHubComponent
                                                      final int hubId,
                                                      final String type)
                     {
-                        return new BlockingOutputEngine(128 * 1024);
+                        return new BlockingOutputEngine(128 * 1024, true,
+                                AUTOFLUSH_PERIOD);
                     }
                 };
 
         abstract DAQComponentOutputProcess create(String componentName,
                                                       int hubId,
                                                       String type);
+
+        /**
+         * The autoflush period in millis for buffered output channels.
+         * Chosen to satisfy the watchdog in the event of a channel with
+         * a very tiny data rate.
+         */
+        private static String AUTOFLUSH_PROPERTY =
+           "icecube.daq.stringhub.StringHubComponent.output.autoflush-millis";
+        private static long AUTOFLUSH_PERIOD =
+                Long.getLong(AUTOFLUSH_PROPERTY, 5000);
 
     }
 
