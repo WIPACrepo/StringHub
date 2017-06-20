@@ -149,7 +149,6 @@ public class ReadoutRequestHandler implements RequestHandler
         }
         catch (Throwable th)
         {
-            System.out.println("Got here");
             //total breakdown
             logger.error("Error filling request, aborting", th);
         }
