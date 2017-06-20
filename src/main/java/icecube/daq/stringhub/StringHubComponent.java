@@ -1153,7 +1153,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16602 2017-06-20 18:38:30Z dglo $";
+		return "$Id: StringHubComponent.java 16603 2017-06-20 18:42:59Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1202,19 +1202,19 @@ public class StringHubComponent
 		return nch;
 	}
 
+	/**
+	 * Return the number of active DOMs and the number of DOMs listed in
+	 * this hub's DOM configuration file.
+	 *
+	 * @return number of active DOMs and total number of requested DOMs
+	 */
 	public int[] getNumberOfActiveAndTotalChannels() {
 		int nch = 0;
-		int total = 0;
 		for (AbstractDataCollector adc : conn.getCollectors()) {
 			if(adc.isRunning()) nch++;
-			total++;
 		}
 
-		int[] returnVal = new int[2];
-		returnVal[0] = nch;
-		returnVal[1] = total;
-
-		return returnVal;
+		return new int[] { nch, configuredDOMs.size() };
 	}
 
 
