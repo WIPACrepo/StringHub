@@ -15,7 +15,6 @@ import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.DataCollector;
 import icecube.daq.domapp.DataCollectorFactory;
 import icecube.daq.domapp.DataCollectorMBean;
-import icecube.daq.domapp.MessageException;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.dor.DOMChannelInfo;
@@ -910,7 +909,6 @@ public class StringHubComponent
                                            dc.getCard(),
                                            dc.getPair(),
                                            dc.getDom());
-                narrow.getFirstDOMTime();
                 records.put(details, narrow.getFirstDOMTime());
             }
         }
@@ -1153,7 +1151,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16603 2017-06-20 18:42:59Z dglo $";
+		return "$Id: StringHubComponent.java 16604 2017-06-20 18:58:21Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
