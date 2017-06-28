@@ -8,7 +8,9 @@ import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.juggler.alert.IAlertQueue;
 import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.impl.UTCTime;
+import icecube.daq.rapcal.AbstractRAPCal;
 import icecube.daq.rapcal.BadTCalException;
+import icecube.daq.rapcal.ExponentialAverage;
 import icecube.daq.rapcal.Isochron;
 import icecube.daq.rapcal.RAPCalException;
 import icecube.daq.util.DOMInfo;
@@ -527,7 +529,7 @@ class IsoConsumer
         private DOMInfo dom;
 
         /** Initial cache of seed values */
-        private double[] cache = new double[5];
+        private double[] cache = new double[7];
         /** Number of cached values */
         private int cached = 0;
 
@@ -656,12 +658,28 @@ class IsoConsumer
          */
         private void initialize()
         {
-            // get the mean of the cached values
-            double average = 0.0;
-            for (int i = 0; i < cache.length; i++) {
-                average += cache[i];
+            // This is a bit of a kludge, but the outlier
+            // samples need to be filtered from the average.
+            // This is done by using the same utility class
+            // that AbstractRapCal uses to detect so-called
+            // wild tcals.
+            //
+            // ExponentialAverage will calculate an average
+            // value while rejecting outliers. (assuming
+            // that outliers are infrequent and that our
+            // sample set contains a continuous run of stable
+            // values)
+            ExponentialAverage expAvg = new ExponentialAverage(
+                    AbstractRAPCal.EXPONENTIAL_AVERAGING_WEIGHT,
+                    AbstractRAPCal.WILD_TCAL_THRESHOLD * MULTIPLIER, //note:
+                                                                    //scaling
+                    AbstractRAPCal.REQUIRED_SETUP_SAMPLES);
+
+            for (int i = 0; i < cache.length; i++)
+            {
+                expAvg.add(cache[i]);
             }
-            average /= (double) cache.length;
+            double average = expAvg.getAverage();
 
             // determine the first value in the histogram
             minValue = average - HALF_RANGE;

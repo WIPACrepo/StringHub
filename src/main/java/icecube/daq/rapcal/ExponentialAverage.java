@@ -7,7 +7,7 @@ package icecube.daq.rapcal;
  * During the setup phase, outlier samples cause the average to be reset.
  * This ensures that the average is not established by an outlier value.
  */
-class ExponentialAverage
+public class ExponentialAverage
 {
     private final double expWt;
     private final double threshold;
@@ -16,7 +16,7 @@ class ExponentialAverage
     private int stableSampleCount;
 
 
-    ExponentialAverage(final double expWt, final double threshold,
+    public ExponentialAverage(final double expWt, final double threshold,
                        final int requiredSetupSamples)
     {
         this.expWt = expWt;
@@ -25,12 +25,12 @@ class ExponentialAverage
         this.average = Double.NaN;
     }
 
-    double getAverage()
+    public double getAverage()
     {
         return average;
     }
 
-    boolean add(double sample)
+    public boolean add(double sample)
     {
         if (Double.isNaN(average))
         {

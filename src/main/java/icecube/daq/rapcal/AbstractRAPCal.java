@@ -49,10 +49,14 @@ public abstract class AbstractRAPCal implements RAPCal
 
     /**
      * Name of property that controls the weight of each sample in the
-     * tcal cable lengthe average.
+     * tcal cable length average.
      */
     public static final String PROP_EXP_WEIGHT =
             "icecube.daq.rapcal.AbstractRAPCal.expWeight";
+
+    /** The weight of each sample in the tcal cable length average.*/
+    public static final double EXPONENTIAL_AVERAGING_WEIGHT =
+            Double.parseDouble(System.getProperty(PROP_EXP_WEIGHT, "0.1"));
 
     /**
      * Name of property that controls the number of isochrons to
@@ -83,7 +87,7 @@ public abstract class AbstractRAPCal implements RAPCal
      * The maximum amount that a sample's cable length may vary from
      * the average before being discarded.
      */
-    private static final double WILD_TCAL_THRESHOLD = 1.0E-09 *
+    public static final double WILD_TCAL_THRESHOLD = 1.0E-09 *
             Double.parseDouble(System.getProperty(PROP_WILD_TCAL_THRESH, "10")
             );
 
@@ -163,7 +167,7 @@ public abstract class AbstractRAPCal implements RAPCal
      */
     public AbstractRAPCal()
     {
-        this(Double.parseDouble(System.getProperty(PROP_EXP_WEIGHT, "0.1")),
+        this(EXPONENTIAL_AVERAGING_WEIGHT,
                 Integer.getInteger(PROP_HISTORY, 20));
     }
 
