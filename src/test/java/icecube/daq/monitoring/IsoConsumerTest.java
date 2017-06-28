@@ -173,8 +173,8 @@ public class IsoConsumerTest
             cableHist.process(isochrons[i]);
         }
 
-        assertEquals(1.6181049971325617E-5, cableHist.getMinValue(), 0.0);
-        assertEquals(1.6201049971325617E-5, cableHist.getMaxValue(), 0.0);
+        assertEquals(1.618082123363972E-5, cableHist.getMinValue(), 0.0);
+        assertEquals(1.620082123363972E-5, cableHist.getMaxValue(), 0.0);
         assertEquals(119, cableHist.getBinTotal());
         assertEquals(0, cableHist.getOverflow());
         assertEquals(2, cableHist.getUnderflow());
