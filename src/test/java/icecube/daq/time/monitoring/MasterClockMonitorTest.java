@@ -1,6 +1,8 @@
 package icecube.daq.time.monitoring;
 
 import icecube.daq.util.Leapseconds;
+import icecube.daq.util.LocatePDAQ;
+import java.io.File;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -356,8 +358,9 @@ public class MasterClockMonitorTest
      */
     private static class MyLeapseconds extends Leapseconds
     {
-        private static String NIST_FILE =
-            Leapseconds.getConfigDirectory() + "/nist/leapseconds-latest";
+        private static File NIST_FILE =
+            new File(LocatePDAQ.findConfigDirectory(),
+                     "/nist/leapseconds-latest");
         private MyLeapseconds(final int year) throws IllegalArgumentException
         {
             super(NIST_FILE, year);

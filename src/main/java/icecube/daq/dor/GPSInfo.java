@@ -42,7 +42,7 @@ public class GPSInfo {
     // is one second later for all time strings occurring after the leap
     // second.
 	if (leapObj!=null) {
-        leapSecondAdjustment = leapObj.get_leap_offset(day);
+        leapSecondAdjustment = leapObj.getLeapOffset(day);
 	}
         else
     {
