@@ -137,8 +137,8 @@ public class ReplayHubComponent
      * Configuration directive to fall back to the legacy HitSpool/Sender
      * implementations;
      */
-    public static final boolean USE_LEGACY_SENDER = true;
-//    Boolean.getBoolean("icecube.daq.sender.SenderSubsystem.use-legacy-sender");
+    public static final boolean USE_LEGACY_SENDER =
+    Boolean.getBoolean("icecube.daq.sender.SenderSubsystem.use-legacy-sender");
 
 
     /**
