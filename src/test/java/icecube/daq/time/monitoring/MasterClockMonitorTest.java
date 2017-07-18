@@ -7,7 +7,9 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.varia.NullAppender;
+import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -24,6 +26,22 @@ public class MasterClockMonitorTest
     public static final int ZERO_DELTA = 0;
 
 
+    @Before
+    public void setUp()
+    {
+        // ensure LocatePDAQ uses the test version of the config directory
+        File configDir =
+            new File(getClass().getResource("/config").getPath());
+        if (!configDir.exists()) {
+            throw new IllegalArgumentException("Cannot find config" +
+                                               " directory under " +
+                                               getClass().getResource("/"));
+        }
+
+        System.setProperty(LocatePDAQ.CONFIG_DIR_PROPERTY,
+                           configDir.getAbsolutePath());
+    }
+
     @BeforeClass
     public static void setupLogging()
     {
@@ -31,6 +49,12 @@ public class MasterClockMonitorTest
         BasicConfigurator.resetConfiguration();
         BasicConfigurator.configure(new NullAppender());
         Logger.getRootLogger().setLevel(Level.ALL);
+    }
+
+    @After
+    public void tearDown()
+    {
+        System.clearProperty(LocatePDAQ.CONFIG_DIR_PROPERTY);
     }
 
     @AfterClass

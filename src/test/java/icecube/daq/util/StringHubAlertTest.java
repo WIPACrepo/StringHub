@@ -5,6 +5,7 @@ import icecube.daq.juggler.alert.AlertQueue;
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.impl.UTCTime;
+import icecube.daq.util.LocatePDAQ;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -19,6 +20,7 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import org.apache.log4j.varia.NullAppender;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -236,14 +238,22 @@ public class StringHubAlertTest
     @Before
     public void setUp()
     {
-        // set the Leapseconds config directory so UTCTime.toDateString() works
+        // set the config directory so UTCTime.toDateString() works
         File configDir = new File(getClass().getResource("/config").getPath());
         if (!configDir.exists()) {
             throw new IllegalArgumentException("Cannot find config" +
                                                " directory under " +
                                                getClass().getResource("/"));
         }
-        Leapseconds.setConfigDirectory(configDir);
+
+        System.setProperty(LocatePDAQ.CONFIG_DIR_PROPERTY,
+                           configDir.getAbsolutePath());
+    }
+
+    @After
+    public void tearDown()
+    {
+        System.clearProperty(LocatePDAQ.CONFIG_DIR_PROPERTY);
     }
 
     @Test

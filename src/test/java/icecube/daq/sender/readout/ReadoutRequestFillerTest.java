@@ -20,9 +20,12 @@ import icecube.daq.stringhub.test.MockBufferCache;
 import icecube.daq.util.DOMRegistryException;
 import icecube.daq.util.DOMRegistryFactory;
 import icecube.daq.util.IDOMRegistry;
+import icecube.daq.util.LocatePDAQ;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.function.Consumer;
@@ -50,6 +53,17 @@ public class ReadoutRequestFillerTest
     @Before
     public void setUp() throws IOException, DOMRegistryException, PayloadException
     {
+        // ensure LocatePDAQ uses the test version of the config directory
+        File configDir =
+            new File(getClass().getResource("/config").getPath());
+        if (!configDir.exists()) {
+            throw new IllegalArgumentException("Cannot find config" +
+                                               " directory under " +
+                                               getClass().getResource("/"));
+        }
+        System.setProperty(LocatePDAQ.CONFIG_DIR_PROPERTY,
+                           configDir.getAbsolutePath());
+
         testSource = new SourceID(27);
 
         ByteBuffer data = TestData.DELTA_COMPRESSED.toByteBuffer();
@@ -69,6 +83,12 @@ public class ReadoutRequestFillerTest
             }
             testEndUTC = utc;
         }
+    }
+
+    @After
+    public void tearDown()
+    {
+        System.clearProperty(LocatePDAQ.CONFIG_DIR_PROPERTY);
     }
 
     @Test
