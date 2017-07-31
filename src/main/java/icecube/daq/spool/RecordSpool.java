@@ -431,6 +431,7 @@ public class RecordSpool implements RecordStore.OrderedWritable
          */
         private RecordBuffer queryActiveFile(final long from, final long to,
                                              final RecordBuffer.MemoryMode mode)
+                throws IOException
         {
             return  search.extractRange(currentFile, mode, currentIndex,
                 from, to);
