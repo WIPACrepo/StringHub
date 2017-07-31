@@ -138,6 +138,7 @@ public class RingBufferRecordStore
 
     @Override
     public RecordBuffer extractRange(final long from, final long to)
+            throws IOException
     {
         return search.extractRange(ring, RecordBuffer.MemoryMode.COPY,
                 index, from, to);

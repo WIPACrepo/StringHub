@@ -79,6 +79,7 @@ public class IndexingRecordStore implements RecordStore.OrderedWritable
 
     @Override
     public RecordBuffer extractRange(final long from, final long to)
+            throws IOException
     {
         return search.extractRange(this.buffer, RecordBuffer.MemoryMode.COPY,
                 this.index, from, to);
