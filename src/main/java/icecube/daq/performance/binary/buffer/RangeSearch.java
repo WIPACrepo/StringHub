@@ -2,6 +2,9 @@ package icecube.daq.performance.binary.buffer;
 
 import icecube.daq.performance.binary.buffer.RecordBuffer.MemoryMode;
 import icecube.daq.performance.binary.record.RecordReader;
+import sun.misc.HexDumpEncoder;
+
+import java.io.IOException;
 
 /**
  * Defines methods for extracting a range of data from a buffer
@@ -21,11 +24,13 @@ public interface RangeSearch
      * @param to The inclusive ending value for the range.
      * @return A RecordBuffer containing the records from the source buffer
      *         which fall within the range.
+     * @exception IOException An error accessing the data.
      */
     public RecordBuffer extractRange(RecordBuffer buffer,
                                      MemoryMode resultMode,
                                      long from,
-                                     long to);
+                                     long to)
+        throws IOException;
 
     /**
      * Extract data from a buffer withing a range of values utilizing
@@ -40,11 +45,13 @@ public interface RangeSearch
      * @param to The inclusive ending value for the range.
      * @return A RecordBuffer containing the records from the source buffer
      *         which fall within the range.
+     * @exception IOException An error accessing the data.
      */
     public RecordBuffer extractRange(RecordBuffer buffer,
                                      MemoryMode resultMode,
                                      RecordBufferIndex index,
-                                     long from, long to);
+                                     long from, long to)
+            throws IOException;
 
 
     /**
@@ -68,7 +75,7 @@ public interface RangeSearch
         public RecordBuffer extractRange(final RecordBuffer buffer,
                                          final MemoryMode resultMode,
                                          final long from,
-                                         final long to)
+                                         final long to) throws IOException
         {
             return extractRange(buffer, resultMode, from, to, 0, 0);
         }
@@ -78,7 +85,7 @@ public interface RangeSearch
                                          final MemoryMode resultMode,
                                          final RecordBufferIndex index,
                                          final long from,
-                                         final long to)
+                                         final long to) throws IOException
         {
 
             // use the index to drive extraction
@@ -94,7 +101,7 @@ public interface RangeSearch
                                          final long from,
                                          final long to,
                                          final int startHint,
-                                         final int endHint)
+                                         final int endHint) throws IOException
         {
             // Records are only iterable in the forward direction.  Indexes
             // can improve search performance by jumping over many records
@@ -179,13 +186,14 @@ public interface RangeSearch
          */
         private int findFirst(final RecordBuffer buffer,
                               final int startingIndex, final long value)
+                throws IOException
         {
-            int limit = buffer.getLength();
+            final int limit = buffer.getLength();
             int idx = startingIndex;
             long lastValue = Long.MIN_VALUE;
             while (idx < limit)
             {
-                long currentValue = orderingField.value(buffer, idx);
+                final long currentValue = orderingField.value(buffer, idx);
                 if(currentValue >= value)
                 {
                     return idx;
@@ -194,20 +202,19 @@ public interface RangeSearch
                 {
                     if(currentValue < lastValue)
                     {
-                        //todo consider checked exception?
-                        throw new Error("Out of order record at index: " + idx);
+                        throwBadOrderRecordException(buffer, idx, lastValue,
+                                currentValue);
                     }
                     lastValue=currentValue;
                 }
 
                 // advance, protecting against infinite loop caused
                 // by malformed record data.
-                int recordLength = recordReader.getLength(buffer, idx);
+                final int recordLength = recordReader.getLength(buffer, idx);
 
                 if(recordLength < 1)
                 {
-                    //todo consider checked exception?
-                    throw new Error("Invalid record length at index: " + idx);
+                    throwBadLengthException(buffer, idx);
                 }
                 idx += recordLength;
 
@@ -223,6 +230,7 @@ public interface RangeSearch
          *
          */
         private int findLast(RecordBuffer buffer, int startingIndex, long value)
+                throws IOException
         {
             int limit = buffer.getLength();
             int idx = startingIndex;
@@ -238,8 +246,8 @@ public interface RangeSearch
                 {
                     if(currentValue < lastValue)
                     {
-                        //todo consider checked exception?
-                        throw new Error("Out of order record at index: " + idx);
+                        throwBadOrderRecordException(buffer, idx, lastValue,
+                                currentValue);
                     }
                     lastValue=currentValue;
                 }
@@ -249,15 +257,71 @@ public interface RangeSearch
 
                 if(recordLength < 1)
                 {
-                    //todo consider checked exception?
-                    throw new Error("Invalid record length " + recordLength +
-                            " at index: " + idx + " of " + buffer.getLength());
+                    throwBadLengthException(buffer, idx);
                 }
                 idx += recordLength;
             }
 
             return idx;
         }
+    }
+
+
+    /**
+     * Generate an IOException for a bad length field condition.
+     * @param buffer The buffer containing the bad record.
+     * @param index The index withing the buffer of the bad record.
+     * @throws IOException An IOException capturing the details surrounding
+     *                     the bad record.
+     */
+    public static void throwBadLengthException(RecordBuffer buffer, int index)
+            throws IOException
+    {
+        final int length = buffer.getLength();
+        final int dumpBytes = Math.min(256, (length-index) );
+        final String hex = hexdump(buffer, index, dumpBytes);
+        throw new IOException("Invalid record length at index: " + index +
+                " of " + length +
+                ", data["+index+"-" + (index+dumpBytes) + "]:\n" + hex);
+
+    }
+
+    /**
+     * Generate an IOException for an out-of-order record condition.
+     * @param buffer The buffer containing the out-of-order record.
+     * @param index The index withing the buffer of the mis-ordered record.
+     * @param lastValue The ordering value of the preceding record.
+     * @param currentValue The ordering value of the mis-ordered record.
+     * @throws IOException An IOException capturing the details surrounding
+     *                     the mis-ordered record.
+     */
+    public static void throwBadOrderRecordException(RecordBuffer buffer,
+                                                    int index, long lastValue,
+                                                    long currentValue)
+            throws IOException
+    {
+        final int length = buffer.getLength();
+        final int dumpBytes = Math.min(256, (length-index) );
+        final String hex = hexdump(buffer, index, dumpBytes);
+        throw new IOException("Out of order record at index: " + index +
+                " of " + length + ", lastUTC: " + lastValue +
+                ", currentUTC: " + currentValue +
+                ", data["+index+"-" + (index+dumpBytes) + "]:\n" + hex);
+    }
+
+    /**
+     * Generate a hexdump string for a range of data.
+     * @param buffer The data buffer.
+     * @param start The start of the range.
+     * @param length The length of the range.
+     * @return A string containing a hexadecimal representation of the data.
+     */
+    public static String hexdump(RecordBuffer buffer, int start, int length)
+    {
+        HexDumpEncoder hex = new HexDumpEncoder();
+        byte[] tmp = new byte[length];
+        buffer.copyBytes(tmp, 0, start, length);
+        return hex.encode(tmp);
     }
 
 

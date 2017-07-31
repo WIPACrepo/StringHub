@@ -138,7 +138,13 @@ public class ReadoutRequestHandler implements RequestHandler
                 }
                 catch (IOException | PayloadException ex)
                 {
-                    logger.error("Error filling request, aborting", ex);
+                    counters.numReadoutErrors++;
+                    logger.error("Error filling readout request, ignoring", ex);
+                }
+                catch (Throwable th)
+                {
+                    counters.numReadoutErrors++;
+                    logger.error("Error filling readout request, aborting", th);
                     running = false;
                 }
                 finally
@@ -150,7 +156,7 @@ public class ReadoutRequestHandler implements RequestHandler
         catch (Throwable th)
         {
             //total breakdown
-            logger.error("Error filling request, aborting", th);
+            logger.error("Error filling readout request, aborting", th);
         }
         finally
         {

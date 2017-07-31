@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import static org.junit.Assert.*;
 
@@ -87,7 +88,7 @@ public class RangeSearchTest
          * all index modes and copy modes.
          * .
          */
-        public void executeTestQueries()
+        public void executeTestQueries() throws IOException
         {
             RecordReader recordReader = recordProvider.recordReader();
             RecordReader.LongField orderingField = recordProvider.orderingField();
@@ -121,7 +122,7 @@ public class RangeSearchTest
 
         }
 
-        RecordBuffer executeQuery(long from, long to)
+        RecordBuffer executeQuery(long from, long to) throws IOException
         {
             return search.extractRange(data, RecordBuffer.MemoryMode.COPY,
                     from, to);
@@ -145,7 +146,7 @@ public class RangeSearchTest
     }
 
     @Test
-    public void testNormalData()
+    public void testNormalData() throws IOException
     {
 
 
@@ -154,13 +155,13 @@ public class RangeSearchTest
     }
 
     @Test
-    public void testEmptyData()
+    public void testEmptyData() throws IOException
     {
         runQueryTests("empty", OrderedDataCase.EMPTY_CASE);
     }
 
     @Test
-    public void testOutOfOrderData()
+    public void testOutOfOrderData() throws IOException
     {
         ///
         /// Tests that range search detects out-of order data.
@@ -184,10 +185,13 @@ public class RangeSearchTest
             generated.executeQuery(0, 7);
             fail("RangeSearch permitted out-of-order data");
         }
-        catch (Error e)
+        catch (IOException e)
         {
             String message = e.getMessage();
-            assertTrue(message.matches("Out of order record at index: [0-9]+"));
+            Pattern pattern = Pattern.compile("Out of order record at index:" +
+                    " [0-9]+ of [0-9]+, lastUTC: [0-9]+, currentUTC: [0-9]+," +
+                    " data\\[[0-9]+-[0-9]+\\]:.*", Pattern.DOTALL);
+            assertTrue(pattern.matcher(message).find());
         }
 
         try
@@ -195,10 +199,13 @@ public class RangeSearchTest
             generated.executeQuery(4, 7);
             fail("RangeSearch permitted out-of-order data");
         }
-        catch (Error e)
+        catch (IOException e)
         {
             String message = e.getMessage();
-            assertTrue(message.matches("Out of order record at index: [0-9]+"));
+            Pattern pattern = Pattern.compile("Out of order record at index:" +
+                    " [0-9]+ of [0-9]+, lastUTC: [0-9]+, currentUTC: [0-9]+," +
+                    " data\\[[0-9]+-[0-9]+\\]:.*", Pattern.DOTALL);
+            assertTrue(pattern.matcher(message).find());
         }
     }
 
@@ -234,11 +241,16 @@ public class RangeSearchTest
             subject.extractRange(badRecords, RecordBuffer.MemoryMode.COPY, 6, 10);
             fail("search permitted zero-length record");
         }
-        catch (Error e)
+        catch (IOException e)
         {
             String message = e.getMessage();
-            assertTrue(message.matches("Invalid record length" +
-                    " at index: [0-9]+"));
+            String expected = "Invalid record length at index: 48 of 108," +
+                    " data[48-108]:\n" +
+                    "0000: 00 00 00 00 00 00 00 00   00 00 00 05 00 00 00 0C  ................\n" +
+                    "0010: 00 00 00 00 00 00 00 06   00 00 00 0C 00 00 00 00  ................\n" +
+                    "0020: 00 00 00 07 00 00 00 0C   00 00 00 00 00 00 00 08  ................\n" +
+                    "0030: 00 00 00 0C 00 00 00 00   00 00 00 09 ";
+            assertEquals(expected, message);
         }
 
         try
@@ -246,17 +258,78 @@ public class RangeSearchTest
             subject.extractRange(badRecords, RecordBuffer.MemoryMode.COPY, 0, 10);
             fail("search permitted zero-length record");
         }
-        catch (Error e)
+        catch (IOException e)
         {
             String message = e.getMessage();
-            assertTrue(message, message.matches("Invalid record length [0-9+]" +
-                    " at index: [0-9]+ of [0-9]+"));
+            String expected = "Invalid record length at index: 48 of 108," +
+                    " data[48-108]:\n" +
+                    "0000: 00 00 00 00 00 00 00 00   00 00 00 05 00 00 00 0C  ................\n" +
+                    "0010: 00 00 00 00 00 00 00 06   00 00 00 0C 00 00 00 00  ................\n" +
+                    "0020: 00 00 00 07 00 00 00 0C   00 00 00 00 00 00 00 08  ................\n" +
+                    "0030: 00 00 00 0C 00 00 00 00   00 00 00 09 ";
+            assertEquals(expected, message);
+        }
+
+    }
+
+    @Test
+    public void testThrowBadLengthException()
+    {
+        try
+        {
+            RangeSearch.throwBadLengthException(RecordBuffers.EMPTY_BUFFER, 0);
+        }
+        catch (IOException e)
+        {
+            assertEquals("Invalid record length at index: 0 of 0, data[0-0]:\n",
+                    e.getMessage());
+        }
+        try
+        {
+            RecordBuffer data = RecordBuffers.wrap(new byte[]{123});
+            RangeSearch.throwBadLengthException(data, 0);
+        }
+        catch (IOException e)
+        {
+            String expected = "Invalid record length at index: 0 of 1," +
+                    " data[0-1]:\n" +
+                    "0000: 7B ";
+            assertEquals(expected, e.getMessage());
+        }
+
+    }
+
+    @Test
+    public void testThrowBadOrderRecordException()
+    {
+        try
+        {
+            RangeSearch.throwBadOrderRecordException(RecordBuffers.EMPTY_BUFFER, 0, 99, 55);
+        }
+        catch (IOException e)
+        {
+            assertEquals("Out of order record at index: 0 of 0, lastUTC: 99," +
+                    " currentUTC: 55, data[0-0]:\n",
+                    e.getMessage());
+        }
+        try
+        {
+            RecordBuffer data = RecordBuffers.wrap(new byte[]{123});
+            RangeSearch.throwBadOrderRecordException(data, 0, 99, 55);
+        }
+        catch (IOException e)
+        {
+            String expected = "Out of order record at index: 0 of 1," +
+                    " lastUTC: 99, currentUTC: 55, data[0-1]:\n" +
+                    "0000: 7B ";
+            assertEquals(expected, e.getMessage());
         }
 
     }
 
     private void runQueryTests(String name, OrderedDataCase orderedDataCase)
-   {
+            throws IOException
+    {
            GeneratedData generated = new GeneratedData(name, recordType,
                    orderedDataCase);
            generated.executeTestQueries();

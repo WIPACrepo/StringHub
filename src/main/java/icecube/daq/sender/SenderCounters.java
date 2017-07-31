@@ -15,9 +15,10 @@ public class SenderCounters
     volatile long latestAcquiredTime;
     volatile boolean isEndOfStream = false;
 
-    /* event stream*/
+    /* readout stream*/
     volatile long numReadoutRequestsReceived;
     volatile long numReadoutsSent;
     volatile long numOutputsIgnored;
+    volatile long numReadoutErrors;
 
 }

@@ -81,6 +81,7 @@ public class ReadoutRequestHandlerTest
         assertEquals(1, counters.numReadoutRequestsReceived);
         assertEquals(1, counters.numReadoutsSent);
         assertEquals(0, counters.numOutputsIgnored);
+        assertEquals(0, counters.numReadoutErrors);
 
 
         // empty data response
@@ -95,6 +96,7 @@ public class ReadoutRequestHandlerTest
         assertEquals(2, counters.numReadoutRequestsReceived);
         assertEquals(1, counters.numReadoutsSent);
         assertEquals(1, counters.numOutputsIgnored);
+        assertEquals(0, counters.numReadoutErrors);
 
 
         subject.addRequestStop();
@@ -106,6 +108,8 @@ public class ReadoutRequestHandlerTest
     @Test
     public void testProcessingLoopError() throws IOException
     {
+        /// Tests IOException handling
+
         IReadoutRequest req = new ReadoutRequest(123,123,123);
         ByteBuffer mockResponse = ByteBuffer.allocate(123);
         mockFiller.setResponse(mockResponse);
@@ -119,9 +123,10 @@ public class ReadoutRequestHandlerTest
         assertEquals(1, counters.numReadoutRequestsReceived);
         assertEquals(0, counters.numReadoutsSent);
         assertEquals(0, counters.numOutputsIgnored);
+        assertEquals(1, counters.numReadoutErrors);
 
         assertEquals(1, appender.getNumberOfMessages());
-        String expected = "Error filling request, aborting";
+        String expected = "Error filling readout request, ignoring";
         assertEquals(expected, appender.getMessage(0));
         appender.clear();
     }
@@ -129,6 +134,8 @@ public class ReadoutRequestHandlerTest
     @Test
     public void testProcessingLoopError2() throws IOException
     {
+        /// Tests Payload handling
+
         IReadoutRequest req = new ReadoutRequest(123,123,123);
         ByteBuffer mockResponse = ByteBuffer.allocate(123);
         mockFiller.setResponse(mockResponse);
@@ -142,9 +149,10 @@ public class ReadoutRequestHandlerTest
         assertEquals(1, counters.numReadoutRequestsReceived);
         assertEquals(0, counters.numReadoutsSent);
         assertEquals(0, counters.numOutputsIgnored);
+        assertEquals(1, counters.numReadoutErrors);
 
         assertEquals(1, appender.getNumberOfMessages());
-        String expected = "Error filling request, aborting";
+        String expected = "Error filling readout request, ignoring";
         assertEquals(expected, appender.getMessage(0));
         appender.clear();
     }
@@ -152,6 +160,8 @@ public class ReadoutRequestHandlerTest
     @Test
     public void testProcessingLoopError3() throws IOException
     {
+        /// Tests unchecked exception handling
+
         IReadoutRequest req = new ReadoutRequest(123,123,123);
         ByteBuffer mockResponse = ByteBuffer.allocate(123);
         mockFiller.setResponse(mockResponse);
@@ -165,9 +175,10 @@ public class ReadoutRequestHandlerTest
         assertEquals(1, counters.numReadoutRequestsReceived);
         assertEquals(0, counters.numReadoutsSent);
         assertEquals(0, counters.numOutputsIgnored);
+        assertEquals(1, counters.numReadoutErrors);
 
         assertEquals(1, appender.getNumberOfMessages());
-        String expected = "Error filling request, aborting";
+        String expected = "Error filling readout request, aborting";
         assertEquals(expected, appender.getMessage(0));
         appender.clear();
     }
