@@ -370,6 +370,8 @@ class DataThread
 
     /** Nanoseconds per second */
     private static final long NS_PER_SEC = 1000000000L;
+    /** Maximum gap between payloads (in nanoseconds!) */
+    private static final long MAX_GAP_NS = NS_PER_SEC * 3L;
 
     /** ID of this replay hub */
     private int hubId;
@@ -570,7 +572,7 @@ class DataThread
                 nsTimeGap = daqTime.baseDiff() - sysTime.baseDiff();
 
                 // whine if the time gap is too long
-                if (nsTimeGap > NS_PER_SEC * 2) {
+                if (nsTimeGap > MAX_GAP_NS) {
                     if (totPayloads < 10) {
                         // minimize gap for first few payloads
                         nsTimeGap = NS_PER_SEC / 10L;
