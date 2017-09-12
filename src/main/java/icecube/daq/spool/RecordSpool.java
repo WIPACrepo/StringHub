@@ -9,6 +9,7 @@ import icecube.daq.performance.binary.record.RecordReader;
 import icecube.daq.performance.binary.store.RecordStore;
 import icecube.daq.performance.common.BufferContent;
 import org.apache.log4j.Logger;
+import sun.nio.ch.DirectBuffer;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,9 +18,11 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -30,6 +33,8 @@ import java.util.function.Consumer;
  * and ordering field can be spooled.
  *
  * Based on FilesHitSpool.java
+ *
+ * todo: extend "unmap" functionality to MemoryMode.SHARED_VIEW.
  */
 public class RecordSpool implements RecordStore.OrderedWritable
 {
@@ -223,7 +228,13 @@ public class RecordSpool implements RecordStore.OrderedWritable
         private final LinkedHashMap<String, RecordBufferIndex> fileIndexes =
                 new LinkedHashMap<>(2);  //MUST be linked map for pruning.
 
+        // pool of recently-mapped inactive files
+        MappedBufferPool memoryMappedPool =
+                new MappedBufferPool(MAX_MAPPED_FILES);
+
         // The number of inactive file indexes to keep in memory
+        private static final int MAX_MAPPED_FILES = 3;
+
         private static final int NUM_CACHED_INDEXES = 1;
 
         // The allocation size for the memory mapped spool file
@@ -515,7 +526,15 @@ public class RecordSpool implements RecordStore.OrderedWritable
                     // Note: We map the whole file, but only pages hit
                     //       by the index should actually result in a
                     //       file read or memory load.
-                    ByteBuffer onDisk = loadFile(targetDirectory, file);
+                    //
+                    //       If we are using a copy mode, we set up a forced
+                    //       un-mapping of the buffer to conserve system
+                    //       memory.
+                    final boolean safeToManage =
+                            (mode == RecordBuffer.MemoryMode.COPY);
+                    ByteBuffer onDisk =
+                            memoryMappedPool.getMappedBuffer(targetDirectory,
+                            file, safeToManage);
                     fileContent = RecordBuffers.wrap(onDisk,
                             BufferContent.ZERO_TO_CAPACITY);
                 }
@@ -531,30 +550,6 @@ public class RecordSpool implements RecordStore.OrderedWritable
         }
 
         /**
-         * load a file into a memory-mapped buffer.  The buffer is released
-         * by the at finalization by the garbage collector. If use pattern
-         * changes, explicit release can be coerced by non-standard means.
-         *
-         *
-         * @param directory File directory.
-         * @param filename File name.
-         * @return A memory-mapped ByteBuffer of the file content.
-         * @throws IOException An error accessing the file.
-         */
-        private static ByteBuffer loadFile(String directory, String filename)
-                throws IOException
-        {
-            File file = new File( directory + "/" + filename );
-            FileChannel fc =
-                    FileChannel.open(file.toPath(), StandardOpenOption.READ);
-            MappedByteBuffer bb = fc.map( FileChannel.MapMode.READ_ONLY, 0,
-                    file.length() );
-            fc.close();
-
-            return bb;
-        }
-
-        /**
          * Map File number to file name.
          */
         private static String getFileName(int num)
@@ -565,6 +560,141 @@ public class RecordSpool implements RecordStore.OrderedWritable
             }
 
             return String.format("HitSpool-%d.dat", num);
+        }
+
+    }
+
+
+
+    /**
+     * Holds pool from previously mapped files so that we can periodically
+     * force an unmap.
+     *
+     * This implementation balances two goals:
+     *
+     * 1. Maintain file mapping for a period so that sequential readouts are
+     *    efficient
+     * 2. Control the ammount of memory used for stale file mappings.
+     *
+     * The underlying behavior of (most sun-based) JVMs is to keep the file
+     * mapping until the mapped buffer is garbage collected.  This covers
+     * goal #1, but can lead to significant memory used for stale file mappings.
+     *
+     * To deal with that, we will periodically force an unmapping of old
+     * pool. Caller must be aware of this and utilize mapping references in
+     * a "one-at-a-time" fashion.
+     */
+    static class MappedBufferPool
+    {
+        private HashMap<File, MappedByteBuffer> pool = new HashMap<>();
+        private final int maxPooledFiles;
+
+        MappedBufferPool(final int maxPooledFiles)
+        {
+            this.maxPooledFiles = maxPooledFiles;
+        }
+
+        /**
+         * Get a memory-mapped buffer for a file from the pool, creating the
+         * mapping if required. As a side effect, older mappings will be
+         * forcibly unmapped.  Caller must be aware of this and utilize
+         * mapping references in a "one-at-a-time" fashion.
+         *
+         * @param directory File directory.
+         * @param filename File name.
+         * @param manage if true the buffer will be managed and automatically
+         *               unmapped at an indeterminate time in the future (but
+         *               not before a subsequent call to this method requesting
+         *               a different mapping). If false, the mapping will
+         *               remain valid until the buffer reference is garbage
+         *               collected.
+         * @return A memory-mapped ByteBuffer of the file content.
+         * @throws IOException An error accessing the file.
+         */
+        ByteBuffer getMappedBuffer(String directory, String filename,
+                                         boolean manage)
+                throws IOException
+        {
+            File file = new File( directory + "/" + filename );
+
+            if (!manage)
+            {
+                return loadFile(file);
+            }
+
+            MappedByteBuffer mbb = pool.get(file);
+            if(mbb != null)
+            {
+                return mbb.slice();
+            }
+            else
+            {
+                if (pool.size() >= maxPooledFiles)
+                {
+                    purge();
+                }
+
+                mbb = loadFile(file);
+                pool.put(file, mbb);
+                return mbb.slice();
+            }
+        }
+
+        /**
+         * Un-map all pooled pool and remove from mappings.
+         */
+        private void purge()
+        {
+
+            for(Map.Entry<File,MappedByteBuffer> entry : pool.entrySet())
+            {
+                forceUnmap(entry.getValue());
+            }
+
+            pool.clear();
+        }
+
+        /**
+         * load a file into a memory-mapped buffer.  The buffer is released
+         * by the garbage collector when the buffer is no longer referenced,
+         * UNLESS explicitly unmapped by forceUnmap.
+         *
+         * @param file The file.
+         * @return A memory-mapped ByteBuffer of the file content.
+         * @throws IOException An error accessing the file.
+         */
+        private static MappedByteBuffer loadFile(File file)
+                throws IOException
+        {
+            FileChannel fc =
+                    FileChannel.open(file.toPath(), StandardOpenOption.READ);
+            MappedByteBuffer bb = fc.map( FileChannel.MapMode.READ_ONLY, 0,
+                    file.length() );
+            fc.close();
+
+            return bb;
+        }
+
+        /**
+         * Force a memory-mapped buffer to be unmapped.
+         *
+         * ALERT: This method utilizes some trickery to accomplish what the
+         *        java engineers have deemed unsafe. Caller must ensure that
+         *        the buffer is never utilized after this call.
+         *
+         * @param buffer The mapped buffer to unmap.
+         */
+        private static void forceUnmap(MappedByteBuffer buffer)
+        {
+            try
+            {
+                sun.misc.Cleaner cleaner = ((DirectBuffer) buffer).cleaner();
+                cleaner.clean();
+            }
+            catch (Throwable th)
+            {
+                logger.error("Error unmapping buffer", th);
+            }
         }
 
     }
