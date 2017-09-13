@@ -306,7 +306,7 @@ public class ReplayHubComponent
 
         final String fwdProp = "sender/forwardIsolatedHitsToTrigger";
         try {
-            final String fwdText = JAXPUtil.extractText(replayFiles, fwdProp);
+            final String fwdText = JAXPUtil.extractText(doc, fwdProp);
             if (fwdText.equalsIgnoreCase("true")) {
                 LOG.error("Enabled hit forwarding");
                 sender.forwardIsolatedHitsToTrigger();
