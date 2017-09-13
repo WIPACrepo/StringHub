@@ -24,16 +24,19 @@ import icecube.daq.util.JAXPUtilException;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -139,7 +142,6 @@ public class ReplayHubComponent
      */
     public static final boolean USE_LEGACY_SENDER =
     Boolean.getBoolean("icecube.daq.sender.SenderSubsystem.use-legacy-sender");
-
 
     /**
      * Create a replay component
@@ -302,6 +304,17 @@ public class ReplayHubComponent
             throw new DAQCompException("Hub#" + hubId + " config failed", jux);
         }
 
+        final String fwdProp = "sender/forwardIsolatedHitsToTrigger";
+        try {
+            final String fwdText = JAXPUtil.extractText(replayFiles, fwdProp);
+            if (fwdText.equalsIgnoreCase("true")) {
+                LOG.error("Enabled hit forwarding");
+                sender.forwardIsolatedHitsToTrigger();
+            }
+        } catch (JAXPUtilException jux) {
+            throw new DAQCompException("Hub#" + hubId + " config failed", jux);
+        }
+
         final String replayFilesStr = "runConfig/replayFiles";
 
         // extract replayFiles element tree
@@ -317,19 +330,6 @@ public class ReplayHubComponent
             throw new DAQCompException("No <replayFiles> entry found for" +
                                        "  hub#" + hubId + " in " + configName);
         }
-
-
-        final String fwdProp = "sender/forwardIsolatedHitsToTrigger";
-        try {
-            final String fwdText = JAXPUtil.extractText(replayFiles, fwdProp);
-            if (fwdText.equalsIgnoreCase("true")) {
-                LOG.error("Enabled hit forwarding");
-                sender.forwardIsolatedHitsToTrigger();
-            }
-        } catch (JAXPUtilException jux) {
-            throw new DAQCompException("Hub#" + hubId + " config failed", jux);
-        }
-
 
         // extract this hub's entry
         Element hubNode;
@@ -524,11 +524,11 @@ public class ReplayHubComponent
 
     public int getNumFiles()
     {
-        if (hitReader == null) {
-            return 0;
+        if (hitReader != null) {
+            return hitReader.getNumberOfFiles();
         }
 
-        return hitReader.getNumberOfFiles();
+        return 0;
     }
 
     /**
@@ -788,6 +788,12 @@ public class ReplayHubComponent
     public static void main(String[] args)
         throws Exception
     {
+        ConsoleAppender appender = new ConsoleAppender();
+        appender.setWriter(new PrintWriter(System.out));
+        appender.setLayout(new PatternLayout("%p[%t] %L - %m%n"));
+        appender.setName("console");
+        Logger.getRootLogger().addAppender(appender);
+
         int hubId = Integer.getInteger("icecube.daq.stringhub.componentId");
         if (hubId == 0) {
             System.err.println("Hub ID not set, specify with" +
