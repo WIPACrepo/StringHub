@@ -608,7 +608,7 @@ class DataThread
                     } catch (InterruptedException ie) {
                         // ignore interrupts
                     }
-                } else {
+                } else if (nsTimeGap < 0) {
                     totalBehind -= nsTimeGap;
                 }
             }
