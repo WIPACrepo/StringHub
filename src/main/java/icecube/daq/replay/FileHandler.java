@@ -620,7 +620,10 @@ class DataThread
             }
             domTimes.get(mbid).add(daqTime.get());
 
-            buf.flip();
+            // if buffer wasn't flipped, do so now
+            if (buf.position() != 0 && buf.limit() > 0) {
+                buf.flip();
+            }
 
             outThread.push(buf);
 
