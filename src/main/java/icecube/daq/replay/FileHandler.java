@@ -7,6 +7,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 import org.apache.log4j.Logger;
 
@@ -25,7 +26,7 @@ public class FileHandler
 
     /** Offset to apply to every hit time */
     private long timeOffset;
-    /** maximum huge gaps allowed */
+    /** maximum number of huge gaps allowed */
     private int maxHugeGaps = MAX_HUGE_GAPS;
 
     /** Reader thread */
@@ -412,6 +413,7 @@ class DataThread
      * @param inThread thread which reads data from file(s)
      * @param timeOffset offset to use for recalibrating payload times
      * @param outThread thread which writes data to the sender
+     * @param maxHugeGaps maximum number of huge gaps allowed
      */
     DataThread(int hubId, DataStreamType dataType, InputThread inThread,
                long timeOffset, OutputThread outThread, int maxHugeGaps)
