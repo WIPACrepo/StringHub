@@ -29,8 +29,10 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -416,8 +418,33 @@ public class ReplayHubComponent
             }
         }
 
+        int numToSkip = 0;
+
+        // extract replay "tweak" node
+        final String tweakNodeStr = replayFilesStr + "/tweak";
+        Element tweaks;
         try {
-            hitReader = new CachingPayloadReader(dataDir, hubId);
+            tweaks = (Element) JAXPUtil.extractNode(doc, tweakNodeStr);
+        } catch (JAXPUtilException jux) {
+            throw new DAQCompException("Hub#" + hubId +
+                                       " cannot get <tweak> node", jux);
+        }
+        if (tweaks != null) {
+            // get number of files to skip
+            final String skipStr = hubNode.getAttribute("skip");
+            if (skipStr != null) {
+                try {
+                    numToSkip = Integer.parseInt(skipStr);
+                } catch (NumberFormatException nfe) {
+                    throw new DAQCompException("Bad value \"" + skipStr +
+                                               "\" for number of replay" +
+                                               " files to skip");
+                }
+            }
+        }
+
+        try {
+            hitReader = new CachingPayloadReader(dataDir, hubId, numToSkip);
         } catch (IOException ioe) {
             throw new DAQCompException("Cannot open " + dataDir, ioe);
         }
@@ -835,13 +862,14 @@ class CachingPayloadReader
      *
      * @param payFile hitspool file
      * @param hubId this hub's ID
+     * @param numToSkip number of initial files to skip
      *
      * @throws IOException if there is a problem opening the file
      */
-    CachingPayloadReader(File payFile, int hubId)
+    CachingPayloadReader(File payFile, int hubId, int numToSkip)
         throws IOException
     {
-        super(payFile, hubId);
+        super(payFile, hubId, numToSkip);
     }
 
     /**
