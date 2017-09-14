@@ -10,6 +10,7 @@ import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
+import icecube.daq.juggler.mbean.ThreadProfiler;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.impl.ReadoutRequestFactory;
 import icecube.daq.payload.impl.VitreousBufferCache;
@@ -162,6 +163,7 @@ public class ReplayHubComponent
     {
         addMBean("jvm", new MemoryStatistics());
         addMBean("system", new SystemStatistics());
+        addMBean("profile", new ThreadProfiler());
         addMBean("stringhub", this);
 
         cache = new VitreousBufferCache("RHGen#" + hubId);
@@ -304,6 +306,7 @@ public class ReplayHubComponent
             throw new DAQCompException("Hub#" + hubId + " config failed", jux);
         }
 
+        // check for hit forwarding
         final String fwdProp = "sender/forwardIsolatedHitsToTrigger";
         try {
             final String fwdText = JAXPUtil.extractText(doc, fwdProp);
