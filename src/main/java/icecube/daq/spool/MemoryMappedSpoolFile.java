@@ -4,6 +4,7 @@ import icecube.daq.performance.binary.buffer.RecordBuffer;
 import icecube.daq.performance.binary.buffer.RecordBuffers;
 import icecube.daq.performance.common.BufferContent;
 import org.apache.log4j.Logger;
+import sun.nio.ch.DirectBuffer;
 
 import java.io.File;
 import java.io.IOException;
@@ -239,6 +240,7 @@ public interface MemoryMappedSpoolFile extends RecordBuffer
 
             fileChannel.close();
 
+            forceUnmap(buffer);
             buffer = null;
         }
 
@@ -253,6 +255,28 @@ public interface MemoryMappedSpoolFile extends RecordBuffer
                     newSize);
 
             buffer.position(position);
+        }
+
+        /**
+         * Force a memory-mapped buffer to be unmapped.
+         *
+         * ALERT: This method utilizes some trickery to accomplish what the
+         *        java engineers have deemed unsafe. Caller must ensure that
+         *        the buffer is never utilized after this call.
+         *
+         * @param buffer The mapped buffer to unmap.
+         */
+        private static void forceUnmap(MappedByteBuffer buffer)
+        {
+            try
+            {
+                sun.misc.Cleaner cleaner = ((DirectBuffer) buffer).cleaner();
+                cleaner.clean();
+            }
+            catch (Throwable th)
+            {
+                logger.error("Error unmapping buffer", th);
+            }
         }
 
     }
