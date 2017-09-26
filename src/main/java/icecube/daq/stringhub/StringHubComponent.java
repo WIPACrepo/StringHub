@@ -956,7 +956,7 @@ public class StringHubComponent
 		throws DAQCompException
 	{
         trace.startTrace(trace.narrowCollectors(conn.getCollectors()),
-                sender.getMonitor());
+                sender.getMonitor(), this);
 
         setRunNumber(runNumber);
 
@@ -1151,7 +1151,7 @@ public class StringHubComponent
 	 */
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16604 2017-06-20 18:58:21Z dglo $";
+		return "$Id: StringHubComponent.java 16750 2017-09-26 20:59:47Z bendfelt $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1339,6 +1339,9 @@ public class StringHubComponent
                 System.getProperty("icecube.daq.stringhub.trace.file",
                         "/dev/null");
 
+        private static boolean append =
+                Boolean.getBoolean("icecube.daq.stringhub.trace.append");
+
         final Metered.Buffered sortQueueMeter;
         final Metered.UTCBuffered sortMeter;
         final Metered.Buffered asyncHitConsumerMeter;
@@ -1378,18 +1381,35 @@ public class StringHubComponent
         }
 
         private void startTrace(final List<DataCollectorMBean> collectors,
-                                final SenderMXBean sender)
+                                final SenderMXBean sender,
+                                final StringHubComponent parent)
         {
             try
             {
                 if(enabled)
                 {
-                    FileOutputStream fos = new FileOutputStream(file);
+                    FileOutputStream fos = new FileOutputStream(file, append);
 
                     trace = new DiagnosticTrace(period, 30,
                             new PrintStream(fos));
                     trace.addTimeContent();
                     trace.addAgeContent();
+                    // run #
+                    trace.addContent(new Content()
+                    {
+                        final String header = String.format("%-8s","run");
+                        @Override
+                        public void header(final StringBuilder sb)
+                        {
+                            sb.append(header);
+                        }
+
+                        @Override
+                        public void content(final StringBuilder sb)
+                        {
+                            sb.append(String.format("%-8d", parent.getRunNumber()));
+                        }
+                    });
                     trace.addHeapContent();
                     trace.addGCContent();
                     trace.addContent(new DataCollectorAggregateContent(collectors));
