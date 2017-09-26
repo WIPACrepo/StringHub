@@ -3,6 +3,7 @@ package icecube.daq.spool;
 import icecube.daq.common.MockAppender;
 import icecube.daq.performance.binary.buffer.IndexFactory;
 import icecube.daq.performance.binary.buffer.RecordBuffer;
+import icecube.daq.performance.binary.buffer.RecordBufferIndex;
 import icecube.daq.performance.binary.store.RecordStore;
 import icecube.daq.performance.binary.store.impl.ExpandingMemoryRecordStore;
 import icecube.daq.performance.binary.test.Assertions;
@@ -534,6 +535,104 @@ public class RecordSpoolTest
             }
         }
     }
+
+    /**
+     * Tests that the TempFileClient class works
+     */
+    public static class SpoolFileIndexCacheTest extends TempFileClient
+    {
+
+        RecordSpool.SpoolFileIndexCache subject;
+        static final int MAX_CACHED_FILES = 10;
+
+        @Before
+        public void setUp() throws IOException
+        {
+            subject = new RecordSpool.SpoolFileIndexCache(MAX_CACHED_FILES);
+        }
+
+        @Test
+        public void testNominal() throws IOException
+        {
+            // non existent lookup
+            RecordBufferIndex resp = subject.get("foo");
+            assertNull(resp);
+
+            RecordBufferIndex.NullIndex any =
+                    new RecordBufferIndex.NullIndex();
+            subject.cache("foo", any, 11111111, 0);
+
+            resp = subject.get("foo");
+            assertSame(resp, any);
+        }
+
+        @Test
+        public void testMax() throws IOException
+        {
+            long startVal = 91234121;
+            long stride = 11111111;
+            // test max capacity
+            RecordBufferIndex[] actual = new RecordBufferIndex[MAX_CACHED_FILES];
+            for(int i = 0; i<MAX_CACHED_FILES; i++)
+            {
+                actual[i] = new RecordBufferIndex.NullIndex();
+                subject.cache("foo-"+i, actual[i], startVal, 0);
+                startVal+=stride;
+            }
+
+            // bar-n should cause foo-n to be pruned
+            for(int i = 0; i<MAX_CACHED_FILES; i++)
+            {
+                assertSame(actual[i], subject.get("foo-" + i));
+
+                RecordBufferIndex.NullIndex any =
+                        new RecordBufferIndex.NullIndex();
+                subject.cache("bar-"+i, any, startVal, 0);
+                startVal+=stride;
+
+                assertNull(subject.get("foo-" + i));
+            }
+        }
+
+        @Test
+        public void testPruning() throws IOException
+        {
+
+            RecordBufferIndex.NullIndex any =
+                    new RecordBufferIndex.NullIndex();
+
+            subject.cache("one", any, 0, 0);
+            subject.cache("two", any, 2000, 0);
+            subject.cache("three", any, 3000, 0);
+            subject.cache("four", any, 4000, 0);
+
+            assertNotNull(subject.get("one"));
+            assertNotNull(subject.get("two"));
+            assertNotNull(subject.get("three"));
+            assertNotNull(subject.get("four"));
+
+            // should prune #1 and #2
+            subject.cache("five", any, 5000, 3333);
+
+            assertNull(subject.get("one"));
+            assertNull(subject.get("two"));
+            assertNotNull(subject.get("three"));
+            assertNotNull(subject.get("four"));
+            assertNotNull(subject.get("five"));
+
+            // should all but #5
+            subject.cache("six", any, 6000, Long.MAX_VALUE);
+
+            assertNull(subject.get("one"));
+            assertNull(subject.get("two"));
+            assertNull(subject.get("three"));
+            assertNull(subject.get("four"));
+            assertNotNull(subject.get("five"));
+            assertNotNull(subject.get("six"));
+        }
+
+    }
+
 
     /**
      * Stream a prescribe interval of records to a store. The sequence will
