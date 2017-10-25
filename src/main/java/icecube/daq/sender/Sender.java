@@ -155,6 +155,7 @@ public class Sender
      *
      * @param buf buffer containing DOM hit
      */
+    @Override
     public void consume(ByteBuffer buf)
     {
         if (buf.getInt(0) == 32 && buf.getLong(24) == Long.MAX_VALUE)
@@ -286,6 +287,7 @@ public class Sender
     /**
      * There will be no more data.
      */
+    @Override
     public void endOfStream(long mbid)
     {
         consume(MultiChannelMergeSort.eos(mbid));
@@ -319,30 +321,11 @@ public class Sender
     }
 
     /**
-     * Get average number of hits per readout.
-     *
-     * @return hits/readout
-     */
-    public long getAverageHitsPerReadout()
-    {
-        return getAverageOutputDataPayloads();
-    }
-
-    /**
-     * Get current rate of hits per second.
-     *
-     * @return hits/second
-     */
-    public double getHitsPerSecond()
-    {
-        return getDataPayloadsPerSecond();
-    }
-
-    /**
      * Get the time of the most recently queued hit.
      *
      * @return latest time
      */
+    @Override
     public long getLatestHitTime()
     {
         return latestHitTime;
@@ -353,29 +336,10 @@ public class Sender
      *
      * @return latest readout data end time
      */
+    @Override
     public long[] getLatestReadoutTimes()
     {
         return new long[] { latestReadoutStartTime, latestReadoutEndTime };
-    }
-
-    /**
-     * Get number of hits which could not be loaded.
-     *
-     * @return number of bad hits received
-     */
-    public long getNumBadHits()
-    {
-        return getNumBadDataPayloads();
-    }
-
-    /**
-     * Number of readout requests which could not be loaded.
-     *
-     * @return number of bad readout requests
-     */
-    public long getNumBadReadoutRequests()
-    {
-        return getNumBadRequests();
     }
 
     /**
@@ -383,29 +347,10 @@ public class Sender
      *
      * @return number of cached hits
      */
+    @Override
     public int getNumHitsCached()
     {
         return getNumDataPayloadsCached();
-    }
-
-    /**
-     * Get number of hits thrown away.
-     *
-     * @return number of hits thrown away
-     */
-    public long getNumHitsDiscarded()
-    {
-        return getNumDataPayloadsDiscarded();
-    }
-
-    /**
-     * Get number of hits dropped while stopping.
-     *
-     * @return number of hits dropped
-     */
-    public long getNumHitsDropped()
-    {
-        return getNumDataPayloadsDropped();
     }
 
     /**
@@ -413,6 +358,7 @@ public class Sender
      *
      * @return number of hits queued
      */
+    @Override
     public int getNumHitsQueued()
     {
         return getNumDataPayloadsQueued();
@@ -423,39 +369,10 @@ public class Sender
      *
      * @return number of hits received
      */
+    @Override
     public long getNumHitsReceived()
     {
         return getNumDataPayloadsReceived();
-    }
-
-    /**
-     * Get number of null hits received.
-     *
-     * @return number of null hits received
-     */
-    public long getNumNullHits()
-    {
-        return getNumNullDataPayloads();
-    }
-
-    /**
-     * Get number of readouts which could not be created.
-     *
-     * @return number of null readouts
-     */
-    public long getNumNullReadouts()
-    {
-        return getNumNullOutputs();
-    }
-
-    /**
-     * Number of readout requests dropped while stopping.
-     *
-     * @return number of readout requests dropped
-     */
-    public long getNumReadoutRequestsDropped()
-    {
-        return getNumRequestsDropped();
     }
 
     /**
@@ -463,6 +380,7 @@ public class Sender
      *
      * @return number of readout requests queued
      */
+    @Override
     public long getNumReadoutRequestsQueued()
     {
         return getNumRequestsQueued();
@@ -473,29 +391,10 @@ public class Sender
      *
      * @return number of readout requests received
      */
+    @Override
     public long getNumReadoutRequestsReceived()
     {
         return getNumRequestsReceived();
-    }
-
-    /**
-     * Get number of readouts which could not be sent.
-     *
-     * @return number of failed readouts
-     */
-    public long getNumReadoutsFailed()
-    {
-        return getNumOutputsFailed();
-    }
-
-    /**
-     * Get number of empty readouts which were ignored.
-     *
-     * @return number of ignored readouts
-     */
-    public long getNumReadoutsIgnored()
-    {
-        return getNumOutputsIgnored();
     }
 
     /**
@@ -503,6 +402,7 @@ public class Sender
      *
      * @return number of readouts sent
      */
+    @Override
     public long getNumReadoutsSent()
     {
         return getNumOutputsSent();
@@ -513,29 +413,10 @@ public class Sender
      *
      * @return number of recycled payloads
      */
+    @Override
     public long getNumRecycled()
     {
         return numRecycled;
-    }
-
-    /**
-     * Get current rate of readout requests per second.
-     *
-     * @return readout requests/second
-     */
-    public double getReadoutRequestsPerSecond()
-    {
-        return getRequestsPerSecond();
-    }
-
-    /**
-     * Get current rate of readouts per second.
-     *
-     * @return readouts/second
-     */
-    public double getReadoutsPerSecond()
-    {
-        return getOutputsPerSecond();
     }
 
     private static ISourceID getSourceId(int compId)
@@ -546,75 +427,17 @@ public class Sender
     }
 
     /**
-     * Get total number of hits which could not be loaded since last reset.
-     *
-     * @return total number of bad hits since last reset
-     */
-    public long getTotalBadHits()
-    {
-        return getTotalBadDataPayloads();
-    }
-
-    /**
-     * Total number of hits thrown away since last reset.
-     *
-     * @return total number of hits thrown away since last reset
-     */
-    public long getTotalHitsDiscarded()
-    {
-        return getTotalDataPayloadsDiscarded();
-    }
-
-    /**
      * Total number of hits received since last reset.
      *
      * @return total number of hits received since last reset
      */
+    @Override
     public long getTotalHitsReceived()
     {
         return getTotalDataPayloadsReceived();
     }
 
-    /**
-     * Total number of readout requests received since the last reset.
-     *
-     * @return total number of readout requests received since the last reset
-     */
-    public long getTotalReadoutRequestsReceived()
-    {
-        return getTotalRequestsReceived();
-    }
-
-    /**
-     * Total number of readouts since last reset which could not be sent.
-     *
-     * @return total number of failed readouts
-     */
-    public long getTotalReadoutsFailed()
-    {
-        return getTotalOutputsFailed();
-    }
-
-    /**
-     * Total number of empty readouts which were ignored since the last reset.
-     *
-     * @return total number of ignored readouts since last reset
-     */
-    public long getTotalReadoutsIgnored()
-    {
-        return getTotalOutputsIgnored();
-    }
-
-    /**
-     * Total number of readouts sent since last reset.
-     *
-     * @return total number of readouts sent since last reset.
-     */
-    public long getTotalReadoutsSent()
-    {
-        return getTotalOutputsSent();
-    }
-
+    @Override
     public long getTotalStopsSent()
     {
         return totStopsSent;
