@@ -560,7 +560,7 @@ public class RecordSpoolTest
 
             RecordBufferIndex.NullIndex any =
                     new RecordBufferIndex.NullIndex();
-            subject.cache("foo", any, 11111111, 0);
+            subject.cache("foo", any, 11111111, 22222222, 0);
 
             resp = subject.get("foo");
             assertSame(resp, any);
@@ -575,9 +575,11 @@ public class RecordSpoolTest
             RecordBufferIndex[] actual = new RecordBufferIndex[MAX_CACHED_FILES];
             for(int i = 0; i<MAX_CACHED_FILES; i++)
             {
+                long endValue = (startVal+stride) -1;
+
                 actual[i] = new RecordBufferIndex.NullIndex();
-                subject.cache("foo-"+i, actual[i], startVal, 0);
-                startVal+=stride;
+                subject.cache("foo-"+i, actual[i], startVal, endValue, 0);
+                startVal = endValue+1;
             }
 
             // bar-n should cause foo-n to be pruned
@@ -585,10 +587,11 @@ public class RecordSpoolTest
             {
                 assertSame(actual[i], subject.get("foo-" + i));
 
+                long endValue = (startVal+stride) -1;
                 RecordBufferIndex.NullIndex any =
                         new RecordBufferIndex.NullIndex();
-                subject.cache("bar-"+i, any, startVal, 0);
-                startVal+=stride;
+                subject.cache("bar-"+i, any, startVal, endValue, 0);
+                startVal = endValue+1;
 
                 assertNull(subject.get("foo-" + i));
             }
@@ -601,10 +604,10 @@ public class RecordSpoolTest
             RecordBufferIndex.NullIndex any =
                     new RecordBufferIndex.NullIndex();
 
-            subject.cache("one", any, 0, 0);
-            subject.cache("two", any, 2000, 0);
-            subject.cache("three", any, 3000, 0);
-            subject.cache("four", any, 4000, 0);
+            subject.cache("one", any, 0, 1999, 0);
+            subject.cache("two", any, 2000, 2999, 0);
+            subject.cache("three", any, 3000, 3999, 0);
+            subject.cache("four", any, 4000, 4999, 0);
 
             assertNotNull(subject.get("one"));
             assertNotNull(subject.get("two"));
@@ -612,7 +615,7 @@ public class RecordSpoolTest
             assertNotNull(subject.get("four"));
 
             // should prune #1 and #2
-            subject.cache("five", any, 5000, 3333);
+            subject.cache("five", any, 5000, 5999, 3333);
 
             assertNull(subject.get("one"));
             assertNull(subject.get("two"));
@@ -621,7 +624,7 @@ public class RecordSpoolTest
             assertNotNull(subject.get("five"));
 
             // should all but #5
-            subject.cache("six", any, 6000, Long.MAX_VALUE);
+            subject.cache("six", any, 6000, 6999, Long.MAX_VALUE);
 
             assertNull(subject.get("one"));
             assertNull(subject.get("two"));

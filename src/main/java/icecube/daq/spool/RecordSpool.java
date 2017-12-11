@@ -41,10 +41,10 @@ public class RecordSpool implements RecordStore.OrderedWritable
 {
     private static final Logger logger = Logger.getLogger(RecordSpool.class);
 
-     /**
-      * Defines the minimum required record structure for
-      * iterating, spool rotation and range searching.
-      */
+    /**
+     * Defines the minimum required record structure for
+     * iterating, spool rotation and range searching.
+     */
     private final RecordReader recordReader;
     private final RecordReader.LongField orderingField;
 
@@ -250,6 +250,8 @@ public class RecordSpool implements RecordStore.OrderedWritable
 
         // Sentinel values for when there is no current file
         private static final String NO_FILE = "NO_FILE";
+        private static final RecordBufferIndex.UpdatableIndex NO_INDEX =
+                new RecordBufferIndex.NullIndex();
 
 
         FileBundle(final RecordReader recordReader,
@@ -315,9 +317,15 @@ public class RecordSpool implements RecordStore.OrderedWritable
             // update final file's stop time
             metadata.updateStop(currentFileName, prevT);
 
+            // cache the file index and start/stop times on
+            // behalf of pending readouts
+            indexCache.cache(currentFileName, currentIndex,
+                    currentFileStartTick, prevT, lastReadPoint);
+
             currentFile = null;
             currentFileName = NO_FILE;
             currentFileStartTick = Long.MAX_VALUE;
+            currentIndex = NO_INDEX;
 
             if (savedEx != null) {
                 throw new IOException(savedEx);
@@ -349,8 +357,6 @@ public class RecordSpool implements RecordStore.OrderedWritable
             // create indexing info
             currentPosition = 0;
             currentIndex = indexMode.newIndex();
-            indexCache.cache(fileName, currentIndex,
-                    currentFileStartTick, lastReadPoint);
         }
 
         /**
@@ -489,37 +495,73 @@ public class RecordSpool implements RecordStore.OrderedWritable
                                             final RecordBuffer.MemoryMode mode)
                 throws IOException
         {
+            List<SpoolFileIndex> spoolFiles;
+            List<SpoolFileIndex> cachedFiles= indexCache.lookup(from, to);
 
-            // Note: This list is assumed ordered temporally
-            final List<Metadata.HitSpoolRecord> records =
-                    metadata.listRecords(from, to);
+            // Merge spool file data from the on-disk database into the
+            // list if needed
+            if(cachedFiles.size() == 0 || cachedFiles.get(0).startValue > from)
+            {
+                // Note: This list is assumed ordered temporally
+                final List<Metadata.HitSpoolRecord> records =
+                        metadata.listRecords(from, to);
+
+                spoolFiles =
+                        new ArrayList<>(records.size() + cachedFiles.size());
+
+                final long cacheStartTime;
+                if(cachedFiles.size() > 0)
+                {
+                    cacheStartTime = cachedFiles.get(0).startValue;
+                }
+                else
+                {
+                    cacheStartTime = Long.MAX_VALUE;
+                }
+
+                // prepend records from the database
+                for(Metadata.HitSpoolRecord record : records)
+                {
+                    // prefer the cached version once available
+                    if(record.startTick >= cacheStartTime)
+                    {
+                        break;
+                    }
+
+                    // Older (unindexed) file queries are expected to be rare,
+                    // log a warning.
+                    //
+                    // todo consider indexing files and adding entry to cache
+                    // after a certain number of un-indexed queries
+                    String msg = String.format("Unindexed read of file %s" +
+                            ", req [%d-%d], lastReadPoint[%d]",
+                            record.filename, from, to, lastReadPoint);
+                    logger.warn(msg);
+
+                    SpoolFileIndex sfi = new SpoolFileIndex(record.filename,
+                            record.startTick, record.stopTick, NO_INDEX);
+                    spoolFiles.add(sfi);
+                }
+                //append the cache files
+                spoolFiles.addAll(cachedFiles);
+            }
+            else
+            {
+                spoolFiles = cachedFiles;
+            }
 
             // Perform a range query on each file
             List<RecordBuffer> views = new LinkedList<RecordBuffer>();
             int size = 0;
-            for(Metadata.HitSpoolRecord record : records)
+            for(SpoolFileIndex file : spoolFiles)
             {
-                String file = record.filename;
-                RecordBufferIndex index = indexCache.get(file);
-
-                // Older (unindexed) file queries are expected to be rare,
-                // log a warning.
-                if(index == null)
-                {
-                    String msg = String.format("Unindexed read of file %s" +
-                            ", req [%d-%d], lastReadPoint[%d]",
-                            file, from, to, lastReadPoint);
-                    logger.warn(msg);
-                    index = new RecordBufferIndex.NullIndex();
-                }
-
                 final RecordBuffer fileContent;
 
                 // Be defensive. This method can only handle inactive files.
                 // Appearance of the active file indicates that the caller
                 // did not partition the query correctly or the meta database
                 // is not in agreement with the program state.
-                if(file.equals(currentFileName))
+                if(file.startValue >= currentFileStartTick)
                 {
                     throw new Error("Inactive range query" +
                             " ["+from + "-" + to + "] included active spool" +
@@ -538,12 +580,12 @@ public class RecordSpool implements RecordStore.OrderedWritable
                             (mode == RecordBuffer.MemoryMode.COPY);
                     ByteBuffer onDisk =
                             memoryMappedPool.getMappedBuffer(targetDirectory,
-                            file, safeToManage);
+                                    file.fileName, safeToManage);
                     fileContent = RecordBuffers.wrap(onDisk,
                             BufferContent.ZERO_TO_CAPACITY);
                 }
                 RecordBuffer view = search.extractRange(fileContent, mode,
-                        index, from, to);
+                        file.index, from, to);
                 views.add(view);
                 size+=view.getLength();
             }
@@ -704,12 +746,37 @@ public class RecordSpool implements RecordStore.OrderedWritable
     }
 
     /**
-     * Caches indexes for inactive spool files.
+     * Holds time range and indexing data corresponding to a hitspool
+     * file.
+     */
+    static class SpoolFileIndex
+    {
+        final String fileName;
+        final long startValue;
+        final long endValue;
+        final RecordBufferIndex index;
+
+        SpoolFileIndex(final String fileName, final long startTick,
+                       final long endTick, final RecordBufferIndex index)
+        {
+            this.fileName = fileName;
+            this.startValue = startTick;
+            this.endValue = endTick;
+            this.index = index;
+        }
+    }
+
+    /**
+     * Caches data range and indexes for inactive spool files.
      *
      * This implementation balances memory utilization will the need
      * for efficient querying of data for ranges earlier than the active
      * spool file.
      *
+     * Entries are pruned with respect to the last data readout during
+     * lookups as well as inserts.
+     *
+     * Synchronization is provided by the enclosing class.
      */
     static class SpoolFileIndexCache
     {
@@ -718,21 +785,6 @@ public class RecordSpool implements RecordStore.OrderedWritable
         //MUST be a linked map for pruning mechanism.
         private final LinkedHashMap<String, SpoolFileIndex> fileIndexes;
 
-
-        static class SpoolFileIndex
-        {
-            final String fileName;
-            final RecordBufferIndex index;
-            final long startValue;
-
-            SpoolFileIndex(final String fileName,
-                           final RecordBufferIndex index, final long startTick)
-            {
-                this.fileName = fileName;
-                this.index = index;
-                this.startValue = startTick;
-            }
-        }
         SpoolFileIndexCache(final int maxCached)
         {
             this.maxCached = maxCached;
@@ -740,7 +792,8 @@ public class RecordSpool implements RecordStore.OrderedWritable
         }
 
         void cache(final String fileName, final RecordBufferIndex index,
-                   final long startValue, long lastReadValue)
+                   final long startValue, final long endValue,
+                   long lastReadValue)
         {
             prune(lastReadValue);
 
@@ -753,8 +806,16 @@ public class RecordSpool implements RecordStore.OrderedWritable
                     break;
                 }
             }
+
+            // Note:  This is required by LinkedHashMap to maintain iteration
+            //        ordering in the case that the cache spans a hitspool
+            //        file rollover.
+            if(fileIndexes.containsValue(fileName))
+            {
+                fileIndexes.remove(fileName);
+            }
             fileIndexes.put(fileName,
-                    new SpoolFileIndex(fileName, index, startValue));
+                    new SpoolFileIndex(fileName, startValue, endValue, index));
         }
 
         RecordBufferIndex get(final String fileName)
@@ -768,6 +829,41 @@ public class RecordSpool implements RecordStore.OrderedWritable
             {
                 return record.index;
             }
+        }
+
+        List<SpoolFileIndex> lookup(final long startValue, final long endValue)
+        {
+            // Note: Readouts seldom span 2 files and never span
+            //       more than 2.
+            ArrayList<SpoolFileIndex> acc = new ArrayList<>(2);
+
+            boolean expiredFilesSeen = false;
+            for(Map.Entry<String,SpoolFileIndex> entry: fileIndexes.entrySet())
+            {
+                final SpoolFileIndex curRecord = entry.getValue();
+                // does the file cover any portion of the time range
+                if(curRecord.startValue <= endValue &&
+                        curRecord.endValue >= startValue)
+                {
+                    acc.add(curRecord);
+                }
+                else if(curRecord.startValue > endValue)
+                {
+                    break;
+                }
+                else
+                {
+                    // there is a file earlier than the current read point,
+                    // schedule a prune
+                    expiredFilesSeen = true;
+                }
+            }
+
+            if(expiredFilesSeen)
+            {
+                prune(startValue);
+            }
+            return acc;
         }
 
         void prune(long pruneValue)
