@@ -13,8 +13,8 @@ public class SenderContent implements Content
     public SenderContent(final SenderMXBean sender)
     {
         this.sender = sender;
-        this.header = String.format("%-10s %-10s %-10s", "hitsq",
-                "readq", "readsent");
+        this.header = String.format("%-10s %-10s %-10s %-10s", "hitsq",
+                "readq", "readsent", "lat(s)");
 
     }
 
@@ -30,8 +30,9 @@ public class SenderContent implements Content
         final int hitsQueued = sender.getNumHitsQueued();
         final long readoutsQueued = sender.getNumReadoutRequestsQueued();
         final long readouts = sender.getNumReadoutsSent();
-        sb.append(String.format("%-10d %-10d %-10d", hitsQueued,
-                readoutsQueued, readouts));
+        final double latency = sender.getReadoutLatency()/10000000000d;
+        sb.append(String.format("%-10d %-10d %-10d %-10.1f", hitsQueued,
+                readoutsQueued, readouts, latency));
     }
 
 }

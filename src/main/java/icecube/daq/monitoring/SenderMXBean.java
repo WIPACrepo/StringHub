@@ -40,4 +40,15 @@ public interface SenderMXBean
      * @return num readouts sent
      */
     long getNumReadoutsSent();
+
+    /**
+     * Get the latency of the latest readout processed.
+     * @return The latency in tenths of nanoseconds.
+     */
+    default long getReadoutLatency()
+    {
+        return -1;
+    }
+
+
 }

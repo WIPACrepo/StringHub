@@ -7,11 +7,13 @@ import icecube.daq.payload.IWriteablePayload;
 import icecube.daq.payload.PayloadException;
 import icecube.daq.payload.impl.DOMHit;
 import icecube.daq.payload.impl.DOMHitFactory;
+import icecube.daq.payload.impl.UTCTime;
 import icecube.daq.performance.binary.buffer.RecordBuffer;
 import icecube.daq.performance.binary.buffer.RecordBuffers;
 import icecube.daq.performance.binary.record.pdaq.DaqBufferRecordReader;
 import icecube.daq.performance.binary.store.RecordStore;
 import icecube.daq.performance.common.BufferContent;
+import icecube.daq.sender.SenderCounters;
 import icecube.daq.sender.SenderMethods;
 import icecube.daq.util.IDOMRegistry;
 
@@ -50,6 +52,8 @@ public class ReadoutRequestFillerImpl implements ReadoutRequestFiller
     /** Provides conversion from binary to DOMHit format. */
     RecordConverter converter = new RecordConverter();
 
+    /** diagnostic counters */
+    final SenderCounters counters;
 
     /**
      * Constructor.
@@ -57,12 +61,14 @@ public class ReadoutRequestFillerImpl implements ReadoutRequestFiller
     public ReadoutRequestFillerImpl(final ISourceID sourceId,
                                     final IDOMRegistry domRegistry,
                                     final IByteBufferCache bufferCache,
-                                    final RecordStore.Ordered cache)
+                                    final RecordStore.Ordered cache,
+                                    final SenderCounters counters)
     {
         this.sourceId = sourceId;
         this.domRegistry = domRegistry;
         this.bufferCache = bufferCache;
         this.cache = cache;
+        this.counters = counters;
     }
 
     /**
@@ -80,6 +86,10 @@ public class ReadoutRequestFillerImpl implements ReadoutRequestFiller
 
         // This is needed in many places, prefer to extract it once.
         SenderMethods.TimeRange range = SenderMethods.extractTimeRange(request);
+
+        // track latency
+        UTCTime utcNow = new UTCTime();
+        counters.readoutLatency = utcNow.longValue() - range.startUTC;
 
         List<DOMHit> domHits = requestBulkCopy(request, range);
 

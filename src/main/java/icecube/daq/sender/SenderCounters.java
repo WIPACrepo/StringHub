@@ -20,5 +20,6 @@ public class SenderCounters
     volatile long numReadoutsSent;
     volatile long numOutputsIgnored;
     volatile long numReadoutErrors;
+    public volatile long readoutLatency;
 
 }

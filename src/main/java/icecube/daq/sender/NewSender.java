@@ -113,7 +113,7 @@ public class NewSender implements BufferConsumer, SenderSubsystem
 
         ReadoutRequestFiller filler =
                 new ReadoutRequestFillerImpl(sourceID, domRegistry,
-                        readoutCache, this.spool);
+                        readoutCache, this.spool, counters);
 
         this.requestHandler =
                 new ReadoutRequestHandler(counters, filler, dataOutFuture);
@@ -259,6 +259,12 @@ public class NewSender implements BufferConsumer, SenderSubsystem
         public long getNumReadoutsSent()
         {
             return counters.numReadoutsSent;
+        }
+
+        @Override
+        public long getReadoutLatency()
+        {
+            return counters.readoutLatency;
         }
 
     }

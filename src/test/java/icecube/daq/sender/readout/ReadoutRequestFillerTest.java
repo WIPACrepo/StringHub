@@ -16,6 +16,7 @@ import icecube.daq.performance.binary.record.pdaq.DaqBufferRecordReader;
 import icecube.daq.performance.binary.store.RecordStore;
 import icecube.daq.performance.binary.test.TestData;
 import icecube.daq.performance.common.BufferContent;
+import icecube.daq.sender.SenderCounters;
 import icecube.daq.stringhub.test.MockBufferCache;
 import icecube.daq.util.DOMRegistryException;
 import icecube.daq.util.DOMRegistryFactory;
@@ -70,7 +71,7 @@ public class ReadoutRequestFillerTest
         store = new TestStore(DATA_TYPE, RecordBuffers.wrap(data,
                 BufferContent.ZERO_TO_CAPACITY));
         IDOMRegistry doRegistry = DOMRegistryFactory.load();
-        subject = new ReadoutRequestFillerImpl(testSource, doRegistry, mockCache, store);
+        subject = new ReadoutRequestFillerImpl(testSource, doRegistry, mockCache, store, new SenderCounters());
 
         // survey the data for time bounds
         RecordBuffer raw = store.extractRange(Long.MIN_VALUE, Long.MAX_VALUE);
