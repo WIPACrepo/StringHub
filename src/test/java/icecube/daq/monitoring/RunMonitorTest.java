@@ -42,6 +42,16 @@ class MockAlertQueue
 {
     private volatile int numPushed;
 
+    int getNumPushed()
+    {
+        return numPushed;
+    }
+
+    public boolean isStopped()
+    {
+        return false;
+    }
+
     public void push(Map<String, Object> map)
         throws AlertException
     {
@@ -62,9 +72,14 @@ class MockAlertQueue
         numPushed++;
     }
 
-    int getNumPushed()
+    public void start()
     {
-        return numPushed;
+        // do nothing
+    }
+
+    public void stop()
+    {
+        // do nothing
     }
 }
 
