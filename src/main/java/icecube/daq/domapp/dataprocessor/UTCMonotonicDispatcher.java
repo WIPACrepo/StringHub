@@ -106,13 +106,10 @@ class UTCMonotonicDispatcher extends UTCDispatcher
      */
     public void clearDeferred()
     {
-        synchronized (deferred)
+        if (gateClosed)
         {
-            if (gateClosed)
-            {
-                deferred.clear();
-                gateClosed = false;
-            }
+            deferred.clear();
+            gateClosed = false;
         }
     }
 
