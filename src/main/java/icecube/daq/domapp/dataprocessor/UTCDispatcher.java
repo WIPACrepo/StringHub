@@ -82,14 +82,14 @@ public class UTCDispatcher implements DataDispatcher
     /**
      * A no-op callback instance.
      */
-    private final static DispatchCallback NULL_CALLBACK =
-            new DispatchCallback()
+    final static DispatchCallback NULL_CALLBACK =
+        new DispatchCallback()
+        {
+            @Override
+            public void wasDispatched(final long utc)
             {
-                @Override
-                public void wasDispatched(final long utc)
-                {
-                }
-            };
+            }
+        };
 
 
 

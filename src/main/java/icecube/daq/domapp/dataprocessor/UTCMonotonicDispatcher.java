@@ -28,7 +28,7 @@ class UTCMonotonicDispatcher extends UTCDispatcher
      * The maximum number of records that can be held waiting before an
      * error is generated.
      */
-    static final int MAX_DEFFERED_RECORDS =
+    static final int MAX_DEFERRED_RECORDS =
     Integer.getInteger("icecube.daq.domapp.dataprocessor.max-deferred-records",
             5000);
 
@@ -51,19 +51,6 @@ class UTCMonotonicDispatcher extends UTCDispatcher
     /** Holds data for deferred dispatch. */
     private LinkedList<DeferredDataRecord> deferred =
             new LinkedList<DeferredDataRecord>();
-
-
-    /**
-     * A no-op callback instance.
-     */
-    private final static DispatchCallback NULL_CALLBACK =
-            new DispatchCallback()
-            {
-                @Override
-                public void wasDispatched(final long utc)
-                {
-                }
-            };
 
 
     /**
@@ -103,13 +90,6 @@ class UTCMonotonicDispatcher extends UTCDispatcher
     }
 
 
-    @Override
-    public void dispatchBuffer(final ByteBuffer buf)
-            throws DataProcessorError
-    {
-        dispatchBuffer(buf, NULL_CALLBACK);
-    }
-
     /**
      * Adds a buffer on top of standard UTC dispatching which holds records
      * until rapcal has a bounding tcal.
@@ -121,7 +101,7 @@ class UTCMonotonicDispatcher extends UTCDispatcher
     {
         deferred.add(new DeferredDataRecord(buf, callback));
 
-        if(deferred.size() == MAX_DEFFERED_RECORDS)
+        if(deferred.size() == MAX_DEFERRED_RECORDS)
         {
             // indicates an unusual  problem with rapcal updates,
             // capture debugging details

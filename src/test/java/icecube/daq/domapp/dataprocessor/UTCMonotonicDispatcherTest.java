@@ -352,7 +352,7 @@ public class UTCMonotonicDispatcherTest
                 DataProcessor.StreamType.HIT,
                 rapcal, 0xabcdef123456L);
 
-        int max = UTCMonotonicDispatcher.MAX_DEFFERED_RECORDS;
+        int max = UTCMonotonicDispatcher.MAX_DEFERRED_RECORDS;
         for(int i=0; i<max-1; i++)
         {
             subject.dispatchBuffer(generateBuffer(10000 + i));
