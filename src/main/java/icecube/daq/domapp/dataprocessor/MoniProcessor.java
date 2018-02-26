@@ -22,10 +22,10 @@ class MoniProcessor implements DataProcessor.StreamProcessor
 
     private final long mbid;
 
-    private final DataDispatcher dispatcher;
+    private final UTCMonotonicDispatcher dispatcher;
 
 
-    MoniProcessor(final long mbid, final DataDispatcher dispatcher)
+    MoniProcessor(final long mbid, final UTCMonotonicDispatcher dispatcher)
     {
         this.mbid = mbid;
         this.dispatcher = dispatcher;
@@ -55,6 +55,8 @@ class MoniProcessor implements DataProcessor.StreamProcessor
                             + moniMsg + "] on %12x", mbid);
                     logger.error(msg);
                     counters.reportLBMOverflow();
+                } else if (moniMsg.startsWith("Starting run")) {
+                    dispatcher.clearDeferred();
                 } else if (logger.isDebugEnabled()) {
                     logger.debug(moniMsg);
                 }

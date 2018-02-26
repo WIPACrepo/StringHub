@@ -32,6 +32,14 @@ class UTCMonotonicDispatcher extends UTCDispatcher
     Integer.getInteger("icecube.daq.domapp.dataprocessor.max-deferred-records",
             5000);
 
+    private static final Logger logger =
+        Logger.getLogger(UTCMonotonicDispatcher.class);
+
+    /**
+     * If the "gate" is closed, defer buffers until we reach the maximum
+     */
+    private boolean gateClosed;
+
     /**
      * Structure to hold deferred data.
      */
@@ -59,13 +67,53 @@ class UTCMonotonicDispatcher extends UTCDispatcher
      * @param target The consumer of dispatched buffers.
      * @param type Identifies the type of data in the stream.
      * @param rapcal The rapcal instance servicing the stream.
+     * @param mbid Mainboard ID for this DOM
      */
     public UTCMonotonicDispatcher(final BufferConsumer target,
                                   final DataProcessor.StreamType type,
                                   final RAPCal rapcal,
                                   final long mbid)
     {
+        this(target, type, rapcal, mbid, false);
+    }
+
+
+    /**
+     * Constructor.
+     *
+     * @param target The consumer of dispatched buffers.
+     * @param type Identifies the type of data in the stream.
+     * @param rapcal The rapcal instance servicing the stream.
+     * @param mbid Mainboard ID for this DOM
+     * @param gateClosed if <tt>true</tt>, do not dispatch records until either
+     *                   clearDeferred() is called or the maximum number of
+     *                   records have been deferred
+     */
+    public UTCMonotonicDispatcher(final BufferConsumer target,
+                                  final DataProcessor.StreamType type,
+                                  final RAPCal rapcal,
+                                  final long mbid,
+                                  final boolean gateClosed)
+    {
         super(target, type, rapcal, 0, mbid);
+
+        this.gateClosed = gateClosed;
+    }
+
+
+    /**
+     * Clear all deferred records and allow future records to be dispatched
+     */
+    public void clearDeferred()
+    {
+        synchronized (deferred)
+        {
+            if (gateClosed)
+            {
+                deferred.clear();
+                gateClosed = false;
+            }
+        }
     }
 
 
@@ -101,7 +149,20 @@ class UTCMonotonicDispatcher extends UTCDispatcher
     {
         deferred.add(new DeferredDataRecord(buf, callback));
 
-        if(deferred.size() == MAX_DEFERRED_RECORDS)
+        if(gateClosed)
+        {
+            if(deferred.size() < MAX_DEFERRED_RECORDS)
+            {
+                return;
+            }
+
+            // if we've deferred the maximum amount,
+            //  stop waiting and release everything
+            gateClosed = false;
+            logger.error("Giving up on run start message for " + mbid +
+                         "; releasing all deferred records");
+        }
+        else if(deferred.size() >= MAX_DEFERRED_RECORDS)
         {
             // indicates an unusual  problem with rapcal updates,
             // capture debugging details
@@ -113,6 +174,7 @@ class UTCMonotonicDispatcher extends UTCDispatcher
             throw new DataProcessorError(msg);
         }
 
+        // release any deferred records which can be assigned valid times
         while(true)
         {
             DeferredDataRecord record = deferred.peekFirst();
