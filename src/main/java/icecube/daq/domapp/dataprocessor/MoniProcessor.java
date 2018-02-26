@@ -18,7 +18,7 @@ import java.nio.ByteBuffer;
  */
 class MoniProcessor implements DataProcessor.StreamProcessor
 {
-    private Logger logger =  Logger.getLogger(HitProcessor.class);
+    private static final Logger logger =  Logger.getLogger(HitProcessor.class);
 
     private final long mbid;
 
