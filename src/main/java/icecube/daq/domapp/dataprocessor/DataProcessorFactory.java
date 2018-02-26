@@ -106,11 +106,11 @@ public class DataProcessorFactory
         UTCDispatcher supernovaDispatcher =
                 new UTCMonotonicDispatcher(supernovaConsumer,
                         DataProcessor.StreamType.SUPERNOVA,
-                        rapcal, mbid, true);
+                        rapcal, mbid);
         UTCMonotonicDispatcher moniDispatcher =
                 new UTCMonotonicDispatcher(moniConsumer,
                         DataProcessor.StreamType.MONI,
-                        rapcal, mbid);
+                        rapcal, mbid, true);
         UTCDispatcher tcalDispatcher =
                 new UTCMonotonicDispatcher(tcalConsumer,
                         DataProcessor.StreamType.TCAL,
