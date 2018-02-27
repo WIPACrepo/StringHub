@@ -54,6 +54,26 @@ class UTCMonotonicDispatcher extends UTCDispatcher
             this.data = data;
             this.callback = callback;
         }
+
+        long getDOMClock()
+        {
+            if (data == null || data.capacity() < 32) {
+                return Long.MIN_VALUE;
+            }
+
+            return data.getLong(24);
+        }
+
+        public String toString()
+        {
+            if (data == null) {
+                return "<null>";
+            } else if (data.capacity() < 32) {
+                return "<short*" + data.capacity() + ">";
+            }
+
+            return "<clk " + data.getLong(24) + ">";
+        }
     }
 
     /** Holds data for deferred dispatch. */
@@ -148,12 +168,13 @@ class UTCMonotonicDispatcher extends UTCDispatcher
 
         if(gateClosed)
         {
-            if(deferred.size() < MAX_DEFERRED_RECORDS)
+            // defer records until we're a bit shy of the max limit
+            if(deferred.size() < MAX_DEFERRED_RECORDS - 2)
             {
                 return;
             }
 
-            // if we've deferred the maximum amount,
+            // if we've deferred as much as possible,
             //  stop waiting and release everything
             gateClosed = false;
             logger.error("Giving up on run start message for " + mbid +
@@ -161,10 +182,10 @@ class UTCMonotonicDispatcher extends UTCDispatcher
         }
         else if(deferred.size() >= MAX_DEFERRED_RECORDS)
         {
-            // indicates an unusual  problem with rapcal updates,
+            // indicates an unusual problem with rapcal updates,
             // capture debugging details
-            long firstDOMClk = deferred.peekFirst().data.getLong(24);
-            long lastDOMClk = deferred.peekLast().data.getLong(24);
+            long firstDOMClk = deferred.peekFirst().getDOMClock();
+            long lastDOMClk = deferred.peekLast().getDOMClock();
             String msg = String.format("Over limit of %d records waiting for" +
                     " rapcal DOM clock range [%d, %d], mbid: %12x",
                     deferred.size(), firstDOMClk, lastDOMClk, mbid);
@@ -172,10 +193,10 @@ class UTCMonotonicDispatcher extends UTCDispatcher
         }
 
         // release any deferred records which can be assigned valid times
-        while(true)
+        while(deferred.size() > 0)
         {
             DeferredDataRecord record = deferred.peekFirst();
-            if(record != null && (rapcal.laterThan(record.data.getLong(24))) )
+            if(record != null && (rapcal.laterThan(record.getDOMClock())) )
             {
                 record = deferred.removeFirst();
                 super.dispatchBuffer(record.data, record.callback);
