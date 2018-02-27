@@ -4,7 +4,6 @@ import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.rapcal.RAPCal;
 import org.apache.log4j.Logger;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
 
@@ -196,7 +195,7 @@ class UTCMonotonicDispatcher extends UTCDispatcher
         while(deferred.size() > 0)
         {
             DeferredDataRecord record = deferred.peekFirst();
-            if(record != null && (rapcal.laterThan(record.getDOMClock())) )
+            if(record != null && rapcal.laterThan(record.getDOMClock()) )
             {
                 record = deferred.removeFirst();
                 super.dispatchBuffer(record.data, record.callback);
