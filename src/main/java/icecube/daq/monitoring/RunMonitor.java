@@ -471,6 +471,19 @@ class HLCCountConsumer
 
     void sendData(long binStart, long binEnd)
     {
+        if (binStart > binEnd) {
+            try {
+                throw new Error("StackTrace");
+            } catch (Error err) {
+                LOG.error("Yikes, bin times were reversed!", err);
+            }
+
+            // swap start and end times
+            final long tmp = binStart;
+            binStart = binEnd;
+            binEnd = tmp;
+        }
+
         HashMap<String, Object> map = new HashMap<String, Object>();
         map.put("version", VERSION);
 
