@@ -1,9 +1,13 @@
 package icecube.daq.performance.binary.store.impl;
 
+import icecube.daq.common.MockAppender;
 import icecube.daq.performance.binary.buffer.RecordBuffer;
+import icecube.daq.performance.binary.buffer.WritableRecordBuffer;
 import icecube.daq.performance.binary.store.RecordStore;
 import icecube.daq.performance.binary.store.impl.test.Mock;
 import icecube.daq.performance.binary.test.RecordGenerator;
+import org.apache.log4j.BasicConfigurator;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -35,6 +39,23 @@ public class SplitStoreTest
     RecordStore.OrderedWritable subject =
            new SplitStore(generator.recordReader(), generator.orderingField(),
                    primary, secondary, MIN_SPAN, MAX_SPAN);
+
+    Consumer<RecordBuffer> sink = new Consumer<RecordBuffer>()
+    {
+        @Override
+        public void accept(final RecordBuffer buffer)
+        {
+        }
+
+        @Override
+        public String toString()
+        {
+            return "text-xyzzy";
+        }
+    };
+
+    MockAppender appender;
+
     @Before
     public void setUp()
     {
@@ -43,6 +64,21 @@ public class SplitStoreTest
         mockSearch.reset();
         primary.reset();
         secondary.reset();
+
+        appender = new MockAppender();
+        BasicConfigurator.resetConfiguration();
+        BasicConfigurator.configure(appender);
+    }
+
+    @After
+    public void tearDown()
+    {
+        int numberOfMessages = appender.getNumberOfMessages();
+        for(int msg = 0; msg<numberOfMessages; msg++)
+        {
+            System.out.println(appender.getMessage(msg));
+        }
+        appender.assertNoLogMessages();
     }
 
 
@@ -201,19 +237,7 @@ public class SplitStoreTest
         secondary.reset();
 
 
-        Consumer<RecordBuffer> sink = new Consumer<RecordBuffer>()
-        {
-            @Override
-            public void accept(final RecordBuffer buffer)
-            {
-            }
 
-            @Override
-            public String toString()
-            {
-                return "text-xyzzy";
-            }
-        };
 
         //forEach(): all primary
         subject.forEach(sink, expectedPruneValue, Long.MAX_VALUE);
@@ -257,6 +281,61 @@ public class SplitStoreTest
             assertEquals("Illegal query range [10 - 0]", iae.getMessage());
         }
 
+    }
+
+    @Test
+    public void testPrimaryOverflow() throws IOException
+    {
+        ///
+        /// Tests behavior when the size of data in the pruning span
+        /// exceeds the size of the primary buffer
+        ///
+        int SIZE = 1024 * 1024 * 1;
+        RecordStore.Prunable primary =
+                new RingBufferRecordStore(generator.recordReader(), generator.orderingField(), SIZE);
+        Mock.MockStore secondary = new Mock.MockStore(true);
+        RecordStore.OrderedWritable subject =
+                new SplitStore(generator.recordReader(), generator.orderingField(),
+                        primary, secondary, MIN_SPAN, Long.MAX_VALUE/2);
+
+        int overflowsObserved = 0;
+        long primarySize = 0;
+        long value = 123;
+        long boundary = value - MIN_SPAN;
+        while(overflowsObserved < 10)
+        {
+            ByteBuffer item = generator.generate(value);
+            int itemSize = item.remaining();
+            subject.store(item);
+            if( (primarySize + itemSize) > SIZE)
+            {
+                // primary should have overflowed here causing split store
+                // to prune all records and log the condition
+                primarySize = itemSize;
+                overflowsObserved++;
+                String expectedLogMsg =
+                        String.format("In-memory hit cache too small for" +
+                                " span [%d - %d], pruning to value: %d",
+                                boundary, value, value);
+                boundary = value;
+
+                assertEquals(1, appender.getNumberOfMessages());
+                assertEquals(expectedLogMsg, appender.getMessage(0));
+                appender.clear();
+
+                // check that the query boundary is managed correctly
+                secondary.reset();
+                subject.forEach(sink, Long.MIN_VALUE, value);
+                secondary.assertCalls(formatForEachCall(sink, Long.MIN_VALUE, boundary-1));
+            }
+            else
+            {
+                primarySize += itemSize;
+            }
+            assertEquals((SIZE - primarySize), primary.available());
+
+            value++;
+        }
     }
 
     static String formatExtractCall(long from, long to)

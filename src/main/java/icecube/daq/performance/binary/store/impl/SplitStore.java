@@ -1,11 +1,14 @@
 package icecube.daq.performance.binary.store.impl;
 
+import hep.aida.ref.Test;
 import icecube.daq.performance.binary.buffer.RecordBuffer;
 import icecube.daq.performance.binary.buffer.RecordBuffers;
 import icecube.daq.performance.binary.record.RecordReader;
 import icecube.daq.performance.binary.store.RecordStore;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.function.Consumer;
 
@@ -47,6 +50,7 @@ public class SplitStore implements RecordStore.OrderedWritable
 //        MEMORY_SIZE
 //    }
 
+    private static Logger logger = Logger.getLogger(SplitStore.class);
     /**
      *
      * @param recordReader
@@ -91,7 +95,25 @@ public class SplitStore implements RecordStore.OrderedWritable
         buffer.rewind();
 
         // to memory
-        memory.store(buffer);
+        try
+        {
+            memory.store(buffer);
+        }
+        catch (BufferOverflowException boe)
+        {
+            // Note: The in-memory buffer is managed by time interval, but the
+            // buffer size is chosen arbitrarily. A very high event rate can
+            // overflow the in-memory cache in which case we prune the cache
+            // 100%. As of Feb 2018 an overflow has only been observed in
+            // flasher runs 130467/8.
+            String msg = String.format("In-memory hit cache too small for" +
+                    " span [%d - %d], pruning to value: %d", queryBoundary,
+                    value, value);
+            logger.warn(msg);
+            queryBoundary = value;
+            memory.prune(value);
+            memory.store(buffer);
+        }
 
         // maintain the query boundary
         if(value > (queryBoundary+maxSpan) )
