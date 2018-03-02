@@ -54,25 +54,23 @@ public class GoodTimeCalculator
 
         // gather times from all DOMs
         for (AbstractDataCollector adc : conn.getCollectors()) {
-            if (!adc.isZombie()) {
-                long val = (getFirstTime ? adc.getFirstHitTime() :
-                            adc.getLastHitTime());
-                if (val < 0L) {
-                    // if a DOM's last time hasn't been set yet, give up
-                    notReady = true;
-                    break;
-                }
+            long val = (getFirstTime ? adc.getFirstHitTime() :
+                        adc.getLastHitTime());
+            if (val < 0L) {
+                // if a DOM's last time hasn't been set yet, give up
+                notReady = true;
+                break;
+            }
 
-                // add this time to the array
-                times[numTimes++] = val;
+            // add this time to the array
+            times[numTimes++] = val;
 
-                // cache earliest and latest times
-                if (val < earliest) {
-                    earliest = val;
-                }
-                if (val > latest) {
-                    latest = val;
-                }
+            // cache earliest and latest times
+            if (val < earliest) {
+                earliest = val;
+            }
+            if (val > latest) {
+                latest = val;
             }
         }
     }

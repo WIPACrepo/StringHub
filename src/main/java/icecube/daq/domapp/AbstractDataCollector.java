@@ -255,7 +255,9 @@ public abstract class AbstractDataCollector extends Thread
 	{
 		RunLevel tmpRunLevel = getRunLevel();
 
-		if (tmpRunLevel == RunLevel.CONFIGURED) {
+		if (tmpRunLevel == RunLevel.CONFIGURED ||
+		    tmpRunLevel == RunLevel.ZOMBIE)
+		{
 			return lastHitTime;
 		}
 		return -1L;
