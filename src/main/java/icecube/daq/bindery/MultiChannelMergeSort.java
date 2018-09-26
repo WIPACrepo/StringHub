@@ -171,7 +171,9 @@ public class MultiChannelMergeSort
     }
 
     public synchronized long getNumberOfInputs() { return inputCounter; }
+
     public synchronized long getNumberOfOutputs() { return outputCounter; }
+
     public synchronized int getQueueSize() { return q.size(); }
 
     /**
@@ -269,6 +271,7 @@ public class MultiChannelMergeSort
     }
 
     public long getLastInputTime() { return lastInputUT; }
+
     public long getLastOutputTime() { return lastUT; }
 
 

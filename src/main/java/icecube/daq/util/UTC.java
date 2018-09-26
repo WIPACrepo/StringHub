@@ -118,7 +118,5 @@ public class UTC implements Comparable<UTC> {
         UTC o = (UTC) obj;
         return tick10 == o.tick10;
     }
-	
-	
 
 }

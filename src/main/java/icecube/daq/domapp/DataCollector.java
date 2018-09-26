@@ -271,6 +271,7 @@ public class DataCollector extends AbstractDataCollector
             logger.error("Unable to set run monitor", dataProcessorError);
         }
     }
+
     public synchronized void signalShutdown()
     {
         stop_thread = true;

@@ -202,18 +202,18 @@ class MockAlerter
         throw new Error("Unimplemented");
     }
 
+    public void setAddress(String host, int port)
+        throws AlertException
+    {
+        throw new Error("Unimplemented");
+    }
+
     void setExpected(Alerter.Priority priority, String condition,
                      Map<String, Object> vars)
     {
         expPrio = priority;
         expCond = condition;
         expVars = vars;
-    }
-
-    public void setAddress(String host, int port)
-        throws AlertException
-    {
-        throw new Error("Unimplemented");
     }
 }
 

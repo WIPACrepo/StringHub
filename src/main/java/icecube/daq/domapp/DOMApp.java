@@ -113,7 +113,6 @@ public class DOMApp implements IDOMApp
 	    }
     }
 
-
     public void close()
     {
         devIO.close();

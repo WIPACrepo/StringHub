@@ -123,12 +123,6 @@ class TCalProcessor implements DataProcessor.StreamProcessor
 
     }
 
-    public void setRunMonitor(IRunMonitor runMonitor)
-    {
-        throw new Error("Dave didn't think this was needed!");
-        //dispatcher.setRunMonitor(runMonitor);
-    }
-
     private void updateRapCal(TimeCalib tcal, GPSInfo gps,
                                  DataStats counters)
     {

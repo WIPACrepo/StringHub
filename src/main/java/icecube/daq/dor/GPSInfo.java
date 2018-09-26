@@ -79,7 +79,7 @@ public class GPSInfo {
     public int getLeapSecondAdjustment() { return leapSecondAdjustment; }
 
     public int getQuality() { return quality; }
-    
+
     public UTC getOffset() { return offset; }
 
     /** provide access to raw internals. */
@@ -92,11 +92,11 @@ public class GPSInfo {
      * @return readonly ByteBuffer
      */
     public ByteBuffer getBuffer() { return record.asReadOnlyBuffer(); }
-    
+
     public String toString() 
     {
-	return timestring + " : Quality = " + quality + 
+	return timestring + " : Quality = " + quality +
 	    " DOR clk: " + dorclk + " GPS offset: " + offset;
     }
-    
+
 }

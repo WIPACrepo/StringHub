@@ -111,6 +111,14 @@ public class DOMConnector
 	}
 
 	/**
+	 * Are all data collectors running?
+	 */
+	public boolean isRunning()
+	{
+		return !isStopped();
+	}
+
+	/**
 	 * Are <i>all</i> data collectors not running?
 	 *
 	 * @return <tt>true</tt> if this connector is stopped
@@ -120,14 +128,6 @@ public class DOMConnector
 		for (AbstractDataCollector dc : collectors)
 			if (dc.isRunning()) return false;
 		return true;
-	}
-
-	/**
-	 * Are all data collectors running?
-	 */
-	public boolean isRunning()
-	{
-		return !isStopped();
 	}
 
 	/**
