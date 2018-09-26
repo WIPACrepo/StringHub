@@ -23,6 +23,7 @@ public class MockBufferConsumer implements BufferConsumer
 
     public static class NoError implements ErrorMode
     {
+        @Override
         public void invoke(String msg) throws IOException {}
     }
 
@@ -43,6 +44,7 @@ public class MockBufferConsumer implements BufferConsumer
             this.unchecked = unchecked;
         }
 
+        @Override
         public void invoke(String msg) throws IOException
         {
             callCount++;
@@ -61,12 +63,14 @@ public class MockBufferConsumer implements BufferConsumer
     }
 
 
+    @Override
     public void consume(final ByteBuffer buf) throws IOException
     {
         errorMode.invoke("generated Error on consume()");
         receivedTimes.add(buf.getLong(24));
     }
 
+    @Override
     public void endOfStream(long mbid)
     {
         throw new Error("Only used by PrioritySort");

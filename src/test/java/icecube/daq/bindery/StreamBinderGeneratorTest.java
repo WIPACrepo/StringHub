@@ -121,6 +121,7 @@ class Generator extends Thread {
 		this.max_time = max_time;
 	}
 
+	@Override
 	public void run() {
 		while (time < max_time) {
 			try {

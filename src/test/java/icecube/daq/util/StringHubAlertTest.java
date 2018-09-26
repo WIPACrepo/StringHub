@@ -64,16 +64,19 @@ class MockAlerter
         }
     }
 
+    @Override
     public void close()
     {
         // do nothing
     }
 
+    @Override
     public String getService()
     {
         return DEFAULT_SERVICE;
     }
 
+    @Override
     public boolean isActive()
     {
         return true;
@@ -196,12 +199,14 @@ class MockAlerter
         throw new Error("Unimplemented");
     }
 
+    @Override
     public void sendObject(Object obj)
         throws AlertException
     {
         throw new Error("Unimplemented");
     }
 
+    @Override
     public void setAddress(String host, int port)
         throws AlertException
     {

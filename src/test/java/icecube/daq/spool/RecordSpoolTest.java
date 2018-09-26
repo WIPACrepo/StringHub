@@ -241,6 +241,7 @@ public class RecordSpoolTest
                     dataType.orderingField(), (1024*1024), indexMode);
         }
 
+        @Override
         @After
         public void tearDown()
         {
@@ -428,6 +429,7 @@ public class RecordSpoolTest
                     dataType.orderingField(), (1024*1024), indexMode);
         }
 
+        @Override
         @After
         public void tearDown()
         {

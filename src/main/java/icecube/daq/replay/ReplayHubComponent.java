@@ -161,6 +161,7 @@ public class ReplayHubComponent
         this.hubId = hubId;
     }
 
+    @Override
     public void initialize()
     {
         addMBean("jvm", new MemoryStatistics());
@@ -292,6 +293,7 @@ public class ReplayHubComponent
      *
      * @throws DAQCompException if there is a problem
      */
+    @Override
     @SuppressWarnings("unchecked")
     public void configuring(String configName)
         throws DAQCompException
@@ -508,6 +510,7 @@ public class ReplayHubComponent
      * @return the DAQ time (1E10 ticks/sec) of the hit which fulfills this
      *         condition.
      */
+    @Override
     public long getEarliestLastChannelHitTime()
     {
         final int idx = DataStreamType.HIT.index();
@@ -522,6 +525,7 @@ public class ReplayHubComponent
      * Report the total hit rate ( in Hz )
      * @return total hit rate in Hz
      */
+    @Override
     public double getHitRate()
     {
         return 0.0;
@@ -531,6 +535,7 @@ public class ReplayHubComponent
      * Report the lc hit rate ( in Hz )
      * @return lc hit rate in Hz
      */
+    @Override
     public double getHitRateLC()
     {
         return 0.0;
@@ -542,6 +547,7 @@ public class ReplayHubComponent
      * @return the DAQ time (1E10 ticks/sec) of the hit which fulfills this
      *         condition
      */
+    @Override
     public long getLatestFirstChannelHitTime()
     {
         final int idx = DataStreamType.HIT.index();
@@ -552,6 +558,7 @@ public class ReplayHubComponent
         return handlers[idx].getLatestFirstChannelHitTime();
     }
 
+    @Override
     public int getNumFiles()
     {
         if (hitReader != null) {
@@ -566,6 +573,7 @@ public class ReplayHubComponent
      *
      * @return input queue size
      */
+    @Override
     public long getNumInputsQueued()
     {
         final int idx = DataStreamType.HIT.index();
@@ -581,6 +589,7 @@ public class ReplayHubComponent
      *
      * @return output queue size
      */
+    @Override
     public long getNumOutputsQueued()
     {
         final int idx = DataStreamType.HIT.index();
@@ -598,6 +607,7 @@ public class ReplayHubComponent
      *
      * @return [0] = number of active doms, [1] = total number of doms
      */
+    @Override
     public int[] getNumberOfActiveAndTotalChannels()
     {
         return new int[] { 60, 60 };
@@ -607,6 +617,7 @@ public class ReplayHubComponent
      * Report number of functioning DOM channels under control of stringHub.
      * @return number of DOMs
      */
+    @Override
     public int getNumberOfActiveChannels()
     {
         return 60;
@@ -617,6 +628,7 @@ public class ReplayHubComponent
      *
      * @return number of non-zombies
      */
+    @Override
     public int getNumberOfNonZombies()
     {
         return 60;
@@ -629,6 +641,7 @@ public class ReplayHubComponent
      *
      * @throws DAQCompException if component is not a replay hub
      */
+    @Override
     public long getReplayStartTime()
         throws DAQCompException
     {
@@ -639,6 +652,7 @@ public class ReplayHubComponent
      * Report time of the most recent hit object pushed into the HKN1
      * @return 0
      */
+    @Override
     public long getTimeOfLastHitInputToHKN1()
     {
         return 0L;
@@ -648,6 +662,7 @@ public class ReplayHubComponent
      * Report time of the most recent hit object output from the HKN1
      * @return 0
      */
+    @Override
     public long getTimeOfLastHitOutputFromHKN1()
     {
         return 0L;
@@ -658,6 +673,7 @@ public class ReplayHubComponent
      *
      * @return total nanoseconds behind the current DAQ time
      */
+    @Override
     public long getTotalBehind()
     {
         final int idx = DataStreamType.HIT.index();
@@ -672,6 +688,7 @@ public class ReplayHubComponent
      * Return the number of LBM overflows inside this string
      * @return 0
      */
+    @Override
     public long getTotalLBMOverflows()
     {
         return 0L;
@@ -682,6 +699,7 @@ public class ReplayHubComponent
      *
      * @return total payloads
      */
+    @Override
     public long getTotalPayloads()
     {
         final int idx = DataStreamType.HIT.index();
@@ -698,6 +716,7 @@ public class ReplayHubComponent
      *
      * @return total nanoseconds spent sleeping
      */
+    @Override
     public long getTotalSleep()
     {
         final int idx = DataStreamType.HIT.index();
@@ -713,6 +732,7 @@ public class ReplayHubComponent
      *
      * @return svn version id as a String
      */
+    @Override
     public String getVersionInfo()
     {
         return "$Id$";
@@ -752,6 +772,7 @@ public class ReplayHubComponent
      *
      * @param offset offset to apply to hit times
      */
+    @Override
     public void setReplayOffset(long offset)
     {
         for (DataStreamType dst : DataStreamType.values()) {
@@ -965,6 +986,7 @@ class HitOutputProcessor
         return stopBuf;
     }
 
+    @Override
     public void send(ByteBuffer buf)
     {
         try
@@ -977,6 +999,7 @@ class HitOutputProcessor
         }
     }
 
+    @Override
     public void stop()
     {
         try
@@ -1000,11 +1023,13 @@ class StreamOutputProcessor
         this.out = out;
     }
 
+    @Override
     public void send(ByteBuffer buf)
     {
         out.getChannel().receiveByteBuffer(buf);
     }
 
+    @Override
     public void stop()
     {
         out.sendLastAndStop();

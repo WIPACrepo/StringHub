@@ -236,6 +236,7 @@ class TCalProcessor implements DataProcessor.StreamProcessor
          * Gernerate the daq formatted record and forward to the dispatcher.
          *
          */
+        @Override
         public void dispatch(final TimeCalib tcal, final GPSInfo gps)
                 throws DataProcessorError
         {

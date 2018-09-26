@@ -344,6 +344,7 @@ class HLCCountConsumer
          * Return a debugging representation of the sample.
          * @return debugging string
          */
+        @Override
         public String toString()
         {
             if(utc.length == 0)
@@ -399,6 +400,7 @@ class HLCCountConsumer
         super(parent, binWidth);
     }
 
+    @Override
     public BinManager<Counter> createBinManager(Long dom, long binStart,
                                                 long binWidth)
     {
@@ -469,6 +471,7 @@ class HLCCountConsumer
         push(new DOMTimes(mbid, utc));
     }
 
+    @Override
     void sendData(long binStart, long binEnd)
     {
         if (binStart > binEnd) {
@@ -740,6 +743,7 @@ class IsoConsumer
             addValue(cableLength);
         }
 
+        @Override
         public String toString()
         {
             return String.format("%s: under %d over %d",
@@ -1209,6 +1213,7 @@ abstract class ThreadDaemon
      * Main thread loop which catches unexpected errors and sets the
      * internal <tt>stopping</tt> flag on exit.
      */
+    @Override
     public void run()
     {
         started = true;
@@ -1382,6 +1387,7 @@ public class RunMonitor
      *
      * @return map of mainboard ID -&gt; deployed DOM data
      */
+    @Override
     public Iterable<DOMInfo> getConfiguredDOMs()
     {
         if (mbidMap == null) {
@@ -1398,6 +1404,7 @@ public class RunMonitor
      *
      * @return dom information
      */
+    @Override
     public DOMInfo getDom(long mbid)
     {
         if (mbidMap == null) {
@@ -1422,6 +1429,7 @@ public class RunMonitor
      *
      * @return starting time
      */
+    @Override
     public String getStartTimeString()
     {
         return dateFormat.format(startTime);
@@ -1432,6 +1440,7 @@ public class RunMonitor
      *
      * @return ending time
      */
+    @Override
     public String getStopTimeString()
     {
         return dateFormat.format(stopTime);
@@ -1442,6 +1451,7 @@ public class RunMonitor
      *
      * @return string number
      */
+    @Override
     public int getString()
     {
         return string;
@@ -1726,6 +1736,7 @@ public class RunMonitor
      * @param map field-&gt;value map
      * @param addString if <tt>true</tt>, add "string" entry to map
      */
+    @Override
     public void sendMoni(String varname, Alerter.Priority priority,
                          IUTCTime utc, Map<String, Object> map,
                          boolean addString)

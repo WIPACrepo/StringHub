@@ -402,11 +402,13 @@ class CountingConsumer
 {
     private int numConsumed;
 
+    @Override
     public void consume(ByteBuffer buf)
     {
         numConsumed++;
     }
 
+    @Override
     public void endOfStream(long token)
     {
         // do nothing

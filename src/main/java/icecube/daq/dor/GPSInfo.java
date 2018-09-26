@@ -93,7 +93,8 @@ public class GPSInfo {
      */
     public ByteBuffer getBuffer() { return record.asReadOnlyBuffer(); }
 
-    public String toString() 
+    @Override
+    public String toString()
     {
 	return timestring + " : Quality = " + quality +
 	    " DOR clk: " + dorclk + " GPS offset: " + offset;

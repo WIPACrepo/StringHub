@@ -260,6 +260,7 @@ public interface ClockMonitoringSubsystem extends ClockProcessor
         /**
          * Startup the clock monitoring subsystem.
          */
+        @Override
         public Object startup(AlertQueue alerter)
         {
             synchronized (this)
@@ -336,6 +337,7 @@ public interface ClockMonitoringSubsystem extends ClockProcessor
         /**
          * Shutdown the clock monitoring subsystem.
          */
+        @Override
         public void shutdown()
         {
             synchronized (this)

@@ -96,6 +96,7 @@ abstract class MockOutputChannel
         return expected.size();
     }
 
+    @Override
     public void receiveByteBuffer(ByteBuffer buf)
     {
         ExpectedData actual = getBufferData(buf);
@@ -112,6 +113,7 @@ abstract class MockOutputChannel
         }
     }
 
+    @Override
     public void sendLastAndStop()
     {
         if (stopped) {
@@ -161,6 +163,7 @@ class ExpectedOldHit
         trigMode = buf.getShort(36);
     }
 
+    @Override
     public int compareTo(Object obj)
     {
         if (!(obj instanceof ExpectedOldHit)) {
@@ -192,6 +195,7 @@ class ExpectedOldHit
         return val;
     }
 
+    @Override
     public boolean equals(Object obj)
     {
         if (!(obj instanceof ExpectedOldHit)) {
@@ -201,6 +205,7 @@ class ExpectedOldHit
         return compareTo((ExpectedOldHit) obj) == 0;
     }
 
+    @Override
     public String toString()
     {
         return "ExpOldHit@" + String.format("%012x", domId) +
@@ -238,6 +243,7 @@ class ExpectedHit
         trigMode = buf.getShort(18);
     }
 
+    @Override
     public int compareTo(Object obj)
     {
         if (!(obj instanceof ExpectedHit)) {
@@ -260,6 +266,7 @@ class ExpectedHit
         return val;
     }
 
+    @Override
     public boolean equals(Object obj)
     {
         if (!(obj instanceof ExpectedHit)) {
@@ -269,6 +276,7 @@ class ExpectedHit
         return compareTo((ExpectedHit) obj) == 0;
     }
 
+    @Override
     public String toString()
     {
         return "ExpHit@" + utcTime + "[chan " + chanId +
@@ -296,6 +304,7 @@ class MockHitChannel
                                            srcId, trigMode));
     }
 
+    @Override
     ExpectedData getBufferData(ByteBuffer buf)
     {
         if (buf.limit() < 4) {
@@ -391,6 +400,7 @@ class ExpectedOldDeltaHit
         buf.position(origPos);
     }
 
+    @Override
     public int compareTo(Object obj)
     {
         if (!(obj instanceof ExpectedOldDeltaHit)) {
@@ -450,6 +460,7 @@ class ExpectedOldDeltaHit
         return val;
     }
 
+    @Override
     public boolean equals(Object obj)
     {
         if (!(obj instanceof ExpectedOldDeltaHit)) {
@@ -459,6 +470,7 @@ class ExpectedOldDeltaHit
         return compareTo((ExpectedOldDeltaHit) obj) == 0;
     }
 
+    @Override
     public String toString()
     {
         StringBuilder dataBuf = new StringBuilder(" data");
@@ -635,6 +647,7 @@ class ExpectedOldEngHit
         return val;
     }
 
+    @Override
     public int compareTo(Object obj)
     {
         if (!(obj instanceof ExpectedOldEngHit)) {
@@ -701,6 +714,7 @@ class ExpectedOldEngHit
         return val;
     }
 
+    @Override
     public boolean equals(Object obj)
     {
         if (!(obj instanceof ExpectedOldEngHit)) {
@@ -779,6 +793,7 @@ class ExpectedOldEngHit
         return array;
     }
 
+    @Override
     public String toString()
     {
         StringBuilder fadcBuf = new StringBuilder(" fadc");
@@ -929,11 +944,13 @@ class ExpectedReadout
         }
     }
 
+    @Override
     void addHit(ExpectedData hit)
     {
         hitList.add(hit);
     }
 
+    @Override
     public int compareTo(Object obj)
     {
         if (obj == null) {
@@ -992,6 +1009,7 @@ class ExpectedReadout
         return val;
     }
 
+    @Override
     public boolean equals(Object obj)
     {
         if (obj == null) {
@@ -1004,6 +1022,7 @@ class ExpectedReadout
         return compareTo((ExpectedReadout) obj) == 0;
     }
 
+    @Override
     public String toString()
     {
         return "ExpRdout[#" + uid + " pay " + payNum + "/" + payLast +
@@ -1049,6 +1068,7 @@ class ExpectedDeltaHit
         buf.position(origPos);
     }
 
+    @Override
     public int compareTo(Object obj)
     {
         if (!(obj instanceof ExpectedDeltaHit)) {
@@ -1096,6 +1116,7 @@ class ExpectedDeltaHit
         return val;
     }
 
+    @Override
     public boolean equals(Object obj)
     {
         if (!(obj instanceof ExpectedDeltaHit)) {
@@ -1105,6 +1126,7 @@ class ExpectedDeltaHit
         return compareTo((ExpectedDeltaHit) obj) == 0;
     }
 
+    @Override
     public String toString()
     {
         StringBuilder dataBuf = new StringBuilder(" data");
@@ -1207,6 +1229,7 @@ class ExpectedEngHit
         return val;
     }
 
+    @Override
     public int compareTo(Object obj)
     {
         if (!(obj instanceof ExpectedEngHit)) {
@@ -1248,6 +1271,7 @@ class ExpectedEngHit
         return val;
     }
 
+    @Override
     public boolean equals(Object obj)
     {
         if (!(obj instanceof ExpectedEngHit)) {
@@ -1257,6 +1281,7 @@ class ExpectedEngHit
         return compareTo((ExpectedEngHit) obj) == 0;
     }
 
+    @Override
     public String toString()
     {
         StringBuilder clockBuf = new StringBuilder(" clk");
@@ -1367,11 +1392,13 @@ class ExpectedHitList
         }
     }
 
+    @Override
     void addHit(ExpectedData hit)
     {
         hitList.add(hit);
     }
 
+    @Override
     public int compareTo(Object obj)
     {
         if (obj == null) {
@@ -1430,6 +1457,7 @@ class ExpectedHitList
         return val;
     }
 
+    @Override
     public boolean equals(Object obj)
     {
         if (obj == null) {
@@ -1442,6 +1470,7 @@ class ExpectedHitList
         return compareTo((ExpectedHitList) obj) == 0;
     }
 
+    @Override
     public String toString()
     {
         return "ExpHitLst[#" + uid + " pay " + payNum + "/" + payLast +
@@ -1526,6 +1555,7 @@ class MockReadoutChannel
                                          domClock, waveformData));
     }
 
+    @Override
     ExpectedData getBufferData(ByteBuffer buf)
     {
         if (EventVersion.VERSION < 5) {

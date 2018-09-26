@@ -223,6 +223,7 @@ public abstract class AbstractRAPCal implements RAPCal
      * or perhaps to hold the data until the RAPCal state is updated so
      * that extrapolation into the future is not required.
      */
+    @Override
     public boolean laterThan(long domclk)
     {
         // This method is called per-hit so we optimize away the
@@ -253,6 +254,7 @@ public abstract class AbstractRAPCal implements RAPCal
      *         applied.
      *
      */
+    @Override
     public UTC domToUTC(long domclk)
     {
         return domToUTC(domclk, domclk);
@@ -353,6 +355,7 @@ public abstract class AbstractRAPCal implements RAPCal
      * @throws RAPCalException A degenerate condition exist in the time
      *                         calibration data.
      */
+    @Override
     public boolean update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException
     {
         if (logger.isDebugEnabled())
@@ -503,6 +506,7 @@ public abstract class AbstractRAPCal implements RAPCal
      *
      * @param mbid mainboard ID
      */
+    @Override
     public void setMainboardID(long mbid)
     {
         this.mbid = mbid;
@@ -513,6 +517,7 @@ public abstract class AbstractRAPCal implements RAPCal
      *
      * @param runMonitor The run monitoring object
      */
+    @Override
     public void setRunMonitor(IRunMonitor runMonitor)
     {
         moniGuard.runMonitor = runMonitor;

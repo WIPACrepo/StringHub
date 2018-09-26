@@ -146,14 +146,17 @@ public class DeltaCompressedHitRecordReader extends DomHitRecordReader
 
     // bit fields
 
+    @Override
     public short getTriggerMode(final ByteBuffer buffer)
     {
         return getTriggerMode(getWord1(buffer));
     }
+    @Override
     public short getTriggerMode(final ByteBuffer buffer, final int offset)
     {
         return getTriggerMode(getWord1(buffer, offset));
     }
+    @Override
     public short getTriggerMode(final RecordBuffer buffer, final int offset)
     {
         return getTriggerMode(getWord1(buffer, offset));
@@ -177,14 +180,17 @@ public class DeltaCompressedHitRecordReader extends DomHitRecordReader
         }
     }
 
+    @Override
     public short getLCMode(final ByteBuffer buffer)
     {
         return getLCMode(getWord1(buffer));
     }
+    @Override
     public short getLCMode(final ByteBuffer buffer, final int offset)
     {
         return getLCMode(getWord1(buffer, offset));
     }
+    @Override
     public short getLCMode(final RecordBuffer buffer, final int offset)
     {
         return getLCMode(getWord1(buffer, offset));

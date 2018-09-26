@@ -16,6 +16,7 @@ public interface BufferConsumer
      *
      * @param buf DOM message
      */
+    @Override
     void consume(ByteBuffer buf)
         throws IOException;
 }

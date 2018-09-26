@@ -30,6 +30,7 @@ class Counter
      * Return a debugging representation of the counter
      * @return debugging string
      */
+    @Override
     public String toString()
     {
         return String.format("Counter=%d", count);

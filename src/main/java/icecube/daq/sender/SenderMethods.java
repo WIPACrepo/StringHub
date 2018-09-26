@@ -229,6 +229,7 @@ public class SenderMethods
         /**
          * Compare two hits by source ID and timestamp.
          */
+        @Override
         public int compare(Object o1, Object o2)
         {
             if (o1 == null) {
@@ -286,6 +287,7 @@ public class SenderMethods
          *
          * @return <tt>true</tt> if specified object matches this class
          */
+        @Override
         public boolean equals(Object obj)
         {
             if (obj == null) {
@@ -300,6 +302,7 @@ public class SenderMethods
          *
          * @return hash code for this class.
          */
+        @Override
         public int hashCode()
         {
             return getClass().hashCode();

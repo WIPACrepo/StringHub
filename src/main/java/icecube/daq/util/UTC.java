@@ -34,6 +34,7 @@ public class UTC implements Comparable<UTC> {
 		tick10 = buf.getLong();
 	}
 
+	@Override
 	public String toString() {
 		return String.valueOf(tick10);
 	}
@@ -90,6 +91,7 @@ public class UTC implements Comparable<UTC> {
 		buf.putLong(tick10);
 	}
 
+	@Override
 	public int compareTo(UTC o) {
 		if (this.tick10 < o.tick10)
 			return -1;
@@ -100,6 +102,7 @@ public class UTC implements Comparable<UTC> {
 	}
 
 	// define a hash code for this object
+	@Override
 	public int hashCode() {
 	    final int prime = 17;
 

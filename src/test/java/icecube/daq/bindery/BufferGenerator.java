@@ -42,6 +42,7 @@ class BufferGenerator extends Thread
         return run;
     }
 
+    @Override
     public void run()
     {
         synchronized (this) { run = true; }

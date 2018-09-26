@@ -14,6 +14,7 @@ public class MockSourceID
         this.id = id;
     }
 
+    @Override
     public int compareTo(Object obj)
     {
         if (obj == null) {
@@ -25,6 +26,7 @@ public class MockSourceID
         return getSourceID() - ((ISourceID) obj).getSourceID();
     }
 
+    @Override
     public Object deepCopy()
     {
         return new MockSourceID(id);
@@ -35,11 +37,13 @@ public class MockSourceID
      * This means it is able to return itself to the pool from
      * which it came.
      */
+    @Override
     public void dispose()
     {
         // do nothing
     }
 
+    @Override
     public boolean equals(Object obj)
     {
         return compareTo(obj) == 0;
@@ -50,16 +54,19 @@ public class MockSourceID
      *
      * @return object of this type from the object pool.
      */
+    @Override
     public Poolable getPoolable()
     {
         return new MockSourceID(-1);
     }
 
+    @Override
     public int getSourceID()
     {
         return id;
     }
 
+    @Override
     public int hashCode()
     {
         return id;
@@ -68,6 +75,7 @@ public class MockSourceID
     /**
      * Object knows how to recycle itself
      */
+    @Override
     public void recycle()
     {
         // do nothing
@@ -78,6 +86,7 @@ public class MockSourceID
      *
      * @return DAQName#DAQId
      */
+    @Override
     public String toString()
     {
         return SourceIdRegistry.getDAQNameFromSourceID(id) + "#" +

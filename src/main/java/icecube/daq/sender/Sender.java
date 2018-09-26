@@ -126,6 +126,7 @@ public class Sender
      *         <tt>0</tt> if data is inside the request, or
      *         <tt>1</tt> if data is later than the request
      */
+    @Override
     public int compareRequestAndData(IPayload reqPayload, IPayload dataPayload)
     {
         DOMHit data = (DOMHit) dataPayload;
@@ -260,6 +261,7 @@ public class Sender
      *
      * @param data payload to recycle
      */
+    @Override
     public void disposeData(ILoadablePayload data)
     {
         data.recycle();
@@ -270,6 +272,7 @@ public class Sender
      *
      * @param dataList list of payloads to recycle
      */
+    @Override
     public void disposeDataList(List dataList)
     {
         Iterator iter = dataList.iterator();
@@ -296,6 +299,7 @@ public class Sender
     /**
      * Clean up before worker thread stops running.
      */
+    @Override
     public void finishThreadCleanup()
     {
         if (dataChan != null) {
@@ -451,6 +455,7 @@ public class Sender
      *
      * @return <tt>true</tt> if the data is included in the request.
      */
+    @Override
     public boolean isRequested(IPayload reqPayload, IPayload dataPayload)
     {
         DOMHit curData = (DOMHit) dataPayload;
@@ -467,6 +472,7 @@ public class Sender
      *
      * @return readout data payload
      */
+    @Override
     public ILoadablePayload makeDataPayload(IPayload reqPayload,
                                             List dataList)
     {
@@ -586,6 +592,7 @@ public class Sender
     /**
      * Reset the back end after it has been stopped.
      */
+    @Override
     public void reset()
     {
         prevHitTime = 0;
@@ -600,6 +607,7 @@ public class Sender
      *
      * @return <tt>true</tt> if the payload was sent
      */
+    @Override
     public boolean sendOutput(ILoadablePayload payload)
     {
         boolean sent = false;
@@ -673,6 +681,7 @@ public class Sender
      *
      * @param payload readout request payload
      */
+    @Override
     public void setRequestTimes(IPayload payload)
     {
         IReadoutRequest req = (IReadoutRequest) payload;
@@ -691,6 +700,7 @@ public class Sender
     /**
      * Get the output channels before the request thread is started.
      */
+    @Override
     public void startThread()
     {
         if (hitOut != null) {
@@ -714,6 +724,7 @@ public class Sender
         super.startThread();
     }
 
+    @Override
     public String toString()
     {
         if (sourceId == null) {

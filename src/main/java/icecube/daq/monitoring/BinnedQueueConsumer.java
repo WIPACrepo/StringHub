@@ -22,6 +22,7 @@ abstract class BinnedQueueConsumer<T, K, C>
             this.isPrevious = isPrevious;
         }
 
+        @Override
         public String toString()
         {
             return String.format("BinRange[%d-%d]%s", binStart, binEnd,
@@ -195,6 +196,7 @@ abstract class BinnedQueueConsumer<T, K, C>
     /**
      * Reset everything back to initial conditions for the next run
      */
+    @Override
     public void reset()
     {
         map.clear();
@@ -228,6 +230,7 @@ abstract class BinnedQueueConsumer<T, K, C>
         reset();
     }
 
+    @Override
     public String toString()
     {
         StringBuilder buf = new StringBuilder("{");

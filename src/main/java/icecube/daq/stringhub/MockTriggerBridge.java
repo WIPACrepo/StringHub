@@ -15,12 +15,14 @@ public class MockTriggerBridge extends DAQComponent {
 		super(DAQCmdInterface.DAQ_GLOBAL_TRIGGER, 0);
 	}
 
+	@Override
 	public void initialize()
 	{
 		genericCacheManager = new VitreousBufferCache("MockTrig");
 		addCache(genericCacheManager);
 	}
 
+	@Override
 	public String getVersionInfo()
 	{
 		return "$Id";

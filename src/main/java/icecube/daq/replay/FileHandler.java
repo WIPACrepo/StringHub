@@ -202,6 +202,7 @@ public class FileHandler
         dataThread.stopping();
     }
 
+    @Override
     public String toString()
     {
         return String.format("Hub#%d %s[%s|%s|%s]", hubId, dataType, inThread,
@@ -299,6 +300,7 @@ class InputThread
     /**
      * Main input loop.
      */
+    @Override
     public void run()
     {
         stopped = false;
@@ -351,6 +353,7 @@ class InputThread
         }
     }
 
+    @Override
     public String toString()
     {
         String sstr = (stopped ? ",stopped" : stopping ? ",stopping" : "");
@@ -647,6 +650,7 @@ class DataThread
     /**
      * Main file writer loop.
      */
+    @Override
     public void run()
     {
         try {
@@ -691,6 +695,7 @@ class DataThread
         }
     }
 
+    @Override
     public String toString()
     {
         String sstr = (stopping ? ",stopping" : stopped ? "" : ",stopped");
@@ -784,6 +789,7 @@ class OutputThread
     /**
      * Main output loop.
      */
+    @Override
     public void run()
     {
         stopped = false;
@@ -845,6 +851,7 @@ class OutputThread
         }
     }
 
+    @Override
     public String toString()
     {
         String sstr = (stopped ? ",stopped" : stopping ? ",stopping" : "");

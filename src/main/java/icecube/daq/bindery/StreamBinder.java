@@ -108,6 +108,7 @@ public class StreamBinder extends Thread
         running = false;
     }
 
+    @Override
     public void run()
     {
         running = true;
@@ -280,6 +281,7 @@ class DAQRecordComparator implements Comparator<DAQRecord>
 {
     static final DAQRecordComparator instance = new DAQRecordComparator();
 
+    @Override
     public int compare(DAQRecord o1, DAQRecord o2)
     {
         UTC t1 = o1.time();
@@ -301,6 +303,7 @@ class DAQRecord implements Timestamped
         this.utc = new UTC(buf.getLong(24));
     }
 
+    @Override
     public UTC time()
     {
         return utc;

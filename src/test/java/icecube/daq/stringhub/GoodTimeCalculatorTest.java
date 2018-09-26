@@ -23,11 +23,13 @@ class MockDataCollector
         this.time = time;
     }
 
+    @Override
     public void close()
     {
         throw new Error("Unimplemented");
     }
 
+    @Override
     public long getAcquisitionLoopCount()
     {
         throw new Error("Unimplemented");
@@ -45,21 +47,25 @@ class MockDataCollector
         return time;
     }
 
+    @Override
     public long getNumHits()
     {
         throw new Error("Unimplemented");
     }
 
+    @Override
     public long getNumMoni()
     {
         throw new Error("Unimplemented");
     }
 
+    @Override
     public long getNumSupernova()
     {
         throw new Error("Unimplemented");
     }
 
+    @Override
     public long getNumTcal()
     {
         throw new Error("Unimplemented");
@@ -71,11 +77,13 @@ class MockDataCollector
         return false;
     }
 
+    @Override
     public void setRunMonitor(IRunMonitor x0)
     {
         throw new Error("Unimplemented");
     }
 
+    @Override
     public void signalShutdown()
     {
         throw new Error("Unimplemented");

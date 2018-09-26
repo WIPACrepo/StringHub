@@ -23,12 +23,14 @@ class BufferForwarder
         this.consumer = consumer;
     }
 
+    @Override
     public void consume(DAQBuffer db)
         throws IOException
     {
         consumer.consume(db.buf);
     }
 
+    @Override
     public void endOfStream(long ignored)
         throws IOException
     {
@@ -64,6 +66,7 @@ public class PrioritySort
      *
      * @param buf buffer containing DOM hit
      */
+    @Override
     public void consume(ByteBuffer buf)
         throws IOException
     {
@@ -82,6 +85,7 @@ public class PrioritySort
     /**
      * There will be no more data.
      */
+    @Override
     public void endOfStream(long mbid)
         throws IOException
     {
@@ -93,6 +97,7 @@ public class PrioritySort
      *
      * @return number of objects required for a sort to be initiated
      */
+    @Override
     public int getChunkSize()
     {
         return sorter.getChunkSize();
@@ -103,6 +108,7 @@ public class PrioritySort
      *
      * @return last input time
      */
+    @Override
     public long getLastInputTime()
     {
         return 0L;
@@ -113,6 +119,7 @@ public class PrioritySort
      *
      * @return last output time
      */
+    @Override
     public long getLastOutputTime()
     {
         return 0L;
@@ -133,6 +140,7 @@ public class PrioritySort
      *
      * @return number of checks
      */
+    @Override
     public long getNumberOfChecks()
     {
         return sorter.getNumChecked();
@@ -143,6 +151,7 @@ public class PrioritySort
      *
      * @return number of inputs
      */
+    @Override
     public long getNumberOfInputs()
     {
         long total = 0;
@@ -157,6 +166,7 @@ public class PrioritySort
      *
      * @return number of outputs
      */
+    @Override
     public long getNumberOfOutputs()
     {
         return sorter.getNumOutput();
@@ -167,6 +177,7 @@ public class PrioritySort
      *
      * @return number of calls to process()
      */
+    @Override
     public long getNumberOfProcessCalls()
     {
         return sorter.getNumProcessCalls();
@@ -177,6 +188,7 @@ public class PrioritySort
      *
      * @return number of queued objects
      */
+    @Override
     public int getQueueSize()
     {
         return sorter.getNumQueued();
@@ -196,6 +208,7 @@ public class PrioritySort
      * Wait for sorter thread to finish
      * @param millis milliseconds to wait
      */
+    @Override
     public void join(long millis)
         throws SorterException
     {
@@ -242,6 +255,7 @@ public class PrioritySort
      * Register a channel with the sort.
      * @param mbid
      */
+    @Override
     public void register(long mbid)
     {
         if (inputMap.containsKey(mbid)) {
@@ -271,6 +285,7 @@ public class PrioritySort
     /**
      * Start sorter.
      */
+    @Override
     public void start()
     {
         sorter.start();

@@ -81,6 +81,7 @@ public final class Driver implements IDriver {
 	return info.indexOf("on.") != -1;
     }
 
+    @Override
     public String getProcfileID(int card, int pair, char dom) throws IOException {
 	String info = getProcfileText(makeProcfile("" + card + "" + pair + dom, "id"));
 	return info.substring(info.length() - 12);
@@ -93,6 +94,7 @@ public final class Driver implements IDriver {
      * @param dom 'A' or 'B'
      * @throws IOException
      */
+    @Override
     public void commReset(int card, int pair, char dom) throws IOException
     {
         String cwd = card + "" + pair + dom;
@@ -110,6 +112,7 @@ public final class Driver implements IDriver {
      * Set blocking / non-blocking mode of the DOR driver
      * @param block if true the driver will be put into blocking mode
      */
+    @Override
     public void setBlocking(boolean block) throws IOException
     {
         File file = makeProcfile("blocking");
@@ -164,6 +167,7 @@ public final class Driver implements IDriver {
      * @param dom 'A' or 'B'
      * @throws IOException when the procfile write fails for some reason
      */
+    @Override
     public void softboot(int card, int pair, char dom) throws IOException
     {
 	if (logger.isDebugEnabled()) logger.debug("Softbooting " + card + "" + pair + dom);
@@ -183,6 +187,7 @@ public final class Driver implements IDriver {
      * @param dom 'A' or 'B'
      * @throws IOException when the procfile write fails for some reason
      */
+    @Override
     public void resetComstat(int card, int pair, char dom) throws IOException {
 	File file = makeProcfile(card + "" + pair + dom, "comstat");
 	FileOutputStream sb = new FileOutputStream(file);
@@ -200,6 +205,7 @@ public final class Driver implements IDriver {
      * @param dom 'A' or 'B'
      * @throws IOException when the procfile write fails for some reason
      */
+    @Override
     public String getComstat(int card, int pair, char dom) throws IOException {
 	return getProcfileMultilineText(makeProcfile(card + "" + pair + dom, "comstat"));
     }
@@ -209,6 +215,7 @@ public final class Driver implements IDriver {
      * @param card 0 to 7
      * @throws IOException when the procfile write fails for some reason
      */
+    @Override
     public String getFPGARegs(int card) throws IOException {
 	return getProcfileMultilineText(makeProcfile(card + "", "fpga"));
     }
@@ -248,10 +255,12 @@ public final class Driver implements IDriver {
 	return channelList;
     }
 
+    @Override
     public File getTCALFile(int card, int pair, char dom) {
 	return makeProcfile("" + card + "" + pair + dom, "tcalib");
     }
 
+    @Override
     public TimeCalib readTCAL(File tcalFile) throws IOException, InterruptedException {
 	RandomAccessFile tcalib = new RandomAccessFile(tcalFile, "rw");
 	FileChannel ch = tcalib.getChannel();
@@ -282,10 +291,12 @@ public final class Driver implements IDriver {
         throw new IOException("TCAL read failed.");
     }
 
+    @Override
     public File getGPSFile(int card) {
 	return makeProcfile("" + card, "syncgps");
     }
 
+    @Override
     public GPSInfo readGPS(File gpsFile) throws GPSException
     {
         RandomAccessFile syncgps;
@@ -371,6 +382,7 @@ public final class Driver implements IDriver {
      * Access the DOR card FPGA registers.  They are returned as a dictionary
      * of Key: Value pairs where Key is the
      */
+    @Override
     public HashMap<String, Integer> getFPGARegisters(int card) throws IOException
     {
         HashMap<String, Integer> registerMap = new HashMap<String, Integer>();

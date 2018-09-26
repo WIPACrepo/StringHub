@@ -21,6 +21,7 @@ public class BufferConsumerFork implements BufferConsumer
         this.t2 = t2;
     }
 
+    @Override
     public void consume(ByteBuffer buf) throws IOException
     {
         t1.consume(buf);
@@ -30,6 +31,7 @@ public class BufferConsumerFork implements BufferConsumer
     /**
      * There will be no more data.
      */
+    @Override
     public void endOfStream(long mbid)
         throws IOException
     {

@@ -15,6 +15,7 @@ public class MockOutputChannelManager implements DAQOutputChannelManager
         this.chan = chan;
     }
 
+    @Override
     public OutputChannel getChannel()
     {
         return chan;

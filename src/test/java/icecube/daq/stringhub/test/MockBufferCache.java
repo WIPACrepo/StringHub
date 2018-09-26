@@ -24,6 +24,7 @@ private static final boolean DEBUG = false;
         this.maxBytesAlloc = maxBytesAlloc;
     }
 
+    @Override
     public synchronized ByteBuffer acquireBuffer(int bytes)
     {
         bufsAlloc++;
@@ -32,71 +33,85 @@ if(DEBUG)System.err.println("ALO*"+bytes+"(#"+bufsAlloc+"*"+bytesAlloc+")");
         return ByteBuffer.allocate(bytes);
     }
 
+    @Override
     public void flush()
     {
         throw new Error("Unimplemented");
     }
 
+    @Override
     public int getCurrentAquiredBuffers()
     {
         return bufsAlloc;
     }
 
+    @Override
     public long getCurrentAquiredBytes()
     {
         return bytesAlloc;
     }
 
+    @Override
     public boolean getIsCacheBounded()
     {
         return maxBytesAlloc > 0;
     }
 
+    @Override
     public long getMaxAquiredBytes()
     {
         return maxBytesAlloc;
     }
 
+    @Override
     public String getName()
     {
         throw new Error("Unimplemented");
     }
 
+    @Override
     public int getTotalBuffersAcquired()
     {
         throw new Error("Unimplemented");
     }
 
+    @Override
     public int getTotalBuffersCreated()
     {
         throw new Error("Unimplemented");
     }
 
+    @Override
     public int getTotalBuffersReturned()
     {
         throw new Error("Unimplemented");
     }
 
+    @Override
     public long getTotalBytesInCache()
     {
         throw new Error("Unimplemented");
     }
 
+    @Override
     public boolean isBalanced()
     {
         return bufsAlloc == 0;
     }
 
+    @Override
     public void receiveByteBuffer(ByteBuffer buf)
     {
         throw new Error("Unimplemented");
     }
 
+    @Override
     public void returnBuffer(ByteBuffer buf)
     {
         returnBuffer(buf.capacity());
     }
 
+    @Override
     public synchronized void returnBuffer(int bytes)
     {
         bufsAlloc--;
@@ -104,6 +119,7 @@ if(DEBUG)System.err.println("ALO*"+bytes+"(#"+bufsAlloc+"*"+bytesAlloc+")");
 if(DEBUG)System.err.println("RTN*"+bytes+"(#"+bufsAlloc+"*"+bytesAlloc+")");
     }
 
+    @Override
     public String toString()
     {
         return "MockBufferCache(" + name + ")[bufs " + bufsAlloc + " bytes " +

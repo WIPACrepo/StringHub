@@ -65,6 +65,7 @@ public class DOMConnector
 	 *
 	 * @throws InterruptedException if there was a problem
 	 */
+	@Override
 	public void destroy()
 		throws InterruptedException
 	{
@@ -84,6 +85,7 @@ public class DOMConnector
 	 *
 	 * @throws InterruptedException if there is a problem
 	 */
+	@Override
 	public void forcedStopProcessing()
 		throws InterruptedException
 	{
@@ -95,6 +97,7 @@ public class DOMConnector
 	 *
 	 * @return number of active channels
 	 */
+	@Override
 	public int getNumberOfChannels()
 	{
 		return collectors.size();
@@ -105,6 +108,7 @@ public class DOMConnector
 	 *
 	 * @return state string
 	 */
+	@Override
 	public String getState()
 	{
 		throw new Error("Unimplemented");
@@ -113,6 +117,7 @@ public class DOMConnector
 	/**
 	 * Are all data collectors running?
 	 */
+	@Override
 	public boolean isRunning()
 	{
 		return !isStopped();
@@ -123,6 +128,7 @@ public class DOMConnector
 	 *
 	 * @return <tt>true</tt> if this connector is stopped
 	 */
+	@Override
 	public boolean isStopped()
 	{
 		for (AbstractDataCollector dc : collectors)
@@ -133,6 +139,7 @@ public class DOMConnector
 	/**
 	 * Start background threads.
 	 */
+	@Override
 	public void start()
 	{
 		// do nothing
@@ -143,6 +150,7 @@ public class DOMConnector
 	 *
 	 * @throws InterruptedException if there is a problem
 	 */
+	@Override
 	public void startProcessing()
 		throws InterruptedException
 	{
@@ -183,6 +191,7 @@ public class DOMConnector
 	 *
 	 * @return debugging string
 	 */
+	@Override
 	public String toString()
 	{
 		return "DOMConn[]";

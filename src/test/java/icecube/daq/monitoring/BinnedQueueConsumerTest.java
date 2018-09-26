@@ -30,6 +30,7 @@ public class BinnedQueueConsumerTest
             count++;
         }
 
+        @Override
         public String toString()
         {
             return String.format("MyCounter#%d", count);
@@ -61,6 +62,7 @@ public class BinnedQueueConsumerTest
             this.val = val;
         }
 
+        @Override
         public String toString()
         {
             return String.format("%s<%d>", name, val);

@@ -84,6 +84,7 @@ abstract class BinManager<C>
             return start < binEnd && end >= binStart;
         }
 
+        @Override
         public String toString()
         {
             return String.format("Bin[%d-%d: %s]", binStart, binEnd,
@@ -303,6 +304,7 @@ abstract class BinManager<C>
         return (binIndex >= binEnd);
     }
 
+    @Override
     public String toString()
     {
         StringBuilder buf = new StringBuilder("BinManager[");

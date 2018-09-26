@@ -236,6 +236,7 @@ public class DataCollector extends AbstractDataCollector
         }
     }
 
+    @Override
     public void close()
     {
         dataAcquisition.doClose();
@@ -260,6 +261,7 @@ public class DataCollector extends AbstractDataCollector
         dataAcquisition.doConfigure(config);
     }
 
+    @Override
     public void setRunMonitor(IRunMonitor runMonitor)
     {
         try
@@ -272,11 +274,13 @@ public class DataCollector extends AbstractDataCollector
         }
     }
 
+    @Override
     public synchronized void signalShutdown()
     {
         stop_thread = true;
     }
 
+    @Override
     public String toString()
     {
         return getName();
@@ -300,6 +304,7 @@ public class DataCollector extends AbstractDataCollector
      * to the CONFIGURED state.</dd>
      * </dl>
      */
+    @Override
     public void run()
     {
 
@@ -788,6 +793,7 @@ public class DataCollector extends AbstractDataCollector
             watcher.schedule(this, DELAY, PERIOD);
         }
 
+        @Override
         public long setTimeoutThreshold(long millis)
         {
             if(millis < PERIOD)
@@ -803,6 +809,7 @@ public class DataCollector extends AbstractDataCollector
             }
         }
 
+        @Override
         public Mode setTimeoutAction(Mode mode)
         {
             synchronized (this)
@@ -813,6 +820,7 @@ public class DataCollector extends AbstractDataCollector
             }
         }
 
+        @Override
         public void run()
         {
             synchronized (this)
@@ -854,6 +862,7 @@ public class DataCollector extends AbstractDataCollector
             }
         }
 
+        @Override
         public void ping()
         {
             synchronized (this)
@@ -878,6 +887,7 @@ public class DataCollector extends AbstractDataCollector
          * Defines sleeping behavior for code subjected to watchdog
          * control.
          */
+        @Override
         public void sleep(final long millis)
         {
             long start = System.nanoTime();
@@ -903,6 +913,7 @@ public class DataCollector extends AbstractDataCollector
          * Defines interrupt logging behavior for code subjected to watchdog
          * control.
          */
+        @Override
         public void handleInterrupted(final InterruptedException ie)
         {
             if(interrupting || aborting)

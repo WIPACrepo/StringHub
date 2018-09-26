@@ -47,17 +47,20 @@ class MockAlertQueue
         return numPushed;
     }
 
+    @Override
     public boolean isStopped()
     {
         return false;
     }
 
+    @Override
     public void push(Map<String, Object> map)
         throws AlertException
     {
         throw new Error("Don't use this method");
     }
 
+    @Override
     public void push(String varname, Alerter.Priority prio,
                      Map<String, Object> values)
         throws AlertException
@@ -65,6 +68,7 @@ class MockAlertQueue
         push(varname, prio, null, values);
     }
 
+    @Override
     public void push(String varname, Alerter.Priority prio, IUTCTime utcTime,
                      Map<String, Object> values)
         throws AlertException
@@ -72,11 +76,13 @@ class MockAlertQueue
         numPushed++;
     }
 
+    @Override
     public void start()
     {
         // do nothing
     }
 
+    @Override
     public void stop()
     {
         // do nothing

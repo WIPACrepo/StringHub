@@ -53,6 +53,7 @@ class MyMonitor
      *
      * @return map of mainboard ID -&gt; deployed DOM data
      */
+    @Override
     public Iterable<DOMInfo> getConfiguredDOMs()
     {
         throw new Error("Unimplemented");
@@ -65,6 +66,7 @@ class MyMonitor
      *
      * @return dom information
      */
+    @Override
     public DOMInfo getDom(long mbid)
     {
         throw new Error("Unimplemented");
@@ -75,6 +77,7 @@ class MyMonitor
      *
      * @return starting time
      */
+    @Override
     public String getStartTimeString()
     {
         throw new Error("Unimplemented");
@@ -85,6 +88,7 @@ class MyMonitor
      *
      * @return ending time
      */
+    @Override
     public String getStopTimeString()
     {
         throw new Error("Unimplemented");
@@ -95,6 +99,7 @@ class MyMonitor
      *
      * @return string number
      */
+    @Override
     public int getString()
     {
         throw new Error("Unimplemented");
@@ -181,6 +186,7 @@ class MyMonitor
      * @param map field->value map
      * @param addString if <tt>true</tt>, add "string" entry to map
      */
+    @Override
     public void sendMoni(String varname, Alerter.Priority priority,
                          IUTCTime utc, Map<String, Object> map,
                          boolean addString)

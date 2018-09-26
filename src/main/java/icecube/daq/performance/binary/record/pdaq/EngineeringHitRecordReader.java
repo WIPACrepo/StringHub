@@ -231,14 +231,17 @@ public class EngineeringHitRecordReader extends DomHitRecordReader
     /**
      * Trigger Mode is derived from bits [0,1] of the trigger flag byte.
      */
+    @Override
     public short getTriggerMode(final ByteBuffer buffer)
     {
         return getTriggerMode(getTriggerFlag(buffer));
     }
+    @Override
     public short getTriggerMode(final ByteBuffer buffer, final int offset)
     {
         return getTriggerMode(getTriggerFlag(buffer, offset));
     }
+    @Override
     public short getTriggerMode(final RecordBuffer buffer, final int offset)
     {
         return getTriggerMode(getTriggerFlag(buffer, offset));
@@ -251,14 +254,17 @@ public class EngineeringHitRecordReader extends DomHitRecordReader
     /**
      * LC Mode is derived from bits [5,6] of the trigger flag byte.
      */
+    @Override
     public short getLCMode(final ByteBuffer buffer)
     {
         return getLCMode(getTriggerFlag(buffer));
     }
+    @Override
     public short getLCMode(final ByteBuffer buffer, final int offset)
     {
         return getLCMode(getTriggerFlag(buffer, offset));
     }
+    @Override
     public short getLCMode(final RecordBuffer buffer, final int offset)
     {
         return getLCMode(getTriggerFlag(buffer, offset));

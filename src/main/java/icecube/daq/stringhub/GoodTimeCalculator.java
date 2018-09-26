@@ -209,6 +209,7 @@ public class GoodTimeCalculator
      *
      * @return string with all internal details useful for debugging
      */
+    @Override
     public String toString()
     {
         StringBuilder buf = new StringBuilder("GoodTimeCalculator[");

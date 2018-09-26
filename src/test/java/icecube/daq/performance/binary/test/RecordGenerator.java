@@ -91,6 +91,7 @@ public interface RecordGenerator
             return new UTCRecordReader.UTCField(DaqBufferRecordReader.instance);
         }
 
+        @Override
         public ByteBuffer generate(long utc)
         {
             int size = 32 + (int)(Math.random()* (maxSize-31));
@@ -175,6 +176,7 @@ public interface RecordGenerator
             };
         }
 
+        @Override
         public ByteBuffer generate(long utc)
         {
             ByteBuffer res = ByteBuffer.allocate(fixedSize);
@@ -252,6 +254,7 @@ public interface RecordGenerator
             };
         }
 
+        @Override
         public ByteBuffer generate(long utc)
         {
             int length = 12 + (int) (Math.random() * (maxSize-11));
@@ -318,6 +321,7 @@ public interface RecordGenerator
             };
         }
 
+        @Override
         public ByteBuffer generate(long utc)
         {
             ByteBuffer res = ByteBuffer.allocate(8);
@@ -392,6 +396,7 @@ public interface RecordGenerator
             };
         }
 
+        @Override
         public ByteBuffer generate(long utc)
         {
             ByteBuffer res = ByteBuffer.allocate(20);

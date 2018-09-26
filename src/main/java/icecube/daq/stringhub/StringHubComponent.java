@@ -146,6 +146,7 @@ public class StringHubComponent
 		this.hubId = hubId;
 	}
 
+	@Override
 	public void initialize()
 	{
 		final boolean includeHitOut = true;
@@ -440,6 +441,7 @@ public class StringHubComponent
 	 *
 	 * @throws IOException if there is a problem
 	 */
+	@Override
 	public void closeAll()
 		throws IOException
 	{
@@ -504,6 +506,7 @@ public class StringHubComponent
 	/**
 	 * StringHub responds to a configure request from the controller
 	 */
+	@Override
 	@SuppressWarnings("unchecked")
 	public void configuring(String configName) throws DAQCompException
 	{
@@ -952,6 +955,7 @@ public class StringHubComponent
 	 * Controller wants StringHub to start sending data.
 	 * Tell DOMs to start up.
 	 */
+	@Override
 	public void starting(int runNumber)
 		throws DAQCompException
 	{
@@ -999,6 +1003,7 @@ public class StringHubComponent
         checkDOMClocks();
 	}
 
+	@Override
 	public long startSubrun(List<FlasherboardConfiguration> flasherConfigs)
 		throws DAQCompException
 	{
@@ -1091,6 +1096,7 @@ public class StringHubComponent
 		return validXTime;
 	}
 
+	@Override
 	public void stopping()
 		throws DAQCompException
 	{
@@ -1133,6 +1139,7 @@ public class StringHubComponent
 	 *
 	 * @throws DAQCompException if there is a problem switching the component
 	 */
+	@Override
 	public void switching(int runNumber)
 		throws DAQCompException
 	{
@@ -1149,9 +1156,10 @@ public class StringHubComponent
 	 *
 	 * @return svn version id as a String
 	 */
+	@Override
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16750 2017-09-26 20:59:47Z bendfelt $";
+		return "$Id: StringHubComponent.java 17114 2018-09-26 09:51:56Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1189,6 +1197,7 @@ public class StringHubComponent
         return sender;
     }
 
+	@Override
 	public int getNumberOfActiveChannels()
 	{
 		int nch = 0;
@@ -1206,6 +1215,7 @@ public class StringHubComponent
 	 *
 	 * @return number of active DOMs and total number of requested DOMs
 	 */
+	@Override
 	public int[] getNumberOfActiveAndTotalChannels() {
 		int nch = 0;
 		for (AbstractDataCollector adc : conn.getCollectors()) {
@@ -1216,6 +1226,7 @@ public class StringHubComponent
 	}
 
 
+	@Override
 	public double getHitRate() {
 		double total = 0.;
 
@@ -1226,6 +1237,7 @@ public class StringHubComponent
 		return total;
 	}
 
+	@Override
 	public double getHitRateLC() {
 		double total = 0.;
 
@@ -1236,6 +1248,7 @@ public class StringHubComponent
 		return total;
 	}
 
+	@Override
 	public long getTotalLBMOverflows() {
 		long total = 0;
 
@@ -1246,18 +1259,21 @@ public class StringHubComponent
 		return total;
 	}
 
+	@Override
 	public long getTimeOfLastHitInputToHKN1()
 	{
 		if (hitsSort == null) return 0L;
 		return hitsSort.getLastInputTime();
 	}
 
+	@Override
 	public long getTimeOfLastHitOutputFromHKN1()
 	{
 		if (hitsSort == null) return 0L;
 		return hitsSort.getLastOutputTime();
 	}
 
+	@Override
 	public int getNumberOfNonZombies()
 	{
 		int num = 0;
@@ -1269,12 +1285,14 @@ public class StringHubComponent
 		return num;
 	}
 
+	@Override
 	public long getLatestFirstChannelHitTime()
 	{
 		GoodTimeCalculator gtc = new GoodTimeCalculator(conn, true);
 		return gtc.getTime();
 	}
 
+	@Override
 	public long getEarliestLastChannelHitTime()
 	{
 		GoodTimeCalculator gtc = new GoodTimeCalculator(conn, false);
@@ -1292,6 +1310,7 @@ public class StringHubComponent
 		 *
 		 * @return the usual comparison values
 		 */
+		@Override
 		public int compare(DOMInfo d1, DOMInfo d2)
 		{
 			int val = d1.getStringMajor() - d2.getStringMajor();
@@ -1306,6 +1325,7 @@ public class StringHubComponent
 		 *
 		 * @return <tt>true</tt> if they are the same class
 		 */
+		@Override
 		public boolean equals(Object obj)
 		{
 			return obj.getClass().getName().equals(getClass().getName());

@@ -19,5 +19,6 @@ public class AsciiMonitorRecord extends MonitorRecord
 		record.rewind();
 	}
 
+	@Override
 	public String toString() { return text; }
 }

@@ -152,6 +152,7 @@ public class MultiChannelMergeSort
      * @throws IOException
      *
      */
+    @Override
     public void consume(ByteBuffer buf) throws IOException
     {
         try
@@ -164,27 +165,33 @@ public class MultiChannelMergeSort
         }
     }
 
+    @Override
     public void endOfStream(long mbid)
         throws IOException
     {
         consume(eos(mbid));
     }
 
+    @Override
     public synchronized long getNumberOfInputs() { return inputCounter; }
 
+    @Override
     public synchronized long getNumberOfOutputs() { return outputCounter; }
 
+    @Override
     public synchronized int getQueueSize() { return q.size(); }
 
     /**
      * Register a channel with the sort.
      * @param mbid
      */
+    @Override
     public synchronized void register(long mbid)
     {
         inputMap.put(mbid, new Node<DAQBuffer>(bufferCmp));
     }
 
+    @Override
     public void run()
     {
         terminalNode = Node.makeTree(inputMap.values());
@@ -270,8 +277,10 @@ public class MultiChannelMergeSort
         return eos.asReadOnlyBuffer();
     }
 
+    @Override
     public long getLastInputTime() { return lastInputUT; }
 
+    @Override
     public long getLastOutputTime() { return lastUT; }
 
 

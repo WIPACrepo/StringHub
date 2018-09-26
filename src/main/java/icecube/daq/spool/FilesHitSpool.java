@@ -101,6 +101,7 @@ public class FilesHitSpool
         files = new FileBundle(fileInterval, maxNumberOfFiles);
     }
 
+    @Override
     public void consume(ByteBuffer buf) throws IOException
     {
         if (out != null) {
@@ -154,6 +155,7 @@ public class FilesHitSpool
     /**
      * There will be no more data.
      */
+    @Override
     public void endOfStream(long mbid)
         throws IOException
     {

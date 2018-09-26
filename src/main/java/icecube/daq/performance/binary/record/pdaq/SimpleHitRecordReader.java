@@ -23,14 +23,17 @@ public class SimpleHitRecordReader extends TypeCodeRecordReader implements UTCRe
 
     protected SimpleHitRecordReader(){}
 
+    @Override
     public long getUTC(final ByteBuffer buffer)
     {
         return buffer.getLong(8);
     }
+    @Override
     public long getUTC(final ByteBuffer buffer, final int offset)
     {
         return buffer.getLong(offset + 8);
     }
+    @Override
     public long getUTC(final RecordBuffer buffer, final int offset)
     {
         return buffer.getLong(offset + 8);
