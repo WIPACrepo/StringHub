@@ -21,7 +21,7 @@ import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
 import icecube.daq.io.DAQComponentOutputProcess;
 import icecube.daq.io.OutputChannel;
-import icecube.daq.io.PayloadReader;
+import icecube.daq.io.DAQStreamReader;
 import icecube.daq.io.SimpleOutputEngine;
 import icecube.daq.juggler.alert.AlertException;
 import icecube.daq.juggler.alert.AlertQueue;
@@ -96,7 +96,7 @@ public class StringHubComponent
     private SenderSubsystem sender;
 	private IDOMRegistry domRegistry;
 	private IByteBufferCache moniBufMgr, tcalBufMgr, snBufMgr;
-	private PayloadReader reqIn;
+	private DAQStreamReader reqIn;
 	private SimpleOutputEngine moniOut;
 	private DAQComponentOutputProcess tcalOut;
 	private DAQComponentOutputProcess supernovaOut;
@@ -1159,7 +1159,7 @@ public class StringHubComponent
 	@Override
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 17114 2018-09-26 09:51:56Z dglo $";
+		return "$Id: StringHubComponent.java 17123 2018-10-01 22:09:41Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1182,7 +1182,7 @@ public class StringHubComponent
 		return hubId;
 	}
 
-	public PayloadReader getRequestReader()
+	public DAQStreamReader getRequestReader()
 	{
 		return reqIn;
 	}

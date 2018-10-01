@@ -1,6 +1,6 @@
 package icecube.daq.sender;
 
-import icecube.daq.io.PushPayloadReader;
+import icecube.daq.io.PushStreamReader;
 import icecube.daq.payload.ILoadablePayload;
 import icecube.daq.payload.IReadoutRequest;
 import icecube.daq.payload.impl.ReadoutRequestFactory;
@@ -14,7 +14,7 @@ import org.apache.commons.logging.LogFactory;
  * Read requests from global trigger.
  */
 public class RequestReader
-    extends PushPayloadReader
+    extends PushStreamReader
 {
     private static final Log LOG =
         LogFactory.getLog(RequestReader.class);
