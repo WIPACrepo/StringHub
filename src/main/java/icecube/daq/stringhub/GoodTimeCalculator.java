@@ -91,6 +91,45 @@ public class GoodTimeCalculator
                 index = i;
             }
         }
+
+        return index;
+    }
+
+    /**
+     * Find the earliest large gap between values in the sorted list of DOM times
+     *
+     * @return index of end of largest gap
+     */
+    private int findEarliestLargeGap(long[] sorted, long gapThreshold)
+    {
+        for (int i = 1; i < sorted.length; i++) {
+            long gap = sorted[i] - sorted[i - 1];
+            if(gap > gapThreshold)
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Find the earliest large gap between values in the sorted list of DOM times
+     *
+     * @return index of end of largest gap
+     */
+    private int findLatestLargeGap(long[] sorted, long gapThreshold)
+    {
+
+        int index = 0;
+        for (int i = 1; i < sorted.length; i++) {
+            long gap = sorted[i] - sorted[i - 1];
+            if(gap > gapThreshold)
+            {
+                index = i;
+            }
+        }
+
         return index;
     }
 
@@ -113,7 +152,7 @@ public class GoodTimeCalculator
         }
 
         long[] sorted = truncateAndSort();
-        int index = findLargestGap(sorted);
+        int index = findLatestLargeGap(sorted, ONE_MINUTE);
 
         // if the gap happens less than halfway through the list,
         //  return the time found at the end of the gap
@@ -145,7 +184,7 @@ public class GoodTimeCalculator
         }
 
         long[] sorted = truncateAndSort();
-        int index = findLargestGap(sorted);
+        int index = findEarliestLargeGap(sorted, ONE_MINUTE);
 
         // if the gap happens more than halfway through the list,
         //  return the time found at the start of the gap
@@ -221,5 +260,49 @@ public class GoodTimeCalculator
         buf.append(",earliest=").append(earliest);
         buf.append(",latest=").append(latest);
         return buf.append(']').toString();
+    }
+
+
+    public void dump()
+    {
+        System.out.println("mode: " + (isFirstTime ? "FirstTime":"LastTime"));
+        String target = isFirstTime ? "Latest" : "Earliest";
+        System.out.println("target hit: " + target);
+
+        System.out.println();
+        System.out.println("abolute earliest = " + earliest);
+        System.out.println("absolutute latest = " + latest);
+        System.out.println("chosen " + target + " = " + getTime());
+        System.out.println();
+
+        for (int i = 0; i < times.length; i++)
+        {
+            long gap = 0;
+            if (i>0)
+            {
+                gap = times[i] - times[i-1];
+            }
+
+            String desc = "";
+            if(times[i] == earliest)
+            {
+                desc = "earliest";
+            }
+            if(times[i] == latest)
+            {
+                desc = "latest";
+            }
+            if(times[i] == getTime())
+            {
+                desc += "*";
+            }
+
+            if(gap > 10000000000L * 60)
+            {
+                System.out.printf("%s %d sec%n", "<gap>", (gap/10000000000L));
+            }
+            System.out.printf("[%2d] %20d   %s%n", i, times[i], desc);
+        }
+
     }
 }

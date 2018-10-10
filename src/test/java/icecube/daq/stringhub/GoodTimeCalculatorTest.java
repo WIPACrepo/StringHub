@@ -99,12 +99,14 @@ public class GoodTimeCalculatorTest
     private void checkEarliest(String name, long goodTime)
     {
         GoodTimeCalculator calc = new GoodTimeCalculator(conn, true);
+        // debug // calc.dump();
         assertEquals("Bad earliest time", goodTime, calc.getTime());
     }
 
     private void checkLatest(String name, long goodTime)
     {
         GoodTimeCalculator calc = new GoodTimeCalculator(conn, false);
+        // debug // calc.dump();
         assertEquals("Bad latest time", goodTime, calc.getTime());
     }
 
@@ -305,4 +307,158 @@ public class GoodTimeCalculatorTest
 
         checkLatest("LatestSplitBack", firstTime);
     }
+
+    @Test
+    public void testEarliestMultiSplitFront()
+    {
+        Random rand = new Random();
+
+        long firstTime = Long.MAX_VALUE;
+        long lastTime = Long.MIN_VALUE;
+
+        long tmpTime = 60 * ONE_SECOND;
+        for (int i = 0; i < 60; i++) {
+            tmpTime += Math.abs(rand.nextLong() % ONE_SECOND);
+
+            if (i == 15) {
+                // jump ahead five minutes
+                tmpTime += 300 * ONE_SECOND;
+                firstTime = Long.MAX_VALUE;
+            }
+
+            if (i == 20) {
+                // jump ahead two minutes
+                tmpTime += 120 * ONE_SECOND;
+                firstTime = Long.MAX_VALUE;
+            }
+
+            if (firstTime == Long.MAX_VALUE) {
+                firstTime = tmpTime;
+            }
+            lastTime = tmpTime;
+
+            conn.add(new MockDataCollector(0, i, 'A', tmpTime));
+        }
+
+        checkEarliest("EarliestMultiSplitFront", lastTime);
+    }
+
+    @Test
+    public void testLatestMultiSplitFront()
+    {
+        Random rand = new Random();
+
+        long firstTime = Long.MAX_VALUE;
+        long lastTime = Long.MIN_VALUE;
+
+        long tmpTime = 60 * ONE_SECOND;
+        for (int i = 0; i < 60; i++) {
+            tmpTime += Math.abs(rand.nextLong() % ONE_SECOND);
+
+            if (i == 15) {
+                // jump ahead five minutes
+                tmpTime += 300 * ONE_SECOND;
+                firstTime = Long.MAX_VALUE;
+            }
+
+            if (i == 20) {
+                // jump ahead two minutes
+                tmpTime += 120 * ONE_SECOND;
+                firstTime = Long.MAX_VALUE;
+            }
+
+            if (firstTime == Long.MAX_VALUE) {
+                firstTime = tmpTime;
+            }
+            lastTime = tmpTime;
+
+            conn.add(new MockDataCollector(0, i, 'A', tmpTime));
+        }
+
+        checkLatest("LatestSplitFront", firstTime);
+    }
+
+    @Test
+    public void testEarliestMultiSplitBack()
+    {
+        Random rand = new Random();
+
+        long firstTime = Long.MAX_VALUE;
+        long lastTime = Long.MIN_VALUE;
+
+        long tmpTime = 60 * ONE_SECOND;
+        for (int i = 0; i < 60; i++) {
+            tmpTime += Math.abs(rand.nextLong() % ONE_SECOND);
+
+            if (i == 45) {
+                // jump ahead five minutes
+                tmpTime += 300 * ONE_SECOND;
+            } else if (i == 55) {
+                // jump ahead two minutes
+                tmpTime += 120 * ONE_SECOND;
+            } else if (i < 45) {
+                if (firstTime == Long.MAX_VALUE) {
+                    firstTime = tmpTime;
+                }
+                lastTime = tmpTime;
+            }
+
+            conn.add(new MockDataCollector(0, i, 'A', tmpTime));
+        }
+
+        checkEarliest("EarliestSplitBack", lastTime);
+    }
+
+    @Test
+    public void testLatestMultiSplitBack()
+    {
+        Random rand = new Random();
+
+        long firstTime = Long.MAX_VALUE;
+        long lastTime = Long.MIN_VALUE;
+
+        long tmpTime = 60 * ONE_SECOND;
+        for (int i = 0; i < 60; i++) {
+            tmpTime += Math.abs(rand.nextLong() % ONE_SECOND);
+
+            if (i == 45) {
+                // jump ahead five minutes
+                tmpTime += 300 * ONE_SECOND;
+            } else if (i == 55) {
+                // jump ahead two minutes
+                tmpTime += 120 * ONE_SECOND;
+            } else if (i < 55) {
+                if (firstTime == Long.MAX_VALUE) {
+                    firstTime = tmpTime;
+                }
+                lastTime = tmpTime;
+            }
+
+            conn.add(new MockDataCollector(0, i, 'A', tmpTime));
+        }
+
+        checkLatest("LatestSplitBack", firstTime);
+    }
+
+    public void testRun131585()
+    {
+        // test the fix for the bad end run time
+        // discovered in run 131585
+
+        // Two drops 11 hours apart
+        conn.add(new MockDataCollector(0,0,'A', 239065550000000000L));  // 2018-10-04 16:42:35.000 (Mnemophobia)
+        conn.add(new MockDataCollector(0,0,'A', 239469990000000000L));  // 2018-10-05 03:56:39.000 (Itchetiky)
+
+        // The non-dropped DOMS at end of run 7 hours later
+        Random rand = new Random();
+        long endOfRunTime = 239727620000000000L; //2018-10-05 11:06:02.000 (End of Run)
+        for(int i=0; i< 56; i++)
+        {
+            conn.add(new MockDataCollector(0,0,'A', endOfRunTime));
+            endOfRunTime += Math.abs(rand.nextLong() % ONE_SECOND);
+        }
+
+        checkLatest("Run131585", endOfRunTime);
+    }
+
 }
