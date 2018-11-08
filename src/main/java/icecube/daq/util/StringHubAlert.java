@@ -7,13 +7,12 @@ import icecube.daq.payload.impl.UTCTime;
 
 import java.util.HashMap;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.apache.log4j.Logger;
 
 public class StringHubAlert
 {
     /** Logging object */
-    private static final Log LOG = LogFactory.getLog(StringHubAlert.class);
+    private static final Logger LOG = Logger.getLogger(StringHubAlert.class);
 
     /** Default alert priority */
     public static final Priority DEFAULT_PRIORITY = Priority.SCP;

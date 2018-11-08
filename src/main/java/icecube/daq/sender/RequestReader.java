@@ -7,8 +7,7 @@ import icecube.daq.payload.impl.ReadoutRequestFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.apache.log4j.Logger;
 
 /**
  * Read requests from global trigger.
@@ -16,8 +15,8 @@ import org.apache.commons.logging.LogFactory;
 public class RequestReader
     extends PushStreamReader
 {
-    private static final Log LOG =
-        LogFactory.getLog(RequestReader.class);
+    private static final Logger LOG =
+        Logger.getLogger(RequestReader.class);
 
     /** back-end processor which digests readout requests. */
     private RequestHandler sender;

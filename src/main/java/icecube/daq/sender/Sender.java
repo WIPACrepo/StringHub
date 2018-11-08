@@ -30,8 +30,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.apache.log4j.Logger;
 
 
 /**
@@ -45,7 +44,7 @@ public class Sender
 
     private static final long DAY_TICKS = 10000000000L * 60L * 60L * 24L;
 
-    private static Log log = LogFactory.getLog(Sender.class);
+    private static Logger log = Logger.getLogger(Sender.class);
 
     private ISourceID sourceId;
 
@@ -166,18 +165,14 @@ public class Sender
                 try {
                     hitChan.sendLastAndStop();
                 } catch (Exception ex) {
-                    if (log.isErrorEnabled()) {
-                        log.error("Couldn't stop hit destinations", ex);
-                    }
+                    log.error("Couldn't stop hit destinations", ex);
                 }
             }
 
             try {
                 addDataStop();
             } catch (IOException ioe) {
-                if (log.isErrorEnabled()) {
-                    log.error("Couldn't add data stop to queue", ioe);
-                }
+                log.error("Couldn't add data stop to queue", ioe);
             }
 
             // ensure accumulated hlc hits are reported
@@ -214,9 +209,7 @@ public class Sender
                     try {
                         addData(tinyHit);
                     } catch (IOException ioe) {
-                        if (log.isErrorEnabled()) {
-                            log.error("Couldn't add data to queue", ioe);
-                        }
+                        log.error("Couldn't add data to queue", ioe);
                     }
 
 
@@ -306,9 +299,7 @@ public class Sender
             try {
                 dataChan.sendLastAndStop();
             } catch (Exception ex) {
-                if (log.isErrorEnabled()) {
-                    log.error("Couldn't stop readout data destinations", ex);
-                }
+                log.error("Couldn't stop readout data destinations", ex);
             }
         }
         totStopsSent++;
@@ -522,7 +513,7 @@ public class Sender
         latestReadoutStartTime = startTime.longValue();
         latestReadoutEndTime = endTime.longValue();
 
-        if (log.isWarnEnabled() && dataList.size() == 0) {
+        if (dataList.size() == 0) {
             log.warn("Sending empty hit record list " + uid + " window [" +
                      startTime + " - " + endTime + "]");
         } else if (log.isDebugEnabled()) {
@@ -711,9 +702,7 @@ public class Sender
         }
 
         if (dataOut == null) {
-            if (log.isErrorEnabled()) {
-                log.error("Data destination has not been set");
-            }
+            log.error("Data destination has not been set");
         } else {
             dataChan = dataOut.getChannel();
             if (dataChan == null) {
