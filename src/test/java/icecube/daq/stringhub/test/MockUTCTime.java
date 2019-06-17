@@ -56,9 +56,9 @@ public class MockUTCTime
     }
 
     @Override
-    public IUTCTime getOffsetUTCTime(double nanoSec)
+    public IUTCTime getOffsetUTCTime(long ticks)
     {
-        return new MockUTCTime(time + (long) (nanoSec * 10.0));
+        return new MockUTCTime(time + ticks);
     }
 
     /**
