@@ -376,6 +376,8 @@ class DataThread
     private static final long NS_PER_SEC = 1000000000L;
     /** Maximum gap between payloads (in nanoseconds!) */
     private static final long MAX_GAP_NS = NS_PER_SEC * 3L;
+    /** If <tt>true</tt>, log when this thread finishes queuing all data */
+    private static final boolean LOUD = false;
 
     /** ID of this replay hub */
     private int hubId;
@@ -643,8 +645,10 @@ class DataThread
 
         stopping = false;
 
-        LOG.error("Finished queuing " + totPayloads + " " + dataType +
-                  " on hub#" + hubId);
+        if (LOUD) {
+            LOG.error("Finished queuing " + totPayloads + " " + dataType +
+                      " on hub#" + hubId);
+        }
     }
 
     /**
@@ -712,6 +716,9 @@ class OutputThread
     implements Runnable
 {
     private static final Logger LOG = Logger.getLogger(OutputThread.class);
+
+    /** If <tt>true</tt>, log when this thread finishes writing all data */
+    private static final boolean LOUD = false;
 
     /** ID of this replay hub */
     private int hubId;
@@ -835,7 +842,10 @@ class OutputThread
         stopping = false;
         stopped = true;
 
-        LOG.error("Finished writing hub#" + hubId + " " + dataType + " data");
+        if (LOUD) {
+            LOG.error("Finished writing hub#" + hubId + " " + dataType +
+                      " data");
+        }
     }
 
     public void start()
