@@ -13,6 +13,7 @@ public class MockUTCTime
         this.time = time;
     }
 
+    @Override
     public int compareTo(Object obj)
     {
         if (obj == null) {
@@ -31,6 +32,7 @@ public class MockUTCTime
         return 0;
     }
 
+    @Override
     public Object deepCopy()
     {
         return new MockUTCTime(time);
@@ -41,16 +43,19 @@ public class MockUTCTime
      * This means it is able to return itself to the pool from
      * which it came.
      */
+    @Override
     public void dispose()
     {
         // do nothing
     }
 
+    @Override
     public boolean equals(Object obj)
     {
         return compareTo(obj) == 0;
     }
 
+    @Override
     public IUTCTime getOffsetUTCTime(double nanoSec)
     {
         return new MockUTCTime(time + (long) (nanoSec * 10.0));
@@ -61,16 +66,19 @@ public class MockUTCTime
      *
      * @return object of this type from the object pool.
      */
+    @Override
     public Poolable getPoolable()
     {
         return new MockUTCTime(-1);
     }
 
+    @Override
     public long longValue()
     {
         return time;
     }
 
+    @Override
     public int hashCode()
     {
         final long modValue = Integer.MAX_VALUE / 256;
@@ -84,16 +92,19 @@ public class MockUTCTime
     /**
      * Object knows how to recycle itself
      */
+    @Override
     public void recycle()
     {
         // do nothing
     }
 
+    @Override
     public long timeDiff(IUTCTime otherTime)
     {
         throw new Error("Unimplemented");
     }
 
+    @Override
     public double timeDiff_ns(IUTCTime otherTime)
     {
         return (double) (time - otherTime.longValue());
@@ -103,11 +114,13 @@ public class MockUTCTime
      * Return a human-readable date/time string
      * @return human-readable date/time string
      */
+    @Override
     public String toDateString()
     {
         throw new Error("Unimplemented");
     }
 
+    @Override
     public String toString()
     {
         return Long.toString(time);

@@ -13,7 +13,6 @@ import icecube.daq.domapp.dataprocessor.DataStats;
 import icecube.daq.dor.Driver;
 import icecube.daq.dor.IDriver;
 import icecube.daq.dor.TimeCalib;
-import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
 import icecube.daq.time.monitoring.ClockProcessor;
 import icecube.daq.util.FlasherboardConfiguration;
@@ -31,6 +30,8 @@ import java.util.List;
  *
  * Caller is assumed to be the DataCollector thread. This is a requirement
  * for correct behavior.
+ *
+ * This implementation requires that the dor driver be in blocking mode.
  *
  * This class was initially implemented with code migrated from
  * icecube.daq.domapp.DataCollector revision 15482.
@@ -51,17 +52,24 @@ public class DataAcquisition
     private final IDriver driver;
     private DOMApp app;
     private final File tcalFile;
-    private final ByteBuffer intervalBuffer;
 
 
     // Note: read intervals are only applicable to polling mode.
-    private long nextSupernovaRead = 0;
-    private long nextMoniRead = 0;
-    private long nextDataRead = 0;
+    private long nextSupernovaReadNanos = 0;
+    private long nextMoniReadNanos = 0;
+    private long nextDataReadNanos = 0;
 
-    private long    dataReadInterval      = 10;
-    private long    moniReadInterval      = 1000;
-    private long    supernovaReadInterval = 1000;
+
+    private long    dataReadIntervalNanos      = 10_000_000;    //10 millisec
+    private long    moniReadIntervalNanos      = 1_000_000_000; // 1 second
+    private long    supernovaReadIntervalNanos = 1_000_000_000; // 1 second
+
+    // System time of last successful tcal
+    private long lastTCalNanos;
+
+
+    // Note: interval data is only applicable to interval mode;
+    private IntervalData intervalData = new IntervalData();
 
 
     /** Wait time used when spinning on data reads. */
@@ -85,8 +93,6 @@ public class DataAcquisition
     private ClockProcessor tcalConsumer =
             ClockMonitoringSubsystem.Factory.processor();
 
-    private IRunMonitor runMonitor;
-
     public DataAcquisition(final int card, final int pair, final char dom,
                            final DataProcessor dataProcessor)
     {
@@ -101,9 +107,9 @@ public class DataAcquisition
 
         tcalFile = this.driver.getTCALFile(card, pair, dom);
 
-        this.intervalBuffer = ByteBuffer.allocateDirect(4092);
-
         this.monitor = new AcquisitionMonitor(id);
+
+        this.lastTCalNanos = System.nanoTime();
     }
 
     /**
@@ -442,7 +448,8 @@ public class DataAcquisition
 
 
     /**
-     * Execute an interval acquisition.
+     * Execute an interval acquisition. This includes a tcal operation
+     * at the end of the interval.
      *
      * @param watchdog The watchdog.
      * @throws AcquisitionError
@@ -459,7 +466,7 @@ public class DataAcquisition
 
             while (!done) {
                 monitor.initiateMessageRead();
-                ByteBuffer msg = app.recvMessage(intervalBuffer);
+                ByteBuffer msg = app.recvMessage(ByteBuffer.allocate(4092));
                 monitor.reportDataMessageRcv(msg);
 
                 watchdog.ping();
@@ -472,19 +479,18 @@ public class DataAcquisition
                 // pass message payload to processor
                 if(MessageType.GET_DATA.equals(msg_type, msg_subtype)) {
                     if (msg.remaining()>0) {
+                        intervalData.accumulate(msg.slice(), DataProcessor.StreamType.HIT);
                         tired = false;
                     }
-
-                    dataProcessor.process(DataProcessor.StreamType.HIT, msg.slice());
                 } else if(MessageType.GET_SN_DATA.equals(msg_type, msg_subtype)) {
                     if (msg.remaining()>0) {
-                        dataProcessor.process(DataProcessor.StreamType.SUPERNOVA, msg.slice());
+                        intervalData.accumulate(msg.slice(), DataProcessor.StreamType.SUPERNOVA);
                         tired = false;
                     }
                     done = true;
                 } else if(MessageType.GET_MONI.equals(msg_type, msg_subtype)) {
                     if (msg.remaining()>0) {
-                        dataProcessor.process(DataProcessor.StreamType.MONI, msg.slice());
+                        intervalData.accumulate(msg.slice(), DataProcessor.StreamType.MONI);
                         tired = false;
                     }
                     // If we're not going to get a SN message, this marks the
@@ -504,6 +510,13 @@ public class DataAcquisition
                     watchdog.sleep(SPIN_WAIT_SLEEP_MILLIS);
                 }
             }
+
+            //Note: Before submitting the interval, run a tcal.  This
+            //      (almost always) ensures that a bounding isochron
+            //      will be available while processing the data in the
+            //      interval.
+            attemptTCAL(watchdog);
+            intervalData.submitAll(dataProcessor);
 
             return tired;
         }
@@ -525,7 +538,7 @@ public class DataAcquisition
     * @throws AcquisitionError
     */
     public boolean doPolling(final Watchdog watchdog,
-                             final long systemTimMillis)
+                             final long systemTimeNanos)
             throws AcquisitionError
     {
         boolean tired = true;
@@ -535,9 +548,9 @@ public class DataAcquisition
             monitor.initiateCycle();
 
             // Time to do a data collection?
-            if (systemTimMillis >= nextDataRead)
+            if (systemTimeNanos >= nextDataReadNanos)
             {
-                nextDataRead = systemTimMillis + dataReadInterval;
+                nextDataReadNanos = systemTimeNanos + dataReadIntervalNanos;
 
                 try
                 {
@@ -560,9 +573,9 @@ public class DataAcquisition
             }
 
             // What about monitoring?
-            if (systemTimMillis >= nextMoniRead)
+            if (systemTimeNanos >= nextMoniReadNanos)
             {
-                nextMoniRead = systemTimMillis + moniReadInterval;
+                nextMoniReadNanos = systemTimeNanos + moniReadIntervalNanos;
 
                 monitor.initiateMessageRead();
                 ByteBuffer moni = app.getMoni();
@@ -574,9 +587,9 @@ public class DataAcquisition
                 }
             }
 
-            if (systemTimMillis > nextSupernovaRead)
+            if (systemTimeNanos > nextSupernovaReadNanos)
             {
-                nextSupernovaRead = systemTimMillis + supernovaReadInterval;
+                nextSupernovaReadNanos = systemTimeNanos + supernovaReadIntervalNanos;
                 while (!supernova_disabled)
                 {
                     monitor.initiateMessageRead();
@@ -626,9 +639,13 @@ public class DataAcquisition
 
         try
         {
-            String reportedMBID = null;
+            // verify driver is in blocking mode
+            if(!driver.isBlocking())
+            {
+                throw new AcquisitionError("Driver must be in blocking mode");
+            }
 
-            driver.resetComstat(card, pair, dom);
+            String reportedMBID = null;
 
             boolean needSoftboot = true;
 
@@ -672,8 +689,10 @@ public class DataAcquisition
                     // inconsistently such as when the previous run exited
                     // mid-interval
                     //
-                    logger.warn("DOM is not responding to DOMApp query -" +
-                            " will attempt to softboot", ex);
+                    String msg = String.format("DOM [%s] %s is not responding" +
+                            " to DOMApp query -  will attempt to softboot",
+                            id, getMBID());
+                    logger.warn(msg, ex);
 
                     needSoftboot = true;
 
@@ -703,7 +722,10 @@ public class DataAcquisition
                     catch (Exception ex2)
                     {
                         if (iTry == 1) throw ex2;
-                        logger.error("Failure to softboot to DOMApp - will retry one time.", ex2);
+                        String msg = String.format("Failure to softboot [%s] %s" +
+                                " to DOMApp - will retry one time.",
+                                id, getMBID());
+                        logger.error(msg, ex2);
 
                         // The watchdog may have fired, reset the interrupt.
                         Thread.currentThread().interrupted();
@@ -731,10 +753,39 @@ public class DataAcquisition
 
     }
 
+    /**
+     * Attempt a TCAL.
+     *
+     * The contract for this method is intentionally soft.  Errors encountered
+     * on the acquisition side are logged, but suppressed.  This helps ride
+     * out some temporary bad conditions.
+     *
+     * Errors encountered on the processing side are propagated.  A processing
+     * error is generally fatal to the channel.
+     *
+     * @param watchdog The watchdog.
+     * @exception DataProcessorError An error occurred while passing the
+     *            time calibration to the data processor.  This indicates
+     *            a serious problem.
+     */
+    public void attemptTCAL(final Watchdog watchdog) throws DataProcessorError
+    {
+        try
+        {
+            doTCAL(watchdog);
+        }
+        catch (AcquisitionError acquisitionError)
+        {
+            logger.error("Ignoring tcal error", acquisitionError);
+        }
+    }
 
     /**
-     * Execute a TCAL operation.
+     * Execute a rapcal and queue the time calibration to the data processor.
      *
+     * All errors, including potentially transient acquisition errors are
+     * propagated. Most calling methods should be using attemptRapCal()
+     * which silently ignores acquisition errors.
      * @param watchdog The watchdog.
      * @throws AcquisitionError Error occurred running TCAL.
      * @throws DataProcessorError Error occurred processing TCAL.
@@ -770,6 +821,8 @@ public class DataAcquisition
             //       is not propagated to the processor.
             dataStats.reportClockRelationship(tcal.getDomRxInDomUnits(),
                     dortxNano);
+
+            lastTCalNanos = after;
         }
         catch (InterruptedException e)
         {
@@ -782,6 +835,13 @@ public class DataAcquisition
         }
     }
 
+    /**
+     * @return The system time of the last successful tcal.
+     */
+    public long getLastTCalNanos()
+    {
+        return lastTCalNanos;
+    }
 
     /**
      * Access the Mainboard ID via the proc file.
@@ -823,17 +883,11 @@ public class DataAcquisition
     }
 
 
-    public void setRunMonitor(IRunMonitor runMoni)
-    {
-        runMonitor = runMoni;
-    }
-
-
     /**
      * Wrap up softboot -> domapp behavior
      */
     private void softbootToDomapp(final Watchdog watchdog) throws IOException,
-            InterruptedException
+            InterruptedException, AcquisitionError
     {
         // Based on discussion /w/ JEJ in Utrecht café, going for multiple
         // retries here
@@ -851,7 +905,9 @@ public class DataAcquisition
             }
             catch (IOException iox)
             {
-                logger.warn("Softboot attempt failed - retrying after 5 sec");
+                String msg = String.format("Softboot attempt of [%s] %s" +
+                        " failed - retrying after 5 sec", id, getMBID());
+                logger.warn(msg);
                 watchdog.sleep(5000L);
             }
             finally
@@ -898,4 +954,54 @@ public class DataAcquisition
         return "[" + id + "]";
     }
 
+    /**
+     * A storage class for messages collected in an interval. Used
+     * to accumulated interval data for batched submission to the
+     * processor.
+     *
+     * Implemented non-dynamically to reduce object churn.
+     */
+    private static class IntervalData
+    {
+        // A very generous limitation
+        private static int MAX_MESSAGES = 1000;
+
+        private final ByteBuffer[] batch = new ByteBuffer[MAX_MESSAGES];
+        private final DataProcessor.StreamType[] batchType =
+                new DataProcessor.StreamType[MAX_MESSAGES];
+        private int batchIdx = 0;
+
+
+
+        /**
+         * Accumulate a message for deferred submission.
+         */
+        void accumulate(ByteBuffer buffer, DataProcessor.StreamType type)
+        {
+            batch[batchIdx] = buffer;
+            batchType[batchIdx] = type;
+            batchIdx++;
+        }
+
+        /**
+         * Submit accumulated messages and clear the batch.
+         */
+        void submitAll(final DataProcessor processor) throws DataProcessorError
+        {
+            ByteBuffer[] data = new ByteBuffer[batchIdx];
+            DataProcessor.StreamType[] dataType =
+                    new DataProcessor.StreamType[batchIdx];
+            System.arraycopy(batch, 0, data, 0, data.length);
+            System.arraycopy(batchType, 0, dataType, 0, dataType.length);
+            processor.process(dataType, data);
+
+            clear();
+        }
+
+        void clear()
+        {
+            batchIdx = 0;
+        }
+
+    }
 }

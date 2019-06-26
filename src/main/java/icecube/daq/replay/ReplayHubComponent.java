@@ -1,5 +1,6 @@
 package icecube.daq.replay;
 
+import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.io.HitSpoolReader;
 import icecube.daq.io.PayloadByteReader;
 import icecube.daq.io.SimpleOutputEngine;
@@ -9,13 +10,14 @@ import icecube.daq.juggler.component.DAQComponent;
 import icecube.daq.juggler.component.DAQConnector;
 import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
-import icecube.daq.monitoring.MonitoringData;
+import icecube.daq.juggler.mbean.ThreadProfiler;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.impl.ReadoutRequestFactory;
 import icecube.daq.payload.impl.VitreousBufferCache;
 import icecube.daq.sender.RequestReader;
-import icecube.daq.sender.Sender;
-import icecube.daq.util.DOMRegistry;
+import icecube.daq.sender.SenderSubsystem;
+import icecube.daq.util.DOMRegistryException;
+import icecube.daq.util.DOMRegistryFactory;
 import icecube.daq.util.IDOMRegistry;
 import icecube.daq.util.FlasherboardConfiguration;
 import icecube.daq.util.JAXPUtil;
@@ -23,16 +25,21 @@ import icecube.daq.util.JAXPUtilException;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -113,7 +120,7 @@ public class ReplayHubComponent
     /** Cache used to allocate new hit payloads */
     private IByteBufferCache cache;
     /** Hit sender */
-    private Sender sender;
+    private SenderSubsystem sender;
     /** DOM database */
     private IDOMRegistry domRegistry;
 
@@ -131,6 +138,14 @@ public class ReplayHubComponent
     /** List of data stream handlers */
     private FileHandler[] handlers = new FileHandler[4];
 
+    //todo: Remove after rhinelander release
+    /**
+     * Configuration directive to fall back to the legacy HitSpool/Sender
+     * implementations;
+     */
+    public static final boolean USE_LEGACY_SENDER =
+    Boolean.getBoolean("icecube.daq.sender.SenderSubsystem.use-legacy-sender");
+
     /**
      * Create a replay component
      *
@@ -146,10 +161,12 @@ public class ReplayHubComponent
         this.hubId = hubId;
     }
 
+    @Override
     public void initialize()
     {
         addMBean("jvm", new MemoryStatistics());
         addMBean("system", new SystemStatistics());
+        addMBean("profile", new ThreadProfiler());
         addMBean("stringhub", this);
 
         cache = new VitreousBufferCache("RHGen#" + hubId);
@@ -159,9 +176,25 @@ public class ReplayHubComponent
         IByteBufferCache rdoutDataCache  =
             new VitreousBufferCache("SHRdOut#" + hubId);
         addCache(DAQConnector.TYPE_READOUT_DATA, rdoutDataCache);
-        sender = new Sender(hubId, rdoutDataCache);
-        if (domRegistry != null) {
-            sender.setDOMRegistry(domRegistry);
+
+        try
+        {
+            if(USE_LEGACY_SENDER)
+            {
+                sender =
+                   SenderSubsystem.Factory.REPLAY_COMPONENT.createLegacy(hubId,
+                        cache, rdoutDataCache, domRegistry);
+            }
+            else
+            {
+                sender = SenderSubsystem.Factory.REPLAY_COMPONENT.create(hubId,
+                        cache, rdoutDataCache, domRegistry);
+            }
+        }
+        catch (IOException ioe)
+        {
+            throw new Error("Couldn't create hub#" + hubId + " Sender",
+                    ioe);
         }
 
         if (LOG.isInfoEnabled()) {
@@ -191,15 +224,18 @@ public class ReplayHubComponent
                 addMonitoredEngine(DAQConnector.TYPE_STRING_HIT, hitOut);
             }
             sender.setHitOutput(hitOut);
-            sender.setHitCache(cache);
         }
 
+        IByteBufferCache rdoutReqCache  =
+            new VitreousBufferCache("SHRReq#" + hubId);
+        addCache(DAQConnector.TYPE_READOUT_REQUEST, rdoutReqCache);
         ReadoutRequestFactory rdoutReqFactory =
-            new ReadoutRequestFactory(cache);
+            new ReadoutRequestFactory(rdoutReqCache);
 
         RequestReader reqIn;
         try {
-            reqIn = new RequestReader(COMPONENT_NAME, sender, rdoutReqFactory);
+            reqIn = new RequestReader(COMPONENT_NAME,
+                    sender.getReadoutRequestHandler(), rdoutReqFactory);
         } catch (IOException ioe) {
             throw new Error("Couldn't create hub#" + hubId + " RequestReader",
                             ioe);
@@ -212,9 +248,7 @@ public class ReplayHubComponent
 
         sender.setDataOutput(dataOut);
 
-        MonitoringData monData = new MonitoringData();
-        monData.setSenderMonitor(sender);
-        addMBean("sender", monData);
+        addMBean("sender", sender.getMonitor());
 
         // monitoring output stream
         SimpleOutputEngine moniOut =
@@ -236,7 +270,8 @@ public class ReplayHubComponent
             HandlerOutputProcessor hout;
             switch (dst) {
             case HIT:
-                outputProc[dst.index()] = new HitOutputProcessor(sender);
+                outputProc[dst.index()] =
+                        new HitOutputProcessor(sender.getHitInput());
                 break;
             case MONI:
                 outputProc[dst.index()] = new StreamOutputProcessor(moniOut);
@@ -258,6 +293,7 @@ public class ReplayHubComponent
      *
      * @throws DAQCompException if there is a problem
      */
+    @Override
     @SuppressWarnings("unchecked")
     public void configuring(String configName)
         throws DAQCompException
@@ -270,6 +306,18 @@ public class ReplayHubComponent
         Document doc;
         try {
             doc = JAXPUtil.loadXMLDocument(configurationPath, configName);
+        } catch (JAXPUtilException jux) {
+            throw new DAQCompException("Hub#" + hubId + " config failed", jux);
+        }
+
+        // check for hit forwarding
+        final String fwdProp = "sender/forwardIsolatedHitsToTrigger";
+        try {
+            final String fwdText = JAXPUtil.extractText(doc, fwdProp);
+            if (fwdText.equalsIgnoreCase("true")) {
+                LOG.error("Enabled hit forwarding");
+                sender.forwardIsolatedHitsToTrigger();
+            }
         } catch (JAXPUtilException jux) {
             throw new DAQCompException("Hub#" + hubId + " config failed", jux);
         }
@@ -289,19 +337,6 @@ public class ReplayHubComponent
             throw new DAQCompException("No <replayFiles> entry found for" +
                                        "  hub#" + hubId + " in " + configName);
         }
-
-
-        final String fwdProp = "sender/forwardIsolatedHitsToTrigger";
-        try {
-            final String fwdText = JAXPUtil.extractText(replayFiles, fwdProp);
-            if (fwdText.equalsIgnoreCase("true")) {
-                LOG.error("Enabled hit forwarding");
-                sender.forwardIsolatedHitsToTrigger();
-            }
-        } catch (JAXPUtilException jux) {
-            throw new DAQCompException("Hub#" + hubId + " config failed", jux);
-        }
-
 
         // extract this hub's entry
         Element hubNode;
@@ -385,8 +420,33 @@ public class ReplayHubComponent
             }
         }
 
+        int numToSkip = 0;
+
+        // extract replay "tweak" node
+        final String tweakNodeStr = replayFilesStr + "/tweak";
+        Element tweaks;
         try {
-            hitReader = new CachingPayloadReader(dataDir, hubId);
+            tweaks = (Element) JAXPUtil.extractNode(doc, tweakNodeStr);
+        } catch (JAXPUtilException jux) {
+            throw new DAQCompException("Hub#" + hubId +
+                                       " cannot get <tweak> node", jux);
+        }
+        if (tweaks != null) {
+            // get number of files to skip
+            final String skipStr = hubNode.getAttribute("skip");
+            if (skipStr != null) {
+                try {
+                    numToSkip = Integer.parseInt(skipStr);
+                } catch (NumberFormatException nfe) {
+                    throw new DAQCompException("Bad value \"" + skipStr +
+                                               "\" for number of replay" +
+                                               " files to skip");
+                }
+            }
+        }
+
+        try {
+            hitReader = new CachingPayloadReader(dataDir, hubId, numToSkip);
         } catch (IOException ioe) {
             throw new DAQCompException("Cannot open " + dataDir, ioe);
         }
@@ -414,7 +474,7 @@ public class ReplayHubComponent
                 }
 
                 try {
-                    fileReader = new PayloadByteReader(f);
+                    fileReader = new PayloadByteReader(f, cache);
                 } catch (IOException ioe) {
                     throw new DAQCompException("Cannot create " + dst +
                                                " file handler", ioe);
@@ -450,6 +510,7 @@ public class ReplayHubComponent
      * @return the DAQ time (1E10 ticks/sec) of the hit which fulfills this
      *         condition.
      */
+    @Override
     public long getEarliestLastChannelHitTime()
     {
         final int idx = DataStreamType.HIT.index();
@@ -464,6 +525,7 @@ public class ReplayHubComponent
      * Report the total hit rate ( in Hz )
      * @return total hit rate in Hz
      */
+    @Override
     public double getHitRate()
     {
         return 0.0;
@@ -473,6 +535,7 @@ public class ReplayHubComponent
      * Report the lc hit rate ( in Hz )
      * @return lc hit rate in Hz
      */
+    @Override
     public double getHitRateLC()
     {
         return 0.0;
@@ -484,6 +547,7 @@ public class ReplayHubComponent
      * @return the DAQ time (1E10 ticks/sec) of the hit which fulfills this
      *         condition
      */
+    @Override
     public long getLatestFirstChannelHitTime()
     {
         final int idx = DataStreamType.HIT.index();
@@ -494,13 +558,14 @@ public class ReplayHubComponent
         return handlers[idx].getLatestFirstChannelHitTime();
     }
 
+    @Override
     public int getNumFiles()
     {
-        if (hitReader == null) {
-            return 0;
+        if (hitReader != null) {
+            return hitReader.getNumberOfFiles();
         }
 
-        return hitReader.getNumberOfFiles();
+        return 0;
     }
 
     /**
@@ -508,6 +573,7 @@ public class ReplayHubComponent
      *
      * @return input queue size
      */
+    @Override
     public long getNumInputsQueued()
     {
         final int idx = DataStreamType.HIT.index();
@@ -523,6 +589,7 @@ public class ReplayHubComponent
      *
      * @return output queue size
      */
+    @Override
     public long getNumOutputsQueued()
     {
         final int idx = DataStreamType.HIT.index();
@@ -540,6 +607,7 @@ public class ReplayHubComponent
      *
      * @return [0] = number of active doms, [1] = total number of doms
      */
+    @Override
     public int[] getNumberOfActiveAndTotalChannels()
     {
         return new int[] { 60, 60 };
@@ -549,6 +617,7 @@ public class ReplayHubComponent
      * Report number of functioning DOM channels under control of stringHub.
      * @return number of DOMs
      */
+    @Override
     public int getNumberOfActiveChannels()
     {
         return 60;
@@ -559,6 +628,7 @@ public class ReplayHubComponent
      *
      * @return number of non-zombies
      */
+    @Override
     public int getNumberOfNonZombies()
     {
         return 60;
@@ -571,6 +641,7 @@ public class ReplayHubComponent
      *
      * @throws DAQCompException if component is not a replay hub
      */
+    @Override
     public long getReplayStartTime()
         throws DAQCompException
     {
@@ -578,19 +649,10 @@ public class ReplayHubComponent
     }
 
     /**
-     * Get the sender object
-     *
-     * @return sender
-     */
-    public Sender getSender()
-    {
-        return sender;
-    }
-
-    /**
      * Report time of the most recent hit object pushed into the HKN1
      * @return 0
      */
+    @Override
     public long getTimeOfLastHitInputToHKN1()
     {
         return 0L;
@@ -600,6 +662,7 @@ public class ReplayHubComponent
      * Report time of the most recent hit object output from the HKN1
      * @return 0
      */
+    @Override
     public long getTimeOfLastHitOutputFromHKN1()
     {
         return 0L;
@@ -610,6 +673,7 @@ public class ReplayHubComponent
      *
      * @return total nanoseconds behind the current DAQ time
      */
+    @Override
     public long getTotalBehind()
     {
         final int idx = DataStreamType.HIT.index();
@@ -624,6 +688,7 @@ public class ReplayHubComponent
      * Return the number of LBM overflows inside this string
      * @return 0
      */
+    @Override
     public long getTotalLBMOverflows()
     {
         return 0L;
@@ -634,6 +699,7 @@ public class ReplayHubComponent
      *
      * @return total payloads
      */
+    @Override
     public long getTotalPayloads()
     {
         final int idx = DataStreamType.HIT.index();
@@ -650,6 +716,7 @@ public class ReplayHubComponent
      *
      * @return total nanoseconds spent sleeping
      */
+    @Override
     public long getTotalSleep()
     {
         final int idx = DataStreamType.HIT.index();
@@ -665,6 +732,7 @@ public class ReplayHubComponent
      *
      * @return svn version id as a String
      */
+    @Override
     public String getVersionInfo()
     {
         return "$Id$";
@@ -691,18 +759,11 @@ public class ReplayHubComponent
                      configurationPath);
         }
 
-        // load DOM registry and pass it to the sender
+        // load DOM registry
         try {
-            domRegistry = DOMRegistry.loadRegistry(configurationPath);
-            if (sender != null) {
-                sender.setDOMRegistry(domRegistry);
-            }
-        } catch (ParserConfigurationException e) {
-            LOG.error("Cannot load hub#" + hubId + " DOM registry", e);
-        } catch (SAXException e) {
-            LOG.error("Cannot load hub#" + hubId + " DOM registry", e);
-        } catch (IOException e) {
-            LOG.error("Cannot load hub#" + hubId + " DOM registry", e);
+            domRegistry = DOMRegistryFactory.load(configurationPath);
+        } catch (DOMRegistryException dre) {
+            LOG.error("Cannot load hub#" + hubId + " DOM registry", dre);
         }
     }
 
@@ -711,6 +772,7 @@ public class ReplayHubComponent
      *
      * @param offset offset to apply to hit times
      */
+    @Override
     public void setReplayOffset(long offset)
     {
         for (DataStreamType dst : DataStreamType.values()) {
@@ -729,7 +791,7 @@ public class ReplayHubComponent
     public void starting(int runNumber)
         throws DAQCompException
     {
-        sender.reset();
+        sender.startup();
 
         for (int i = 0; i < outputProc.length; i++) {
             if (handlers[i] != null) {
@@ -777,6 +839,12 @@ public class ReplayHubComponent
     public static void main(String[] args)
         throws Exception
     {
+        ConsoleAppender appender = new ConsoleAppender();
+        appender.setWriter(new PrintWriter(System.out));
+        appender.setLayout(new PatternLayout("%p[%t] %L - %m%n"));
+        appender.setName("console");
+        Logger.getRootLogger().addAppender(appender);
+
         int hubId = Integer.getInteger("icecube.daq.stringhub.componentId");
         if (hubId == 0) {
             System.err.println("Hub ID not set, specify with" +
@@ -815,13 +883,14 @@ class CachingPayloadReader
      *
      * @param payFile hitspool file
      * @param hubId this hub's ID
+     * @param numToSkip number of initial files to skip
      *
      * @throws IOException if there is a problem opening the file
      */
-    CachingPayloadReader(File payFile, int hubId)
+    CachingPayloadReader(File payFile, int hubId, int numToSkip)
         throws IOException
     {
-        super(payFile, hubId);
+        super(payFile, hubId, numToSkip);
     }
 
     /**
@@ -891,9 +960,9 @@ class CachingPayloadReader
 class HitOutputProcessor
     implements HandlerOutputProcessor
 {
-    private Sender sender;
+    private BufferConsumer sender;
 
-    HitOutputProcessor(Sender sender)
+    HitOutputProcessor(BufferConsumer sender)
     {
         this.sender = sender;
     }
@@ -917,14 +986,30 @@ class HitOutputProcessor
         return stopBuf;
     }
 
+    @Override
     public void send(ByteBuffer buf)
     {
-        sender.consume(buf);
+        try
+        {
+            sender.consume(buf);
+        }
+        catch (IOException e)
+        {
+           throw new Error(e);
+        }
     }
 
+    @Override
     public void stop()
     {
-        sender.consume(buildStopMessage());
+        try
+        {
+            sender.consume(buildStopMessage());
+        }
+        catch (IOException e)
+        {
+            throw new Error(e);
+        }
     }
 }
 
@@ -938,11 +1023,13 @@ class StreamOutputProcessor
         this.out = out;
     }
 
+    @Override
     public void send(ByteBuffer buf)
     {
         out.getChannel().receiveByteBuffer(buf);
     }
 
+    @Override
     public void stop()
     {
         out.sendLastAndStop();

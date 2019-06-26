@@ -25,6 +25,11 @@ import static icecube.daq.time.gps.test.BuilderMethods.*;
 public class GPSCollectorTest
 {
 
+    // Generous wait time to support the virtualized environment
+    // of the automated build system.
+    public static final int NOMINAL_WAIT_MILLIS = 5000;
+    public static final int NOMINAL_SLEEP_MILLIS = 2000;
+
     @BeforeClass
     public static void setupLogging()
     {
@@ -90,7 +95,7 @@ public class GPSCollectorTest
         }
 
 
-        assertTrue("should be ready", subject.waitForReady(1000));
+        assertTrue("should be ready", subject.waitForReady(NOMINAL_WAIT_MILLIS));
 
         GPSInfo gps = subject.getGps();
         assertEquals("", "001:22:33:44", gps.getTimestring() );
@@ -99,7 +104,7 @@ public class GPSCollectorTest
 
         //advance GPS and DOR the same amount
         driver.setValue(generateGPSInfo("001:22:33:45", 1231235L + 20000000));
-        try{ Thread.sleep(1000);} catch (InterruptedException e){}
+        try{ Thread.sleep(NOMINAL_SLEEP_MILLIS);} catch (InterruptedException e){}
 
         gps = subject.getGps();
         assertEquals("", "001:22:33:45", gps.getTimestring() );
@@ -141,7 +146,7 @@ public class GPSCollectorTest
 
         subject.startup();
 
-        assertTrue("should be ready", subject.waitForReady(1000));
+        assertTrue("should be ready", subject.waitForReady(NOMINAL_WAIT_MILLIS));
 
         GPSInfo gps = subject.getGps();
         assertEquals("", "001:22:33:44", gps.getTimestring() );
@@ -151,7 +156,7 @@ public class GPSCollectorTest
         // behave bad and interrupt the thread
         subject.interrupt();
 
-        try{ Thread.sleep(1000);} catch (InterruptedException e){}
+        try{ Thread.sleep(NOMINAL_SLEEP_MILLIS);} catch (InterruptedException e){}
 
 
         try
@@ -200,7 +205,7 @@ public class GPSCollectorTest
         driver.setMode(MockGPSDriver.Mode.Producer);
 
         subject.startup();
-        assertTrue("should be ready", subject.waitForReady(1000));
+        assertTrue("should be ready", subject.waitForReady(NOMINAL_WAIT_MILLIS));
 
         GPSInfo gps = subject.getGps();
         assertEquals("", "111:22:33:44", gps.getTimestring() );
@@ -249,7 +254,7 @@ public class GPSCollectorTest
         driver.setMode(MockGPSDriver.Mode.Producer);
 
         subject.startup();
-        assertTrue("should be ready", subject.waitForReady(1000));
+        assertTrue("should be ready", subject.waitForReady(NOMINAL_WAIT_MILLIS));
 
         GPSInfo gps = subject.getGps();
         assertEquals("", "111:22:33:44", gps.getTimestring() );
@@ -299,7 +304,7 @@ public class GPSCollectorTest
         driver.setMode(MockGPSDriver.Mode.Producer);
 
         subject.startup();
-        assertTrue("should be ready", subject.waitForReady(1000));
+        assertTrue("should be ready", subject.waitForReady(NOMINAL_WAIT_MILLIS));
 
         GPSInfo gps = subject.getGps();
         assertEquals("", "111:22:33:44", gps.getTimestring() );
@@ -327,7 +332,7 @@ public class GPSCollectorTest
         driver.setValue(generateGPSInfo("001:22:33:44", 1231235L));
 
         subject.startup();
-        assertTrue("should be ready", subject.waitForReady(1000));
+        assertTrue("should be ready", subject.waitForReady(NOMINAL_WAIT_MILLIS));
 
         GPSInfo gps = subject.getGps();
         assertEquals("", "001:22:33:44", gps.getTimestring() );
@@ -336,7 +341,7 @@ public class GPSCollectorTest
 
         //advance GPS and DOR the same amount
         driver.setValue(generateGPSInfo("001:22:33:45", 1231235L + 20000000));
-        try{ Thread.sleep(1000);} catch (InterruptedException e){}
+        try{ Thread.sleep(NOMINAL_SLEEP_MILLIS);} catch (InterruptedException e){}
 
         gps = subject.getGps();
         assertEquals("", "001:22:33:45", gps.getTimestring() );
@@ -345,7 +350,7 @@ public class GPSCollectorTest
 
         // advance GPS more than the DOR clock
         driver.setValue(generateGPSInfo("001:22:33:46", 1231235L + 39999999));
-        try{ Thread.sleep(1000);} catch (InterruptedException e){}
+        try{ Thread.sleep(NOMINAL_SLEEP_MILLIS);} catch (InterruptedException e){}
 
         try
         {
@@ -401,7 +406,7 @@ public class GPSCollectorTest
 
         // CASE II: other GPSException
         driver.setException(new GPSException("test2"));
-        try{ Thread.sleep(1000);} catch (InterruptedException e){}
+        try{ Thread.sleep(NOMINAL_SLEEP_MILLIS);} catch (InterruptedException e){}
 
         gps = subject.getGps();
         assertEquals("", "001:22:33:44", gps.getTimestring() );

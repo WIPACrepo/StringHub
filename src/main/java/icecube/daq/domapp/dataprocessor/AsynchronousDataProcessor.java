@@ -347,6 +347,36 @@ public class AsynchronousDataProcessor implements DataProcessor
     }
 
     /**
+     * Note: Passing data buffers to this method implies transfer of
+     *       ownership. The data buffers are not copied and will be
+     *       propagated by reference.
+     */
+    @Override
+    public void process(final StreamType[] stream,
+                        final ByteBuffer[] data) throws DataProcessorError
+    {
+        enqueWork(new Callable<Void>()
+        {
+            @Override
+            public Void call()
+            {
+                try
+                {
+                    for (int i = 0; i < stream.length; i++)
+                    {
+                        delegate.process(stream[i], data[i]);
+                    }
+                }
+                catch (Throwable th)
+                {
+                    handleException(th);
+                }
+                return null;
+            }
+        });
+    }
+
+    /**
      * Resolve a UTC timestamp from a dom clock timestamp.
      *
      * Noe that this implementation blocks the caller and waits for

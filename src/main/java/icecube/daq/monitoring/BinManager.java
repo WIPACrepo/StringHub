@@ -14,6 +14,8 @@ abstract class BinManager<C>
         private long binStart;
         /** End of this bin */
         private long binEnd;
+        /** index of last activity*/
+        private long lastEvent;
         /** Current container for this bin */
         private C container;
 
@@ -27,6 +29,7 @@ abstract class BinManager<C>
         {
             this.binStart = binStart;
             this.binEnd = binEnd;
+            lastEvent = binStart;
             this.container = container;
         }
 
@@ -66,11 +69,22 @@ abstract class BinManager<C>
             return container;
         }
 
+        /**
+         * Called when a container is access for event
+         * reporting.
+         * @param idx
+         */
+        void reportEvent(long idx)
+        {
+            lastEvent = idx;
+        }
+
         boolean overlaps(long start, long end)
         {
             return start < binEnd && end >= binStart;
         }
 
+        @Override
         public String toString()
         {
             return String.format("Bin[%d-%d: %s]", binStart, binEnd,
@@ -98,6 +112,8 @@ abstract class BinManager<C>
      */
     BinManager(String name, long binStart, long binWidth)
     {
+        this.name = name;
+
         this.binWidth = binWidth;
 
         long partial = binStart % binWidth;
@@ -133,12 +149,15 @@ abstract class BinManager<C>
     abstract C createBinContainer();
 
     /**
-     * Get the container for the specified index,
-     * creating a container if necessary
+     * Access a bin container for an index. Calling this method is implicit
+     * notification that there is a sample or event activity at the bin index,
+     * i.e. a new bin may be created, the active bin may be demoted to the
+     * previous bin and/or the supplied bin index may be recorded as the
+     * last seen value in the active bin.
      * @param binIndex index of container to return
      * @return bin container
      */
-    C get(long binIndex)
+    C reportEvent(long binIndex)
     {
         synchronized (binLock) {
             // if the active bin doesn't contain this index...
@@ -147,7 +166,7 @@ abstract class BinManager<C>
                 if (active != null) {
                     newStart = active.getEnd();
                 } else {
-                    newStart = lastBinEnd + binWidth;
+                    newStart = lastBinEnd;
                 }
                 if (binIndex > newStart) {
                     while (binIndex > newStart) {
@@ -178,7 +197,9 @@ abstract class BinManager<C>
                 lastBinEnd = active.getEnd();
             }
 
-            // return the container associated with this bin
+            // record that an event has occurred in this bin and
+            // then return the container associated with this bin
+            active.reportEvent(binIndex);
             return active.getContainer();
         }
     }
@@ -199,6 +220,15 @@ abstract class BinManager<C>
         }
 
         return active.getStart();
+    }
+
+    long getActiveLatest()
+    {
+        if (active == null) {
+            throw new Error("BinManager has no active bin");
+        }
+
+        return active.lastEvent;
     }
 
     /**
@@ -274,6 +304,7 @@ abstract class BinManager<C>
         return (binIndex >= binEnd);
     }
 
+    @Override
     public String toString()
     {
         StringBuilder buf = new StringBuilder("BinManager[");

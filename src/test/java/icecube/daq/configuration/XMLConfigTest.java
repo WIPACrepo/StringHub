@@ -4,11 +4,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+
+import icecube.daq.common.MockAppender;
 import icecube.daq.domapp.AtwdChipSelect;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.LocalCoincidenceConfiguration;
 import icecube.daq.domapp.TriggerMode;
-import icecube.daq.stringhub.test.MockAppender;
 
 import java.io.InputStream;
 

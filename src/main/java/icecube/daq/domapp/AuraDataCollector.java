@@ -79,6 +79,7 @@ public class AuraDataCollector extends AbstractDataCollector
         gpsFile = driver.getGPSFile(card);
     }
 
+    @Override
     public void run()
     {
         Timer t3 = new Timer();
@@ -238,6 +239,7 @@ public class AuraDataCollector extends AbstractDataCollector
         }
     }
 
+    @Override
     public String getMainboardId()
     {
         return this.mbid;
@@ -269,6 +271,7 @@ public class AuraDataCollector extends AbstractDataCollector
         this.radioDACs = dacs;
     }
 
+    @Override
     public void setRunMonitor(IRunMonitor runMonitor)
     {
         rapcal.setRunMonitor(runMonitor);

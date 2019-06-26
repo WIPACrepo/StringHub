@@ -1,7 +1,7 @@
-package icecube.daq.stringhub;
+package icecube.daq.spool;
 
 import icecube.daq.bindery.BufferConsumer;
-import icecube.daq.stringhub.test.MockAppender;
+import icecube.daq.common.MockAppender;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -31,8 +31,6 @@ public class FilesHitSpoolTest
     @Before
     public void setUp() throws Exception
     {
-        appender.clear();
-
         BasicConfigurator.resetConfiguration();
         BasicConfigurator.configure(appender);
     }
@@ -40,8 +38,7 @@ public class FilesHitSpoolTest
     @After
     public void tearDown() throws Exception
     {
-        assertEquals("Bad number of log messages",
-                     0, appender.getNumberOfMessages());
+        appender.assertNoLogMessages();
     }
 
     @Test
@@ -49,27 +46,13 @@ public class FilesHitSpoolTest
         throws IOException
     {
         try {
-            new FilesHitSpool(null, null, null);
+            new FilesHitSpool(null, null);
             fail("This should fail");
         } catch (IOException ioe) {
             final String errMsg = "Top directory cannot be null";
             assertEquals("Unexpected exception",
                          errMsg, ioe.getMessage());
         }
-    }
-
-    @Test
-    public void testBadConfigDir()
-        throws IOException
-    {
-        final File badConfigDir = new File("/does/not/compute");
-
-        new FilesHitSpool(null, badConfigDir, new File("/tmp"));
-
-        // nothing logged if headers are not packed
-        assertEquals("Bad number of log messages",
-                     0, appender.getNumberOfMessages());
-        appender.clear();
     }
 
     @Test
@@ -121,7 +104,7 @@ public class FilesHitSpoolTest
         throws IOException
     {
         CountingConsumer cc = new CountingConsumer();
-        FilesHitSpool hitspool = new FilesHitSpool(cc, null, new File("/tmp"));
+        FilesHitSpool hitspool = new FilesHitSpool(cc, new File("/tmp"));
 
         ByteBuffer buf = ByteBuffer.allocate(30);
         hitspool.consume(buf);
@@ -132,13 +115,10 @@ public class FilesHitSpoolTest
                      numHits, cc.getNumberConsumed());
 
         // validate error message
-        assertEquals("Unexpected number of log messages",
-                     1, appender.getNumberOfMessages());
         final String expMsg =
             String.format("Skipping short buffer (%d bytes)", buf.limit());
-        assertEquals("Bad log message",
-                     expMsg, (String) appender.getMessage(0));
-        appender.clear();
+        appender.assertLogMessage(expMsg);
+        appender.assertNoLogMessages();
     }
 
     @Test
@@ -146,7 +126,7 @@ public class FilesHitSpoolTest
         throws IOException
     {
         CountingConsumer cc = new CountingConsumer();
-        FilesHitSpool hitspool = new FilesHitSpool(cc, null, new File("/tmp"));
+        FilesHitSpool hitspool = new FilesHitSpool(cc, new File("/tmp"));
 
         ByteBuffer buf = ByteBuffer.allocate(38);
         buf.limit(0);
@@ -422,11 +402,13 @@ class CountingConsumer
 {
     private int numConsumed;
 
+    @Override
     public void consume(ByteBuffer buf)
     {
         numConsumed++;
     }
 
+    @Override
     public void endOfStream(long token)
     {
         // do nothing
@@ -443,11 +425,9 @@ class Runner
     private long fileInterval = 10000000000L;
     private int maxNumberOfFiles = 5;
 
-    private File configDir;
     private File topDir;
 
     private CountingConsumer cc = new CountingConsumer();
-    private int runNumber = 123456;
 
     private FilesHitSpool hitspool;
 
@@ -462,7 +442,6 @@ class Runner
         this.fileInterval = fileInterval;
         this.maxNumberOfFiles = maxNumberOfFiles;
 
-        configDir = new File(getClass().getResource("/config").getPath());
         topDir = createTempDirectory();
     }
 
@@ -482,7 +461,7 @@ class Runner
             throw new Error("Hitspool has already been created!");
         }
 
-        hitspool = new FilesHitSpool(cc, configDir, topDir, fileInterval,
+        hitspool = new FilesHitSpool(cc, topDir, fileInterval,
                                      maxNumberOfFiles);
 
     }
@@ -520,7 +499,6 @@ class Runner
     void startRun()
         throws IOException
     {
-        hitspool.startRun(runNumber++);
 
         // check spool directories
         checkTopDir(currentWriter != null);
@@ -536,8 +514,6 @@ class Runner
     void switchRun()
         throws IOException
     {
-        // write another chunk of data
-        hitspool.switchRun(runNumber++);
 
         // make sure both 'currentRun' and 'lastRun' exist
         checkTopDir(true);

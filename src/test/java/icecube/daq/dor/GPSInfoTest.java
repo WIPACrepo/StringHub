@@ -3,6 +3,8 @@ package icecube.daq.dor;
 import icecube.daq.util.Leapseconds;
 import org.junit.Test;
 
+import java.io.File;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
@@ -124,10 +126,10 @@ public class GPSInfoTest
     @Test
     public void testLeapAdjustments()
     {
-        final String TEST_NIST_FILE_PATH =
-                getClass().getResource("/config/nist/leapseconds-latest").getPath();
+        URL url = getClass().getResource("/config/nist/leapseconds-latest");
 
-        Leapseconds leapseconds = new MyLeapseconds(TEST_NIST_FILE_PATH, 2015);
+        Leapseconds leapseconds =
+            new MyLeapseconds(new File(url.getPath()), 2015);
 
         long DOR = 32887251245124L;
 
@@ -224,10 +226,10 @@ public class GPSInfoTest
      */
     private static class MyLeapseconds extends Leapseconds
     {
-        private MyLeapseconds(String nistFilePath, final int year)
+        private MyLeapseconds(File nistFile, final int year)
                 throws IllegalArgumentException
         {
-            super(nistFilePath, year);
+            super(nistFile, year);
         }
     }
 

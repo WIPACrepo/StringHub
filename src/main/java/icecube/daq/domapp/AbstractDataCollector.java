@@ -4,7 +4,7 @@ package icecube.daq.domapp;
 
 import icecube.daq.juggler.alert.AlertQueue;
 import icecube.daq.monitoring.IRunMonitor;
-import icecube.daq.util.DeployedDOM;
+import icecube.daq.util.DOMInfo;
 import icecube.daq.util.FlasherboardConfiguration;
 
 import org.apache.log4j.Logger;
@@ -255,7 +255,9 @@ public abstract class AbstractDataCollector extends Thread
 	{
 		RunLevel tmpRunLevel = getRunLevel();
 
-		if (tmpRunLevel == RunLevel.CONFIGURED) {
+		if (tmpRunLevel == RunLevel.CONFIGURED ||
+		    tmpRunLevel == RunLevel.ZOMBIE)
+		{
 			return lastHitTime;
 		}
 		return -1L;
@@ -278,7 +280,7 @@ public abstract class AbstractDataCollector extends Thread
 
     public abstract void setRunMonitor(IRunMonitor runMonitor);
 
-    public void setDomInfo(DeployedDOM domInfo)
+    public void setDomInfo(DOMInfo domInfo)
     {
         name = domInfo.getName();
         major = domInfo.getStringMajor();

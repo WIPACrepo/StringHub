@@ -112,10 +112,9 @@ public class DataCollector extends AbstractDataCollector
     private final DataStats dataStats;
 
 
-    private long    threadSleepInterval   = 50;
+    private long    threadSleepInterval        = 50;
+    private long    tcalReadIntervalNanos      = 1_000_000_000; // 1 second
 
-    private long nextTcalRead = 0;
-    private long    tcalReadInterval      = 1000;
 
 
 
@@ -237,6 +236,7 @@ public class DataCollector extends AbstractDataCollector
         }
     }
 
+    @Override
     public void close()
     {
         dataAcquisition.doClose();
@@ -261,6 +261,7 @@ public class DataCollector extends AbstractDataCollector
         dataAcquisition.doConfigure(config);
     }
 
+    @Override
     public void setRunMonitor(IRunMonitor runMonitor)
     {
         try
@@ -272,60 +273,17 @@ public class DataCollector extends AbstractDataCollector
             logger.error("Unable to set run monitor", dataProcessorError);
         }
     }
+
+    @Override
     public synchronized void signalShutdown()
     {
         stop_thread = true;
     }
 
+    @Override
     public String toString()
     {
         return getName();
-    }
-
-    /**
-     * Attempt a TCAL.
-     *
-     * The contract for this method is intentionally soft.  Errors encountered
-     * on the acquisition side are logged, but suppressed.  This helps ride
-     * out some temporary bad conditions.
-     *
-     * Errors encountered on the processing side are propagated.  A processing
-     * error is generally fatal to the channel.
-     *
-     * @exception DataProcessorError An error occurred while passing the
-     *            time calibration to the data processor.  This indicates
-     *            a serious problem.
-     */
-    private void attemptRapCal() throws DataProcessorError
-    {
-        try
-        {
-            execRapCal();
-        }
-        catch (AcquisitionError acquisitionError)
-        {
-            logger.error("Ignoring tcal error", acquisitionError);
-        }
-    }
-
-    /**
-     * Execute a rapcal and queue the time calibration to the data processor.
-     *
-     * All errors, including potentially transient acquisition errors are
-     * propagated. Most calling methods should be using attemptRapCal()
-     * which silently ignors acquisition errors.
-     *
-     * @exception AcquisitionError An error occurred while acquiring the
-     *            time calibration.  Often this is a transient condition.
-     *
-     * @exception DataProcessorError An error occurred while passing the
-     *            time calibration to the data processor.  This indicates
-     *            a serious problem.
-     */
-    private void execRapCal() throws DataProcessorError, AcquisitionError
-    {
-        dataAcquisition.doTCAL(watchdog);
-        nextTcalRead = System.currentTimeMillis() + tcalReadInterval;
     }
 
     /**
@@ -346,6 +304,7 @@ public class DataCollector extends AbstractDataCollector
      * to the CONFIGURED state.</dd>
      * </dl>
      */
+    @Override
     public void run()
     {
 
@@ -416,7 +375,7 @@ public class DataCollector extends AbstractDataCollector
              nTry < 10 && dataStats.getValidRAPCalCount() < 2; nTry++)
         {
             watchdog.sleep(100);
-            attemptRapCal();
+            dataAcquisition.attemptTCAL(watchdog);
         }
 
         runcore(!disable_intervals);
@@ -476,7 +435,7 @@ public class DataCollector extends AbstractDataCollector
 
         while (!stop_thread)
         {
-            long t = System.currentTimeMillis();
+            long now = System.nanoTime();
             boolean tired = true;
 
             // Ping the watchdog task
@@ -485,13 +444,13 @@ public class DataCollector extends AbstractDataCollector
             loopCounter++;
 
             /* Do TCAL and GPS -- this always runs regardless of the run state */
-            if (t >= nextTcalRead)
+            if (now >= (dataAcquisition.getLastTCalNanos() + tcalReadIntervalNanos))
             {
                 if (logger.isDebugEnabled())
                 {
                     logger.debug("Doing TCAL - runLevel is " + getRunLevel());
                 }
-                attemptRapCal();
+               dataAcquisition.attemptTCAL(watchdog);
             }
 
             switch (getRunLevel())
@@ -499,15 +458,21 @@ public class DataCollector extends AbstractDataCollector
                 case RUNNING:
                     if(useIntervals)
                     {
+                        // Note: Interval includes a TCal execution. This
+                        //       is an optimization for priming RAPCal
+                        //       with a bounding isochron before processing
+                        //       the interval data.
+                        //       The fact of this tcal is revealed by
+                        //       dataAcquisition.getLastTCalNanos()
                         tired = dataAcquisition.doInterval(watchdog);
                     }
                     else
                     {
-                        tired = dataAcquisition.doPolling(watchdog, t);
+                        tired = dataAcquisition.doPolling(watchdog, now);
                     }
 
-                    //todo This is not an optimal way to track this data. For the
-                    //     time being, it avoids a callback interface.
+                    //todo This is not an optimal way to track this data.
+                    //     For the time being, it avoids a callback interface.
                     this.firstHitTime = dataStats.getFirstHitTime();
                     this.lastHitTime = dataStats.getLastHitTime();
 
@@ -593,7 +558,7 @@ public class DataCollector extends AbstractDataCollector
                     //      data. if this tcal fails, the contract of the
                     //      CONFIGURED state will be violated. A poorly
                     //      timed wild tcal dooms us here.
-                    execRapCal();
+                    dataAcquisition.doTCAL(watchdog);
 
                     callProcessorSync(PROCESSOR_SYNC_TIMEOUT_MILLIS);
                     setRunLevelInternal(RunLevel.CONFIGURED);
@@ -828,6 +793,7 @@ public class DataCollector extends AbstractDataCollector
             watcher.schedule(this, DELAY, PERIOD);
         }
 
+        @Override
         public long setTimeoutThreshold(long millis)
         {
             if(millis < PERIOD)
@@ -843,6 +809,7 @@ public class DataCollector extends AbstractDataCollector
             }
         }
 
+        @Override
         public Mode setTimeoutAction(Mode mode)
         {
             synchronized (this)
@@ -853,6 +820,7 @@ public class DataCollector extends AbstractDataCollector
             }
         }
 
+        @Override
         public void run()
         {
             synchronized (this)
@@ -866,7 +834,7 @@ public class DataCollector extends AbstractDataCollector
                     {
                         case INTERRUPT_ONLY:
                             interrupting = true;
-                            logger.error("data collection thread has become " +
+                            logger.error("[ " + mbid +"] data collection thread has become " +
                                     "non-responsive for ["+(silentPeriodNano/1000000)+" " +
                                     "ms] - interrupting.");
                             dataAcquisition.doClose();
@@ -876,14 +844,14 @@ public class DataCollector extends AbstractDataCollector
                             aborting = true;
                             stop_thread = true;
 
-                            logger.error("data collection thread has become " +
+                            logger.error("[ " + mbid + "] data collection thread has become " +
                                     "non-responsive for ["+(silentPeriodNano/1000000)+" " +
                                     "ms] - aborting.");
                             dataAcquisition.doClose();
                             DataCollector.this.interrupt();
                             break;
                         case MONITOR:
-                            logger.error("data collection thread has become " +
+                            logger.error("[ " + mbid + "] data collection thread has become " +
                                     "non-responsive for ["+(silentPeriodNano/1000000)+" " +
                                     "ms] - monitoring.");
                             break;
@@ -894,6 +862,7 @@ public class DataCollector extends AbstractDataCollector
             }
         }
 
+        @Override
         public void ping()
         {
             synchronized (this)
@@ -918,6 +887,7 @@ public class DataCollector extends AbstractDataCollector
          * Defines sleeping behavior for code subjected to watchdog
          * control.
          */
+        @Override
         public void sleep(final long millis)
         {
             long start = System.nanoTime();
@@ -943,6 +913,7 @@ public class DataCollector extends AbstractDataCollector
          * Defines interrupt logging behavior for code subjected to watchdog
          * control.
          */
+        @Override
         public void handleInterrupted(final InterruptedException ie)
         {
             if(interrupting || aborting)
@@ -1017,6 +988,10 @@ public class DataCollector extends AbstractDataCollector
                             logger.error(line);
                         }
                     }
+
+                    // report to the reactor
+                    DroppedDomReactor.singleton.reportDroppedDom(
+                            DataCollector.this);
                 }
                 else
                 {

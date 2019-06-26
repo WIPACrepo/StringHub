@@ -7,6 +7,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 import org.apache.log4j.Logger;
 
@@ -25,7 +26,7 @@ public class FileHandler
 
     /** Offset to apply to every hit time */
     private long timeOffset;
-    /** maximum huge gaps allowed */
+    /** maximum number of huge gaps allowed */
     private int maxHugeGaps = MAX_HUGE_GAPS;
 
     /** Reader thread */
@@ -201,6 +202,7 @@ public class FileHandler
         dataThread.stopping();
     }
 
+    @Override
     public String toString()
     {
         return String.format("Hub#%d %s[%s|%s|%s]", hubId, dataType, inThread,
@@ -298,6 +300,7 @@ class InputThread
     /**
      * Main input loop.
      */
+    @Override
     public void run()
     {
         stopped = false;
@@ -337,7 +340,6 @@ class InputThread
         }
     }
 
-
     public void start()
     {
         thread.start();
@@ -351,6 +353,7 @@ class InputThread
         }
     }
 
+    @Override
     public String toString()
     {
         String sstr = (stopped ? ",stopped" : stopping ? ",stopping" : "");
@@ -371,6 +374,8 @@ class DataThread
 
     /** Nanoseconds per second */
     private static final long NS_PER_SEC = 1000000000L;
+    /** Maximum gap between payloads (in nanoseconds!) */
+    private static final long MAX_GAP_NS = NS_PER_SEC * 3L;
 
     /** ID of this replay hub */
     private int hubId;
@@ -411,6 +416,7 @@ class DataThread
      * @param inThread thread which reads data from file(s)
      * @param timeOffset offset to use for recalibrating payload times
      * @param outThread thread which writes data to the sender
+     * @param maxHugeGaps maximum number of huge gaps allowed
      */
     DataThread(int hubId, DataStreamType dataType, InputThread inThread,
                long timeOffset, OutputThread outThread, int maxHugeGaps)
@@ -542,7 +548,7 @@ class DataThread
 
             // set the DAQ time
             if (!daqTime.set(rawTime, timeOffset, totPayloads)) {
-                // if the current time if before the previous time, skip it
+                // if the current time is before the previous time, skip it
                 continue;
             }
 
@@ -553,33 +559,34 @@ class DataThread
 
             // set system time
             if (!sysTime.set(System.nanoTime(), 0L, totPayloads)) {
-                // if the current time if before the previous time, skip it
+                // if the current time is before the previous time, skip it
                 continue;
             }
 
-            long timeGap;
+            // check the difference between system time and next payload time
+            long nsTimeGap;
             if (firstPayload) {
                 // don't need to recalibrate the first payload
                 firstPayload = false;
-                timeGap = 0;
+                nsTimeGap = 0;
             } else {
                 // try to deliver payloads at the rate they were created
 
                 // get the difference the current system time and
                 //  the next payload time
-                timeGap = daqTime.baseDiff() - sysTime.baseDiff();
+                nsTimeGap = daqTime.baseDiff() - sysTime.baseDiff();
 
                 // whine if the time gap is too long
-                if (timeGap > NS_PER_SEC * 2) {
+                if (nsTimeGap > MAX_GAP_NS) {
                     if (totPayloads < 10) {
                         // minimize gap for first few payloads
-                        timeGap = NS_PER_SEC / 10L;
+                        nsTimeGap = NS_PER_SEC / 10L;
                     } else {
                         // complain about gap
                         final String fmtStr = "Huge time gap (%.2f sec) for" +
                             " hub#%d %s payload #%d";
                         final double dblGap =
-                            ((double) timeGap / 10000000000.0);
+                            ((double) nsTimeGap / (double) NS_PER_SEC);
                         LOG.error(String.format(fmtStr, dblGap, hubId,
                                                 dataType, totPayloads));
                         if (++gapCount > maxHugeGaps) {
@@ -590,24 +597,24 @@ class DataThread
                     }
 
                     // reset base times
-                    sysTime.setBase(timeGap);
+                    sysTime.setBase(nsTimeGap);
                     daqTime.setBase(0L);
                 }
 
                 // if we're sending payloads too quickly, wait a bit
-                if (timeGap > NS_PER_SEC) {
-                    totalSleep += timeGap;
+                if (nsTimeGap > NS_PER_SEC) {
+                    totalSleep += nsTimeGap;
 
                     try {
                         final long ns_per_ms = 1000000L;
-                        final long sleepMS = timeGap / ns_per_ms;
-                        final int sleepNS = (int) (timeGap % ns_per_ms);
+                        final long sleepMS = nsTimeGap / ns_per_ms;
+                        final int sleepNS = (int) (nsTimeGap % ns_per_ms);
                         Thread.sleep(sleepMS, sleepNS);
                     } catch (InterruptedException ie) {
                         // ignore interrupts
                     }
-                } else {
-                    totalBehind -= timeGap;
+                } else if (nsTimeGap < 0) {
+                    totalBehind -= nsTimeGap;
                 }
             }
 
@@ -618,11 +625,14 @@ class DataThread
             }
             domTimes.get(mbid).add(daqTime.get());
 
-            buf.flip();
+            // if buffer wasn't flipped, do so now
+            if (buf.position() != 0 && buf.limit() > 0) {
+                buf.flip();
+            }
 
             outThread.push(buf);
 
-            if (timeGap >= 0) {
+            if (nsTimeGap >= 0) {
                 // if we're ahead of the stream, don't overwhelm other threads
                 Thread.yield();
             }
@@ -640,6 +650,7 @@ class DataThread
     /**
      * Main file writer loop.
      */
+    @Override
     public void run()
     {
         try {
@@ -684,6 +695,7 @@ class DataThread
         }
     }
 
+    @Override
     public String toString()
     {
         String sstr = (stopping ? ",stopping" : stopped ? "" : ",stopped");
@@ -777,6 +789,7 @@ class OutputThread
     /**
      * Main output loop.
      */
+    @Override
     public void run()
     {
         stopped = false;
@@ -838,6 +851,7 @@ class OutputThread
         }
     }
 
+    @Override
     public String toString()
     {
         String sstr = (stopped ? ",stopped" : stopping ? ",stopping" : "");

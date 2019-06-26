@@ -142,7 +142,9 @@ class HitProcessor implements DataProcessor.StreamProcessor
                     break;
 
                 default:
-                    logger.error("Unknown DOMApp format ID: " + fmt);
+                    String msg = String.format("Unknown DOMApp format ID: %d" +
+                            " from %12x", fmt, mbid);
+                    logger.error(msg);
                     in.position(pos + len);
             }
         }

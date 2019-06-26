@@ -51,7 +51,7 @@ public class UTCMonotonicDispatcherTest
         MockBufferConsumer consumer = new MockBufferConsumer();
         UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
                 DataProcessor.StreamType.HIT,
-                rapcal);
+                rapcal, 0xabcdef123456L);
 
         // set upper bound to cover all times
         rapcal.setUpperBound(Long.MAX_VALUE);
@@ -86,7 +86,7 @@ public class UTCMonotonicDispatcherTest
         MockBufferConsumer consumer = new MockBufferConsumer();
         UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
                 DataProcessor.StreamType.HIT,
-                rapcal);
+                rapcal, 0xabcdef123456L);
 
 
         rapcal.setUpperBound(Long.MIN_VALUE);
@@ -193,7 +193,7 @@ public class UTCMonotonicDispatcherTest
         MockBufferConsumer consumer = new MockBufferConsumer();
         UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
                 DataProcessor.StreamType.HIT,
-                rapcal);
+                rapcal, 0xabcdef123456L);
 
         // set upper bound to cover no times
         rapcal.setUpperBound(Long.MIN_VALUE);
@@ -237,7 +237,7 @@ public class UTCMonotonicDispatcherTest
         MockBufferConsumer consumer = new MockBufferConsumer();
         UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
                 DataProcessor.StreamType.HIT,
-                rapcal);
+                rapcal, 0xabcdef123456L);
 
         // set upper bound to cover no times
         rapcal.setUpperBound(Long.MIN_VALUE);
@@ -293,7 +293,7 @@ public class UTCMonotonicDispatcherTest
         MockBufferConsumer consumer = new MockBufferConsumer();
         UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
                 DataProcessor.StreamType.HIT,
-                rapcal);
+                rapcal, 0xabcdef123456L);
 
         // set upper bound to cover no times
         rapcal.setUpperBound(Long.MIN_VALUE);
@@ -350,9 +350,9 @@ public class UTCMonotonicDispatcherTest
         MockBufferConsumer consumer = new MockBufferConsumer();
         UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
                 DataProcessor.StreamType.HIT,
-                rapcal);
+                rapcal, 0xabcdef123456L);
 
-        int max = UTCMonotonicDispatcher.MAX_DEFFERED_RECORDS;
+        int max = UTCMonotonicDispatcher.MAX_DEFERRED_RECORDS;
         for(int i=0; i<max-1; i++)
         {
             subject.dispatchBuffer(generateBuffer(10000 + i));
@@ -366,7 +366,8 @@ public class UTCMonotonicDispatcherTest
         catch (DataProcessorError dpe)
         {
             String expected = "Over limit of "+ max +" records waiting for" +
-                    " rapcal DOM clock range [" + 10000 + ", " + 9999999 +"]";
+                    " rapcal DOM clock range [" + 10000 + ", " + 9999999 +"]," +
+                    " mbid: abcdef123456";
             assertEquals("", expected, dpe.getMessage());
         }
 
@@ -390,7 +391,7 @@ public class UTCMonotonicDispatcherTest
         MockDispatchCallback callback = new MockDispatchCallback();
         UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
                 DataProcessor.StreamType.HIT,
-                rapcal);
+                rapcal, 0xabcdef123456L);
 
 
         long[] beforeMark =
@@ -424,6 +425,93 @@ public class UTCMonotonicDispatcherTest
         assertArrayEquals("callback expected",
                 toUTC(afterMark, GPS_OFFSET),
                 callback.getReceivedTimes());
+
+    }
+
+    @Test
+    public void testDispatchGateReleased() throws DataProcessorError
+    {
+        //
+        // Test the bound on the maximum number of deferred records
+        //
+
+        final long GPS_OFFSET = 12314;
+        final long mbid = 0xabcdef123456L;
+        MockRapCal rapcal = new MockRapCal(GPS_OFFSET);
+        MockBufferConsumer consumer = new MockBufferConsumer();
+        UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
+                DataProcessor.StreamType.HIT, rapcal, mbid, true);
+
+        // set upper bound to cover all times
+        rapcal.setUpperBound(Long.MAX_VALUE);
+
+        // submit a bunch of records which will be deferred
+        for(int i=0; i<20; i++)
+        {
+            subject.dispatchBuffer(generateBuffer(10000 + i));
+        }
+
+        // the gate is still closed so we shouldn't have received anything
+        assertEquals("no dispatch expected", 0, consumer.receivedTimes.size());
+
+        // clearing the deferred records will open the gate
+        subject.clearDeferred();
+
+        // submit a bunch of records which will be processed
+        for(int i=0; i<20; i++)
+        {
+            subject.dispatchBuffer(generateBuffer(20000 + i));
+        }
+
+        // now we should have all dispatched records
+        assertEquals("dispatch expected", 20, consumer.receivedTimes.size());
+
+        // throw in an EOS for fun
+        subject.eos(generateBuffer(Long.MAX_VALUE));
+
+        // max because EOS marker is delivered also
+        assertEquals("eos expected", 21, consumer.receivedTimes.size());
+
+    }
+
+    @Test
+    public void testDispatchMaxGated() throws DataProcessorError
+    {
+        //
+        // Test the bound on the maximum number of deferred records
+        //
+
+        final long GPS_OFFSET = 12314;
+        final long mbid = 0xabcdef123456L;
+        MockRapCal rapcal = new MockRapCal(GPS_OFFSET);
+        MockBufferConsumer consumer = new MockBufferConsumer();
+        UTCMonotonicDispatcher subject = new UTCMonotonicDispatcher(consumer,
+                DataProcessor.StreamType.HIT, rapcal, mbid, true);
+
+        // set upper bound to cover all times
+        rapcal.setUpperBound(Long.MAX_VALUE);
+
+        // submit a bunch of records which will be deferred
+        final int max = UTCMonotonicDispatcher.MAX_DEFERRED_RECORDS;
+        for(int i=0; i<max-3; i++)
+        {
+            subject.dispatchBuffer(generateBuffer(10000 + i));
+        }
+
+        // the gate is still closed so we shouldn't have received anything
+        assertEquals("no dispatch expected", 0, consumer.receivedTimes.size());
+
+        // this record will cause the gate to automatically open
+        subject.dispatchBuffer(generateBuffer(10000*(max-1)));
+
+        // now we should have all dispatched records
+        assertEquals("dispatch expected", max-2, consumer.receivedTimes.size());
+
+        // throw in an EOS for fun
+        subject.eos(generateBuffer(Long.MAX_VALUE));
+
+        // max because EOS marker is delivered also
+        assertEquals("eos expected", max-1, consumer.receivedTimes.size());
 
     }
 

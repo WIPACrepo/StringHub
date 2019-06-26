@@ -113,12 +113,13 @@ public class DOMApp implements IDOMApp
 	    }
     }
 
-
+    @Override
     public void close()
     {
         devIO.close();
     }
 
+    @Override
     public void changeFlasherSettings(
             short brightness,
             short width,
@@ -131,6 +132,7 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.CHANGE_FB_SETTINGS, buf);
     }
 
+    @Override
     public void beginFlasherRun(short brightness, short width, short delay, short mask, short rate)
             throws MessageException
     {
@@ -144,11 +146,13 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#beginRun()
      */
+    @Override
     public void beginRun() throws MessageException
     {
         sendMessage(MessageType.BEGIN_RUN);
     }
 
+    @Override
     public void collectPedestals(int nAtwd0, int nAtwd1, int nFadc, Integer... avgPedestals) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(24);
@@ -171,6 +175,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#disableHV()
      */
+    @Override
     public void disableHV() throws MessageException
     {
         sendMessage(MessageType.DISABLE_HV);
@@ -181,6 +186,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#disableSupernova()
      */
+    @Override
     public void disableSupernova() throws MessageException
     {
         sendMessage(MessageType.DISABLE_SN);
@@ -191,6 +197,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#enableHV()
      */
+    @Override
     public void enableHV() throws MessageException
     {
         sendMessage(MessageType.ENABLE_HV);
@@ -201,6 +208,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#enableSupernova(int, boolean)
      */
+    @Override
     public void enableSupernova(int deadtime, boolean speDisc) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(5);
@@ -215,6 +223,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#endRun()
      */
+    @Override
     public void endRun() throws MessageException
     {
         sendMessage(MessageType.END_RUN);
@@ -225,6 +234,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#getData()
      */
+    @Override
     public ByteBuffer getData() throws MessageException
     {
         return sendMessagePreBuilt(MessageType.GET_DATA,
@@ -234,6 +244,7 @@ public class DOMApp implements IDOMApp
     /**
      * Pack multiple messages to get data
      */
+    @Override
     public ArrayList<ByteBuffer> getData(int n) throws MessageException
     {
         ByteBuffer buf = (ByteBuffer) msgBuffer.clear();
@@ -291,6 +302,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#getMainboardID()
      */
+    @Override
     public String getMainboardID() throws MessageException
     {
         ByteBuffer buf = sendMessage(MessageType.GET_DOM_ID);
@@ -305,6 +317,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#getMoni()
      */
+    @Override
     public ByteBuffer getMoni() throws MessageException
     {
         return sendMessagePreBuilt(MessageType.GET_MONI,
@@ -335,6 +348,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#getPulserRate()
      */
+    @Override
     public short getPulserRate() throws MessageException
     {
         // TODO - implement
@@ -346,6 +360,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#getRelease()
      */
+    @Override
     public String getRelease() throws MessageException
     {
         ByteBuffer buf = sendMessage(MessageType.GET_DOMAPP_RELEASE);
@@ -360,6 +375,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#getScalerDeadtime()
      */
+    @Override
     public int getScalerDeadtime() throws MessageException
     {
         // TODO - implement
@@ -371,6 +387,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#getSupernova()
      */
+    @Override
     public ByteBuffer getSupernova() throws MessageException
     {
         return sendMessagePreBuilt(MessageType.GET_SN_DATA,
@@ -385,6 +402,7 @@ public class DOMApp implements IDOMApp
      * @param prescale divisor for the chargestamp.
      * @throws MessageException
      */
+    @Override
     public void histoChargeStamp(int interval, short prescale) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(6);
@@ -399,6 +417,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#pulserOff()
      */
+    @Override
     public void pulserOff() throws MessageException
     {
         sendMessage(MessageType.SET_PULSER_OFF);
@@ -409,6 +428,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#pulserOn()
      */
+    @Override
     public void pulserOn() throws MessageException
     {
         sendMessage(MessageType.SET_PULSER_ON);
@@ -419,6 +439,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#queryHV()
      */
+    @Override
     public short[] queryHV() throws MessageException
     {
         ByteBuffer buf = sendMessage(MessageType.QUERY_HV);
@@ -446,12 +467,14 @@ public class DOMApp implements IDOMApp
      * Sends a query for one second of data
      *
      */
+    @Override
     public void getInterval() throws MessageException
     {
 	sendMessagePreBuilt(MessageType.GET_INTERVAL,
 			    intervalMsgArray);
     }
 
+    @Override
     public ByteBuffer recvMessage(ByteBuffer recvBuf) throws MessageException
     {
         recvBuf.clear();
@@ -536,6 +559,7 @@ public class DOMApp implements IDOMApp
         }
     }
 
+    @Override
     public void setAtwdReadout(AtwdChipSelect csel) throws MessageException
     {
         byte bsel = (byte) csel.ordinal();
@@ -550,6 +574,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#setCableLengths(short[], short[])
      */
+    @Override
     public void setCableLengths(short[] up, short[] dn) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(16);
@@ -561,6 +586,7 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.SET_LC_CABLELEN, buf);
     }
 
+    @Override
     public void setChargeStampType(boolean fADC, boolean autoRange, byte chan) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(3);
@@ -575,6 +601,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#setDeltaCompressionFormat()
      */
+    @Override
     public void setDeltaCompressionFormat() throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(1);
@@ -589,6 +616,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#setEngineeringFormat(ic3.daq.domapp.EngineeringRecordFormat)
      */
+    @Override
     public void setEngineeringFormat(EngineeringRecordFormat fmt) throws MessageException
     {
         byte[] enc = fmt.encode();
@@ -609,6 +637,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#setHV(short)
      */
+    @Override
     public void setHV(short dac) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(2);
@@ -616,6 +645,7 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.SET_HV, buf);
     }
 
+    @Override
     public void setLBMDepth(LBMDepth depth) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(1);
@@ -665,6 +695,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#setLCMode(ic3.daq.domapp.LocalCoincidenceConfiguration.RxMode)
      */
+    @Override
     public void setLCMode(LocalCoincidenceConfiguration.RxMode mode) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(1);
@@ -672,6 +703,7 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.SET_LC_MODE, buf);
     }
 
+    @Override
     public void setLCSource(Source src) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(1);
@@ -684,6 +716,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#setLCSpan(byte)
      */
+    @Override
     public void setLCSpan(byte span) throws MessageException
     {
         // TODO Auto-generated method stub
@@ -697,6 +730,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#setLCTx(ic3.daq.domapp.LocalCoincidenceConfiguration.TxMode)
      */
+    @Override
     public void setLCTx(LocalCoincidenceConfiguration.TxMode mode) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(1);
@@ -709,6 +743,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#setLCType(ic3.daq.domapp.LocalCoincidenceConfiguration.Type)
      */
+    @Override
     public void setLCType(LocalCoincidenceConfiguration.Type type) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(1);
@@ -721,6 +756,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#setLCWindow(int, int)
      */
+    @Override
     public void setLCWindow(int pre, int post) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(8);
@@ -733,6 +769,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#setMoniIntervals(int, int)
      */
+    @Override
     public void setMoniIntervals(int hw, int config) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(8);
@@ -740,6 +777,7 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.SET_MONI_IVAL, buf);
     }
 
+    @Override
     public void setMoniIntervals(int hw, int config, int fast) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(12);
@@ -752,6 +790,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#setMux(ic3.daq.domapp.MuxState)
      */
+    @Override
     public void setMux(MuxState mode) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(1);
@@ -764,6 +803,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#setPulserRate(short)
      */
+    @Override
     public void setPulserRate(short rate) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(2);
@@ -776,6 +816,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#setScalerDeadtime(int)
      */
+    @Override
     public void setScalerDeadtime(int deadtime) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(4);
@@ -788,6 +829,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#setTriggerMode(ic3.daq.domapp.TriggerMode)
      */
+    @Override
     public void setTriggerMode(TriggerMode mode) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(1);
@@ -795,6 +837,7 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.SET_TRIG_MODE, buf);
     }
 
+    @Override
     public boolean isRunningDOMApp() throws IOException, InterruptedException
     {
         ByteBuffer buf = ByteBuffer.allocate(8);
@@ -822,6 +865,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#transitionToDOMApp()
      */
+    @Override
     public boolean transitionToDOMApp() throws IOException, InterruptedException
     {
         // Issue a clear - something gets out-of-sorts in the iceboot
@@ -880,6 +924,7 @@ public class DOMApp implements IDOMApp
      *
      * @see ic3.daq.domapp.IDOMApp#writeDAC(byte, short)
      */
+    @Override
     public void writeDAC(byte dac, short val) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(4);
@@ -887,6 +932,7 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.WRITE_DAC, buf);
     }
 
+    @Override
     public void disableMinBias() throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(4);
@@ -894,6 +940,7 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.SELECT_MINBIAS, buf);
     }
 
+    @Override
     public void enableMinBias() throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(4);
@@ -901,6 +948,7 @@ public class DOMApp implements IDOMApp
         sendMessage(MessageType.SELECT_MINBIAS, buf);
     }
 
+    @Override
     public FastMoniRateType getFastMoniRateType() throws MessageException
     {
         ByteBuffer buf = sendMessage(MessageType.GET_FAST_MONI_RATE_TYPE);
@@ -909,6 +957,7 @@ public class DOMApp implements IDOMApp
         return FastMoniRateType.F_MONI_RATE_SLC;
     }
 
+    @Override
     public void setFastMoniRateType(FastMoniRateType type) throws MessageException
     {
         ByteBuffer buf = ByteBuffer.allocate(1);

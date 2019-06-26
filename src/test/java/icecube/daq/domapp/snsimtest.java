@@ -228,6 +228,7 @@ public class snsimtest implements BufferConsumer {
 
 
 
+    @Override
     public synchronized void  consume(ByteBuffer buf) throws IOException {
         if (buf.getInt(0) != 32) {              // if not the end of run poison symbol
             long mbid = buf.getLong(8);
@@ -296,6 +297,7 @@ public class snsimtest implements BufferConsumer {
        }
     }
 
+    @Override
     public void endOfStream(long mbid)
     {
         throw new Error("Only used by PrioritySort");

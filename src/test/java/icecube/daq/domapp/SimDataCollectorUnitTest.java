@@ -65,6 +65,7 @@ public class SimDataCollectorUnitTest implements BufferConsumer
         dc.signalShutdown();
     }
 
+    @Override
     public void consume(ByteBuffer buf) throws IOException
     {
         try
@@ -77,6 +78,7 @@ public class SimDataCollectorUnitTest implements BufferConsumer
         }
     }
 
+    @Override
     public void endOfStream(long mbid)
     {
         throw new Error("Only used by PrioritySort");

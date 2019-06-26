@@ -2,9 +2,9 @@ package icecube.daq.domapp;
 
 import static org.junit.Assert.*;
 
+import icecube.daq.common.MockAppender;
 import icecube.daq.domapp.DeltaMCodec;
 import icecube.daq.domapp.MonitorRecordFactory;
-import icecube.daq.stringhub.test.MockAppender;
 
 import java.nio.ByteBuffer;
 import java.util.Random;
@@ -49,8 +49,7 @@ public class TestDeltaMCodec
 	@After
 	public void tearDown() throws Exception 
 	{
-		assertEquals("Bad number of log messages",
-			     0, appender.getNumberOfMessages());
+		appender.assertNoLogMessages();
 	}
 
 	/**

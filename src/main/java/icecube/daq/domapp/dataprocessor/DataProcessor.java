@@ -90,6 +90,23 @@ public interface DataProcessor
 
 
     /**
+     * Send data for processing on a specified stream. This method
+     * supports bulk-submission.
+     *
+     * @param stream Identifies the type of data.
+     * @param data The data in domapp payload format.
+     * @throws DataProcessorError
+     */
+    default void process(StreamType[] stream, ByteBuffer[] data)
+            throws DataProcessorError
+    {
+        for (int i = 0; i < stream.length; i++)
+        {
+            process(stream[i], data[i]);
+
+        }
+    }
+    /**
      * Send an EOS on a specified stream.
      * @param stream The stream to send eos to.
      * @throws DataProcessorError

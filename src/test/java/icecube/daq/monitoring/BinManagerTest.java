@@ -1,7 +1,5 @@
 package icecube.daq.monitoring;
 
-import org.junit.After;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -75,6 +73,13 @@ public class BinManagerTest
             // expect this to fail
         }
 
+        try {
+            mgr.getActiveLatest();
+            fail("Should not be able to get active latest index");
+        } catch (Error err) {
+            // expect this to fail
+        }
+
         assertFalse("Should not have previous bin", mgr.hasPrevious());
         assertFalse("Should not have active bin", mgr.hasActive());
 
@@ -86,13 +91,14 @@ public class BinManagerTest
     public void testBins()
     {
         MyBinManager mgr = new MyBinManager("Bins", 1003L, 10L);
-        mgr.get(1013L);
+        mgr.reportEvent(1013L);
         assertTrue("Should have previous bin", mgr.hasPrevious());
         assertTrue("Should have active bin", mgr.hasActive());
         assertEquals("Bad previous start", 1003L, mgr.getPreviousStart());
         assertEquals("Bad previous end", 1010L, mgr.getPreviousEnd());
         assertEquals("Bad active start", 1010L, mgr.getActiveStart());
         assertEquals("Bad active end", 1020L, mgr.getActiveEnd());
+        assertEquals("Bad active latest", 1013L, mgr.getActiveLatest());
     }
 
     @Test
@@ -101,7 +107,7 @@ public class BinManagerTest
         MyBinManager mgr = new MyBinManager("FetchEarly", 1003L, 10L);
 
         try {
-            mgr.get(963L);
+            mgr.reportEvent(963L);
             fail("Should not be able to get a bin before the start index");
         } catch (Error err) {
             // expect this to fail
@@ -113,14 +119,14 @@ public class BinManagerTest
     {
         MyBinManager mgr = new MyBinManager("FetchAfter", 1003L, 10L);
 
-        mgr.get(1004L).inc();
+        mgr.reportEvent(1004L).inc();
 
-        assertEquals("Bad counter value", 1, mgr.get(1004L).getValue());
+        assertEquals("Bad counter value", 1, mgr.reportEvent(1004L).getValue());
 
         mgr.clearBin(Long.MIN_VALUE, Long.MAX_VALUE);
 
         try {
-            mgr.get(1006L);
+            mgr.reportEvent(1006L);
             fail("Should not be able to get a bin before the last start");
         } catch (Error err) {
             // expect this to fail
@@ -132,10 +138,10 @@ public class BinManagerTest
     {
         MyBinManager mgr = new MyBinManager("TooMany", 1000L, 10L);
 
-        mgr.get(1050L).inc();
+        mgr.reportEvent(1050L).inc();
 
         try {
-            mgr.get(1060L);
+            mgr.reportEvent(1060L);
             fail("Should not be able to get a bin with 2 active bins");
         } catch (Error err) {
             // expect this to fail

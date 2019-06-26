@@ -1,11 +1,15 @@
-package icecube.daq.stringhub;
+package icecube.daq.spool;
 
 import java.io.File;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 
@@ -33,8 +37,10 @@ public class Metadata
     private Connection conn;
     private PreparedStatement insertStmt;
     private PreparedStatement updateStmt;
+    private PreparedStatement rangeQueryStmt;
+    private PreparedStatement contentQueryStmt;
 
-    Metadata(File directory)
+    public Metadata(File directory)
         throws SQLException
     {
         if (!loadedSQLite) {
@@ -57,6 +63,18 @@ public class Metadata
         // prepare the standard UPDATE statement
         final String usql = "update hitspool set stop_tick=? where filename=?";
         updateStmt = conn.prepareStatement(usql);
+
+        // prepare the standard range QUERY statement
+        final String rqsql = "select * from hitspool" +
+                " where start_tick <= ?" +
+                " and stop_tick >= ?" +
+                " order by start_tick asc";
+        rangeQueryStmt = conn.prepareStatement(rqsql);
+
+        // prepare the standard content QUERY statement
+        final String cqsql = "select * from hitspool" +
+                " order by start_tick asc";
+        contentQueryStmt = conn.prepareStatement(cqsql);
     }
 
     public synchronized void close()
@@ -79,9 +97,21 @@ public class Metadata
         }
 
         try {
+            rangeQueryStmt.close();
+        } catch (SQLException se) {
+            LOG.error("Failed to close select statement", se);
+        }
+
+        try {
+            contentQueryStmt.close();
+        } catch (SQLException se) {
+            LOG.error("Failed to close selct statement", se);
+        }
+
+        try {
             conn.close();
         } catch (SQLException se) {
-            LOG.error("Failed to close PreparedStatement", se);
+            LOG.error("Failed to close connection", se);
         }
     }
 
@@ -147,4 +177,114 @@ public class Metadata
             }
         }
     }
+
+    /**
+     * @param from_tick The start of the data range.
+     * @param to_tick The end of the data range.
+     * @return An ordered list (time ascending) of files that enclose
+     *         the range.
+     * @throws IOException An error accessing the database.
+     */
+    public List<HitSpoolRecord> listRecords(long from_tick, long to_tick) throws IOException
+    {
+        synchronized (rangeQueryStmt) {
+            ResultSet resultSet = null;
+            try
+            {
+                rangeQueryStmt.setLong(1, to_tick);
+                rangeQueryStmt.setLong(2, from_tick);
+                resultSet = rangeQueryStmt.executeQuery();
+
+                List<HitSpoolRecord> records = new LinkedList<>();
+                while(resultSet.next())
+                {
+                    records.add( new HitSpoolRecord(resultSet.getString("filename"),
+                            resultSet.getLong("start_tick"),
+                            resultSet.getLong("stop_tick")) );
+                }
+
+                return records;
+
+            }
+            catch (SQLException se) {
+                throw new IOException("Cannot query metadata" +
+                        " [" + from_tick + "-" + to_tick + "])", se);
+            }
+            finally
+            {
+                if(resultSet != null)
+                {
+                    try
+                    {
+                        resultSet.close();
+                    }
+                    catch (SQLException se)
+                    {
+                        LOG.error("Error closing ResultSet", se);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * @return All records in the database in ascending time order.
+     * @throws IOException
+     */
+    public List<HitSpoolRecord> listRecords() throws IOException
+    {
+        synchronized (contentQueryStmt) {
+            ResultSet resultSet = null;
+            try
+            {
+                resultSet = contentQueryStmt.executeQuery();
+
+                List<HitSpoolRecord> spans = new LinkedList<HitSpoolRecord>();
+
+                while(resultSet.next())
+                {
+                    spans.add( new HitSpoolRecord(resultSet.getString("filename"),
+                            resultSet.getLong("start_tick"),
+                            resultSet.getLong("stop_tick")) );
+                }
+                return spans;
+            }
+            catch (SQLException se) {
+                throw new IOException("Cannot query metadata", se);
+            }
+            finally
+            {
+                if(resultSet != null)
+                {
+                    try
+                    {
+                        resultSet.close();
+                    }
+                    catch (SQLException se)
+                    {
+                        LOG.error("Error closing ResultSet", se);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Models a spool file record.
+     */
+    public static class HitSpoolRecord
+    {
+        public final String filename;
+        public final long startTick;
+        public final long stopTick;
+
+        public HitSpoolRecord(final String filename,
+                              final long startTick, final long stopTick)
+        {
+            this.filename = filename;
+            this.startTick = startTick;
+            this.stopTick = stopTick;
+        }
+    }
+
 }

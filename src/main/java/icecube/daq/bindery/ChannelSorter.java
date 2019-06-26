@@ -42,10 +42,16 @@ public interface ChannelSorter
     int getQueueSize();
 
     /**
+     * Are any sorter threads still active?
+     * @return <tt>true</tt> if one or more sorter threads are active
+     */
+    boolean isRunning();
+
+    /**
      * Wait for all sorter-related threads to finish
      */
-    void join()
-        throws InterruptedException;
+    void join(long millis)
+        throws Exception;
 
     /**
      * Register a channel with the sort.

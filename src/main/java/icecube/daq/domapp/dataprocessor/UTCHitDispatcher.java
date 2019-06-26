@@ -26,10 +26,11 @@ public class UTCHitDispatcher extends UTCMonotonicDispatcher
 
 
     public UTCHitDispatcher(final BufferConsumer target,
-                            DOMConfiguration config,
-                            final RAPCal rapcal)
+                            final DOMConfiguration config,
+                            final RAPCal rapcal,
+                            final long mbid)
     {
-        super(target, DataProcessor.StreamType.HIT, rapcal);
+        super(target, DataProcessor.StreamType.HIT, rapcal, mbid);
         abBuffer = new HitBufferAB(config.getAtwdChipSelect());
     }
 
@@ -39,26 +40,38 @@ public class UTCHitDispatcher extends UTCMonotonicDispatcher
             throws DataProcessorError
     {
         if (atwdChip == 0)
+        {
             abBuffer.pushA(hitBuf);
+        }
         else
+        {
             abBuffer.pushB(hitBuf);
+        }
+
+        processABBuffer(counters);
+
+    }
+
+    /**
+     * Drain the AB buffer.
+     * @param counters Parameter object for maintaining dispatch counters.
+     * @throws DataProcessorError Error dispatching a buffer.
+     */
+    private void processABBuffer(final DataStats counters) throws DataProcessorError
+    {
         while (true)
         {
             ByteBuffer buffer = abBuffer.pop();
             if (buffer == null) return;
             final long domclk = buffer.getLong(24);
 
-            //todo, Consider moving HLC/SLC detection to to processor
-            //      object and pass argument here. This would
-            //      avoid the double-dip into the data format.
-            //
             // Collect HLC / SLC hit statistics ...
-            final int formatID = hitBuf.getInt(4);
+            final int formatID = buffer.getInt(4);
             final boolean isLCHit;
             switch (formatID)
             {
                 case DataProcessor.MAGIC_COMPRESSED_HIT_FMTID:
-                    int flagsLC = (hitBuf.getInt(46) & 0x30000) >> 16;
+                    int flagsLC = (buffer.getInt(46) & 0x30000) >> 16;
                     isLCHit = (flagsLC != 0);
                     break;
                 case DataProcessor.MAGIC_ENGINEERING_HIT_FMTID:

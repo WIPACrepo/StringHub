@@ -6,6 +6,7 @@ import org.apache.commons.net.ntp.TimeInfo;
 import org.apache.log4j.Logger;
 
 import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.Calendar;
 import java.util.Date;
@@ -102,10 +103,13 @@ class NTPService
                 NTPQueryJob job = new NTPQueryJob(ntpHostname,
                         target);
 
+                // stagger the start time to prevent hubs synchronizing
+                // their query period and loading the server
+                long startDelay = (long) (Math.random() * 60);
                 executor = Executors.newScheduledThreadPool(1,
                         new NTPThreadFactory(ntpHostname));
                 executor.scheduleWithFixedDelay(job,
-                        0, pollingPeriodSeconds, TimeUnit.SECONDS);
+                        startDelay, pollingPeriodSeconds, TimeUnit.SECONDS);
                 running = true;
             }
             else
@@ -193,10 +197,40 @@ class NTPService
                         InetAddress.getByName(ntpHostname);
 
 
+                long before;
+                long after;
+                TimeInfo time;
 
-                long before = System.nanoTime();
-                TimeInfo time = ntpClient.getTime(resolved);
-                long after = System.nanoTime();
+                // Query the NTP server allowing for a few timeouts
+                // before alerting.
+                final int MAX_ATTEMPTS = 3;
+                int attempt = 0;
+                while(true)
+                {
+                    attempt++;
+                    try
+                    {
+                        before = System.nanoTime();
+                        time = ntpClient.getTime(resolved);
+                        after = System.nanoTime();
+                        break;
+                    }
+                    catch (SocketTimeoutException ste)
+                    {
+                        if(attempt< MAX_ATTEMPTS)
+                        {
+                            // assume a transient issue, repeat query
+                            logger.warn("NTP Query Timeout, attempt "
+                                    + attempt + " of " + MAX_ATTEMPTS,
+                                    ste);
+                            Thread.sleep(10000);
+                        }
+                        else
+                        {
+                            throw new Error("Too many query timeouts", ste);
+                        }
+                    }
+                }
 
                 processNTPQuery(time, before, after);
 
@@ -318,6 +352,7 @@ class NTPService
                 alerter.alertNTPServer("Bad NTP Query", ntpHostname);
             }
         }
+
     }
 
 

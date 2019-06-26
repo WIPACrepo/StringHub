@@ -10,6 +10,7 @@ import java.util.Comparator;
 class DAQBufferComparator
     implements Comparator<DAQBuffer>
 {
+    @Override
     public int compare(DAQBuffer left, DAQBuffer right)
     {
         if (left.timestamp < right.timestamp)
@@ -62,6 +63,7 @@ class DAQBuffer
      *
      * @return debugging string
      */
+    @Override
     public String toString()
     {
         if (str == null) {

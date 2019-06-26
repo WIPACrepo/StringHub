@@ -30,6 +30,7 @@ public class BufferConsumerChannel
      *
      * @throws IOException if the write failed
      */
+    @Override
     public void consume(ByteBuffer buf)
         throws IOException
     {
@@ -39,6 +40,7 @@ public class BufferConsumerChannel
     /**
      * There will be no more data.
      */
+    @Override
     public void endOfStream(long mbid)
         throws IOException
     {

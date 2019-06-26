@@ -1,7 +1,8 @@
 /* -*- mode: java; indent-tabs-mode:t; tab-width:4 -*- */
 package icecube.daq.stringhub;
 
-import icecube.daq.bindery.BufferConsumerAsync;
+import icecube.daq.io.BlockingOutputEngine;
+import icecube.daq.bindery.AsyncSorterOutput;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.bindery.PrioritySort;
 import icecube.daq.bindery.SecondaryStreamConsumer;
@@ -13,14 +14,14 @@ import icecube.daq.bindery.ChannelSorter;
 import icecube.daq.domapp.DOMConfiguration;
 import icecube.daq.domapp.DataCollector;
 import icecube.daq.domapp.DataCollectorFactory;
-import icecube.daq.domapp.MessageException;
+import icecube.daq.domapp.DataCollectorMBean;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.domapp.SimDataCollector;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
 import icecube.daq.io.DAQComponentOutputProcess;
 import icecube.daq.io.OutputChannel;
-import icecube.daq.io.PayloadReader;
+import icecube.daq.io.DAQStreamReader;
 import icecube.daq.io.SimpleOutputEngine;
 import icecube.daq.juggler.alert.AlertException;
 import icecube.daq.juggler.alert.AlertQueue;
@@ -32,28 +33,40 @@ import icecube.daq.juggler.mbean.MemoryStatistics;
 import icecube.daq.juggler.mbean.SystemStatistics;
 import icecube.daq.monitoring.DOMClockRolloverAlerter;
 import icecube.daq.monitoring.IRunMonitor;
-import icecube.daq.monitoring.MonitoringData;
 import icecube.daq.monitoring.RunMonitor;
+import icecube.daq.monitoring.SenderMXBean;
 import icecube.daq.payload.IByteBufferCache;
 import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.impl.ReadoutRequestFactory;
 import icecube.daq.payload.impl.VitreousBufferCache;
+import icecube.daq.performance.common.PowersOfTwo;
+import icecube.daq.performance.diagnostic.Content;
+import icecube.daq.performance.diagnostic.DataCollectorAggregateContent;
+import icecube.daq.performance.diagnostic.DiagnosticTrace;
+import icecube.daq.performance.diagnostic.MeterContent;
+import icecube.daq.performance.diagnostic.Metered;
+import icecube.daq.performance.diagnostic.SenderContent;
+import icecube.daq.performance.diagnostic.cpu.CPUUtilizationContent;
 import icecube.daq.priority.AdjustmentTask;
 import icecube.daq.priority.SorterException;
 import icecube.daq.sender.RequestReader;
-import icecube.daq.sender.Sender;
+import icecube.daq.sender.SenderSubsystem;
 import icecube.daq.time.gps.IGPSService;
 import icecube.daq.time.gps.GPSService;
 import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
-import icecube.daq.util.DOMRegistry;
+import icecube.daq.util.DOMInfo;
+import icecube.daq.util.DOMRegistryException;
+import icecube.daq.util.DOMRegistryFactory;
 import icecube.daq.util.IDOMRegistry;
-import icecube.daq.util.DeployedDOM;
 import icecube.daq.util.FlasherboardConfiguration;
 import icecube.daq.util.JAXPUtilException;
 import icecube.daq.util.StringHubAlert;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -64,11 +77,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javax.xml.parsers.ParserConfigurationException;
-
 import org.apache.log4j.Logger;
-
-import org.xml.sax.SAXException;
 
 public class StringHubComponent
 	extends DAQComponent
@@ -80,40 +89,55 @@ public class StringHubComponent
 	private static final String COMPONENT_NAME =
 		DAQCmdInterface.DAQ_STRING_HUB;
 
-	/** Default interval for each hitspool file (in seconds) */
-	private static final double DEFAULT_HITSPOOL_INTERVAL = 15.0;
-	/** Maximum number of hitspool files */
-	private static final int DEFAULT_HITSPOOL_MAXFILES = 18000;
 
 	private int hubId;
 	private Driver driver = Driver.getInstance();
 	private IByteBufferCache cache;
-	private Sender sender;
+    private SenderSubsystem sender;
 	private IDOMRegistry domRegistry;
 	private IByteBufferCache moniBufMgr, tcalBufMgr, snBufMgr;
-	private PayloadReader reqIn;
+	private DAQStreamReader reqIn;
 	private SimpleOutputEngine moniOut;
-	private SimpleOutputEngine tcalOut;
-	private SimpleOutputEngine supernovaOut;
-	private SimpleOutputEngine hitOut;
-	private SimpleOutputEngine dataOut;
+	private DAQComponentOutputProcess tcalOut;
+	private DAQComponentOutputProcess supernovaOut;
+	private DAQComponentOutputProcess hitOut;
+	private DAQComponentOutputProcess dataOut;
 	private DOMConnector conn;
 	private ChannelSorter hitsSort;
 	private ChannelSorter moniSort;
 	private ChannelSorter tcalSort;
 	private ChannelSorter scalSort;
 	private File configurationPath;
-	private int numConfigured;
 	private IRunMonitor runMonitor;
-
-	private FilesHitSpool hitSpooler;
+    private DiagnosticTraceConfig trace;
 
 	/** list of configured DOMs filled during configuring() */
-	private List<DeployedDOM> configuredDOMs;
+	private List<DOMInfo> configuredDOMs;
 
 	private ArrayList<PrioritySort> prioList = new ArrayList<PrioritySort>();
 
 	private boolean forceRandom;
+
+    /** Configurable factory for selecting the hit output engine type. */
+    private OutputProcessFactory hitOutImplementation =
+            OutputProcessFactory.valueOf(System.getProperty(
+                    "icecube.daq.stringhub.StringHubComponent.hitOutType",
+                    OutputProcessFactory.BLOCKING_8K.name()));
+
+    /** Configurable factory for selecting the data output engine type. */
+    private OutputProcessFactory dataOutImplementation =
+            OutputProcessFactory.valueOf(System.getProperty(
+                    "icecube.daq.stringhub.StringHubComponent.dataOutType",
+                    OutputProcessFactory.BLOCKING_8K.name()));
+
+
+    //todo: Remove after rhinelander release
+    /**
+     * Configuration directive to fall back to the legacy HitSpool/Sender
+     * implementations;
+     */
+    public static final boolean USE_LEGACY_SENDER =
+    Boolean.getBoolean("icecube.daq.sender.SenderSubsystem.use-legacy-sender");
 
 	public StringHubComponent(int hubId)
 	{
@@ -122,6 +146,7 @@ public class StringHubComponent
 		this.hubId = hubId;
 	}
 
+	@Override
 	public void initialize()
 	{
 		final boolean includeHitOut = true;
@@ -178,12 +203,27 @@ public class StringHubComponent
 			rdoutDataCache =
 				new VitreousBufferCache(cacheName + "RdOut" + cacheNum);
 			addCache(DAQConnector.TYPE_READOUT_DATA, rdoutDataCache);
-		}
+            addMBean("readout", rdoutDataCache);
 
-		sender = new Sender(hubId, rdoutDataCache);
-		if (domRegistry != null) {
-			sender.setDOMRegistry(domRegistry);
-		}
+        }
+
+        try
+        {
+            if(USE_LEGACY_SENDER)
+            {
+                sender = SenderSubsystem.Factory.STRING_HUB_COMPONENT.createLegacy(hubId,
+                        cache, rdoutDataCache, domRegistry);
+            }
+            else
+            {
+                sender = SenderSubsystem.Factory.STRING_HUB_COMPONENT.create(hubId,
+                        cache, rdoutDataCache, domRegistry);
+            }
+        }
+        catch (IOException ioe)
+        {
+            throw new Error("Couldn't create Sender", ioe);
+        }
 
 		if (logger.isInfoEnabled()) {
 			logger.info("starting up StringHub component " + hubId);
@@ -194,8 +234,8 @@ public class StringHubComponent
 		if (minorHubId > 0) {
 			// all non-AMANDA hubs send hits to a trigger
 			if (includeHitOut) {
-				hitOut = new SimpleOutputEngine(COMPONENT_NAME, hubId,
-												"hitOut");
+                hitOut = hitOutImplementation.create(COMPONENT_NAME, hubId,
+                        "hitOut");
 			}
 			if (SourceIdRegistry.isIcetopHubSourceID(fullId)) {
 				if (hitOut != null) {
@@ -208,7 +248,6 @@ public class StringHubComponent
 			}
 			if (hitOut != null) {
 				sender.setHitOutput(hitOut);
-				sender.setHitCache(cache);
 			}
 		}
 
@@ -216,7 +255,8 @@ public class StringHubComponent
 			ReadoutRequestFactory factory =
 				new ReadoutRequestFactory(cache);
 			try {
-				reqIn = new RequestReader(COMPONENT_NAME, sender, factory);
+				reqIn = new RequestReader(COMPONENT_NAME,
+                        sender.getReadoutRequestHandler(), factory);
 			} catch (IOException ioe) {
 				throw new Error("Couldn't create RequestReader", ioe);
 			}
@@ -224,15 +264,13 @@ public class StringHubComponent
 		}
 
 		if (includeDataOut) {
-			dataOut =
-				new SimpleOutputEngine(COMPONENT_NAME, hubId, "dataOut");
+			dataOut = dataOutImplementation.create(COMPONENT_NAME, hubId,
+                    "dataOut");
 			addMonitoredEngine(DAQConnector.TYPE_READOUT_DATA, dataOut);
-			sender.setDataOutput(dataOut);
+            sender.setDataOutput(dataOut);
 		}
 
-		MonitoringData monData = new MonitoringData();
-		monData.setSenderMonitor(sender);
-		addMBean("sender", monData);
+        addMBean("sender", sender.getMonitor());
 
 		// Following are the payload output engines for the secondary streams
 		if (includeMoniOut) {
@@ -272,36 +310,43 @@ public class StringHubComponent
 		}
 		runMonitor = new RunMonitor(hubId % 1000, getAlertQueue());
 		runMonitor.start();
+
+        sender.setRunMonitor(runMonitor);
+
+        trace = new DiagnosticTraceConfig();
 	}
 
-	List<DeployedDOM> applyConfigToDOMs(ConfigData cfgData,
-										Collection<DeployedDOM> deployedDOMs,
-										List<DOMChannelInfo> activeDOMs)
+	/**
+	 * Return a list of information for DOMs which should be attached to
+	 * this string and which are in the DOM configuration file.  Send an
+	 * alert for all DOMs which are included but not active.
+	 *
+	 * @param cfgData configuration data for all DOMs on this string
+	 * @param deployedDOMs collection of all deployed DOMs on this string
+	 * @param activeDOMs list of discovered DOMs
+	 *
+	 * @return list of configurable DOMs on this string
+	 *
+	 * @throws DAQCompException if there is a problem
+	 */
+	private List<DOMInfo> getConfiguredDOMs(ConfigData cfgData,
+											Collection<DOMInfo> deployedDOMs,
+											List<DOMChannelInfo> activeDOMs)
 		throws DAQCompException
 	{
-		// Dropped DOM detection logic - WARN if channel on string AND in
-		// config BUT NOT in the list of active DOMs.  Oh, and count the
-		// number of channels that are active AND requested in the config
-		// while we're looping
-
+		// build a quick lookup for mainboard IDs of active DOMs
 		Set<String> activeDomSet = new HashSet<String>();
 		for (DOMChannelInfo chanInfo : activeDOMs)
 		{
 			activeDomSet.add(chanInfo.mbid);
-			if (cfgData.isDOMIncluded(chanInfo.mbid)) {
-				numConfigured++;
-			}
 		}
 
-		if (numConfigured == 0) {
-			throw new DAQCompException("No Active DOMs on Hub " + hubId +
-									   " selected in configuration.");
-		}
+		// create a list to hold the deployed and configurable DOM information
+		List<DOMInfo> doms = new ArrayList<DOMInfo>();
 
 		// check all the DOMs which are known to be on this hub
-		ArrayList<DeployedDOM> doms = new ArrayList<DeployedDOM>();
-		for (DeployedDOM deployedDOM : deployedDOMs) {
-			String mbid = deployedDOM.getMainboardId();
+		for (DOMInfo deployedDOM : deployedDOMs) {
+			final String mbid = deployedDOM.getMainboardId();
 
 			// if this DOM is in the run configuration...
 			if (cfgData.isDOMIncluded(mbid)) {
@@ -328,7 +373,7 @@ public class StringHubComponent
 									 StringHubAlert.NO_UTCTIME);
 				}
 
-				// add to the list of configured DOMs
+				// add to the list of configurable DOMs
 				doms.add(deployedDOM);
 			}
 		}
@@ -353,19 +398,11 @@ public class StringHubComponent
 		}
 		// get a reference to the DOM registry - useful later
 		try {
-			domRegistry = DOMRegistry.loadRegistry(configurationPath);
-		} catch (ParserConfigurationException e) {
-			logger.error("Could not load DOMRegistry", e);
-		} catch (SAXException e) {
-			logger.error("Could not load DOMRegistry", e);
-		} catch (IOException e) {
-			logger.error("Could not load DOMRegistry", e);
+			domRegistry = DOMRegistryFactory.load(configurationPath);
+		} catch (DOMRegistryException dre) {
+			logger.error("Could not load DOMRegistry", dre);
 		}
-
-		if (sender != null) {
-			sender.setDOMRegistry(domRegistry);
-		}
-	}
+    }
 
     @Override
     /**
@@ -404,6 +441,7 @@ public class StringHubComponent
 	 *
 	 * @throws IOException if there is a problem
 	 */
+	@Override
 	public void closeAll()
 		throws IOException
 	{
@@ -444,12 +482,12 @@ public class StringHubComponent
 	 *
 	 * @return list of DOMChannelInfo entries
 	 */
-	private List<DOMChannelInfo> discoverSimDOMs(Collection<DeployedDOM>
+	private List<DOMChannelInfo> discoverSimDOMs(Collection<DOMInfo>
 												 attachedDOMs)
 	{
 		List<DOMChannelInfo> activeDOMs =
 			new ArrayList<DOMChannelInfo>(attachedDOMs.size());
-		for (DeployedDOM dom : attachedDOMs) {
+		for (DOMInfo dom : attachedDOMs) {
 			int card = (dom.getStringMinor()-1) / 8;
 			int pair = ((dom.getStringMinor()-1) % 8) / 2;
 			char aorb = 'A';
@@ -468,6 +506,7 @@ public class StringHubComponent
 	/**
 	 * StringHub responds to a configure request from the controller
 	 */
+	@Override
 	@SuppressWarnings("unchecked")
 	public void configuring(String configName) throws DAQCompException
 	{
@@ -482,7 +521,12 @@ public class StringHubComponent
 									   " has not been set");
 		}
 
-		Collection<DeployedDOM> deployedDOMs = domRegistry.getDomsOnHub(hubId);
+		Collection<DOMInfo> deployedDOMs;
+		try {
+			deployedDOMs = domRegistry.getDomsOnHub(hubId);
+		} catch (DOMRegistryException dre) {
+			throw new DAQCompException("Cannot get DOMs on hub " + hubId, dre);
+		}
 
 		ConfigData cfgData;
 		try {
@@ -507,6 +551,7 @@ public class StringHubComponent
 			inst.setStringNumber(hubId % 1000);
 		}
 
+		// give up if we couldn't find any DOMs
 		if (activeDOMs.size() == 0) {
 			throw new DAQCompException("No Active DOMs on hub " + hubId);
 		}
@@ -515,15 +560,55 @@ public class StringHubComponent
 			sender.forwardIsolatedHitsToTrigger();
 		}
 
-		configuredDOMs = applyConfigToDOMs(cfgData, deployedDOMs, activeDOMs);
+		// count the number of channels that are active AND requested in
+		// the config
+		int numUsable = 0;
+		for (DOMChannelInfo chanInfo : activeDOMs)
+		{
+			if (cfgData.isDOMIncluded(chanInfo.mbid)) {
+				numUsable++;
+			}
+		}
+		if (numUsable == 0) {
+			throw new DAQCompException("No Active DOMs on Hub " + hubId +
+									   " selected in configuration.");
+		}
+
+		// build the list of configurable DOMs
+		configuredDOMs = getConfiguredDOMs(cfgData, deployedDOMs, activeDOMs);
 		runMonitor.setConfiguredDOMs(configuredDOMs);
 
 		logger.debug("Configuration successfully loaded -" +
-					 " Intersection(DISC, CONFIG).size() = " + numConfigured);
+					 " Intersection(DISC, CONFIG).size() = " + numUsable);
 
-		configOutput(cfgData, openSecondary);
+		// Must make sure to release file resources associated with the
+		// previous runs since we are throwing away the collectors and
+		// starting from scratch
+		if (conn != null) {
+			try {
+				conn.destroy();
+			} catch (InterruptedException ie) {
+				throw new DAQCompException("Cannot destroy previous" +
+										   " connector for Hub " + hubId, ie);
+			}
+		}
 
-		createDataCollectors(cfgData, activeDOMs, isSim);
+		configOutput(cfgData, numUsable, openSecondary);
+
+		conn = new DOMConnector(numUsable);
+
+		for (DOMChannelInfo chanInfo : activeDOMs) {
+			DOMConfiguration config = cfgData.getDOMConfig(chanInfo.mbid);
+			if (config == null) {
+				// skip active DOMs not listed in the configuration file
+				continue;
+			}
+
+			conn.add(createDataCollector(chanInfo, config, isSim,
+										 cfgData.enable_intervals,
+										 cfgData.snDistance,
+										 cfgData.dcSoftboot));
+		}
 
 		// Still need to get the data collectors to pick up
 		// and do something with the config
@@ -540,27 +625,15 @@ public class StringHubComponent
 	 * time calibration streams
 	 *
 	 * @param cfgData configuration data
+	 * @param numDOMs number of active DOMs included in the DOM config
 	 * @param openSecondary if <tt>true</tt> open the secondary streams
 	 *
 	 * @throws DAQCompException if there is a problem
 	 */
-	private void configOutput(ConfigData cfgData, boolean openSecondary)
+	private void configOutput(ConfigData cfgData, int numDOMs,
+							  boolean openSecondary)
 		throws DAQCompException
 	{
-		// Must make sure to release file resources associated with the
-		// previous runs since we are throwing away the collectors and
-		// starting from scratch
-		if (conn != null) {
-			try {
-				conn.destroy();
-			} catch (InterruptedException ie) {
-				throw new DAQCompException("Cannot destroy previous" +
-										   " connector for Hub " + hubId, ie);
-			}
-		}
-
-		conn = new DOMConnector(numConfigured);
-
 		SecondaryStreamConsumer monitorConsumer;
 		SecondaryStreamConsumer supernovaConsumer;
 		SecondaryStreamConsumer tcalConsumer;
@@ -586,58 +659,47 @@ public class StringHubComponent
 
 		// the hit buffer consumer is either the sender or a hitspool
 		// object which passes all hits onto the sender
-		BufferConsumer consumer;
-		try {
-			consumer = createHitspooler(sender);
-		} catch (IOException ioe) {
-			logger.error("Cannot create hitspooler", ioe);
-			consumer = sender;
-		}
+        BufferConsumer consumer = new AsyncSorterOutput(sender.getHitInput(),
+                PowersOfTwo._2097152, "hit-consumer",
+                trace.getAsyncHitConsumerMeter());
 
 		final boolean usePriority =
 			System.getProperty("usePrioritySort") != null;
 
 		// Start the hit merger-sorter
 		if (!usePriority) {
-			hitsSort = new MultiChannelMergeSort(numConfigured, consumer);
+			hitsSort = new MultiChannelMergeSort(numDOMs, consumer, "hit",
+                    trace.getSortQueueMeter(), trace.getSortMeter());
+
+			moniSort = new MultiChannelMergeSort(numDOMs, monitorConsumer);
+			scalSort = new MultiChannelMergeSort(numDOMs, supernovaConsumer);
+			tcalSort = new MultiChannelMergeSort(numDOMs, tcalConsumer);
 		} else {
 			PrioritySort tmp;
 			try {
-				tmp = new PrioritySort("HitsSort", numConfigured, consumer);
+				tmp = new PrioritySort("HitsSort", numDOMs, consumer);
 			} catch (SorterException se) {
 				throw new DAQCompException("Cannot create hit sorter", se);
 			}
 
 			prioList.add(tmp);
 			hitsSort = tmp;
-		}
-
-		// start remaining merger-sorter objects
-		if (usePriority) {
-			PrioritySort tmp;
 
 			try {
-				tmp = new PrioritySort("MoniSort", numConfigured,
-									   monitorConsumer);
+				tmp = new PrioritySort("MoniSort", numDOMs, monitorConsumer);
 				prioList.add(tmp);
 				moniSort = tmp;
 
-				tmp = new PrioritySort("SNSort", numConfigured,
-									   supernovaConsumer);
+				tmp = new PrioritySort("SNSort", numDOMs, supernovaConsumer);
 				prioList.add(tmp);
 				scalSort = tmp;
 
-				tmp = new PrioritySort("TCalSort", numConfigured, tcalConsumer);
+				tmp = new PrioritySort("TCalSort", numDOMs, tcalConsumer);
 				prioList.add(tmp);
 				tcalSort = tmp;
 			} catch (SorterException se) {
 				throw new DAQCompException("Cannot create sorter", se);
 			}
-		} else {
-			moniSort = new MultiChannelMergeSort(numConfigured, monitorConsumer);
-			scalSort = new MultiChannelMergeSort(numConfigured,
-												 supernovaConsumer);
-			tcalSort = new MultiChannelMergeSort(numConfigured, tcalConsumer);
 		}
 
 		if (prioList.size() > 0) {
@@ -648,128 +710,58 @@ public class StringHubComponent
 		}
 	}
 
-	private AbstractDataCollector
-		createDataCollector(boolean isSim, DOMChannelInfo chanInfo,
-							DOMConfiguration config,
-							ChannelSorter hitsSort,
-							ChannelSorter moniSort,
-							ChannelSorter tcalSort,
-							ChannelSorter scalSort,
-							boolean enable_intervals, double snDistance)
-		throws IOException, MessageException
-	{
-		if (!isSim) {
-            DataCollector dc =
-                    DataCollectorFactory.buildDataCollector(chanInfo.card, chanInfo.pair, chanInfo.dom,
-								  chanInfo.mbid, config, hitsSort, moniSort,
-								  scalSort, tcalSort, enable_intervals);
-			addMBean("DataCollectorMonitor-" + chanInfo, dc);
-			dc.setRunMonitor(runMonitor);
-			return dc;
-		}
-
-		if (!Double.isNaN(snDistance)) {
-			config.setSnSigEnabled(true);
-			config.setSnDistance(snDistance);
-			logger.debug("SN Distance "+ snDistance);
-		}
-
-		final boolean isAmanda = (getNumber() % 1000) == 0;
-		return new SimDataCollector(chanInfo, config, hitsSort, moniSort,
-									scalSort, tcalSort, isAmanda);
-	}
-
-	private void createDataCollectors(ConfigData cfgData,
-									  List<DOMChannelInfo> activeDOMs,
-									  boolean isSim)
+	private AbstractDataCollector createDataCollector(DOMChannelInfo chanInfo,
+													  DOMConfiguration config,
+													  boolean isSim,
+													  boolean enableIntvls,
+													  double snDistance,
+													  boolean dcSoftboot)
 		throws DAQCompException
 	{
-		for (DOMChannelInfo chanInfo : activeDOMs) {
-			DOMConfiguration config = cfgData.getDOMConfig(chanInfo.mbid);
-			if (config == null) continue;
+		// Associate a GPS service to this card, if not already done
+		if (!isSim) {
+			IGPSService inst = GPSService.getInstance();
+			inst.setRunMonitor(runMonitor);
+			inst.startService(chanInfo.card);
+		}
 
-			String cwd = chanInfo.card + "" + chanInfo.pair + chanInfo.dom;
-
-			DeployedDOM domInfo = domRegistry.getDom(chanInfo.mbid_numerique);
-
-			// Associate a GPS service to this card, if not already done
+		AbstractDataCollector dc;
+		try {
 			if (!isSim) {
-				IGPSService inst = GPSService.getInstance();
-				inst.setRunMonitor(runMonitor);
-				inst.startService(chanInfo.card);
+				dc = DataCollectorFactory.buildDataCollector
+					(chanInfo.card, chanInfo.pair, chanInfo.dom, chanInfo.mbid,
+					 config, hitsSort, moniSort, scalSort, tcalSort,
+					 enableIntvls);
+				addMBean("DataCollectorMonitor-" + chanInfo, dc);
+				dc.setRunMonitor(runMonitor);
+			} else {
+				if (!Double.isNaN(snDistance)) {
+					config.setSnSigEnabled(true);
+					config.setSnDistance(snDistance);
+					logger.debug("SN Distance "+ snDistance);
+				}
+
+				final boolean isAmanda = (getNumber() % 1000) == 0;
+				dc = new SimDataCollector(chanInfo, config, hitsSort, moniSort,
+										  scalSort, tcalSort, isAmanda);
 			}
-
-			AbstractDataCollector dc;
-			try {
-				dc = createDataCollector(isSim, chanInfo, config, hitsSort,
-										 moniSort, tcalSort, scalSort,
-										 cfgData.enable_intervals,
-										 cfgData.snDistance);
-			} catch (Throwable t) {
-				throw new DAQCompException("Cannot create " + hubId +
-										   " data collector", t);
-			}
-
-			dc.setDomInfo(domInfo);
-
-			dc.setSoftbootBehavior(cfgData.dcSoftboot);
-			hitsSort.register(chanInfo.mbid_numerique);
-			moniSort.register(chanInfo.mbid_numerique);
-			scalSort.register(chanInfo.mbid_numerique);
-			tcalSort.register(chanInfo.mbid_numerique);
-			dc.setAlertQueue(getAlertQueue());
-			dc.setRunMonitor(runMonitor);
-			conn.add(dc);
-			if (logger.isDebugEnabled()) {
-				logger.debug("Starting new DataCollector thread on (" + cwd +
-							 ").");
-			}
-		}
-	}
-
-	private BufferConsumer createHitspooler(BufferConsumer consumer)
-		throws IOException
-	{
-		final String directory = System.getProperty("hitspool.directory");
-		if (directory == null) {
-			return consumer;
+		} catch (Throwable t) {
+			throw new DAQCompException("Cannot create " + hubId +
+									   " data collector", t);
 		}
 
-		double interval = DEFAULT_HITSPOOL_INTERVAL;
+		DOMInfo domInfo = domRegistry.getDom(chanInfo.mbid_numerique);
+		dc.setDomInfo(domInfo);
+		dc.setSoftbootBehavior(dcSoftboot);
+		dc.setAlertQueue(getAlertQueue());
+		dc.setRunMonitor(runMonitor);
 
-		final String ivalStr = System.getProperty("hitspool.interval");
-		if (ivalStr != null) {
-			try {
-				double tmpIval = Double.parseDouble(ivalStr);
-				interval = tmpIval;
-			} catch (NumberFormatException nfe) {
-				logger.error("Bad hitspool interval \"" + ivalStr +
-							 "\"; falling back to default " + interval);
-			}
-		}
+		hitsSort.register(chanInfo.mbid_numerique);
+		moniSort.register(chanInfo.mbid_numerique);
+		scalSort.register(chanInfo.mbid_numerique);
+		tcalSort.register(chanInfo.mbid_numerique);
 
-		int numFiles = DEFAULT_HITSPOOL_MAXFILES;
-
-		final String numStr = System.getProperty("hitspool.maxfiles");
-		if (numStr != null) {
-			try {
-				int tmpVal = Integer.parseInt(numStr);
-				numFiles = tmpVal;
-			} catch (NumberFormatException nfe) {
-				logger.error("Bad number of hitspool files \"" + numStr +
-							 "\"; falling back to default " + numFiles);
-			}
-		}
-
-		// send hits to hit spooler which forwards them to the sorter
-		hitSpooler = new FilesHitSpool(consumer, configurationPath,
-									   new File(directory),
-									   (long) (interval * 1E10), numFiles);
-
-		// use a dedicated thread for consumption from the sorter
-		// to separate the hitspool IO load from sorting load.
-		return new BufferConsumerAsync(hitSpooler, 20000000,
-			BufferConsumerAsync.QueueFullPolicy.Block, "hit-consumer");
+		return dc;
 	}
 
 	/**
@@ -821,7 +813,7 @@ public class StringHubComponent
 		int strnum = -1;
 		int first = 0;
 		for (int i = 0; i < configuredDOMs.size(); i++) {
-			DeployedDOM dom = configuredDOMs.get(i);
+			DOMInfo dom = configuredDOMs.get(i);
 			if (dom.getStringMajor() == strnum) {
 				// this DOM is on the same string
 				continue;
@@ -855,7 +847,7 @@ public class StringHubComponent
 		int[] list = new int[configuredDOMs.size()];
 
 		int idx = 0;
-		for (DeployedDOM dom : configuredDOMs) {
+		for (DOMInfo dom : configuredDOMs) {
 			list[idx++] = dom.getStringMinor();
 		}
 
@@ -920,7 +912,6 @@ public class StringHubComponent
                                            dc.getCard(),
                                            dc.getPair(),
                                            dc.getDom());
-                narrow.getFirstDOMTime();
                 records.put(details, narrow.getFirstDOMTime());
             }
         }
@@ -964,21 +955,18 @@ public class StringHubComponent
 	 * Controller wants StringHub to start sending data.
 	 * Tell DOMs to start up.
 	 */
+	@Override
 	public void starting(int runNumber)
 		throws DAQCompException
 	{
-		setRunNumber(runNumber);
-		if (hitSpooler != null) {
-			try {
-				hitSpooler.startRun(runNumber);
-			} catch (IOException ioe) {
-				throw new DAQCompException("Cannot switch hitspool", ioe);
-			}
-		}
+        trace.startTrace(trace.narrowCollectors(conn.getCollectors()),
+                sender.getMonitor(), this);
+
+        setRunNumber(runNumber);
 
 		logger.info("StringHub is starting the run.");
 
-		sender.reset();
+		sender.startup();
 
 		hitsSort.start();
 		moniSort.start();
@@ -1015,6 +1003,7 @@ public class StringHubComponent
         checkDOMClocks();
 	}
 
+	@Override
 	public long startSubrun(List<FlasherboardConfiguration> flasherConfigs)
 		throws DAQCompException
 	{
@@ -1107,6 +1096,7 @@ public class StringHubComponent
 		return validXTime;
 	}
 
+	@Override
 	public void stopping()
 		throws DAQCompException
 	{
@@ -1122,7 +1112,7 @@ public class StringHubComponent
 			// throw new DAQCompException(e.getMessage());
 		}
 
-		SimpleOutputEngine[] eng = new SimpleOutputEngine[] {
+		DAQComponentOutputProcess[] eng = new DAQComponentOutputProcess[] {
 			moniOut, supernovaOut, tcalOut
 		};
 
@@ -1136,6 +1126,9 @@ public class StringHubComponent
 		if (runMonitor != null) {
 			runMonitor.stop();
 		}
+
+        trace.stopTrace();
+
 		logger.info("Returning from stop.");
 	}
 
@@ -1146,6 +1139,7 @@ public class StringHubComponent
 	 *
 	 * @throws DAQCompException if there is a problem switching the component
 	 */
+	@Override
 	public void switching(int runNumber)
 		throws DAQCompException
 	{
@@ -1155,15 +1149,6 @@ public class StringHubComponent
 
 		// resend the list of this hub's DOMs which are in the run config
 		sendConfiguredDOMs(runNumber);
-
-		if (hitSpooler != null) {
-			// switch to a new run
-			try {
-				hitSpooler.switchRun(runNumber);
-			} catch (IOException ioe) {
-				throw new DAQCompException("Cannot switch hitspool", ioe);
-			}
-		}
 	}
 
 	/**
@@ -1171,9 +1156,10 @@ public class StringHubComponent
 	 *
 	 * @return svn version id as a String
 	 */
+	@Override
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 16216 2016-09-06 22:03:33Z bendfelt $";
+		return "$Id: StringHubComponent.java 17123 2018-10-01 22:09:41Z dglo $";
 	}
 
 	public IByteBufferCache getCache()
@@ -1196,16 +1182,22 @@ public class StringHubComponent
 		return hubId;
 	}
 
-	public PayloadReader getRequestReader()
+	public DAQStreamReader getRequestReader()
 	{
 		return reqIn;
 	}
 
-	public Sender getSender()
+	public SenderMXBean getSenderMonitor()
 	{
-		return sender;
+		return sender.getMonitor();
 	}
 
+    public SenderSubsystem getSender()
+    {
+        return sender;
+    }
+
+	@Override
 	public int getNumberOfActiveChannels()
 	{
 		int nch = 0;
@@ -1217,22 +1209,24 @@ public class StringHubComponent
 		return nch;
 	}
 
+	/**
+	 * Return the number of active DOMs and the number of DOMs listed in
+	 * this hub's DOM configuration file.
+	 *
+	 * @return number of active DOMs and total number of requested DOMs
+	 */
+	@Override
 	public int[] getNumberOfActiveAndTotalChannels() {
 		int nch = 0;
-		int total = 0;
 		for (AbstractDataCollector adc : conn.getCollectors()) {
 			if(adc.isRunning()) nch++;
-			total++;
 		}
 
-		int[] returnVal = new int[2];
-		returnVal[0] = nch;
-		returnVal[1] = total;
-
-		return returnVal;
+		return new int[] { nch, configuredDOMs.size() };
 	}
 
 
+	@Override
 	public double getHitRate() {
 		double total = 0.;
 
@@ -1243,6 +1237,7 @@ public class StringHubComponent
 		return total;
 	}
 
+	@Override
 	public double getHitRateLC() {
 		double total = 0.;
 
@@ -1253,6 +1248,7 @@ public class StringHubComponent
 		return total;
 	}
 
+	@Override
 	public long getTotalLBMOverflows() {
 		long total = 0;
 
@@ -1263,18 +1259,21 @@ public class StringHubComponent
 		return total;
 	}
 
+	@Override
 	public long getTimeOfLastHitInputToHKN1()
 	{
 		if (hitsSort == null) return 0L;
 		return hitsSort.getLastInputTime();
 	}
 
+	@Override
 	public long getTimeOfLastHitOutputFromHKN1()
 	{
 		if (hitsSort == null) return 0L;
 		return hitsSort.getLastOutputTime();
 	}
 
+	@Override
 	public int getNumberOfNonZombies()
 	{
 		int num = 0;
@@ -1286,12 +1285,14 @@ public class StringHubComponent
 		return num;
 	}
 
+	@Override
 	public long getLatestFirstChannelHitTime()
 	{
 		GoodTimeCalculator gtc = new GoodTimeCalculator(conn, true);
 		return gtc.getTime();
 	}
 
+	@Override
 	public long getEarliestLastChannelHitTime()
 	{
 		GoodTimeCalculator gtc = new GoodTimeCalculator(conn, false);
@@ -1299,7 +1300,7 @@ public class StringHubComponent
 	}
 
 	class DOMSorter
-		implements Comparator<DeployedDOM>
+		implements Comparator<DOMInfo>
 	{
 		/**
 		 * Compare two DOMs.
@@ -1309,7 +1310,8 @@ public class StringHubComponent
 		 *
 		 * @return the usual comparison values
 		 */
-		public int compare(DeployedDOM d1, DeployedDOM d2)
+		@Override
+		public int compare(DOMInfo d1, DOMInfo d2)
 		{
 			int val = d1.getStringMajor() - d2.getStringMajor();
 			if (val == 0) {
@@ -1323,19 +1325,286 @@ public class StringHubComponent
 		 *
 		 * @return <tt>true</tt> if they are the same class
 		 */
+		@Override
 		public boolean equals(Object obj)
 		{
 			return obj.getClass().getName().equals(getClass().getName());
 		}
 
 		/**
-		 * Sort the list of files.
+		 * Sort the list of doms.
 		 *
-		 * @param files list of files
+		 * @param doms list of doms
 		 */
-		public void sort(List<DeployedDOM> doms)
+		public void sort(List<DOMInfo> doms)
 		{
 			Collections.sort(doms, this);
 		}
 	}
+
+    /**
+     * Encapsulates the optional injection of a performance trace into the
+     * hit processing stack.
+     */
+    private static class DiagnosticTraceConfig
+    {
+
+        private static boolean enabled =
+                Boolean.getBoolean("icecube.daq.stringhub.trace.enabled");
+
+        private static int period =
+                Integer.getInteger("icecube.daq.stringhub.trace.period", 1000);
+
+        private static String file =
+                System.getProperty("icecube.daq.stringhub.trace.file",
+                        "/dev/null");
+
+        private static boolean append =
+                Boolean.getBoolean("icecube.daq.stringhub.trace.append");
+
+        final Metered.Buffered sortQueueMeter;
+        final Metered.UTCBuffered sortMeter;
+        final Metered.Buffered asyncHitConsumerMeter;
+
+        DiagnosticTrace trace;
+
+        DiagnosticTraceConfig()
+        {
+            if(enabled)
+            {
+                sortQueueMeter = Metered.Factory.bufferMeter(
+                        Metered.Factory.ConcurrencyModel.MPMC);
+                sortMeter = Metered.Factory.utcBufferMeter();
+                asyncHitConsumerMeter = Metered.Factory.bufferMeter();
+            }
+            else
+            {
+                sortQueueMeter = new Metered.DisabledMeter();
+                sortMeter = new Metered.DisabledMeter();
+                asyncHitConsumerMeter = new Metered.DisabledMeter();
+            }
+        }
+
+        Metered.Buffered getSortQueueMeter()
+        {
+            return sortQueueMeter;
+        }
+
+        Metered.UTCBuffered getSortMeter()
+        {
+            return sortMeter;
+        }
+
+        Metered.Buffered getAsyncHitConsumerMeter()
+        {
+            return asyncHitConsumerMeter;
+        }
+
+        private void startTrace(final List<DataCollectorMBean> collectors,
+                                final SenderMXBean sender,
+                                final StringHubComponent parent)
+        {
+            try
+            {
+                if(enabled)
+                {
+                    FileOutputStream fos = new FileOutputStream(file, append);
+
+                    trace = new DiagnosticTrace(period, 30,
+                            new PrintStream(fos));
+                    trace.addTimeContent();
+                    trace.addAgeContent();
+                    // run #
+                    trace.addContent(new Content()
+                    {
+                        final String header = String.format("%-8s","run");
+                        @Override
+                        public void header(final StringBuilder sb)
+                        {
+                            sb.append(header);
+                        }
+
+                        @Override
+                        public void content(final StringBuilder sb)
+                        {
+                            sb.append(String.format("%-8d", parent.getRunNumber()));
+                        }
+                    });
+                    trace.addHeapContent();
+                    trace.addGCContent();
+                    trace.addContent(new DataCollectorAggregateContent(collectors));
+                    trace.addMeter("sortq", sortQueueMeter, MeterContent.Style.HELD_DATA);
+                    trace.addMeter("sorter", sortMeter, MeterContent.Style.HELD_DATA,
+                            MeterContent.Style.UTC_DELAY,
+                            MeterContent.Style.DATA_RATE_OUT);
+                    trace.addMeter("hitOut", asyncHitConsumerMeter,
+                            MeterContent.Style.HELD_DATA,
+                            MeterContent.Style.DATA_RATE_OUT);
+
+                    trace.addContent(new Content.GroupedContent("sender", new SenderContent(sender)));
+
+                    CPUUtilizationContent cpu = new CPUUtilizationContent(10000/period);
+                    trace.addFlyWeight(cpu);
+                    trace.addContent(cpu.createSystemUtilizationContent());
+                    trace.addContent(cpu.createProcessUtilizationContent());
+
+                    trace.start();
+                }
+            }
+            catch (FileNotFoundException e)
+            {
+                logger.warn("Can not start trace ", e);
+            }
+        }
+
+        private void stopTrace()
+        {
+            if(enabled)
+            {
+                if(trace != null)
+                {
+                    trace.stop();
+                }
+            }
+        }
+
+        private List<DataCollectorMBean> narrowCollectors(
+                final List<AbstractDataCollector> collectors)
+        {
+            final List<DataCollectorMBean> narrow =
+                    new ArrayList<>(collectors.size());
+
+            for(AbstractDataCollector dc : collectors)
+            {
+                if(dc instanceof  DataCollectorMBean)
+                {
+                    narrow.add((DataCollectorMBean) dc);
+                }
+            }
+
+            return narrow;
+        }
+    }
+
+
+    /**
+     * An enumerated factory for output engine selection.
+     */
+    private enum OutputProcessFactory
+    {
+        SIMPLE
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new SimpleOutputEngine(componentName,
+                                hubId, type);
+                    }
+                },
+        BLOCKING_0K
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new BlockingOutputEngine(0);
+                    }
+                },
+        BLOCKING_1K
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new BlockingOutputEngine(1024, true,
+                                AUTOFLUSH_PERIOD);
+                    }
+                },
+        BLOCKING_2K
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new BlockingOutputEngine(2 * 1024, true,
+                                AUTOFLUSH_PERIOD);
+                    }
+                },
+        BLOCKING_4K
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new BlockingOutputEngine(4 * 1024, true,
+                                AUTOFLUSH_PERIOD);
+                    }
+                },
+        BLOCKING_8K
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new BlockingOutputEngine(8 * 1024, true,
+                                AUTOFLUSH_PERIOD);
+                    }
+                },
+        BLOCKING_32K
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new BlockingOutputEngine(32 * 1024, true,
+                                AUTOFLUSH_PERIOD);
+                    }
+                },
+        BLOCKING_64k /** NOTE: likely cause watchdog starvation.*/
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new BlockingOutputEngine(64 * 1024, true,
+                                AUTOFLUSH_PERIOD);
+                    }
+                },
+        BLOCKING_128K /** NOTE: likely cause watchdog starvation.*/
+                {
+                    @Override
+                    DAQComponentOutputProcess create(final String componentName,
+                                                     final int hubId,
+                                                     final String type)
+                    {
+                        return new BlockingOutputEngine(128 * 1024, true,
+                                AUTOFLUSH_PERIOD);
+                    }
+                };
+
+        abstract DAQComponentOutputProcess create(String componentName,
+                                                      int hubId,
+                                                      String type);
+
+        /**
+         * The autoflush period in millis for buffered output channels.
+         * Chosen to satisfy the watchdog in the event of a channel with
+         * a very tiny data rate.
+         */
+        private static String AUTOFLUSH_PROPERTY =
+           "icecube.daq.stringhub.StringHubComponent.output.autoflush-millis";
+        private static long AUTOFLUSH_PERIOD =
+                Long.getLong(AUTOFLUSH_PROPERTY, 5000);
+
+    }
+
 }

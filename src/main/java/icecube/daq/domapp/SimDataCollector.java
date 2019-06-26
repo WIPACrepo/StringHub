@@ -118,11 +118,13 @@ public class SimDataCollector extends AbstractDataCollector
         thread.start();
     }
 
+    @Override
     public void close()
     {
         // do nothing
     }
 
+    @Override
     public long getLBMOverflowCount() {
 	// randomly add a number from 0 to 20 to
 	// the overflow count
@@ -132,6 +134,7 @@ public class SimDataCollector extends AbstractDataCollector
     }
 
 
+    @Override
     public void signalShutdown()
     {
         if (logger.isInfoEnabled()) {
@@ -152,6 +155,7 @@ public class SimDataCollector extends AbstractDataCollector
     }
 
 
+    @Override
     public void run()
     {
         setRunStopFlag(false);
@@ -288,6 +292,7 @@ public class SimDataCollector extends AbstractDataCollector
         }
     }
 
+    @Override
     public long getRunStartTime()
     {
         return runStartUT;
@@ -503,37 +508,45 @@ public class SimDataCollector extends AbstractDataCollector
     }
 
 
+    @Override
     public double getHitRate() {
 	// total hit rate in hertz
 	return rtHitRate.getRate();
     }
 
+    @Override
     public double getHitRateLC() {
 	// total HLC hit rate in hertz
 	// to get slc rate use 'getHitRate()'
 	return rtLCRate.getRate();
     }
 
+    @Override
     public long getNumHits() {
         return numHits;
     }
 
+    @Override
     public long getNumMoni() {
         return 0;
     }
 
+    @Override
     public long getNumTcal() {
         return 0;
     }
 
+    @Override
     public long getNumSupernova() {
         return 0;
     }
 
+    @Override
     public long getAcquisitionLoopCount() {
         return loopCounter;
     }
 
+    @Override
     public void start()
     {
         // TODO Auto-generated method stub
@@ -733,6 +746,7 @@ public class SimDataCollector extends AbstractDataCollector
 		this.avgSnSignal = avgSnSignal;
 	}
 
+    @Override
     public void setRunMonitor(IRunMonitor runMonitor)
     {
         // don't have RAPCal object, so ignore this

@@ -9,7 +9,6 @@ import icecube.daq.dor.TimeCalib;
 import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.time.monitoring.ClockMonitoringSubsystem;
 import icecube.daq.time.monitoring.ClockProcessor;
-import icecube.daq.util.Leapseconds;
 import org.apache.log4j.Logger;
 
 import java.io.File;
@@ -294,7 +293,7 @@ public class DSBGPSService implements IGPSService
             {
                 // Probably not OK, but defer serious consequences until
                 // the next read(s).
-                logger.warn("Ignoring GPS exception " + gpsx.getMessage());
+                logger.warn("Ignoring GPS exception: ", gpsx);
             }
 
 
@@ -328,82 +327,13 @@ public class DSBGPSService implements IGPSService
                         }
                         else
                         {
-
-                            //NOTE: Special handling code for the 2016 leap
-                            //      second. We anticipate another errant
-                            //      leap second from the ET6000 in which
-                            //      case we want to ignore the change in
-                            //      offset alignment and continue to run
-                            //      while ignoring the mis-aligned GPS snaps
-                            long delta = gps.getOffset().in_0_1ns() -
-                                    newGPS.getOffset().in_0_1ns();
-                            if(delta == 10000000000L)
-                            {
-                                // This happens after the so-called fake leap
-                                // second, an unscheduled leap second emitted
-                                // by the ET6000 24 hours before the scheduled
-                                // leap second.
-                                //
-                                // The operational procedure is to keep the
-                                // system running while we reset the backup
-                                // master clock.
-                                //
-                                // Do not fail the service, just continue to
-                                // serve the previous GPSInfo which contains
-                                // the correct dor/utc offset.
-
-                                // reduce logging to once per 10 minutes
-                                if( (newGPS.getSecond() == 0) &&
-                                    ((newGPS.getMin() % 10) == 0) )
-                                {
-                                    final String errmsg =
-                                            "GPS offset mis-alignment detected - old GPS: " +
-                                                    gps + " new GPS: " + newGPS;
-                                    logger.error(errmsg);
-                                    logger.warn("Ignoring GPS offset change and" +
-                                            " throttling logging, scenario matches" +
-                                            " false leap second phenomenon");
-                                }
-
-                            }
-                            else
-                            {
-                                // look for the end of year rollover, allowing
-                                // a slop second for the potential false
-                                // leap second.
-                                Leapseconds oracle = Leapseconds.getInstance();
-                                int yearOfOperation = oracle.defaultYear;
-                                long DAQ_TICKS_IN_YEAR = 10000000000L *
-                                        oracle.seconds_in_year(yearOfOperation);
-                                if( ((DAQ_TICKS_IN_YEAR - delta) == 0) ||
-                                    (Math.abs(DAQ_TICKS_IN_YEAR - delta) == 10000000000L) )
-                                {
-                                    // This happens at the end of the year when
-                                    // the master clock rolls over from
-                                    // 365:23:59:60 to 001:00:00:00.
-                                    //
-                                    // Ignore this offset alignment change to
-                                    // permit operating (a few seconds) through
-                                    // the end of year
-
-                                    final String errmsg =
-                                            "GPS offset mis-alignment detected - old GPS: " +
-                                                    gps + " new GPS: " + newGPS;
-                                    logger.error(errmsg);
-                                    logger.warn("Ignoring GPS offset change," +
-                                            " scenario matches end-of-year");
-                                }
-                                else
-                                {
-                                    final String errmsg =
-                                            "GPS offset mis-alignment detected - old GPS: " +
-                                                    gps + " new GPS: " + newGPS;
-                                    logger.error(errmsg);
-                                    setFailed(errmsg);
-                                }
-                            }
-
+                            final String errmsg =
+                                    "GPS offset mis-alignment detected - old GPS: " +
+                                            gps + " new GPS: " + newGPS;
+                            logger.error(errmsg);
                             moniGuard.push(string, card, gps, newGPS);
+
+                            setFailed(errmsg);
                         }
                     }
                 }
@@ -457,13 +387,6 @@ public class DSBGPSService implements IGPSService
                                 + MAX_CONSEC_READ_ERRORS +
                                 " consecutive errors reading gpssync file.");
                     }
-                }
-                catch (Throwable th)
-                {
-                    logger.error("GPS service on card " + card +
-                            " encountered an error", th);
-                    setFailed("GPS service encountered an error " +
-                            th.getMessage());
                 }
             }
         }

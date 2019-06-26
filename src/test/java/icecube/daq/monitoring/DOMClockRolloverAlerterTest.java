@@ -5,6 +5,7 @@ import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.juggler.alert.AlertException;
 import icecube.daq.juggler.alert.AlertQueue;
 import icecube.daq.time.monitoring.MockAlerter;
+import icecube.daq.util.LocatePDAQ;
 import icecube.daq.util.TimeUnits;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
@@ -17,6 +18,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -53,6 +55,17 @@ public class DOMClockRolloverAlerterTest
     @Before
     public void setUp() throws Exception
     {
+        // ensure LocatePDAQ uses the test version of the config directory
+        File configDir =
+            new File(getClass().getResource("/config").getPath());
+        if (!configDir.exists()) {
+            throw new IllegalArgumentException("Cannot find config" +
+                                               " directory under " +
+                                               getClass().getResource("/"));
+        }
+        System.setProperty(LocatePDAQ.CONFIG_DIR_PROPERTY,
+                           configDir.getAbsolutePath());
+
         subject = new DOMClockRolloverAlerter();
         mock = new MockAlerter();
         alertQueue = new AlertQueue(mock);
@@ -62,8 +75,12 @@ public class DOMClockRolloverAlerterTest
     @After
     public void tearDown() throws Exception
     {
-        alertQueue.stop();
-        mock.waitForClose();
+        try {
+            alertQueue.stop();
+            mock.waitForClose();
+        } finally {
+            System.clearProperty(LocatePDAQ.CONFIG_DIR_PROPERTY);
+        }
     }
 
     @Test

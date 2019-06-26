@@ -54,6 +54,12 @@ public class MockDriverBase implements IDriver
     }
 
     @Override
+    public boolean isBlocking() throws IOException
+    {
+        return false;
+    }
+
+    @Override
     public HashMap<String, Integer> getFPGARegisters(final int card) throws IOException
     {
         return null;

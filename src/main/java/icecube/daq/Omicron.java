@@ -1,6 +1,6 @@
 package icecube.daq;
 
-import icecube.daq.bindery.BufferConsumerAsync;
+import icecube.daq.bindery.AsyncSorterOutput;
 import icecube.daq.bindery.BufferConsumerBuffered;
 import icecube.daq.bindery.MultiChannelMergeSort;
 import icecube.daq.configuration.XMLConfig;
@@ -10,6 +10,12 @@ import icecube.daq.domapp.DataCollectorFactory;
 import icecube.daq.domapp.RunLevel;
 import icecube.daq.dor.DOMChannelInfo;
 import icecube.daq.dor.Driver;
+import icecube.daq.performance.common.PowersOfTwo;
+import icecube.daq.performance.diagnostic.DataCollectorAggregateContent;
+import icecube.daq.performance.diagnostic.DiagnosticTrace;
+import icecube.daq.performance.diagnostic.MeterContent;
+import icecube.daq.performance.diagnostic.Metered;
+import icecube.daq.performance.diagnostic.cpu.CPUUtilizationContent;
 import icecube.daq.time.gps.GPSService;
 
 import java.io.BufferedOutputStream;
@@ -96,7 +102,13 @@ public class Omicron {
 		for (DOMChannelInfo chInfo : activeDOMs)
 			if (xmlConfig.getDOMConfig(chInfo.mbid) != null) nDOM++;
 
-		//FileOutputStream fOutHits = new FileOutputStream(outputBaseName + ".hits");
+        // set up trace for the processing stack
+        DiagnosticTraceConfig trace = new DiagnosticTraceConfig();
+        Metered.Buffered sortQueueMeter = trace.getSortQueueMeter();
+        Metered.UTCBuffered sortMeter = trace.getSortMeter();
+        Metered.Buffered hitConsumerMeter =  trace.getAsyncHitConsumerMeter();
+
+        //FileOutputStream fOutHits = new FileOutputStream(outputBaseName + ".hits");
 
 		BufferedOutputStream fOutHits = new BufferedOutputStream(new FileOutputStream(outputBaseName+".hits"), BUFFER_SIZE);
 		BufferedOutputStream fOutMoni = new BufferedOutputStream(new FileOutputStream(outputBaseName+".moni"), BUFFER_SIZE);
@@ -109,8 +121,8 @@ public class Omicron {
 		BufferConsumerBuffered scalChan = new BufferConsumerBuffered(fOutScal);
 
         // consume hits on a dedicated thread
-        BufferConsumerAsync asyncHitConsumer = new BufferConsumerAsync(hitsChan, 500000, "hit-consumer");
-        MultiChannelMergeSort hitsSort = new MultiChannelMergeSort(nDOM, asyncHitConsumer, "hits");
+        AsyncSorterOutput asyncHitConsumer = new AsyncSorterOutput(hitsChan, PowersOfTwo._2097152, "hit-consumer", hitConsumerMeter);
+        MultiChannelMergeSort hitsSort = new MultiChannelMergeSort(nDOM, asyncHitConsumer, "hits", sortQueueMeter, sortMeter);
 		MultiChannelMergeSort moniSort = new MultiChannelMergeSort(nDOM, moniChan, "moni");
 		MultiChannelMergeSort tcalSort = new MultiChannelMergeSort(nDOM, tcalChan, "tcal");
 		MultiChannelMergeSort scalSort = new MultiChannelMergeSort(nDOM, scalChan, "supernova");
@@ -137,7 +149,8 @@ public class Omicron {
 			if (logger.isDebugEnabled()) logger.debug("DataCollector thread on (" + chInfo.card + "" + chInfo.pair + "" + chInfo.dom + ") started.");
 		}
 
-		hitsSort.start();
+
+        hitsSort.start();
 		moniSort.start();
 		scalSort.start();
 		tcalSort.start();
@@ -167,7 +180,9 @@ public class Omicron {
 		    }
 		}
 
-		logger.info("Sending CONFIGURE signal to DataCollectors");
+        trace.startTrace(collectors);
+
+        logger.info("Sending CONFIGURE signal to DataCollectors");
 
 		for (DataCollector dc : collectors)
 		{
@@ -248,12 +263,12 @@ public class Omicron {
             logger.warn("No DataCollectors left to start, aborting run");
         }
 
-        hitsSort.join();
+        hitsSort.join(Long.MAX_VALUE);
         asyncHitConsumer.join();
 
-        moniSort.join();
-        scalSort.join();
-        tcalSort.join();
+        moniSort.join(Long.MAX_VALUE);
+        scalSort.join(Long.MAX_VALUE);
+        tcalSort.join(Long.MAX_VALUE);
 
         // kill GPS services
         GPSService.getInstance().shutdownAll();
@@ -263,7 +278,12 @@ public class Omicron {
         fOutMoni.close();
         fOutTcal.close();
         fOutScal.close();
+
+        // kill trace
+        trace.stopTrace();
     }
+
+
 
     /**
      * Replace the default GPS configuration (which requires GPS) with a
@@ -281,6 +301,112 @@ public class Omicron {
         if(userSetting == null)
         {
             System.setProperty("icecube.daq.time.gps.gps-mode", "discover");
+        }
+    }
+
+    /**
+     * Encapsulates the optional injection of a performance trace into the
+     * hit processing stack.
+     */
+    private static class DiagnosticTraceConfig
+    {
+
+        private static boolean enabled =
+                Boolean.getBoolean("omicron.trace.enabled");
+
+        private static int period =
+                Integer.getInteger("omicron.trace.period", 60000);
+
+        final Metered.Buffered sortQueueMeter;
+        final Metered.UTCBuffered sortMeter;
+        final Metered.Buffered asyncHitConsumerMeter;
+
+        DiagnosticTrace trace;
+
+        DiagnosticTraceConfig()
+        {
+            if(enabled)
+            {
+                sortQueueMeter = Metered.Factory.bufferMeter(
+                        Metered.Factory.ConcurrencyModel.MPMC);
+                sortMeter = Metered.Factory.utcBufferMeter();
+                asyncHitConsumerMeter = Metered.Factory.bufferMeter();
+            }
+            else
+            {
+                sortQueueMeter = new Metered.DisabledMeter();
+                sortMeter = new Metered.DisabledMeter();
+                asyncHitConsumerMeter = new Metered.DisabledMeter();
+            }
+        }
+
+        Metered.Buffered getSortQueueMeter()
+        {
+            return sortQueueMeter;
+        }
+
+        Metered.UTCBuffered getSortMeter()
+        {
+            return sortMeter;
+        }
+
+        Metered.Buffered getAsyncHitConsumerMeter()
+        {
+            return asyncHitConsumerMeter;
+        }
+
+        private void startTrace(List<DataCollector> collectors)
+        {
+            if(enabled)
+            {
+                trace = new DiagnosticTrace(period, 30);
+                trace.addTimeContent();
+                trace.addAgeContent();
+                trace.addHeapContent();
+                trace.addGCContent();
+                trace.addContent(new DataCollectorAggregateContent(collectors));
+                trace.addMeter("sortq", sortQueueMeter, MeterContent.Style.HELD_DATA);
+                trace.addMeter("sorter", sortMeter, MeterContent.Style.HELD_DATA,
+                        MeterContent.Style.UTC_DELAY,
+                        MeterContent.Style.DATA_RATE_OUT);
+                trace.addMeter("hitOut", asyncHitConsumerMeter,
+                        MeterContent.Style.HELD_DATA,
+                        MeterContent.Style.DATA_RATE_OUT);
+
+                CPUUtilizationContent cpu = new CPUUtilizationContent();
+                trace.addFlyWeight(cpu);
+                trace.addContent(cpu.createSystemUtilizationContent());
+                trace.addContent(cpu.createProcessUtilizationContent());
+
+                try
+                {
+                    //best effort, requires tools.jar on path
+                    trace.addContent(cpu.createThreadGroupUtilizationContent(".*", "acc%"));
+                    trace.addContent(cpu.createThreadGroupUtilizationContent("[0-7][0-3][AB]", "dcol%"));
+                    trace.addContent(cpu.createThreadGroupUtilizationContent("Processor-[0-7][0-3][AB]", "dcproc%"));
+                    trace.addContent(cpu.createThreadGroupUtilizationContent("MultiChannelMergeSort-hits", "sort%"));
+                    trace.addContent(cpu.createThreadGroupUtilizationContent(".*Compiler.*", "hotsp%"));
+                    trace.addContent(cpu.createThreadGroupUtilizationContent(".*GC task.*", "gc%"));
+                }
+                catch (Exception e)
+                {
+                    logger.warn("Ignoring Thread CPU tracing:");
+                    e.printStackTrace();
+                }
+
+                trace.start();
+            }
+        }
+
+        private void stopTrace()
+        {
+            if(enabled)
+            {
+                if(trace != null)
+                {
+                    trace.stop();
+                }
+            }
         }
     }
 }

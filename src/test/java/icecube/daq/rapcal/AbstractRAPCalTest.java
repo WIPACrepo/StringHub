@@ -5,7 +5,8 @@ import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.monitoring.IRunMonitor;
-import icecube.daq.util.DeployedDOM;
+import icecube.daq.payload.IUTCTime;
+import icecube.daq.util.DOMInfo;
 import icecube.daq.util.TimeUnits;
 import icecube.daq.util.UTC;
 
@@ -42,6 +43,7 @@ class MyRAPCal
         super(w, maxHistory);
     }
 
+    @Override
     public double getFineTimeCorrection(short[] w)
         throws RAPCalException
     {
@@ -65,7 +67,7 @@ class MyMonitor
     private int wildCount;
 
     @Override
-    public void countHLCHit(long mbid, long utc)
+    public void countHLCHit(long[] mbid, long[] utc)
     {
         throw new Error("Unimplemented");
     }
@@ -85,7 +87,8 @@ class MyMonitor
      *
      * @return map of mainboard ID -&gt; deployed DOM data
      */
-    public Iterable<DeployedDOM> getConfiguredDOMs()
+    @Override
+    public Iterable<DOMInfo> getConfiguredDOMs()
     {
         throw new Error("Unimplemented");
     }
@@ -97,7 +100,8 @@ class MyMonitor
      *
      * @return dom information
      */
-    public DeployedDOM getDom(long mbid)
+    @Override
+    public DOMInfo getDom(long mbid)
     {
         throw new Error("Unimplemented");
     }
@@ -107,6 +111,7 @@ class MyMonitor
      *
      * @return starting time
      */
+    @Override
     public String getStartTimeString()
     {
         throw new Error("Unimplemented");
@@ -117,6 +122,7 @@ class MyMonitor
      *
      * @return ending time
      */
+    @Override
     public String getStopTimeString()
     {
         throw new Error("Unimplemented");
@@ -127,6 +133,7 @@ class MyMonitor
      *
      * @return string number
      */
+    @Override
     public int getString()
     {
         throw new Error("Unimplemented");
@@ -234,17 +241,20 @@ class MyMonitor
      *
      * @param varname quantity name
      * @param priority message priority
+     * @param utc pDAQ UTC timestamp
      * @param map field->value map
      * @param addString if <tt>true</tt>, add "string" entry to map
      */
+    @Override
     public void sendMoni(String varname, Alerter.Priority priority,
-                         Map<String, Object> map, boolean addString)
+                         IUTCTime utc, Map<String, Object> map,
+                         boolean addString)
     {
         throw new Error("Unimplemented");
     }
 
     @Override
-    public void setConfiguredDOMs(Collection<DeployedDOM> configuredDOMs)
+    public void setConfiguredDOMs(Collection<DOMInfo> configuredDOMs)
     {
         throw new Error("Unimplemented");
     }

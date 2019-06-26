@@ -8,17 +8,17 @@ import org.apache.log4j.Logger;
  * A facade to the clock monitoring subsystem, providing an entry
  * point for configuration and interaction from the rest of the system.
  *<p>
- * The subsystem interface is always available, but by default no
- * monitoring will take place. Monitoring must be enabled explicitly
- * by configuration.
+ * Monitoring can be be disabled by configuration. The subsystem interface
+ * will still be available in this mode, but no actual monitoring will take
+ * place. Monitoring is enabled by default.
  * <pre>
  *
- *    icecube.daq.time.monitoring.enable-clock-monitoring = [false]
+ *    icecube.daq.time.monitoring.disable-clock-monitoring = [false]
  *
- *        Enable/Disable clock monitoring.
+ *        Disable clock monitoring.
  *
  *</pre><p>
- * If monitoring is enabled, a reachable NTP server must be defined.
+ * Unless monitoring is disabled, a reachable NTP server must be defined.
  *<pre>
  *
  *   icecube.daq.time.monitoring.ntp-host = ntp1
@@ -26,7 +26,7 @@ import org.apache.log4j.Logger;
  *       Defines the NTP server to be queried.
  *
  *</pre><p>
- * If monitoring is enabled, clock alert notifications will be issued.
+ * Unless monitoring is disabled, clock alert notifications will be issued.
  *
  *<p>
  * There are additional optional configurations for the enabled mode:
@@ -90,11 +90,11 @@ public interface ClockMonitoringSubsystem extends ClockProcessor
             Logger.getLogger(ClockMonitoringSubsystem.class);
 
     /**
-     * Monitoring must be explicitly enabled by configuration.
+     * Monitoring can be disabled by configuration.
      */
-    public static final  boolean CLOCK_MONITORING_ENABLED =
+    public static final  boolean CLOCK_MONITORING_DISABLED =
             Boolean.getBoolean(
-                    "icecube.daq.time.monitoring.enable-clock-monitoring");
+                    "icecube.daq.time.monitoring.disable-clock-monitoring");
     /**
      * The NTP clock that the master clock and system clock will be
      * compared against.
@@ -189,13 +189,13 @@ public interface ClockMonitoringSubsystem extends ClockProcessor
         private static final ClockMonitoringSubsystem singleton;
         static
         {
-            if(CLOCK_MONITORING_ENABLED)
+            if(CLOCK_MONITORING_DISABLED)
             {
-                singleton = new EnabledMonitor();
+                singleton = new DisabledMonitor();
             }
             else
             {
-                singleton = new DisabledMonitor();
+                singleton = new EnabledMonitor();
             }
         }
 
@@ -260,6 +260,7 @@ public interface ClockMonitoringSubsystem extends ClockProcessor
         /**
          * Startup the clock monitoring subsystem.
          */
+        @Override
         public Object startup(AlertQueue alerter)
         {
             synchronized (this)
@@ -336,6 +337,7 @@ public interface ClockMonitoringSubsystem extends ClockProcessor
         /**
          * Shutdown the clock monitoring subsystem.
          */
+        @Override
         public void shutdown()
         {
             synchronized (this)

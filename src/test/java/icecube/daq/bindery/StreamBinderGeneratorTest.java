@@ -2,12 +2,13 @@ package icecube.daq.bindery;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import cern.jet.random.Exponential;
 import cern.jet.random.engine.MersenneTwister;
 import cern.jet.random.engine.RandomEngine;
 
-import icecube.daq.stringhub.test.MockAppender;
+import icecube.daq.common.MockAppender;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -23,28 +24,27 @@ public class StreamBinderGeneratorTest {
 
 	private static final Logger logger = Logger.getLogger(StreamBinderGeneratorTest.class);
 	private static final MockAppender appender = new MockAppender();
-	
+
 	public StreamBinderGeneratorTest() {
 		BasicConfigurator.resetConfiguration();
 		BasicConfigurator.configure(appender);
 		//appender.setVerbose(true).setLevel(Level.INFO);
 	}
-	
+
 	@After
-	public void tearDown() throws Exception 
+	public void tearDown() throws Exception
 	{
-		assertEquals("Bad number of log messages",
-			     0, appender.getNumberOfMessages());
+		appender.assertNoLogMessages();
 	}
 
 	/**
-	 * 
+	 *
 	 * @throws IOException
 	 * @throws InterruptedException
 	 */
 	@Test
 	public void testFull() throws IOException, InterruptedException {
-		
+
 		int ngen = 2;
 		double simulationTime = 1.0;
 		int outputCounter = 0;
@@ -96,9 +96,9 @@ public class StreamBinderGeneratorTest {
 				buf.compact();
 			}
 		}
-		
+
 		bind.shutdown();
-		
+
 	}
 
 }
@@ -107,11 +107,11 @@ class Generator extends Thread {
 	private Pipe.SinkChannel sink;
 	private double time;
 	private long id;
-	private static RandomEngine engine = new MersenneTwister(new java.util.Date()); 
+	private static RandomEngine engine = new MersenneTwister(new java.util.Date());
 	private Exponential rv;
 	private static Logger logger = Logger.getLogger(Generator.class);
 	private double max_time;
-	
+
 	Generator(long id, Pipe.SinkChannel sink, double max_time, double rate) {
 		this.sink = sink;
 		this.id   = id;
@@ -120,7 +120,8 @@ class Generator extends Thread {
 		setName("Generator (" + id + ")");
 		this.max_time = max_time;
 	}
-	
+
+	@Override
 	public void run() {
 		while (time < max_time) {
 			try {
@@ -133,7 +134,7 @@ class Generator extends Thread {
 				intx.printStackTrace();
 			}
 		}
-		
+
 		try {
 			int nw = sink.write(StreamBinder.endOfStream());
 			if (logger.isInfoEnabled())
@@ -141,15 +142,15 @@ class Generator extends Thread {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+
 	}
-	
+
 	void fireEvent() throws IOException, InterruptedException {
 		ByteBuffer buf = ByteBuffer.allocate(4092);
 		double delay = 0.0;
 		while (buf.remaining() >= 32) {
 			double dt = rv.nextDouble();
-			time += dt;	
+			time += dt;
 			delay += dt;
 			if (logger.isDebugEnabled())
 				logger.debug("New generator hit at delta time = " + dt + " time = " + time);

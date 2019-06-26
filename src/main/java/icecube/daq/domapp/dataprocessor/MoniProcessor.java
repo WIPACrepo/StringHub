@@ -18,14 +18,14 @@ import java.nio.ByteBuffer;
  */
 class MoniProcessor implements DataProcessor.StreamProcessor
 {
-    private Logger logger =  Logger.getLogger(HitProcessor.class);
+    private static final Logger logger =  Logger.getLogger(HitProcessor.class);
 
     private final long mbid;
 
-    private final DataDispatcher dispatcher;
+    private final UTCMonotonicDispatcher dispatcher;
 
 
-    MoniProcessor(final long mbid, final DataDispatcher dispatcher)
+    MoniProcessor(final long mbid, final UTCMonotonicDispatcher dispatcher)
     {
         this.mbid = mbid;
         this.dispatcher = dispatcher;
@@ -51,8 +51,12 @@ class MoniProcessor implements DataProcessor.StreamProcessor
             {
                 String moniMsg = monitor.toString();
                 if (moniMsg.contains("LBM OVERFLOW")) {
-                    logger.error("LBM Overflow [" + moniMsg + "]");
+                    String msg = String.format("LBM Overflow ["
+                            + moniMsg + "] on %12x", mbid);
+                    logger.error(msg);
                     counters.reportLBMOverflow();
+                } else if (moniMsg.startsWith("Starting run")) {
+                    dispatcher.clearDeferred();
                 } else if (logger.isDebugEnabled()) {
                     logger.debug(moniMsg);
                 }

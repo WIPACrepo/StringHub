@@ -6,11 +6,14 @@ import icecube.daq.dor.TimeCalib;
 import icecube.daq.juggler.alert.AlertException;
 import icecube.daq.juggler.alert.Alerter;
 import icecube.daq.juggler.alert.IAlertQueue;
+import icecube.daq.payload.IUTCTime;
 import icecube.daq.payload.impl.UTCTime;
+import icecube.daq.rapcal.AbstractRAPCal;
 import icecube.daq.rapcal.BadTCalException;
+import icecube.daq.rapcal.ExponentialAverage;
 import icecube.daq.rapcal.Isochron;
 import icecube.daq.rapcal.RAPCalException;
-import icecube.daq.util.DeployedDOM;
+import icecube.daq.util.DOMInfo;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -23,7 +26,7 @@ import java.util.TimeZone;
 import org.apache.log4j.Logger;
 
 /**
- * Consumer which counts the number of occurences of the key and sends
+ * Consumer which counts the number of occurrences of the key and sends
  * totals at the end of the run
  */
 abstract class CountingConsumer<K, T>
@@ -84,7 +87,7 @@ abstract class CountingConsumer<K, T>
 
         map.put("counts", getCountMap());
 
-        parent.sendMoni(name, priority, map);
+        parent.sendMoni(name, priority, null, map, true);
     }
 
     /**
@@ -125,7 +128,7 @@ abstract class DOMCountingConsumer<T>
     Map<String, Integer> getCountMap()
     {
         HashMap<String, Integer> counts = new HashMap<String, Integer>();
-        for (DeployedDOM dom : parent.getConfiguredDOMs()) {
+        for (DOMInfo dom : parent.getConfiguredDOMs()) {
             final Long key = Long.valueOf(dom.getNumericMainboardId());
 
             int count;
@@ -315,29 +318,49 @@ class HLCBinManager
 }
 
 /**
- * Consume HLC hits and periodically report the counts
+ * Consume HLC hits and periodically report the counts.
  */
 class HLCCountConsumer
-    extends BinnedQueueConsumer<HLCCountConsumer.DOMTime, Long, Counter>
+    extends BinnedQueueConsumer<HLCCountConsumer.DOMTimes, Long, Counter>
 {
-    class DOMTime
+    static class DOMTimes
     {
-        long utc;
-        long mbid;
+        long mbid[];
+        long utc[];
 
-        DOMTime(long utc, long mbid)
+        DOMTimes(long mbid[], long utc[])
         {
-            this.utc = utc;
+            if(mbid.length != utc.length)
+            {
+                final String msg = String.format("mbid[%d] != utc[%d",
+                        mbid.length, utc.length);
+                throw new IllegalArgumentException(msg);
+            }
             this.mbid = mbid;
+            this.utc = utc;
         }
 
         /**
-         * Return a debugging representation of the counter
+         * Return a debugging representation of the sample.
          * @return debugging string
          */
+        @Override
         public String toString()
         {
-            return String.format("%d@%012x", utc, mbid);
+            if(utc.length == 0)
+            {
+                return "mbid[], utc[]";
+            }
+            if(utc.length == 1)
+            {
+                return String.format("mbid[%012x], utc[%d]", utc[0], mbid[0]);
+            }
+            else
+            {
+                return String.format("mbid[%012x, ..., %012x]," +
+                        " utc[%d, ..., %d]", utc[0], utc[utc.length-1],
+                        mbid[0], mbid[mbid.length - 1]);
+            }
         }
     }
 
@@ -377,6 +400,7 @@ class HLCCountConsumer
         super(parent, binWidth);
     }
 
+    @Override
     public BinManager<Counter> createBinManager(Long dom, long binStart,
                                                 long binWidth)
     {
@@ -393,7 +417,7 @@ class HLCCountConsumer
     private Map<String, Integer> getCountMap(long binStart, long binEnd)
     {
         HashMap<String, Integer> counts = new HashMap<String, Integer>();
-        for (DeployedDOM dom : parent.getConfiguredDOMs()) {
+        for (DOMInfo dom : parent.getConfiguredDOMs()) {
             final Long key = Long.valueOf(dom.getNumericMainboardId());
 
             Counter counter = getExisting(key, binStart, binEnd);
@@ -414,37 +438,66 @@ class HLCCountConsumer
     /**
      * Process a single piece of data
      *
-     * @param domTime mainboard ID and UTC
+     * @param domTimes mainboard ID and UTC
      */
     @Override
-    void process(DOMTime domTime)
+    void process(DOMTimes domTimes)
     {
-        Counter cntr = getContainer(domTime.utc, Long.valueOf(domTime.mbid));
-        cntr.inc();
+        int numSamples = domTimes.utc.length;
+        for(int i = 0; i < numSamples; i++)
+        {
+            try
+            {
+                reportEvent(domTimes.utc[i], domTimes.mbid[i]).inc();
+            }
+            catch (ExpiredRange e)
+            {
+                String msg = String.format("Late HLC hit report from %012x " +
+                        "not counted by monitor.", domTimes.mbid[i]);
+                LOG.error(msg, e);
+            }
+        }
     }
 
     /**
      * Push the data onto this consumer's queue
      *
-     * @param mbid mainboard ID of DOM which saw this hit
-     * @param utc UTC time of hit
+     * @param mbid An array of mainboard IDs
+     * @param utc An array of utc times at which an hlc hit occurred for
+     *            the dom in the corresponding slot of the domID array.
      */
-    void pushData(long utc, long mbid)
+    void pushData(long mbid[], long[] utc)
     {
-        push(new DOMTime(utc, mbid));
+        push(new DOMTimes(mbid, utc));
     }
 
+    @Override
     void sendData(long binStart, long binEnd)
     {
+        if (binStart > binEnd) {
+            try {
+                throw new Error("StackTrace");
+            } catch (Error err) {
+                LOG.error("Yikes, bin times were reversed!", err);
+            }
+
+            // swap start and end times
+            final long tmp = binStart;
+            binStart = binEnd;
+            binEnd = tmp;
+        }
+
         HashMap<String, Object> map = new HashMap<String, Object>();
         map.put("version", VERSION);
 
         map.put("counts", getCountMap(binStart, binEnd));
 
-        map.put("recordingStartTime", new UTCTime(binStart).toDateString());
-        map.put("recordingStopTime", new UTCTime(binEnd).toDateString());
+        final UTCTime utcEnd = new UTCTime(binEnd);
 
-        parent.sendMoni(NAME, PRIORITY, map, false);
+        map.put("recordingStartTime", UTCTime.toDateString(binStart));
+        map.put("recordingStopTime", utcEnd.toDateString());
+
+        parent.sendMoni(NAME, PRIORITY, utcEnd, map, false);
     }
 }
 
@@ -489,10 +542,10 @@ class IsoConsumer
         private static final double HALF_RANGE = (double) BINS / 2.0;
 
         /** The DOM being histogrammed */
-        private DeployedDOM dom;
+        private DOMInfo dom;
 
         /** Initial cache of seed values */
-        private double[] cache = new double[5];
+        private double[] cache = new double[7];
         /** Number of cached values */
         private int cached = 0;
 
@@ -513,7 +566,7 @@ class IsoConsumer
          *
          * @param dom DOM being tracked
          */
-        CableHisto(DeployedDOM dom)
+        CableHisto(DOMInfo dom)
         {
             this.dom = dom;
         }
@@ -533,6 +586,20 @@ class IsoConsumer
             } else {
                 histogram[index]++;
             }
+        }
+
+        /**
+         * Get the total counts from all bins
+         *
+         * @return total counts
+         */
+        long getBinTotal()
+        {
+            long total = 0;
+            for (int num : histogram) {
+                total += num;
+            }
+            return total;
         }
 
         /**
@@ -577,8 +644,6 @@ class IsoConsumer
 
         /**
          * Get the count of entries too large for the histogram
-         *
-         * @param count of extra-large entries
          */
         int getOverflow()
         {
@@ -597,8 +662,6 @@ class IsoConsumer
 
         /**
          * Get the count of entries too small for the histogram
-         *
-         * @param count of extra-small entries
          */
         int getUnderflow()
         {
@@ -611,12 +674,28 @@ class IsoConsumer
          */
         private void initialize()
         {
-            // get the mean of the cached values
-            double average = 0.0;
-            for (int i = 0; i < cache.length; i++) {
-                average += cache[i];
+            // This is a bit of a kludge, but the outlier
+            // samples need to be filtered from the average.
+            // This is done by using the same utility class
+            // that AbstractRapCal uses to detect so-called
+            // wild tcals.
+            //
+            // ExponentialAverage will calculate an average
+            // value while rejecting outliers. (assuming
+            // that outliers are infrequent and that our
+            // sample set contains a continuous run of stable
+            // values)
+            ExponentialAverage expAvg = new ExponentialAverage(
+                    AbstractRAPCal.EXPONENTIAL_AVERAGING_WEIGHT,
+                    AbstractRAPCal.WILD_TCAL_THRESHOLD * MULTIPLIER, //note:
+                                                                    //scaling
+                    AbstractRAPCal.REQUIRED_SETUP_SAMPLES);
+
+            for (int i = 0; i < cache.length; i++)
+            {
+                expAvg.add(cache[i]);
             }
-            average /= (double) cache.length;
+            double average = expAvg.getAverage();
 
             // determine the first value in the histogram
             minValue = average - HALF_RANGE;
@@ -664,6 +743,7 @@ class IsoConsumer
             addValue(cableLength);
         }
 
+        @Override
         public String toString()
         {
             return String.format("%s: under %d over %d",
@@ -703,7 +783,7 @@ class IsoConsumer
     void process(Data data)
     {
         if (!histograms.containsKey(data.mbid)) {
-            DeployedDOM dom = parent.getDom(data.mbid);
+            DOMInfo dom = parent.getDom(data.mbid);
             if (dom == null) {
                 LOG.error(String.format("Ignoring Isochron for bad DOM %012x",
                                         data.mbid));
@@ -761,6 +841,7 @@ class IsoConsumer
             histo.put("xmax", h.getMaxValue() * 2E6);
             histo.put("underflow", h.getUnderflow());
             histo.put("overflow", h.getOverflow());
+            histo.put("nentries", h.getBinTotal());
 
             Map<String, Object> data;
             if (strings.containsKey(h.getString())) {
@@ -782,12 +863,11 @@ class IsoConsumer
             map.put("histograms", entry.getValue());
             map.put("xlabel", "Round-trip time (µs)");
             map.put("ylabel", "nentries");
-            map.put("nentries", CableHisto.BINS);
 
             map.put("recordingStartTime", parent.getStartTimeString());
             map.put("recordingStopTime", parent.getStopTimeString());
 
-            parent.sendMoni(NAME, PRIORITY, map);
+            parent.sendMoni(NAME, PRIORITY, null, map, true);
         }
     }
 }
@@ -819,7 +899,7 @@ class ProcfileConsumer
     /**
      * Process a single piece of data
      *
-     * @param data data being processed
+     * @param key data being processed
      */
     @Override
     void process(Integer key)
@@ -885,7 +965,7 @@ class RAPCalProblemConsumer
      */
     private void logException(long mbid, RAPCalException exception)
     {
-        DeployedDOM dom = parent.getDom(mbid);
+        DOMInfo dom = parent.getDom(mbid);
 
         final String domStr;
         if (dom == null) {
@@ -922,7 +1002,7 @@ class RAPCalProblemConsumer
     /**
      * Process a single piece of data
      *
-     * @param data data being processed
+     * @param mbid data being processed
      */
     @Override
     void process(Long mbid)
@@ -1133,6 +1213,7 @@ abstract class ThreadDaemon
      * Main thread loop which catches unexpected errors and sets the
      * internal <tt>stopping</tt> flag on exit.
      */
+    @Override
     public void run()
     {
         started = true;
@@ -1206,7 +1287,7 @@ public class RunMonitor
     /** Alert queue which send messages to Live */
     private IAlertQueue alertQueue;
     /** Map mainboard IDs to DOMs on this string */
-    private Map<Long, DeployedDOM> mbidMap;
+    private Map<Long, DOMInfo> mbidMap;
 
     /** Current run number */
     private int runNumber = NO_ACTIVE_RUN;
@@ -1256,14 +1337,18 @@ public class RunMonitor
 
         dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
         dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+        // always send wild TCal counts
+        wildConsumer = new WildTCalConsumer(this);
+        consumers.add(wildConsumer);
+
+        // always send RAPCal exception counts
+        rapexcConsumer = new RAPCalProblemConsumer(this);
+        consumers.add(rapexcConsumer);
     }
 
-    /**
-     * Increment the total number of HLC hits for this period.
-     * @param mbid mainboard ID
-     * @param utc UTC time of hit
-     */
-    public void countHLCHit(long mbid, long utc)
+    @Override
+    public void countHLCHit(long[] mbid, long[] utc)
     {
         synchronized (queueLock) {
             if (hasRunNumber()) {
@@ -1271,7 +1356,7 @@ public class RunMonitor
                     hlcCountConsumer = new HLCCountConsumer(this);
                     consumers.add(hlcCountConsumer);
                 }
-                hlcCountConsumer.pushData(utc, mbid);
+                hlcCountConsumer.pushData(mbid, utc);
                 queueLock.notify();
             }
         }
@@ -1302,8 +1387,13 @@ public class RunMonitor
      *
      * @return map of mainboard ID -&gt; deployed DOM data
      */
-    public Iterable<DeployedDOM> getConfiguredDOMs()
+    @Override
+    public Iterable<DOMInfo> getConfiguredDOMs()
     {
+        if (mbidMap == null) {
+            throw new Error("List of configured DOMs has not been set");
+        }
+
         return mbidMap.values();
     }
 
@@ -1314,7 +1404,8 @@ public class RunMonitor
      *
      * @return dom information
      */
-    public DeployedDOM getDom(long mbid)
+    @Override
+    public DOMInfo getDom(long mbid)
     {
         if (mbidMap == null) {
             throw new Error("List of configured DOMs has not been set");
@@ -1338,6 +1429,7 @@ public class RunMonitor
      *
      * @return starting time
      */
+    @Override
     public String getStartTimeString()
     {
         return dateFormat.format(startTime);
@@ -1348,6 +1440,7 @@ public class RunMonitor
      *
      * @return ending time
      */
+    @Override
     public String getStopTimeString()
     {
         return dateFormat.format(stopTime);
@@ -1358,6 +1451,7 @@ public class RunMonitor
      *
      * @return string number
      */
+    @Override
     public int getString()
     {
         return string;
@@ -1419,7 +1513,11 @@ public class RunMonitor
                 // if all queues are empty and there's a new run number...
                 if (empty && runNumber != nextNumber) {
                     if (hasRunNumber()) {
-                        finishRun();
+                        try {
+                            finishRun();
+                        } catch (Throwable thr) {
+                            LOG.error("Cannot finish run " + runNumber, thr);
+                        }
                     }
 
                     // ...switch to the new number
@@ -1454,20 +1552,33 @@ public class RunMonitor
                 // hold a value while we're inside the lock
                 held.clear();
                 for (QueueConsumer consumer : consumers) {
-                    if (consumer.holdValue()) {
-                        held.add(consumer);
+                    try {
+                        if (consumer.holdValue()) {
+                            held.add(consumer);
+                        }
+                    } catch (Throwable thr) {
+                        LOG.error("Cannot hold value for " + consumer, thr);
                     }
                 }
             }
 
             // now that we're outside the lock, process stashed values
             for (QueueConsumer consumer : held) {
-                consumer.processHeldValue();
+                try {
+                    consumer.processHeldValue();
+                } catch (Throwable thr) {
+                    LOG.error("Cannot process held value for " + consumer,
+                              thr);
+                }
             }
         }
 
         if (hasRunNumber()) {
-            finishRun();
+            try {
+                finishRun();
+            } catch (Throwable thr) {
+                LOG.error("Cannot finish run " + runNumber, thr);
+            }
             runNumber = NO_ACTIVE_RUN;
             stopTime = null;
         }
@@ -1621,24 +1732,14 @@ public class RunMonitor
      *
      * @param varname quantity name
      * @param priority message priority
-     * @param map field-&gt;value map
-     */
-    public void sendMoni(String varname, Alerter.Priority priority,
-                         Map<String, Object> map)
-    {
-        sendMoni(varname, priority, map, true);
-    }
-
-    /**
-     * Send monitoring message to Live
-     *
-     * @param varname quantity name
-     * @param priority message priority
+     * @param utc pDAQ UTC timestamp
      * @param map field-&gt;value map
      * @param addString if <tt>true</tt>, add "string" entry to map
      */
+    @Override
     public void sendMoni(String varname, Alerter.Priority priority,
-                         Map<String, Object> map, boolean addString)
+                         IUTCTime utc, Map<String, Object> map,
+                         boolean addString)
     {
         // fill in standard values
         map.put("runNumber", runNumber);
@@ -1647,7 +1748,7 @@ public class RunMonitor
         }
 
         try {
-            alertQueue.push(varname, priority, map);
+            alertQueue.push(varname, priority, utc, map);
         } catch (AlertException ae) {
             LOG.error("Cannot push " + varname, ae);
         }
@@ -1659,11 +1760,11 @@ public class RunMonitor
      * @param configuredDOMs list of configured DOMs
      */
     @Override
-    public void setConfiguredDOMs(Collection<DeployedDOM> configuredDOMs)
+    public void setConfiguredDOMs(Collection<DOMInfo> configuredDOMs)
     {
-        mbidMap = new HashMap<Long, DeployedDOM>();
+        mbidMap = new HashMap<Long, DOMInfo>();
 
-        for (DeployedDOM dom : configuredDOMs) {
+        for (DOMInfo dom : configuredDOMs) {
             mbidMap.put(dom.getNumericMainboardId(), dom);
         }
     }

@@ -1,6 +1,7 @@
 package icecube.daq.bindery;
 
-import icecube.daq.stringhub.test.MockAppender;
+import icecube.daq.common.MockAppender;
+
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -20,18 +21,19 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import static org.junit.Assert.*;
 
-
 /**
  * Tests Buffer ConsumerAsync.java
  */
 public class BufferConsumerAsyncTest
 {
-
     private static MockAppender appender;
     MockConsumer mockConsumer;
     BufferConsumerAsync subject;
     private final int NUM_TEST_BUFFERS = 500000;
     private final int MAX_BUFFERS = NUM_TEST_BUFFERS+1;
+
+    // Set huge to support automated testing on sluggish virtual machine.
+    public static final int NOMINAL_SYNC_MILLIS = 5000;
 
     @BeforeClass
     public static void setupLogging()
@@ -121,7 +123,7 @@ public class BufferConsumerAsyncTest
 
         try
         {
-            subject.sync(1000);
+            subject.sync(NOMINAL_SYNC_MILLIS);
             fail("Sync did not timeout");
         }
         catch (IOException ex)
@@ -131,7 +133,7 @@ public class BufferConsumerAsyncTest
 
         mockConsumer.consumptionLock.unlock();
 
-        subject.sync(1000);
+        subject.sync(NOMINAL_SYNC_MILLIS);
 
         assertTrue("Did not sync to marker", mockConsumer.lastBuffer == marker);
 
@@ -155,7 +157,6 @@ public class BufferConsumerAsyncTest
         subject = new BufferConsumerAsync(mockConsumer, MAX_BUFFERS,
                 BufferConsumerAsync.QueueFullPolicy.Reject,
                 "test-channel");
-        //
 
         mockConsumer.consumptionLock.lock();
 
@@ -182,7 +183,11 @@ public class BufferConsumerAsyncTest
 
         mockConsumer.consumptionLock.unlock();
 
-        subject.sync(1000);
+        // we need time for the executor to process at least
+        // one buffer to make room for the sync command
+        try{ Thread.sleep(1000);} catch (InterruptedException e){}
+
+        subject.sync(NOMINAL_SYNC_MILLIS);
 
         assertTrue("Marker should have been discarded",
                 mockConsumer.lastBuffer != marker);
@@ -225,8 +230,8 @@ public class BufferConsumerAsyncTest
             {
                 try
                 {
-                    startLatch.countDown();
                     long start = System.nanoTime();
+                    startLatch.countDown();
                     subject.consume(marker);
                     long stop = System.nanoTime();
                     blockDelay.set(stop-start);
@@ -244,15 +249,18 @@ public class BufferConsumerAsyncTest
 
         // ensure submitter is good and blocked
         startLatch.await();
+        long before = System.nanoTime();
         try{ Thread.sleep(1000);} catch (InterruptedException e){}
+        long after = System.nanoTime();
 
         mockConsumer.consumptionLock.unlock();
 
+        long minDelay = after - before;
         submitThread.join();
-        assertTrue("Should have blocked a second instead of " +
-                blockDelay.get(), blockDelay.get() > 1000000000);
+        assertTrue("Should have blocked a " + minDelay + " instead of " +
+                blockDelay.get(), blockDelay.get() > minDelay);
 
-        subject.sync(1000);
+        subject.sync(NOMINAL_SYNC_MILLIS);
 
         assertTrue("Marker should have been delivered",
                 mockConsumer.lastBuffer == marker);
@@ -289,7 +297,7 @@ public class BufferConsumerAsyncTest
 
         ByteBuffer marker = ByteBuffer.allocate(128);
         subject.consume(marker);
-        subject.sync(1000);
+        subject.sync(NOMINAL_SYNC_MILLIS);
 
         mockConsumer.errorOnConsume = true;
 

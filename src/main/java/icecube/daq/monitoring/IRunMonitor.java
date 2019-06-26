@@ -4,9 +4,10 @@ import icecube.daq.dor.GPSException;
 import icecube.daq.dor.GPSInfo;
 import icecube.daq.dor.TimeCalib;
 import icecube.daq.juggler.alert.Alerter;
+import icecube.daq.payload.IUTCTime;
 import icecube.daq.rapcal.Isochron;
 import icecube.daq.rapcal.RAPCalException;
-import icecube.daq.util.DeployedDOM;
+import icecube.daq.util.DOMInfo;
 
 import java.util.Collection;
 import java.util.Map;
@@ -14,18 +15,19 @@ import java.util.Map;
 public interface IRunMonitor
 {
     /**
-     * Add one to the total number of HLC hits for this period.
-     * @param domID mainboard ID
-     * @param utc UTC time of hit
+     * Add some hits the total number of HLC hits for this period.
+     * @param domID An array of mainboard IDs
+     * @param utc An array of utc times at which an hlc hit occurred for
+     *            the dom in the corresponding slot of the domID array.
      */
-    void countHLCHit(long domID, long utc);
+    void countHLCHit(long[] domID, long[] utc);
 
     /**
      * Return the list of DOMs configured for this string
      *
      * @return map of mainboard ID -&gt; deployed DOM data
      */
-    Iterable<DeployedDOM> getConfiguredDOMs();
+    Iterable<DOMInfo> getConfiguredDOMs();
 
     /**
      * Get DOM information
@@ -34,7 +36,7 @@ public interface IRunMonitor
      *
      * @return dom information
      */
-    DeployedDOM getDom(long mbid);
+    DOMInfo getDom(long mbid);
 
     /**
      * Get the string representation of the starting time for this run
@@ -130,20 +132,11 @@ public interface IRunMonitor
      *
      * @param varname quantity name
      * @param priority message priority
-     * @param map field-&gt;value map
-     */
-    void sendMoni(String varname, Alerter.Priority priority,
-                  Map<String, Object> map);
-
-    /**
-     * Send monitoring message to Live
-     *
-     * @param varname quantity name
-     * @param priority message priority
+     * @param utc pDAQ UTC timestamp
      * @param map field-&gt;value map
      * @param addString if <tt>true</tt>, add "string" entry to map
      */
-    void sendMoni(String varname, Alerter.Priority priority,
+    void sendMoni(String varname, Alerter.Priority priority, IUTCTime utc,
                   Map<String, Object> map, boolean addString);
 
     /**
@@ -151,7 +144,7 @@ public interface IRunMonitor
      *
      * @param configuredDOMs list of configured DOMs
      */
-    void setConfiguredDOMs(Collection<DeployedDOM> configuredDOMs);
+    void setConfiguredDOMs(Collection<DOMInfo> configuredDOMs);
 
     /**
      * Set the run number

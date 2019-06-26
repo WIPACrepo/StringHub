@@ -49,10 +49,14 @@ public abstract class AbstractRAPCal implements RAPCal
 
     /**
      * Name of property that controls the weight of each sample in the
-     * tcal cable lengthe average.
+     * tcal cable length average.
      */
     public static final String PROP_EXP_WEIGHT =
             "icecube.daq.rapcal.AbstractRAPCal.expWeight";
+
+    /** The weight of each sample in the tcal cable length average.*/
+    public static final double EXPONENTIAL_AVERAGING_WEIGHT =
+            Double.parseDouble(System.getProperty(PROP_EXP_WEIGHT, "0.1"));
 
     /**
      * Name of property that controls the number of isochrons to
@@ -83,7 +87,7 @@ public abstract class AbstractRAPCal implements RAPCal
      * The maximum amount that a sample's cable length may vary from
      * the average before being discarded.
      */
-    private static final double WILD_TCAL_THRESHOLD = 1.0E-09 *
+    public static final double WILD_TCAL_THRESHOLD = 1.0E-09 *
             Double.parseDouble(System.getProperty(PROP_WILD_TCAL_THRESH, "10")
             );
 
@@ -92,6 +96,9 @@ public abstract class AbstractRAPCal implements RAPCal
 
     /** List of Isochrons, ordered sequentially. */
     private final LinkedList<Isochron> hist;
+
+    /** A direct reference to the head element of the isochron list. */
+    private Isochron latestIsochron;
 
     /** The number of isochrons to maintain in the list. */
     private final int            maxHistory;
@@ -160,7 +167,7 @@ public abstract class AbstractRAPCal implements RAPCal
      */
     public AbstractRAPCal()
     {
-        this(Double.parseDouble(System.getProperty(PROP_EXP_WEIGHT, "0.1")),
+        this(EXPONENTIAL_AVERAGING_WEIGHT,
                 Integer.getInteger(PROP_HISTORY, 20));
     }
 
@@ -216,16 +223,18 @@ public abstract class AbstractRAPCal implements RAPCal
      * or perhaps to hold the data until the RAPCal state is updated so
      * that extrapolation into the future is not required.
      */
+    @Override
     public boolean laterThan(long domclk)
     {
-        if (hist.isEmpty())
+        // This method is called per-hit so we optimize away the
+        // list lookup and use the head reference.
+        if(latestIsochron != null)
         {
-            return false;
+            return latestIsochron.laterThan(domclk, TimeUnits.DOM);
         }
         else
         {
-            Isochron iso = hist.getLast();
-            return iso.laterThan(domclk, TimeUnits.DOM);
+            return false;
         }
     }
 
@@ -245,6 +254,7 @@ public abstract class AbstractRAPCal implements RAPCal
      *         applied.
      *
      */
+    @Override
     public UTC domToUTC(long domclk)
     {
         return domToUTC(domclk, domclk);
@@ -288,9 +298,15 @@ public abstract class AbstractRAPCal implements RAPCal
      */
     Isochron lookupIsochron(long atclk, TimeUnits units)
     {
-        // Note: Search in reverse order to optimize for the
-        //       likely case that the dom time is withing the
-        //       most recent isochron
+        // Note: Optimized for the case that the most recent
+        //       (head of list) isochron bounds the time. Then
+        //       search backward.
+        if(latestIsochron != null &&
+                latestIsochron.containsDomClock(atclk, units))
+        {
+            return latestIsochron;
+        }
+
         Iterator<Isochron> reverse = hist.descendingIterator();
         while(reverse.hasNext())
         {
@@ -339,6 +355,7 @@ public abstract class AbstractRAPCal implements RAPCal
      * @throws RAPCalException A degenerate condition exist in the time
      *                         calibration data.
      */
+    @Override
     public boolean update(TimeCalib tcal, UTC gpsOffset) throws RAPCalException
     {
         if (logger.isDebugEnabled())
@@ -431,6 +448,7 @@ public abstract class AbstractRAPCal implements RAPCal
 
         }
         hist.add(isochron);
+        latestIsochron = isochron;
 
         lowerBound=hist.getLast().getLowerBound();
         upperBound=hist.getLast().getUpperBound();
@@ -488,6 +506,7 @@ public abstract class AbstractRAPCal implements RAPCal
      *
      * @param mbid mainboard ID
      */
+    @Override
     public void setMainboardID(long mbid)
     {
         this.mbid = mbid;
@@ -498,6 +517,7 @@ public abstract class AbstractRAPCal implements RAPCal
      *
      * @param runMonitor The run monitoring object
      */
+    @Override
     public void setRunMonitor(IRunMonitor runMonitor)
     {
         moniGuard.runMonitor = runMonitor;

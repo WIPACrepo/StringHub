@@ -164,6 +164,5 @@ public class SynchronousDataProcessor implements DataProcessor
     public void setRunMonitor(final IRunMonitor runMonitor)
     {
         rapcal.setRunMonitor(runMonitor);
-        dataStats.setRunMonitor(runMonitor);
     }
 }

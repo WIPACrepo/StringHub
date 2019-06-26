@@ -51,6 +51,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
 	 * We are assuming that this consumes buffers which adhaere to
 	 * the TestDAQ standard 32-byte 'iiq8xq' header.
 	 */
+    @Override
 	public void consume(ByteBuffer buf) throws IOException
 	{
         buf.order(ByteOrder.BIG_ENDIAN);
@@ -98,6 +99,7 @@ public class SecondaryStreamConsumer implements BufferConsumer
     /**
      * There will be no more data.
      */
+    @Override
     public void endOfStream(long mbid)
         throws IOException
     {

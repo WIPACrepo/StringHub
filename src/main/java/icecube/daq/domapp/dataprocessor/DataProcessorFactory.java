@@ -102,19 +102,19 @@ public class DataProcessorFactory
         //build the dispatchers
         UTCHitDispatcher hitDispatch =
                 new UTCHitDispatcher(hitConsumer,
-                        config, rapcal);
+                        config, rapcal, mbid);
         UTCDispatcher supernovaDispatcher =
                 new UTCMonotonicDispatcher(supernovaConsumer,
                         DataProcessor.StreamType.SUPERNOVA,
-                        rapcal);
-        UTCDispatcher moniDispatcher =
+                        rapcal, mbid);
+        UTCMonotonicDispatcher moniDispatcher =
                 new UTCMonotonicDispatcher(moniConsumer,
                         DataProcessor.StreamType.MONI,
-                        rapcal);
+                        rapcal, mbid, true);
         UTCDispatcher tcalDispatcher =
                 new UTCMonotonicDispatcher(tcalConsumer,
                         DataProcessor.StreamType.TCAL,
-                        rapcal);
+                        rapcal, mbid);
 
         //build the processors
         HitProcessor hitProcessor = new HitProcessor(mbid,

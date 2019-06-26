@@ -1,8 +1,7 @@
 package icecube.daq.sender;
 
-import icecube.daq.io.PushPayloadReader;
+import icecube.daq.io.PushStreamReader;
 import icecube.daq.payload.ILoadablePayload;
-import icecube.daq.payload.IPayload;
 import icecube.daq.payload.IReadoutRequest;
 import icecube.daq.payload.impl.ReadoutRequestFactory;
 
@@ -15,13 +14,13 @@ import org.apache.commons.logging.LogFactory;
  * Read requests from global trigger.
  */
 public class RequestReader
-    extends PushPayloadReader
+    extends PushStreamReader
 {
     private static final Log LOG =
         LogFactory.getLog(RequestReader.class);
 
     /** back-end processor which digests readout requests. */
-    private Sender sender;
+    private RequestHandler sender;
 
     private ReadoutRequestFactory factory;
 
@@ -32,7 +31,7 @@ public class RequestReader
      * @param sender readout request filler
      * @param factory payload factory
      */
-    public RequestReader(String name, Sender sender,
+    public RequestReader(String name, RequestHandler sender,
                          ReadoutRequestFactory factory)
         throws IOException
     {
@@ -47,6 +46,7 @@ public class RequestReader
         this.factory = factory;
     }
 
+    @Override
     public void pushBuffer(ByteBuffer buf)
         throws IOException
     {
@@ -67,9 +67,10 @@ public class RequestReader
         }
 
         //try putting the payload into the list.
-        sender.addRequest((IPayload) pay);
+        sender.addRequest(pay);
     }
 
+    @Override
     public void sendStop()
     {
         try {

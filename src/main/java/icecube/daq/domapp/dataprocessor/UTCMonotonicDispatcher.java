@@ -4,7 +4,6 @@ import icecube.daq.bindery.BufferConsumer;
 import icecube.daq.rapcal.RAPCal;
 import org.apache.log4j.Logger;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
 
@@ -28,9 +27,17 @@ class UTCMonotonicDispatcher extends UTCDispatcher
      * The maximum number of records that can be held waiting before an
      * error is generated.
      */
-    static final int MAX_DEFFERED_RECORDS =
+    static final int MAX_DEFERRED_RECORDS =
     Integer.getInteger("icecube.daq.domapp.dataprocessor.max-deferred-records",
-            10000);
+            5000);
+
+    private static final Logger logger =
+        Logger.getLogger(UTCMonotonicDispatcher.class);
+
+    /**
+     * If the "gate" is closed, defer buffers until we reach the maximum
+     */
+    private boolean gateClosed;
 
     /**
      * Structure to hold deferred data.
@@ -46,6 +53,27 @@ class UTCMonotonicDispatcher extends UTCDispatcher
             this.data = data;
             this.callback = callback;
         }
+
+        long getDOMClock()
+        {
+            if (data == null || data.capacity() < 32) {
+                return Long.MIN_VALUE;
+            }
+
+            return data.getLong(24);
+        }
+
+        @Override
+        public String toString()
+        {
+            if (data == null) {
+                return "<null>";
+            } else if (data.capacity() < 32) {
+                return "<short*" + data.capacity() + ">";
+            }
+
+            return "<clk " + data.getLong(24) + ">";
+        }
     }
 
     /** Holds data for deferred dispatch. */
@@ -54,16 +82,20 @@ class UTCMonotonicDispatcher extends UTCDispatcher
 
 
     /**
-     * A no-op callback instance.
+     * Constructor.
+     *
+     * @param target The consumer of dispatched buffers.
+     * @param type Identifies the type of data in the stream.
+     * @param rapcal The rapcal instance servicing the stream.
+     * @param mbid Mainboard ID for this DOM
      */
-    private final static DispatchCallback NULL_CALLBACK =
-            new DispatchCallback()
-            {
-                @Override
-                public void wasDispatched(final long utc)
-                {
-                }
-            };
+    public UTCMonotonicDispatcher(final BufferConsumer target,
+                                  final DataProcessor.StreamType type,
+                                  final RAPCal rapcal,
+                                  final long mbid)
+    {
+        this(target, type, rapcal, mbid, false);
+    }
 
 
     /**
@@ -72,12 +104,33 @@ class UTCMonotonicDispatcher extends UTCDispatcher
      * @param target The consumer of dispatched buffers.
      * @param type Identifies the type of data in the stream.
      * @param rapcal The rapcal instance servicing the stream.
+     * @param mbid Mainboard ID for this DOM
+     * @param gateClosed if <tt>true</tt>, do not dispatch records until either
+     *                   clearDeferred() is called or the maximum number of
+     *                   records have been deferred
      */
     public UTCMonotonicDispatcher(final BufferConsumer target,
                                   final DataProcessor.StreamType type,
-                                  final RAPCal rapcal)
+                                  final RAPCal rapcal,
+                                  final long mbid,
+                                  final boolean gateClosed)
     {
-        super(target, type, rapcal, 0);
+        super(target, type, rapcal, 0, mbid);
+
+        this.gateClosed = gateClosed;
+    }
+
+
+    /**
+     * Clear all deferred records and allow future records to be dispatched
+     */
+    public void clearDeferred()
+    {
+        if (gateClosed)
+        {
+            deferred.clear();
+            gateClosed = false;
+        }
     }
 
 
@@ -102,13 +155,6 @@ class UTCMonotonicDispatcher extends UTCDispatcher
     }
 
 
-    @Override
-    public void dispatchBuffer(final ByteBuffer buf)
-            throws DataProcessorError
-    {
-        dispatchBuffer(buf, NULL_CALLBACK);
-    }
-
     /**
      * Adds a buffer on top of standard UTC dispatching which holds records
      * until rapcal has a bounding tcal.
@@ -120,22 +166,37 @@ class UTCMonotonicDispatcher extends UTCDispatcher
     {
         deferred.add(new DeferredDataRecord(buf, callback));
 
-        if(deferred.size() == MAX_DEFFERED_RECORDS)
+        if(gateClosed)
         {
-            // indicates an unusual  problem with rapcal updates,
+            // defer records until we're a bit shy of the max limit
+            if(deferred.size() < MAX_DEFERRED_RECORDS - 2)
+            {
+                return;
+            }
+
+            // if we've deferred as much as possible,
+            //  stop waiting and release everything
+            gateClosed = false;
+            logger.error("Giving up on run start message for " + mbid +
+                         "; releasing all deferred records");
+        }
+        else if(deferred.size() >= MAX_DEFERRED_RECORDS)
+        {
+            // indicates an unusual problem with rapcal updates,
             // capture debugging details
-            long firstDOMClk = deferred.peekFirst().data.getLong(24);
-            long lastDOMClk = deferred.peekLast().data.getLong(24);
+            long firstDOMClk = deferred.peekFirst().getDOMClock();
+            long lastDOMClk = deferred.peekLast().getDOMClock();
             String msg = String.format("Over limit of %d records waiting for" +
-                    " rapcal DOM clock range [%d, %d]",
-                    deferred.size(), firstDOMClk, lastDOMClk);
+                    " rapcal DOM clock range [%d, %d], mbid: %12x",
+                    deferred.size(), firstDOMClk, lastDOMClk, mbid);
             throw new DataProcessorError(msg);
         }
 
-        while(true)
+        // release any deferred records which can be assigned valid times
+        while(deferred.size() > 0)
         {
             DeferredDataRecord record = deferred.peekFirst();
-            if(record != null && (rapcal.laterThan(record.data.getLong(24))) )
+            if(record != null && rapcal.laterThan(record.getDOMClock()) )
             {
                 record = deferred.removeFirst();
                 super.dispatchBuffer(record.data, record.callback);

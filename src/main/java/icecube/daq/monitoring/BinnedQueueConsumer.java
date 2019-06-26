@@ -22,6 +22,7 @@ abstract class BinnedQueueConsumer<T, K, C>
             this.isPrevious = isPrevious;
         }
 
+        @Override
         public String toString()
         {
             return String.format("BinRange[%d-%d]%s", binStart, binEnd,
@@ -33,6 +34,22 @@ abstract class BinnedQueueConsumer<T, K, C>
 
     private HashMap<K, BinManager<C>> map =
         new HashMap<K, BinManager<C>>();
+
+    /**
+     * The max value that has already been reported.
+     * Incoming values (from delayed producers) less than or equal this
+     * value will be rejected as they can no longer be reported and contravene
+     * bin management.
+     */
+    private long lastReportedBinEnd = Long.MIN_VALUE;
+
+    static class ExpiredRange extends Exception
+    {
+        public ExpiredRange(final String message)
+        {
+            super(message);
+        }
+    }
 
     BinnedQueueConsumer(IRunMonitor parent, long binWidth)
     {
@@ -46,6 +63,7 @@ abstract class BinnedQueueConsumer<T, K, C>
         for (BinManager<C> mgr : map.values()) {
             mgr.clearBin(binStart, binEnd);
         }
+        lastReportedBinEnd = binEnd;
     }
 
     boolean containsKey(K key)
@@ -74,6 +92,9 @@ abstract class BinnedQueueConsumer<T, K, C>
         }
 
         for (BinManager<C> mgr : map.values()) {
+
+            // Previous bins are considered to span from
+            // start to end.
             if (isPrevious) {
                 if (mgr.hasPrevious()) {
                     if (mgr.getPreviousStart() < binStart) {
@@ -83,12 +104,14 @@ abstract class BinnedQueueConsumer<T, K, C>
                         binEnd = mgr.getPreviousEnd() - 1;
                     }
                 }
+            // Active bins are considered to span from
+            // start to latest reported event.
             } else if (mgr.hasActive()) {
                 if (mgr.getActiveStart() < binStart) {
                     binStart = mgr.getActiveStart();
                 }
-                if (mgr.getActiveEnd() > binEnd) {
-                    binEnd = mgr.getActiveEnd() - 1;
+                if (mgr.getActiveLatest() > binEnd) {
+                    binEnd = mgr.getActiveLatest();
                 }
             }
         }
@@ -100,8 +123,27 @@ abstract class BinnedQueueConsumer<T, K, C>
         return new BinRange(binStart, binEnd, isPrevious);
     }
 
-    public synchronized C getContainer(long binIndex, K key)
+    /**
+     * Access a bin container for an index. Calling this method is implicit
+     * notification that there is a sample or event activity at the bin index,
+     * i.e. a new bin may be created, previous bins may be reported
+     * and/or the supplied bin index may be recorded as the last seen value.
+     *
+     * @param binIndex The bin index value of the current sample or event
+     * @param key Identifies category of the sample or event.
+     * @return
+     * @throws ExpiredRange The bin for the index has already been reported.
+     */
+    public synchronized C reportEvent(long binIndex, K key)
+            throws ExpiredRange
     {
+        if(binIndex <= lastReportedBinEnd)
+        {
+            String msg = String.format("Index %d is earlier than the end" +
+                    " of the last reported bin range %d",
+                    binIndex, lastReportedBinEnd);
+            throw new ExpiredRange(msg);
+        }
         if (!map.containsKey(key)) {
             map.put(key, createBinManager(key, binIndex, binWidth));
         }
@@ -132,7 +174,7 @@ abstract class BinnedQueueConsumer<T, K, C>
             }
         }
 
-        return mgr.get(binIndex);
+        return mgr.reportEvent(binIndex);
     }
 
     /**
@@ -154,6 +196,7 @@ abstract class BinnedQueueConsumer<T, K, C>
     /**
      * Reset everything back to initial conditions for the next run
      */
+    @Override
     public void reset()
     {
         map.clear();
@@ -187,6 +230,7 @@ abstract class BinnedQueueConsumer<T, K, C>
         reset();
     }
 
+    @Override
     public String toString()
     {
         StringBuilder buf = new StringBuilder("{");
