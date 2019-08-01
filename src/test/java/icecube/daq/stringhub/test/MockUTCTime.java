@@ -104,12 +104,6 @@ public class MockUTCTime
         throw new Error("Unimplemented");
     }
 
-    @Override
-    public double timeDiff_ns(IUTCTime otherTime)
-    {
-        return (double) (time - otherTime.longValue());
-    }
-
     /**
      * Return a human-readable date/time string
      * @return human-readable date/time string
