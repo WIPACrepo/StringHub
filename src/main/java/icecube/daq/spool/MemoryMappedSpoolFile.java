@@ -251,10 +251,16 @@ public interface MemoryMappedSpoolFile extends RecordBuffer
             blocks++;
             final int newSize = allocationBlockSize * blocks;
 
+            MappedByteBuffer previous = buffer;
+
             buffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0,
                     newSize);
 
             buffer.position(position);
+
+            // if we don't unmap the prior buffer it will be mapped
+            // until the next full GC event.
+            forceUnmap(previous);
         }
 
         /**
