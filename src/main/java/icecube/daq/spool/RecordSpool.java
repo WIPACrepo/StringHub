@@ -734,8 +734,7 @@ public class RecordSpool implements RecordStore.OrderedWritable
         {
             try
             {
-                sun.misc.Cleaner cleaner = ((DirectBuffer) buffer).cleaner();
-                cleaner.clean();
+                ((DirectBuffer) buffer).cleaner().clean();
             }
             catch (Throwable th)
             {
