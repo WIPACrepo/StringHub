@@ -56,9 +56,9 @@ public class MockUTCTime
     }
 
     @Override
-    public IUTCTime getOffsetUTCTime(double nanoSec)
+    public IUTCTime getOffsetUTCTime(long ticks)
     {
-        return new MockUTCTime(time + (long) (nanoSec * 10.0));
+        return new MockUTCTime(time + ticks);
     }
 
     /**
@@ -102,12 +102,6 @@ public class MockUTCTime
     public long timeDiff(IUTCTime otherTime)
     {
         throw new Error("Unimplemented");
-    }
-
-    @Override
-    public double timeDiff_ns(IUTCTime otherTime)
-    {
-        return (double) (time - otherTime.longValue());
     }
 
     /**
