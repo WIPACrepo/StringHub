@@ -276,8 +276,7 @@ public interface MemoryMappedSpoolFile extends RecordBuffer
         {
             try
             {
-                sun.misc.Cleaner cleaner = ((DirectBuffer) buffer).cleaner();
-                cleaner.clean();
+                ((DirectBuffer) buffer).cleaner().clean();
             }
             catch (Throwable th)
             {
