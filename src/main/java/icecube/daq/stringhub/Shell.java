@@ -16,17 +16,15 @@ import org.apache.log4j.PatternLayout;
  */
 public class Shell
 {
-	static {
+	public static void main(String[] args) throws Exception
+	{
 		ConsoleAppender appender = new ConsoleAppender();
 		appender.setWriter(new PrintWriter(System.out));
 		appender.setLayout(new PatternLayout("%p[%t] %L - %m%n"));
 		appender.setName("console");
 		Logger.getRootLogger().addAppender(appender);
 		Logger.getRootLogger().setLevel(Level.INFO);
-	}
 
-	public static void main(String[] args) throws Exception
-	{
 		int hubId = 0;
 		try
 		{
