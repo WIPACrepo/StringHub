@@ -1,5 +1,7 @@
 package icecube.daq.performance.diagnostic.cpu;
 
+import org.apache.log4j.Logger;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -8,6 +10,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Provides CPU utilization monitoring by way of periodic
@@ -22,6 +26,8 @@ import java.util.Map;
  */
 public interface CPUMonitor
 {
+
+    static Logger logger = Logger.getLogger(CPUMonitor.class.getName());
 
     /**
      * Sample proc files and calculate utilization for the interval.
@@ -206,6 +212,7 @@ public interface CPUMonitor
             }
             catch (IOException e)
             {
+                logger.warn("Could not take CPU sample", e);
                 return new Utilization(new HashMap<>(), new HashMap<>(),
                         new HashMap<>());
             }
@@ -217,14 +224,13 @@ public interface CPUMonitor
             // CPU Utilization
             Map<Keys, Float> cpuUtilization = new HashMap<>(4);
 
-            long cpuTicks = calculateCPUTicks(current).totalTicks -
-                    calculateCPUTicks(last).totalTicks;
-            long userTicks = calculateCPUTicks(current).userTicks -
-                    calculateCPUTicks(last).userTicks;
-            long systemTicks = calculateCPUTicks(current).systemTicks -
-                    calculateCPUTicks(last).systemTicks;
-            long idleTicks = calculateCPUTicks(current).idleTicks -
-                    calculateCPUTicks(last).idleTicks;
+            final CPUStat curCPUStat = calculateCPUTicks(current);
+            final CPUStat lastCPUStat = calculateCPUTicks(last);
+
+            long cpuTicks = curCPUStat.totalTicks - lastCPUStat.totalTicks;
+            long userTicks = curCPUStat.userTicks - lastCPUStat.userTicks;
+            long systemTicks = curCPUStat.systemTicks -  lastCPUStat.systemTicks;
+            long idleTicks = curCPUStat.idleTicks -  lastCPUStat.idleTicks;
 
             cpuUtilization.put(Keys.CPU_UTILIZATION,
                     percent((userTicks+systemTicks), cpuTicks));
@@ -439,30 +445,110 @@ public interface CPUMonitor
         {
             // Example:
             // 573 (java) S 1 434 434 0 -1 4202496 28930 0 0 0 358 50 0 0 20 0 60 0 8998150 9774174208 86273 18446744073709551615 4194304 4196500 140730893387312 140730893369888 265879061245 0 0 2 16800973 18446744073709551615 0 0 17 18 0 0 0 0 0
+            //58562 (proc with spaces) S 1 58528 58528 0 -1 4202496 61852 430 0 0 12028 5406 0 0 20 0 142 0 45073230 12515192832 439627 18446744073709551615 4194304 4196779 140725937365696 140725937348272 264056636157 0 0 2 16800973 18446744073709551615 0 0 17 5 0 0 0 0 0
             String line = readPIDStat();
-            return line.split("\\s+");
+            return ProcStatParser.parseProcStat(line);
         }
 
-        private String[] sampleTID(int tid)
+        private String[] sampleTID(int tid) throws IOException
         {
             // Example:
             // 615 (java) S 1 434 434 0 -1 4202560 866 0 0 0 8 1 0 0 20 0 60 0 8998156 9774174208 86829 18446744073709551615 4194304 4196500 140730893387312 139848185632608 265879075422 0 4 2 16800973 18446744071579608298 0 0 -1 21 0 0 0 0 0
-
-            try
-            {
+            //58562 (thread with spaces) S 1 58528 58528 0 -1 4202496 61852 430 0 0 12028 5406 0 0 20 0 142 0 45073230 12515192832 439627 18446744073709551615 4194304 4196779 140725937365696 140725937348272 264056636157 0 0 2 16800973 18446744073709551615 0 0 17 5 0 0 0 0 0
                 String line = readTIDStat(tid);
-                return line.split("\\s+");
-            }
-            catch (IOException e)
-            {
-                return null;
-            }
+                return ProcStatParser.parseProcStat(line);
         }
 
 
         private static float percent(long part, long total)
         {
             return ((float)part)/total * 100.0f;
+        }
+
+
+
+        // encapsulates parsing /proc/[pid]/stat and /proc/pid/tid/stat
+        // files
+        static class ProcStatParser
+        {
+            // Note: process/thread name may have spaces so they are enclosed in parens
+            //
+            // Example:
+            // 615 (java) S 1 434 434 0 -1 4202560 866 0 0 0 8 1 0 0 20 0 60 0 8998156 9774174208 86829 18446744073709551615 4194304 4196500 140730893387312 139848185632608 265879075422 0 4 2 16800973 18446744071579608298 0 0 -1 21 0 0 0 0 0
+            //58562 (thread name with spaces) S 1 58528 58528 0 -1 4202496 61852 430 0 0 12028 5406 0 0 20 0 142 0 45073230 12515192832 439627 18446744073709551615 4194304 4196779 140725937365696 140725937348272 264056636157 0 0 2 16800973 18446744073709551615 0 0 17 5 0 0 0 0 0
+
+            static String NUMBER_PAT = "[-\\d]+";
+            static String re = "^";
+            static
+            {
+                re += "(" + NUMBER_PAT + ")";
+                re += "\\s+(\\([^\\)]*\\))"; // parens delimited process/thread name
+                re += "\\s+(\\S+)";          // status
+                for(int i=0; i<41;i++)
+                {
+                    re += "\\s+("+ NUMBER_PAT +")";
+                }
+                re +=  "$";
+            }
+            static Pattern PATTERN = Pattern.compile(re);
+
+            private static String[] parseProcStat(String line) throws IOException
+            {
+//                return parseProcStatHighMemory(line);
+                return parseProcStatLowMemory(line);
+            }
+            private static String[] parseProcStatHighMemory(String line) throws IOException
+            {
+
+                Matcher matcher = PATTERN.matcher(line);
+                if(matcher.matches())
+                {
+                    String[] ret = new String[44];
+                    for(int i = 0; i<44; i++)
+                    {
+                        ret[i] = matcher.group(i+1);
+                    }
+                    return ret;
+                }
+                else
+                {
+                    throw new IOException("Can't parse [" + line +"]");
+                }
+            }
+
+            //
+            // jave regex matching with 40 groups keeps leading to out-of-memory
+            // errors ... so roll a cheaper version
+            private static String[] parseProcStatLowMemory(String line) throws IOException
+            {
+                int p1 = line.lastIndexOf('(');
+                int p2 = line.lastIndexOf(')');
+
+                if(p1 > 0 && p2 > 0)
+                {
+                    String[] ret = new String[44];
+                    ret[0] = line.substring(0, p1 - 1);
+                    ret[1] = line.substring(p1, p2+1);
+
+                    String remainder = line.substring(p2 + 2);
+                    String[] split = remainder.split("\\s+");
+
+                    System.arraycopy(split, 0, ret, 2, 42);
+
+
+                    for(int i=0; i<44; i++)
+                    {
+                        System.out.println("["+i+"] = ["+ret[i] +"]");
+                    }
+
+                    return ret;
+
+                }
+                else
+                {
+                    throw new IOException("Can't parse [" + line +"]");
+                }
+            }
         }
 
     }
