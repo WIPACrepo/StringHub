@@ -112,30 +112,35 @@ public interface Content
 
     }
 
+
     public class JoinedContent implements Content
     {
-        private final Content first;
-        private final Content second;
+        private final Content[] content;
 
 
-        public JoinedContent(final Content first, final Content second)
+        public JoinedContent(final Content... content)
         {
-            this.first = first;
-            this.second = second;
+            this.content = content;
         }
 
         @Override
         public void header(final StringBuilder sb)
         {
-            first.header(sb);
-            second.header(sb);
+            for (int i = 0; i < content.length; i++)
+            {
+                content[i].header(sb);
+
+            }
         }
 
         @Override
         public void content(final StringBuilder sb)
         {
-            first.content(sb);
-            second.content(sb);
+            for (int i = 0; i < content.length; i++)
+            {
+                content[i].content(sb);
+
+            }
         }
     }
 

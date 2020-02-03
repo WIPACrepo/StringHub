@@ -38,7 +38,7 @@ public class CPUUtilizationContent implements Content.FlyWeight
     @Override
     public void beforeContent()
     {
-        if(++iteration > iterationsPerSample)
+        if(++iteration >= iterationsPerSample)
         {
             latestSample = monitor.sample();
             iteration = 0;
@@ -358,7 +358,7 @@ public class CPUUtilizationContent implements Content.FlyWeight
             this.pids = pids;
             this.label = label;
 
-            int width = Math.min(4, label.length())  + 4;
+            int width = Math.min(10, label.length())  + 4;
             header = String.format("%-"+width+"s", label);
             contentFmt = "%-" + width + ".1f";
         }
