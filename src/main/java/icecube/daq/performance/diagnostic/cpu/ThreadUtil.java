@@ -1,12 +1,16 @@
 package icecube.daq.performance.diagnostic.cpu;
 
 import com.sun.tools.attach.VirtualMachine;
+import org.apache.log4j.Logger;
 import sun.tools.attach.HotSpotVirtualMachine;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -16,12 +20,38 @@ import java.util.regex.Pattern;
 /**
  * Provides thread utilities not available from JVM.
  *
- * Note: Requires tools.jar in the runtime classpath which is not
+ * Note: Some functionality requires tools.jar in the runtime classpath which is not
  *       a standard dependency.
  */
 public class ThreadUtil
 {
+    static Logger logger = Logger.getLogger(ThreadUtil.class.getName());
 
+
+    /**
+     * Attempt to put tools.jar (or classes.jar on some Mac systems) on the classpath
+     */
+    static {
+        try {
+            String javaHome = System.getProperty("java.home");
+            String toolsJarURL = "file:" + javaHome + "/../lib/tools.jar";
+
+            // Make addURL public
+            Method method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
+            method.setAccessible(true);
+
+            URLClassLoader sysloader = (URLClassLoader)ClassLoader.getSystemClassLoader();
+            if (sysloader.getResourceAsStream("/com/sun/tools/attach/VirtualMachine.class") == null) {
+                method.invoke(sysloader, (Object) new URL(toolsJarURL));
+                Thread.currentThread().getContextClassLoader().loadClass("com.sun.tools.attach.VirtualMachine");
+                Thread.currentThread().getContextClassLoader().loadClass("com.sun.tools.attach.AttachNotSupportedException");
+            }
+
+        } catch (Exception e) {
+            logger.error("Java home points to " + System.getProperty("java.home") + " make sure it is not a JRE path");
+            logger.error("Failed to add tools.jar to classpath", e);
+        }
+    }
 
     /**
      * Thread data derived from a low-level thread dump or jstack
