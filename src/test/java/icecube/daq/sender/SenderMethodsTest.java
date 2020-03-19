@@ -306,7 +306,7 @@ public class SenderMethodsTest
             rr.addElement(element.getReadoutType(),
                     element.getSourceID().getSourceID(),
                     element.getFirstTime(), element.getLastTime(),
-                    element.getDomID().longValue());
+                    element.getDOMID().longValue());
         }
         return rr;
     }

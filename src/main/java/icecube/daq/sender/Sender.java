@@ -9,13 +9,11 @@ import icecube.daq.monitoring.BatchHLCReporter;
 import icecube.daq.monitoring.IRunMonitor;
 import icecube.daq.monitoring.SenderMonitor;
 import icecube.daq.payload.IByteBufferCache;
-import icecube.daq.payload.ILoadablePayload;
 import icecube.daq.payload.IPayload;
 import icecube.daq.payload.IReadoutRequest;
 import icecube.daq.payload.IReadoutRequestElement;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.IUTCTime;
-import icecube.daq.payload.IWriteablePayload;
 import icecube.daq.payload.PayloadException;
 import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.impl.DOMHit;
@@ -217,7 +215,7 @@ public class Sender
                     final boolean isHLC = tinyHit.getLocalCoincidenceMode() != 0;
                     if(isHLC)
                     {
-                        hlcReporter.reportHLCHit(tinyHit.getDomId(),
+                        hlcReporter.reportHLCHit(tinyHit.getDOMID(),
                                 tinyHit.getTimestamp());
                     }
 
@@ -255,7 +253,7 @@ public class Sender
      * @param data payload to recycle
      */
     @Override
-    public void disposeData(ILoadablePayload data)
+    public void disposeData(IPayload data)
     {
         data.recycle();
     }
@@ -271,8 +269,8 @@ public class Sender
         Iterator iter = dataList.iterator();
         while (iter.hasNext()) {
             Object obj = iter.next();
-            if (obj instanceof ILoadablePayload) {
-                disposeData(((ILoadablePayload) obj));
+            if (obj instanceof IPayload) {
+                disposeData(((IPayload) obj));
             } else {
                 log.error("Not disposing of non-loadable " + obj + " (" +
                           obj.getClass().getName() + ")");
@@ -464,8 +462,7 @@ public class Sender
      * @return readout data payload
      */
     @Override
-    public ILoadablePayload makeDataPayload(IPayload reqPayload,
-                                            List dataList)
+    public IPayload makeDataPayload(IPayload reqPayload, List dataList)
     {
 
         if (reqPayload == null) {
@@ -531,25 +528,13 @@ public class Sender
         }
 
         try {
-            IWriteablePayload readout =
-                    SenderMethods.makeDataPayload(uid, startTime.longValue(),
-                                                  endTime.longValue(), dataList,
-                                                  sourceId, domRegistry);
-            return (ILoadablePayload) readout;
+            return SenderMethods.makeDataPayload(uid, startTime.longValue(),
+                                                 endTime.longValue(), dataList,
+                                                 sourceId, domRegistry);
         } catch (PayloadException pe) {
             log.error("Cannot build list of hit records", pe);
             return null;
         }
-
-
-/*
-        Iterator hitIter = hitDataList.iterator();
-        while (hitIter.hasNext()) {
-            ILoadablePayload pay = (ILoadablePayload) hitIter.next();
-            pay.recycle();
-        }
-*/
-
     }
 
     /**
@@ -561,7 +546,7 @@ public class Sender
     {
         Iterator iter = payloadList.iterator();
         while (iter.hasNext()) {
-            ILoadablePayload payload = (ILoadablePayload) iter.next();
+            IPayload payload = (IPayload) iter.next();
             payload.recycle();
             numRecycled++;
         }
@@ -599,7 +584,7 @@ public class Sender
      * @return <tt>true</tt> if the payload was sent
      */
     @Override
-    public boolean sendOutput(ILoadablePayload payload)
+    public boolean sendOutput(IPayload payload)
     {
         boolean sent = false;
         ByteBuffer buf;
@@ -609,7 +594,7 @@ public class Sender
             buf = dataCache.acquireBuffer(payload.length());
         }
         try {
-            ((IWriteablePayload) payload).writePayload(false, 0, buf);
+            payload.writePayload(false, 0, buf);
         } catch (Exception ex) {
             log.error("Couldn't create payload", ex);
             buf = null;

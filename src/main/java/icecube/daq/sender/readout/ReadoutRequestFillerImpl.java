@@ -1,9 +1,9 @@
 package icecube.daq.sender.readout;
 
 import icecube.daq.payload.IByteBufferCache;
+import icecube.daq.payload.IPayload;
 import icecube.daq.payload.IReadoutRequest;
 import icecube.daq.payload.ISourceID;
-import icecube.daq.payload.IWriteablePayload;
 import icecube.daq.payload.PayloadException;
 import icecube.daq.payload.impl.DOMHit;
 import icecube.daq.payload.impl.DOMHitFactory;
@@ -97,7 +97,7 @@ public class ReadoutRequestFillerImpl implements ReadoutRequestFiller
         // Note: by convention, StringHub does not issue empty readouts
         if(domHits.size() > 0)
         {
-            IWriteablePayload resp = formatResponse(request, range, domHits);
+            IPayload resp = formatResponse(request, range, domHits);
 
             final ByteBuffer msg;
             if(bufferCache != null)
@@ -186,9 +186,9 @@ public class ReadoutRequestFillerImpl implements ReadoutRequestFiller
      * @return The event data formatted into a payload.
      * @throws PayloadException Format error within the data.
      * */
-    private IWriteablePayload formatResponse(final IReadoutRequest request,
-                                       final SenderMethods.TimeRange timeRange,
-                                       final List<DOMHit> data )
+    private IPayload formatResponse(final IReadoutRequest request,
+                                    final SenderMethods.TimeRange timeRange,
+                                    final List<DOMHit> data )
             throws PayloadException
     {
         return SenderMethods.makeDataPayload(request.getUID(),

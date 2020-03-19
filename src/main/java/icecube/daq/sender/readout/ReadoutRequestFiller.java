@@ -85,7 +85,7 @@ public interface ReadoutRequestFiller
                 long start = elem.getFirstTime();
                 long end = elem.getLastTime();
                 ISourceID src = elem.getSourceID();
-                IDOMID dom = elem.getDomID();
+                IDOMID dom = elem.getDOMID();
 
 
                 sb.append("      [").append(count).append("]")

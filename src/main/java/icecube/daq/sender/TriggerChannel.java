@@ -112,7 +112,7 @@ public class TriggerChannel
                 boolean isHLC = tinyHit.getLocalCoincidenceMode() != 0;
                 if(isHLC)
                 {
-                    hlcReporter.reportHLCHit(tinyHit.getDomId(),
+                    hlcReporter.reportHLCHit(tinyHit.getDOMID(),
                             tinyHit.getTimestamp());
                 }
 
@@ -199,7 +199,7 @@ public class TriggerChannel
                 final boolean isHLC = lcMode != 0;
                 if(isHLC)
                 {
-                    hlcReporter.reportHLCHit(hitReader.getDOMId(buf),
+                    hlcReporter.reportHLCHit(hitReader.getDOMID(buf),
                             hitReader.getUTC(buf));
                 }
 

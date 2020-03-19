@@ -2,10 +2,10 @@ package icecube.daq.sender;
 
 import icecube.daq.common.DAQCmdInterface;
 import icecube.daq.common.EventVersion;
+import icecube.daq.payload.IPayload;
 import icecube.daq.payload.IReadoutRequest;
 import icecube.daq.payload.IReadoutRequestElement;
 import icecube.daq.payload.ISourceID;
-import icecube.daq.payload.IWriteablePayload;
 import icecube.daq.payload.PayloadException;
 import icecube.daq.payload.SourceIdRegistry;
 import icecube.daq.payload.impl.DOMHit;
@@ -149,7 +149,7 @@ public class SenderMethods
                     break;
                 case IReadoutRequestElement.READOUT_TYPE_II_MODULE:
                     if (daqName.equals(DAQCmdInterface.DAQ_STRINGPROCESSOR) &&
-                            curData.getDomId() == elem.getDomID().longValue())
+                            curData.getDOMID() == elem.getDOMID().longValue())
                     {
                         // todo not possible
                         return true;
@@ -157,7 +157,7 @@ public class SenderMethods
                     break;
                 case IReadoutRequestElement.READOUT_TYPE_IT_MODULE:
                     if (daqName.equals(DAQCmdInterface.DAQ_ICETOP_DATA_HANDLER) &&
-                            curData.getDomId() == elem.getDomID().longValue())
+                            curData.getDOMID() == elem.getDOMID().longValue())
                     {
                         return true;
                     }
@@ -185,12 +185,11 @@ public class SenderMethods
      *
      * @return Readout data payload
      */
-    public static IWriteablePayload makeDataPayload(final int uid,
-                                                    final long startUTC,
-                                                    final long endUTC,
-                                                    final List<DOMHit> dataList,
-                                                    final ISourceID sourceId,
-                                                    final IDOMRegistry domRegistry)
+    public static IPayload makeDataPayload(final int uid, final long startUTC,
+                                           final long endUTC,
+                                           final List<DOMHit> dataList,
+                                           final ISourceID sourceId,
+                                           final IDOMRegistry domRegistry)
             throws PayloadException
     {
 
@@ -201,14 +200,14 @@ public class SenderMethods
         if (EventVersion.VERSION < 5)
         {
             return new DOMHitReadoutData(uid, sourceId,
-                                            new UTCTime(startUTC),
-                                            new UTCTime(endUTC),
-                                            dataList);
+                                         new UTCTime(startUTC),
+                                         new UTCTime(endUTC),
+                                         dataList);
         }
         else
         {
             return new HitRecordList(domRegistry, startUTC,
-                                          uid,  sourceId, dataList);
+                                     uid,  sourceId, dataList);
         }
 
     }
@@ -272,9 +271,9 @@ public class SenderMethods
 
             int cmp = h1.getSourceID().getSourceID() - h2.getSourceID().getSourceID();
             if (cmp == 0) {
-                if (h1.getDomId() < h2.getDomId()) {
+                if (h1.getDOMID() < h2.getDOMID()) {
                     return -1;
-                } else if (h1.getDomId() > h2.getDomId()) {
+                } else if (h1.getDOMID() > h2.getDOMID()) {
                     return 1;
                 }
             }

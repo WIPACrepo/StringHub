@@ -1,6 +1,7 @@
 package icecube.daq.sender;
 
 import icecube.daq.io.OutputChannel;
+import icecube.daq.payload.IManagedObject;
 import icecube.daq.payload.IReadoutRequest;
 import icecube.daq.payload.ISourceID;
 import icecube.daq.payload.PayloadException;
@@ -22,7 +23,8 @@ import java.util.List;
  */
 public class ReadoutRequestHandler implements RequestHandler
 {
-    private static Logger logger = Logger.getLogger(ReadoutRequestHandler.class);
+    private static Logger logger =
+        Logger.getLogger(ReadoutRequestHandler.class);
 
     /** Maintains diagnostic counters for the sender subsystem. */
     private final SenderCounters counters;
@@ -149,7 +151,7 @@ public class ReadoutRequestHandler implements RequestHandler
                 }
                 finally
                 {
-                    req.recycle();
+                    ((IManagedObject) req).recycle();
                 }
             }
         }
@@ -220,11 +222,6 @@ public class ReadoutRequestHandler implements RequestHandler
                 throws PayloadException
         {
             return 0;
-        }
-
-        @Override
-        public void recycle()
-        {
         }
 
         @Override

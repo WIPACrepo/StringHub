@@ -32,15 +32,15 @@ public class DaqBufferRecordReader extends TypeCodeRecordReader
 
     protected DaqBufferRecordReader(){}
 
-    public long getDOMId(final ByteBuffer buffer)
+    public long getDOMID(final ByteBuffer buffer)
     {
         return buffer.getLong(DOM_ID_OFFSET);
     }
-    public long getDOMId(final ByteBuffer buffer, final int offset)
+    public long getDOMID(final ByteBuffer buffer, final int offset)
     {
         return buffer.getLong(offset + DOM_ID_OFFSET);
     }
-    public long getDOMId(final RecordBuffer buffer, final int offset)
+    public long getDOMID(final RecordBuffer buffer, final int offset)
     {
         return buffer.getLong(offset + DOM_ID_OFFSET);
     }

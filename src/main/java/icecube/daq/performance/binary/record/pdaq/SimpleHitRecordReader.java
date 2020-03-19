@@ -78,15 +78,15 @@ public class SimpleHitRecordReader extends TypeCodeRecordReader implements UTCRe
         return buffer.getInt(offset + 24);
     }
 
-    public long getDomId(final ByteBuffer buffer)
+    public long getDOMID(final ByteBuffer buffer)
     {
         return buffer.getLong(28);
     }
-    public long getDomId(final ByteBuffer buffer, final int offset)
+    public long getDOMID(final ByteBuffer buffer, final int offset)
     {
         return buffer.getLong(offset + 28);
     }
-    public long getDomId(final RecordBuffer buffer, final int offset)
+    public long getDOMID(final RecordBuffer buffer, final int offset)
     {
         return buffer.getLong(offset + 28);
     }

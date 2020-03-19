@@ -58,7 +58,7 @@ public interface DomHitConverter
         {
             long utc = recordReader.getUTC(buffer);
             short triggerMode = recordReader.getTriggerMode(buffer);
-            long domId = recordReader.getDOMId(buffer);
+            long domId = recordReader.getDOMID(buffer);
             int configID = 0; //unused
             try
             {
@@ -102,7 +102,7 @@ public interface DomHitConverter
         {
             final long utc = recordReader.getUTC(buffer);
             final short triggerMode = recordReader.getTriggerMode(buffer);
-            final long domId = recordReader.getDOMId(buffer);
+            final long domId = recordReader.getDOMID(buffer);
 
             final short channelId = registry.getChannelId(domId);
             try

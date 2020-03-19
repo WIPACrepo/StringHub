@@ -3,7 +3,7 @@ package icecube.daq.stringhub.test;
 import icecube.daq.payload.IDOMID;
 
 public class MockDOMID
-    implements IDOMID
+    implements IDOMID, Comparable
 {
     private long domId;
 
@@ -12,6 +12,7 @@ public class MockDOMID
         this.domId = domId;
     }
 
+    @Override
     public int compareTo(Object obj)
     {
         if (obj == null) {
@@ -43,12 +44,6 @@ public class MockDOMID
     }
 
     @Override
-    public long longValue()
-    {
-        return domId;
-    }
-
-    @Override
     public int hashCode()
     {
         final long modValue = Integer.MAX_VALUE / 256;
@@ -57,6 +52,12 @@ public class MockDOMID
 
         return (int) (topTwo / modValue) + (int) (topTwo % modValue) +
             (int) (domId % modValue);
+    }
+
+    @Override
+    public long longValue()
+    {
+        return domId;
     }
 
     @Override

@@ -72,7 +72,7 @@ public class DeltaCompressedHitRecordReaderTest
         /// test reading the record from a byte buffer w/out offset
         assertEquals(DUMMY_LENGTH, subject.getLength(dummy));
         assertEquals(DUMMY_TYPE, subject.getTypeId(dummy));
-        assertEquals(DUMMY_MBID, subject.getDOMId(dummy));
+        assertEquals(DUMMY_MBID, subject.getDOMID(dummy));
         assertEquals(DUMMY_PADDING, subject.getPadding(dummy));
         assertEquals(DUMMY_UTC, subject.getUTC(dummy));
         assertEquals(DUMMY_BOMARK, subject.getByteOrderMark(dummy));
@@ -90,7 +90,7 @@ public class DeltaCompressedHitRecordReaderTest
         dummy.position(dummy.limit());
         assertEquals(DUMMY_LENGTH, subject.getLength(dummy));
         assertEquals(DUMMY_TYPE, subject.getTypeId(dummy));
-        assertEquals(DUMMY_MBID, subject.getDOMId(dummy));
+        assertEquals(DUMMY_MBID, subject.getDOMID(dummy));
         assertEquals(DUMMY_PADDING, subject.getPadding(dummy));
         assertEquals(DUMMY_UTC, subject.getUTC(dummy));
         assertEquals(DUMMY_BOMARK, subject.getByteOrderMark(dummy));
@@ -115,7 +115,7 @@ public class DeltaCompressedHitRecordReaderTest
 
         assertEquals(DUMMY_LENGTH, subject.getLength(larger, offset));
         assertEquals(DUMMY_TYPE, subject.getTypeId(larger, offset));
-        assertEquals(DUMMY_MBID, subject.getDOMId(larger, offset));
+        assertEquals(DUMMY_MBID, subject.getDOMID(larger, offset));
         assertEquals(DUMMY_PADDING, subject.getPadding(larger, offset));
         assertEquals(DUMMY_UTC, subject.getUTC(larger, offset));
         assertEquals(DUMMY_BOMARK, subject.getByteOrderMark(larger, offset));
@@ -141,7 +141,7 @@ public class DeltaCompressedHitRecordReaderTest
 
         assertEquals(DUMMY_LENGTH, subject.getLength(rb, 0));
         assertEquals(DUMMY_TYPE, subject.getTypeId(rb, 0));
-        assertEquals(DUMMY_MBID, subject.getDOMId(rb, 0));
+        assertEquals(DUMMY_MBID, subject.getDOMID(rb, 0));
         assertEquals(DUMMY_PADDING, subject.getPadding(rb, 0));
         assertEquals(DUMMY_UTC, subject.getUTC(rb, 0));
         assertEquals(DUMMY_BOMARK, subject.getByteOrderMark(rb, 0));
@@ -172,7 +172,7 @@ public class DeltaCompressedHitRecordReaderTest
 
         assertEquals(DUMMY_LENGTH, subject.getLength(rb, offset));
         assertEquals(DUMMY_TYPE, subject.getTypeId(rb, offset));
-        assertEquals(DUMMY_MBID, subject.getDOMId(rb, offset));
+        assertEquals(DUMMY_MBID, subject.getDOMID(rb, offset));
         assertEquals(DUMMY_PADDING, subject.getPadding(rb, offset));
         assertEquals(DUMMY_UTC, subject.getUTC(rb, offset));
         assertEquals(DUMMY_BOMARK, subject.getByteOrderMark(rb, offset));
@@ -222,7 +222,7 @@ public class DeltaCompressedHitRecordReaderTest
 
             assertEquals(standard.length(), subject.getLength(buffer));
             assertEquals(3, subject.getTypeId(buffer));
-            assertEquals(standard.getDomId(), subject.getDOMId(buffer));
+            assertEquals(standard.getDOMID(), subject.getDOMID(buffer));
 //            assertEquals(subject.getPadding(buffer), ); //not exposed
             assertEquals(standard.getUTCTime(), subject.getUTC(buffer));
             assertEquals(0x01, subject.getByteOrderMark(buffer));

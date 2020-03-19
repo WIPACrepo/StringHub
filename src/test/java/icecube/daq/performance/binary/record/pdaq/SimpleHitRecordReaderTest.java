@@ -64,7 +64,7 @@ public class SimpleHitRecordReaderTest
         assertEquals(DUMMY_TRIGGER_TYPE, subject.getTriggerType(dummy));
         assertEquals(DUMMY_CONFIG_ID, subject.getConfigId(dummy));
         assertEquals(DUMMY_SOURCE_ID, subject.getSourceId(dummy));
-        assertEquals(DUMMY_MBID, subject.getDomId(dummy));
+        assertEquals(DUMMY_MBID, subject.getDOMID(dummy));
         assertEquals(DUMMY_TRIGGER_MODE, subject.getTriggerMode(dummy));
     }
 
@@ -83,7 +83,7 @@ public class SimpleHitRecordReaderTest
         assertEquals(DUMMY_TRIGGER_TYPE, subject.getTriggerType(buf, OFFSET));
         assertEquals(DUMMY_CONFIG_ID, subject.getConfigId(buf, OFFSET));
         assertEquals(DUMMY_SOURCE_ID, subject.getSourceId(buf, OFFSET));
-        assertEquals(DUMMY_MBID, subject.getDomId(buf, OFFSET));
+        assertEquals(DUMMY_MBID, subject.getDOMID(buf, OFFSET));
         assertEquals(DUMMY_TRIGGER_MODE, subject.getTriggerMode(buf, OFFSET));
     }
 
@@ -98,7 +98,7 @@ public class SimpleHitRecordReaderTest
         assertEquals(DUMMY_TRIGGER_TYPE, subject.getTriggerType(rb, 0));
         assertEquals(DUMMY_CONFIG_ID, subject.getConfigId(rb, 0));
         assertEquals(DUMMY_SOURCE_ID, subject.getSourceId(rb, 0));
-        assertEquals(DUMMY_MBID, subject.getDomId(rb, 0));
+        assertEquals(DUMMY_MBID, subject.getDOMID(rb, 0));
         assertEquals(DUMMY_TRIGGER_MODE, subject.getTriggerMode(rb, 0));
     }
 
@@ -119,7 +119,7 @@ public class SimpleHitRecordReaderTest
         assertEquals(DUMMY_TRIGGER_TYPE, subject.getTriggerType(rb, OFFSET));
         assertEquals(DUMMY_CONFIG_ID, subject.getConfigId(rb, OFFSET));
         assertEquals(DUMMY_SOURCE_ID, subject.getSourceId(rb, OFFSET));
-        assertEquals(DUMMY_MBID, subject.getDomId(rb, OFFSET));
+        assertEquals(DUMMY_MBID, subject.getDOMID(rb, OFFSET));
         assertEquals(DUMMY_TRIGGER_MODE, subject.getTriggerMode(rb, OFFSET));
     }
 

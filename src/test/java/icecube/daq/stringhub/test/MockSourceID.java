@@ -1,11 +1,10 @@
 package icecube.daq.stringhub.test;
 
 import icecube.daq.payload.ISourceID;
-import icecube.daq.payload.Poolable;
 import icecube.daq.payload.SourceIdRegistry;
 
 public class MockSourceID
-    implements ISourceID, Poolable
+    implements ISourceID
 {
     private int id;
 
@@ -32,32 +31,10 @@ public class MockSourceID
         return new MockSourceID(id);
     }
 
-    /**
-     * Object is able to dispose of itself.
-     * This means it is able to return itself to the pool from
-     * which it came.
-     */
-    @Override
-    public void dispose()
-    {
-        // do nothing
-    }
-
     @Override
     public boolean equals(Object obj)
     {
         return compareTo(obj) == 0;
-    }
-
-    /**
-     * Get an object from the pool in a non-static context.
-     *
-     * @return object of this type from the object pool.
-     */
-    @Override
-    public Poolable getPoolable()
-    {
-        return new MockSourceID(-1);
     }
 
     @Override
@@ -70,15 +47,6 @@ public class MockSourceID
     public int hashCode()
     {
         return id;
-    }
-
-    /**
-     * Object knows how to recycle itself
-     */
-    @Override
-    public void recycle()
-    {
-        // do nothing
     }
 
     /**

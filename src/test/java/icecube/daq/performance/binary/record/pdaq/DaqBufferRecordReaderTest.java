@@ -58,7 +58,7 @@ public class DaqBufferRecordReaderTest
     {
         assertEquals(DUMMY_LENGTH, subject.getLength(dummy));
         assertEquals(DUMMY_TYPE_ID, subject.getTypeId(dummy));
-        assertEquals(DUMMY_MBID, subject.getDOMId(dummy));
+        assertEquals(DUMMY_MBID, subject.getDOMID(dummy));
         assertEquals(DUMMY_PADDING, subject.getPadding(dummy));
         assertEquals(DUMMY_UTC, subject.getUTC(dummy));
     }
@@ -74,7 +74,7 @@ public class DaqBufferRecordReaderTest
 
         assertEquals(DUMMY_LENGTH, subject.getLength(buf, OFFSET));
         assertEquals(DUMMY_TYPE_ID, subject.getTypeId(buf, OFFSET));
-        assertEquals(DUMMY_MBID, subject.getDOMId(buf, OFFSET));
+        assertEquals(DUMMY_MBID, subject.getDOMID(buf, OFFSET));
         assertEquals(DUMMY_PADDING, subject.getPadding(buf, OFFSET));
         assertEquals(DUMMY_UTC, subject.getUTC(buf, OFFSET));
     }
@@ -87,7 +87,7 @@ public class DaqBufferRecordReaderTest
 
         assertEquals(DUMMY_LENGTH, subject.getLength(rb, 0));
         assertEquals(DUMMY_TYPE_ID, subject.getTypeId(rb, 0));
-        assertEquals(DUMMY_MBID, subject.getDOMId(rb, 0));
+        assertEquals(DUMMY_MBID, subject.getDOMID(rb, 0));
         assertEquals(DUMMY_PADDING, subject.getPadding(rb, 0));
         assertEquals(DUMMY_UTC, subject.getUTC(rb, 0));
     }
@@ -105,7 +105,7 @@ public class DaqBufferRecordReaderTest
 
         assertEquals(DUMMY_LENGTH, subject.getLength(rb, OFFSET));
         assertEquals(DUMMY_TYPE_ID, subject.getTypeId(rb, OFFSET));
-        assertEquals(DUMMY_MBID, subject.getDOMId(rb, OFFSET));
+        assertEquals(DUMMY_MBID, subject.getDOMID(rb, OFFSET));
         assertEquals(DUMMY_PADDING, subject.getPadding(rb, OFFSET));
         assertEquals(DUMMY_UTC, subject.getUTC(rb, OFFSET));
     }

@@ -1,7 +1,7 @@
 package icecube.daq.sender;
 
 import icecube.daq.io.PushStreamReader;
-import icecube.daq.payload.ILoadablePayload;
+import icecube.daq.payload.IPayload;
 import icecube.daq.payload.IReadoutRequest;
 import icecube.daq.payload.impl.ReadoutRequestFactory;
 
@@ -59,7 +59,7 @@ public class RequestReader
         }
 
         try {
-            ((ILoadablePayload) pay).loadPayload();
+            ((IPayload) pay).loadPayload();
         } catch (Exception ex) {
             LOG.error("Cannot load readout request", ex);
             throw new IOException("Cannot load readout request");

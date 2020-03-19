@@ -34,31 +34,25 @@ if(DEBUG)System.err.println("ALO*"+bytes+"(#"+bufsAlloc+"*"+bytesAlloc+")");
     }
 
     @Override
-    public void flush()
-    {
-        throw new Error("Unimplemented");
-    }
-
-    @Override
-    public int getCurrentAquiredBuffers()
+    public int getCurrentAcquiredBuffers()
     {
         return bufsAlloc;
     }
 
     @Override
-    public long getCurrentAquiredBytes()
+    public long getCurrentAcquiredBytes()
     {
         return bytesAlloc;
     }
 
     @Override
-    public boolean getIsCacheBounded()
+    public boolean isCacheBounded()
     {
         return maxBytesAlloc > 0;
     }
 
     @Override
-    public long getMaxAquiredBytes()
+    public long getMaxAcquiredBytes()
     {
         return maxBytesAlloc;
     }
@@ -97,12 +91,6 @@ if(DEBUG)System.err.println("ALO*"+bytes+"(#"+bufsAlloc+"*"+bytesAlloc+")");
     public boolean isBalanced()
     {
         return bufsAlloc == 0;
-    }
-
-    @Override
-    public void receiveByteBuffer(ByteBuffer buf)
-    {
-        throw new Error("Unimplemented");
     }
 
     @Override

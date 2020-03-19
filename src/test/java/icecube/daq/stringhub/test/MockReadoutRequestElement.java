@@ -43,13 +43,7 @@ public class MockReadoutRequestElement
     }
 
     @Override
-    public void dispose()
-    {
-        // do nothing
-    }
-
-    @Override
-    public IDOMID getDomID()
+    public IDOMID getDOMID()
     {
         return domId;
     }
