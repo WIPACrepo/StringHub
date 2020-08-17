@@ -930,6 +930,16 @@ public class StringHubComponent
     }
 
 	/**
+	 * Set the DOM mode inside this component.
+	 *
+	 * @param domMode either DOMMODE_NORMAL or DOMMODE_EXTENDED
+	 */
+	public void setDOMMode(int domMode)
+	{
+		logger.error("XXX UNIMPLEMENTED");
+	}
+
+	/**
      * Set the run number inside this component.
      *
      * @param runNumber run number
@@ -956,13 +966,14 @@ public class StringHubComponent
 	 * Tell DOMs to start up.
 	 */
 	@Override
-	public void starting(int runNumber)
+	public void starting(int runNumber, int domMode)
 		throws DAQCompException
 	{
         trace.startTrace(trace.narrowCollectors(conn.getCollectors()),
                 sender.getMonitor(), this);
 
         setRunNumber(runNumber);
+        setDOMMode(domMode);
 
 		logger.info("StringHub is starting the run.");
 
@@ -1159,7 +1170,7 @@ public class StringHubComponent
 	@Override
 	public String getVersionInfo()
 	{
-		return "$Id: StringHubComponent.java 17123 2018-10-01 22:09:41Z dglo $";
+		return "$Id: StringHubComponent.java 17851 2020-08-17 22:20:12Z dglo $";
 	}
 
 	public IByteBufferCache getCache()

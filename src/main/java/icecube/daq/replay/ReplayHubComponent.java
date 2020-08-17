@@ -788,7 +788,7 @@ public class ReplayHubComponent
      * @throws DAQCompException if there is a problem
      */
     @Override
-    public void starting(int runNumber)
+    public void starting(int runNumber, int domMode)
         throws DAQCompException
     {
         sender.startup();

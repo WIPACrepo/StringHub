@@ -36,7 +36,7 @@ public class TestShell
 
 		comp.setGlobalConfigurationDir(args[iarg++]);
         comp.configuring(args[iarg++]);
-        comp.starting(0);
+        comp.starting(0, StringHubComponent.DOMMODE_NORMAL);
         Thread.sleep(5000);
         comp.stopping();
 
